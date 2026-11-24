@@ -92,7 +92,7 @@ export function credentialPaths(
 
   if (!certPath) {
     throw new ConfigurationError(
-      `Falta la ruta del certificado para ${formatEnvironmentLabel(environment)}. Configurá \`cert.${environment}\`.`,
+      `Falta la ruta del certificado para ${formatEnvironmentLabel(environment)}. Configurala con \`arcli config establecer cert.${environment} <ruta>\`.`,
     );
   }
 
@@ -100,7 +100,7 @@ export function credentialPaths(
 
   if (!keyPath) {
     throw new ConfigurationError(
-      `Falta la ruta de la clave privada para ${formatEnvironmentLabel(environment)}. Configurá \`key.${environment}\`.`,
+      `Falta la ruta de la clave privada para ${formatEnvironmentLabel(environment)}. Configurala con \`arcli config establecer key.${environment} <ruta>\`.`,
     );
   }
 

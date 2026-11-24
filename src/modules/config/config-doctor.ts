@@ -189,7 +189,7 @@ export function buildConfigDoctorReport(
       okDetail: 'Certificado y clave de testing configurados.',
       value: 'testing',
       warningDetail:
-        'Faltan el certificado y la clave de testing: sacalos con `arcli certificado generar --testing`, o configurá "cert.testing" y "key.testing".',
+        'Faltan el certificado y la clave de testing: sacalos con `arcli certificado generar --testing`, o configurá `cert.testing` y `key.testing`.',
     },
     {
       label: 'Credenciales producción',
@@ -198,7 +198,7 @@ export function buildConfigDoctorReport(
       okDetail: 'Certificado y clave de producción configurados.',
       value: 'producción',
       warningDetail:
-        'Todavía no hay certificado de producción: sacalo con `arcli certificado generar --produccion`, o configurá "cert.produccion" y "key.produccion".',
+        'Todavía no hay certificado de producción: sacalo con `arcli certificado generar --produccion`, o configurá `cert.produccion` y `key.produccion`.',
     },
   ];
 
@@ -251,7 +251,7 @@ export function buildConfigDoctorReport(
           }
         : {
             category: 'warning',
-            detail: `Para WSFEX en ${formatEnvironmentLabel(environment)} configurá "exportacion.cert.${environment}" y "exportacion.key.${environment}" juntos.`,
+            detail: `Para WSFEX en ${formatEnvironmentLabel(environment)} configurá \`exportacion.cert.${environment}\` y \`exportacion.key.${environment}\` juntos.`,
             label: 'Credenciales WSFEX',
             section: 'certificados',
           },

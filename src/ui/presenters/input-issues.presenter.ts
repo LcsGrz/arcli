@@ -1,6 +1,5 @@
 import { HELP_SUGGESTION } from '../../lib/errors/app-error';
 import type { InputIssue } from '../../lib/errors/input-issue';
-import { saysWhatToDo } from '../../lib/text/says-what-to-do';
 import { errorPanel } from '../components/errorPanel';
 import { renderJson } from '../primitives/renderJson';
 import { bold } from '../primitives/text';
@@ -26,12 +25,7 @@ export function formatInputIssues(
   }
 
   if (options.message) {
-    return errorPanel(
-      'Error de entrada',
-      options.message,
-      [],
-      options.suggestion ?? (saysWhatToDo(options.message) ? undefined : HELP_SUGGESTION),
-    );
+    return errorPanel('Error de entrada', options.message, [], options.suggestion ?? HELP_SUGGESTION);
   }
 
   return errorPanel(

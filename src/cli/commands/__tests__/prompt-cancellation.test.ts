@@ -14,6 +14,7 @@ import {
 } from '../../../modules/export/export.types';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
+import { reportCliError } from '../../error-output';
 import { registerGlobalOptions } from '../../global-options';
 import { listSelect } from '../../interactive/list-select';
 import {
@@ -135,9 +136,9 @@ function runtime(config: Record<string, unknown> = {}): CliArcaRuntime {
 
 async function runBilling(
   args: readonly string[],
-  options: { config?: Record<string, unknown>; shortcut?: VoucherShortcut } = {},
+  options: { config?: Record<string, unknown>; gateways?: BillingCommandGateways; shortcut?: VoucherShortcut } = {},
 ): Promise<BillingCommandGateways> {
-  const used = billingGateways();
+  const used = options.gateways ?? billingGateways();
   const shortcut = options.shortcut ?? 'fc';
   const command = new Command(shortcut);
 
@@ -155,9 +156,9 @@ async function runBilling(
 
 async function runExport(
   args: readonly string[],
-  options: { config?: Record<string, unknown>; kind?: ExportVoucherKind } = {},
+  options: { config?: Record<string, unknown>; gateway?: ExportGateway; kind?: ExportVoucherKind } = {},
 ): Promise<ExportGateway> {
-  const used = exportGateway();
+  const used = options.gateway ?? exportGateway();
   const voucherKind = options.kind ?? EXPORT_VOUCHER_KIND;
   const command = new Command(voucherKind.shortcut);
 
@@ -171,6 +172,27 @@ async function runExport(
   );
 
   return used;
+}
+
+/** Termina como `index.ts`: con error no pasa por el `.then` que muestra el panel de actualizacion. */
+async function expectCancelled(run: Promise<unknown>): Promise<void> {
+  let stderr = '';
+  const write = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+    stderr += String(chunk);
+
+    return true;
+  });
+  const error: unknown = await run.then(
+    () => undefined,
+    (reason: unknown) => reason,
+  );
+
+  expect(error).toBeInstanceOf(Error);
+  expect(reportCliError(error, false)).toBe(1);
+  expect(stripAnsi(stderr).replace(/[│┃╏\s]+/g, ' ')).toContain(CANCELLED);
+  expect(stripAnsi(stderr)).toContain('┌');
+  expect(printed()).not.toContain('Cancelado');
+  write.mockRestore();
 }
 
 const BILLING = ['-m', '1000', '--cs', '--cfinal'];
@@ -232,18 +254,16 @@ describe('Ctrl+C en "¿Emitimos?": no se emitió nada y sale con 1', () => {
     ['recibo C', 'rc', BILLING],
     ['nota de crédito C', 'ncc', [...BILLING, '--periodo-desde', 'mes-pasado', '--periodo-hasta', 'hoy']],
   ])('%s', async (_name, shortcut, args) => {
-    const used = await runBilling(args, { shortcut });
+    const used = billingGateways();
 
-    expect(printed()).toContain(CANCELLED);
-    expect(process.exitCode).toBe(1);
+    await expectCancelled(runBilling(args, { gateways: used, shortcut }));
     expect(used.billing.createVoucher).not.toHaveBeenCalled();
   });
 
   it('lote', async () => {
-    const used = await runBilling(['--cargar', batchFile()]);
+    const used = billingGateways();
 
-    expect(printed()).toContain(CANCELLED);
-    expect(process.exitCode).toBe(1);
+    await expectCancelled(runBilling(['--cargar', batchFile()], { gateways: used }));
     expect(used.billing.createVoucher).not.toHaveBeenCalled();
   });
 
@@ -251,10 +271,9 @@ describe('Ctrl+C en "¿Emitimos?": no se emitió nada y sale con 1', () => {
     ['factura E', EXPORT_VOUCHER_KIND, EXPORT],
     ['nota de crédito E', EXPORT_CREDIT_NOTE_KIND, ['-m', '500', '--ar', '1']],
   ])('%s', async (_name, kind, args) => {
-    const used = await runExport(args, { kind });
+    const used = exportGateway();
 
-    expect(printed()).toContain(CANCELLED);
-    expect(process.exitCode).toBe(1);
+    await expectCancelled(runExport(args, { gateway: used, kind }));
     expect(used.authorize).not.toHaveBeenCalled();
   });
 

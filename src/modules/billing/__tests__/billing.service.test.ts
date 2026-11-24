@@ -269,7 +269,9 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow('El comprobante asociado de la nota de crédito B está incompleto: le falta el número (`--ar`).');
+    ).toThrow(
+      'Falta el número del comprobante asociado de la nota de crédito B. Usá `--ar <número>`, o un período con `--periodo-desde` y `--periodo-hasta` en vez del comprobante.',
+    );
   });
 
   it('includes associated voucher data when provided', () => {

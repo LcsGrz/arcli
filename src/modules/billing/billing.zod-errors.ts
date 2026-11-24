@@ -3,6 +3,7 @@ import type { ZodError } from 'zod';
 import type { InputIssue } from '../../lib/errors/input-issue';
 
 import { BILLING_JSON_KEY_BY_INTERNAL_KEY } from './billing.json-input';
+import { INVALID_POINT_OF_SALE_MESSAGE } from './billing.schemas';
 
 const ZOD_PATH_LABELS: Record<string, string> = {
   associatedPeriod: 'período asociado',
@@ -46,6 +47,10 @@ function humanizeZodIssue(issue: ZodError['issues'][number], label: string): str
   if (issue.code === 'too_small' && typeof issue.minimum === 'number') {
     if (formatZodIssuePath(issue.path) === 'totalAmount') {
       return 'El monto debe ser mayor a 0.';
+    }
+
+    if (formatZodIssuePath(issue.path) === 'pointOfSale') {
+      return INVALID_POINT_OF_SALE_MESSAGE;
     }
 
     return `${label[0]?.toUpperCase() ?? ''}${label.slice(1)} debe ser mayor a ${issue.minimum}.`;

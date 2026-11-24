@@ -1,6 +1,5 @@
 import { AppError, HELP_SUGGESTION } from '../../lib/errors/app-error';
 import { ISSUES_URL } from '../../lib/links';
-import { saysWhatToDo } from '../../lib/text/says-what-to-do';
 import { normalizeSearchText } from '../../lib/text/search';
 import { errorPanel } from '../components/errorPanel';
 import { renderJson } from '../primitives/renderJson';
@@ -39,16 +38,13 @@ function formatInterruptedBatchHint(details: Record<string, unknown> = {}): stri
   const { fallo, procesados, sinConfirmar, sinProcesar } = details;
   const uncertain = sinConfirmar !== undefined;
   const pending = Array.isArray(sinProcesar) && sinProcesar.length > 0;
-
-  if (!procesados && !uncertain) {
-    return `No se procesó ninguno. Antes de reintentar, verificá con \`arcli ultimos\` que el #${String(fallo)} no se haya emitido: si no figura, resolvé el error y volvé a correr el lote completo.`;
-  }
-
   const steps = [
     ...(procesados ? ['Los procesados con CAE ya se emitieron: no los vuelvas a cargar.'] : []),
     ...(uncertain
       ? []
-      : [`Antes de reintentar el #${String(fallo)}, verificá con \`arcli ultimos\` que no se haya emitido.`]),
+      : [
+          `Antes de reintentar el #${String(fallo)}, fijate que no figure emitido con \`arcli ultimos <tipo> --pv <n>\`, en el mismo entorno.`,
+        ]),
     ...(pending ? ['Después reintentá los que quedaron sin procesar.'] : []),
   ];
 
@@ -62,11 +58,9 @@ function formatErrorHint(error: AppError): string | null {
 
   switch (error.code) {
     case 'CONFIGURATION_ERROR':
-      return saysWhatToDo(error.message)
-        ? null
-        : 'Revisá la configuración con `arcli config` o corré `arcli config revisar`.';
+      return 'Revisá la configuración con `arcli config` o corré `arcli config revisar`.';
     case 'INPUT_VALIDATION_ERROR':
-      return saysWhatToDo(error.message) ? null : HELP_SUGGESTION;
+      return HELP_SUGGESTION;
     case 'BATCH_VALIDATION_ERROR':
       return 'Corregí esos comprobantes en el archivo y volvé a correr el lote completo.';
     case 'BATCH_EMISSION_ERROR':

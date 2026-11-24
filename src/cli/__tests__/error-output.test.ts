@@ -95,7 +95,7 @@ describe('formatCliError con errores de zod', () => {
     expect(parsed.detalles).toContainEqual(expect.objectContaining({ ruta: ['ivaReceptor'] }));
   });
 
-  it('cae al mensaje original de zod cuando no hay una regla especial', () => {
+  it('un punto de venta negativo dice lo mismo que en las consultas', () => {
     const error = parseAndGetError({
       concept: 'servicios',
       ivaCondition: 'consumidor-final',
@@ -104,7 +104,7 @@ describe('formatCliError con errores de zod', () => {
       totalAmount: 100,
     });
 
-    expect(formatCliError(error, false)).toContain('Punto de venta debe ser mayor a');
+    expect(formatCliError(error, false)).toContain('El punto de venta tiene que ser un número entero positivo.');
   });
 
   it('traduce a la clave del JSON tambien los campos que solo usa el PDF', () => {
@@ -255,6 +255,7 @@ describe('Ctrl+C en una pregunta que nadie atrapó', () => {
 
     expect(code).toBe(1);
     expect(stderr).toContain('Cancelado.');
+    expect(stderr).toContain('┌');
     expect(stderr).not.toMatch(/emiti|inesperado|User force closed/i);
   });
 

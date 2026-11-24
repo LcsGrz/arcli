@@ -3,8 +3,9 @@ import { ZodError } from 'zod';
 
 import { AppError, HELP_SUGGESTION, InputIssuesError } from '../lib/errors/app-error';
 import { describeZodIssues } from '../modules/billing/billing.zod-errors';
-import { colorize, formatAppError, formatInputIssues, writeTerminalError, writeTerminalJsonError } from '../ui';
+import { formatAppError, formatInputIssues, noticePanel, writeTerminalError, writeTerminalJsonError } from '../ui';
 
+import { EmissionCancelledError } from './emission-cancelled';
 import { readJsonDefault } from './global-options';
 import { isPromptCancellation } from './interactive/prompts';
 
@@ -131,9 +132,11 @@ export function reportCliError(error: unknown, errorsAsJson: boolean): number {
 
   if (errorsAsJson) {
     writeTerminalJsonError(formatCliError(error, true));
+  } else if (error instanceof EmissionCancelledError) {
+    writeTerminalError(() => noticePanel(error.message, 'muted'));
   } else if (isPromptCancellation(error)) {
     // Ctrl+C en una pregunta que el comando no atrapo: aca no se sabe si ya se emitio algo, asi que no se dice.
-    writeTerminalError(() => colorize('Cancelado.', 'muted'));
+    writeTerminalError(() => noticePanel('Cancelado.', 'muted'));
   } else {
     writeTerminalError(() => formatCliError(error, false));
   }

@@ -111,6 +111,9 @@ function billingAmountSchema(label: string) {
   });
 }
 
+/** Un punto de venta en cero o negativo: lo mismo al facturar, en la E y en las consultas. */
+export const INVALID_POINT_OF_SALE_MESSAGE = 'El punto de venta tiene que ser un número entero positivo.';
+
 /** El mensaje del punto de venta fuera de rango, igual en la entrada y en la config. */
 export function describePointOfSaleOutOfRange(label: string, value: unknown, code: number): string {
   return `${label} va de 1 a ${MAX_WSFE_POINT_OF_SALE}: ARCA rechaza ${String(value)} (error ${code}).`;

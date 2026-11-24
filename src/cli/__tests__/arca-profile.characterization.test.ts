@@ -181,7 +181,7 @@ describe('rutas del certificado y la clave', () => {
     expect(() => resolveArcaRuntime({})).toThrow(
       expect.objectContaining({
         code: 'CONFIGURATION_ERROR',
-        message: `Falta la ruta del certificado para ${formatEnvironmentLabel(environment)}. Configurá \`cert.${environment}\`.`,
+        message: `Falta la ruta del certificado para ${formatEnvironmentLabel(environment)}. Configurala con \`arcli config establecer cert.${environment} <ruta>\`.`,
       }),
     );
   });
@@ -192,7 +192,8 @@ describe('rutas del certificado y la clave', () => {
     expect(() => resolveArcaRuntime({})).toThrow(
       expect.objectContaining({
         code: 'CONFIGURATION_ERROR',
-        message: 'Falta la ruta de la clave privada para testing. Configurá `key.testing`.',
+        message:
+          'Falta la ruta de la clave privada para testing. Configurala con `arcli config establecer key.testing <ruta>`.',
       }),
     );
   });

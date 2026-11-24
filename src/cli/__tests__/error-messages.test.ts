@@ -1,9 +1,9 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AppError, ConfigurationError, InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
+import { AppError, ConfigurationError, InputValidationError } from '../../lib/errors/app-error';
 import { stripAnsi } from '../../ui';
 import { formatCliError, reportCliError } from '../error-output';
 import { createProgram } from '../program';
@@ -92,45 +92,25 @@ afterEach(() => {
   rmSync(directory, { force: true, recursive: true });
 });
 
-describe('la sugerencia del panel (H12)', () => {
-  const HELP = 'arcli ayuda';
-
-  it.each<[string, unknown]>([
-    ['--testing y --produccion', new ConfigurationError('Usá `--testing` o `--produccion`, pero no ambos a la vez.')],
-    [
-      'un CUIT que falta',
-      new ConfigurationError('Falta el CUIT. Configuralo con `arcli config establecer cuit <valor>`.'),
-    ],
-    ['un flag de más', new InputValidationError('Sacá `--acuit` o usá ese CUIT.')],
-    ['un problema del esquema', new InputIssuesError('La fecha no es válida. Usá dd/mm/aaaa.', [])],
-  ])('%s: el mensaje ya dice qué hacer y no se suma otra', (_name, error) => {
-    expect(plain(formatCliError(error, false))).not.toContain('Sugerencia');
+describe('la sugerencia del panel', () => {
+  it.each([
+    [new InputValidationError('Sacá `--acuit` o usá ese CUIT.'), 'arcli ayuda'],
+    [new ConfigurationError('Falta el CUIT.'), 'arcli config revisar'],
+  ])('entrada y config suman la de siempre', (error, hint) => {
+    expect(plain(formatCliError(error, false))).toContain(hint);
     expect(JSON.parse(formatCliError(error, true))).toMatchObject({ sugerencia: null });
   });
 
-  it.each<[string, unknown, string]>([
-    ['entrada', new InputValidationError('El CUIT "1" no es válido: le faltan dígitos.'), HELP],
-    ['lote vacío', new InputValidationError('El JSON de `--cargar` es un lote vacío.'), HELP],
-    ['está no es una orden', new InputValidationError('La moneda XXX no está en la tabla de ARCA.'), HELP],
-    ['config', new ConfigurationError('El archivo `config.json` está dañado.'), 'arcli config revisar'],
-  ])('%s: si el mensaje no lo dice, queda la de siempre', (_name, error, hint) => {
-    expect(plain(formatCliError(error, false))).toContain(hint);
-  });
+  it.each([
+    ['cert', {}, 'Falta la ruta del certificado para producción.'],
+    ['key', { cert: { produccion: 'x.crt' } }, 'Falta la ruta de la clave privada para producción.'],
+  ])('la ruta que falta trae el comando para configurarla: %s', async (key, config, message) => {
+    const { credentialPaths } = await import('../../modules/config/arca-profile');
+    const { arcliConfigSchema } = await import('../../modules/config/config.schemas');
 
-  it('--testing y --produccion, por el comando real', async () => {
-    const original = await vi.importActual<typeof import('../arca-runtime')>('../arca-runtime');
-    let thrown: unknown;
-
-    writeFileSync(join(directory, 'config.json'), '{}');
-
-    try {
-      original.resolveArcaRuntime({ produccion: true, testing: true });
-    } catch (error) {
-      thrown = error;
-    }
-
-    expect(thrown).toMatchObject({ code: 'CONFIGURATION_ERROR' });
-    expect(plain(formatCliError(thrown, false))).not.toContain('Sugerencia');
+    expect(() => credentialPaths(arcliConfigSchema.parse(config), 'produccion')).toThrow(
+      `${message} Configurala con \`arcli config establecer ${key}.produccion <ruta>\`.`,
+    );
   });
 
   it.each([
@@ -254,6 +234,20 @@ describe('una regla, un texto (H16 y H17)', () => {
   });
 });
 
+describe('`--pv 0` al facturar', () => {
+  it.each(['fc', 'ncc', 'fcea', 'rc'])(
+    '%s: el mismo texto que en las consultas, con la forma de siempre',
+    async (shortcut) => {
+      expect(await failingJson(shortcut, '-m', '1000', '--cs', '--cfinal', '--pv', '0', '--previsualizar')).toEqual({
+        codigo: 'INPUT_VALIDATION_ERROR',
+        detalles: [{ mensaje: 'El punto de venta tiene que ser un número entero positivo.', ruta: ['puntoVenta'] }],
+        error: 'Hay parámetros inválidos o incompletos en la entrada.',
+        sugerencia: null,
+      });
+    },
+  );
+});
+
 describe('formato (H19)', () => {
   it('los importes del error van como en el resto de la salida', async () => {
     const { error } = await failingJson(
@@ -270,16 +264,34 @@ describe('formato (H19)', () => {
 describe('al asociado le falta un dato (H20)', () => {
   const NOTE = ['-m', '1000', '--cs', '--pv', '3', '--previsualizar'];
 
-  it.each<[string, string[], string[], string]>([
-    ['el punto de venta', ['--cfinal'], ['--ac', 'fb', '--ar', '1'], 'le falta el punto de venta (`--apv`)'],
-    ['el número', ['--cfinal'], ['--ac', 'fb', '--apv', '3'], 'le falta el número (`--ar`)'],
-    ['el tipo', ['--cfinal'], ['--apv', '3', '--ar', '1'], 'le falta el tipo (`--ac` o `--at`)'],
-    ['dos datos', ['--cfinal'], ['--ac', 'fb'], 'le falta el punto de venta (`--apv`) y el número (`--ar`)'],
-  ])('%s', async (_name, receiver, associated, expected) => {
-    const json = await failingJson('ncb', ...NOTE, ...receiver, ...associated);
+  const PERIOD = ', o un período con `--periodo-desde` y `--periodo-hasta` en vez del comprobante.';
+
+  it.each<[string, string[], string]>([
+    ['el punto de venta', ['--ac', 'fb', '--ar', '1'], 'Falta el punto de venta'],
+    ['el número', ['--ac', 'fb', '--apv', '3'], 'Falta el número'],
+    ['el tipo', ['--apv', '3', '--ar', '1'], 'Falta el tipo'],
+    ['dos datos', ['--ac', 'fb'], 'Faltan el punto de venta y el número'],
+  ])('%s', async (name, associated, expected) => {
+    const use = {
+      'dos datos': '`--apv <número>` y `--ar <número>`',
+      'el número': '`--ar <número>`',
+      'el punto de venta': '`--apv <número>`',
+      'el tipo': '`--ac <tipo>`',
+    }[name];
+    const json = await failingJson('ncb', ...NOTE, '--cfinal', ...associated);
 
     expect(json).toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR', detalles: null, sugerencia: null });
-    expect(json.error).toBe(`El comprobante asociado de la nota de crédito B está incompleto: ${expected}.`);
+    expect(json.error).toBe(`${expected} del comprobante asociado de la nota de crédito B. Usá ${use}${PERIOD}`);
+  });
+
+  it('una nota FCE no ofrece el período: ARCA no lo acepta', async () => {
+    const json = await failingJson(
+      ...['ncea', '-m', '1000', '--cs', '--pv', '3', '--previsualizar'],
+      ...['--cuit', '20123456786', '--ir', 'responsable-inscripto', '--ac', 'fcea', '--apv', '3'],
+    );
+
+    expect(json.error).toContain('Usá `--ar <número>`.');
+    expect(json.error).not.toContain('período');
   });
 
   it('sin nada, pide el comprobante asociado como siempre', async () => {

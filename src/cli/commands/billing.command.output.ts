@@ -2,6 +2,7 @@ import { formatBillingResultAsJson, formatBillingResultAsText } from '../../modu
 import { serializeBillingBatch } from '../../modules/billing/billing.serialize';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
+import { MAX_RECENT_VOUCHERS } from '../../modules/vouchers/voucher-history';
 import { noticePanel, writeTerminalError, writeTerminalJson, writeTerminalOutput } from '../../ui';
 
 export function formatBillingOutputs(
@@ -64,25 +65,61 @@ export function writeBillingCommandResults(
   );
 }
 
+/** Numeros ordenados, con los seguidos juntos: `del 42 al 61`, `42 y 43` o `7, del 10 al 14`. */
+function formatNumberRuns(numbers: readonly number[]): string {
+  const runs: Array<{ from: number; to: number }> = [];
+
+  for (const number of [...numbers].sort((left, right) => left - right)) {
+    const last = runs.at(-1);
+
+    if (last && number === last.to + 1) {
+      last.to = number;
+    } else {
+      runs.push({ from: number, to: number });
+    }
+  }
+
+  const labels = runs.flatMap(({ from, to }) =>
+    to - from > 1 ? [`del ${from} al ${to}`] : from === to ? [String(from)] : [String(from), String(to)],
+  );
+
+  return labels.length > 1 ? `${labels.slice(0, -1).join(', ')} y ${labels.at(-1)}` : labels.join('');
+}
+
+/** Que se emitio en un punto de venta y con que verlo: con mas de los que lista `ultimos`, de a uno. */
+function formatEmittedGroup(group: readonly BillingExecutionResult[]): string {
+  const { environment, payload, voucherKind } = group[0];
+  const numbers = group.flatMap(({ voucherNumber }) => voucherNumber ?? []);
+  // Uno mas: el que corto el lote puede haberse emitido despues y correr la lista.
+  const quantity = Math.max(...numbers) - Math.min(...numbers) + 2;
+  const scope = `--pv ${payload.PtoVta}`;
+  const command =
+    quantity <= MAX_RECENT_VOUCHERS
+      ? `arcli ultimos ${voucherKind.shortcut} ${scope} --cantidad ${quantity} --${environment}`
+      : `arcli consultar ${voucherKind.shortcut} <número> ${scope} --${environment}`;
+
+  return `Se emitieron: ${voucherKind.shortcut} del punto de venta ${payload.PtoVta}, ${formatNumberRuns(numbers)}. Verificalos con \`${command}\`.`;
+}
+
 /**
- * Los ya procesados de un lote cortado que no se pudieron mostrar (por ejemplo, el disco lleno al redirigir la
- * salida): cuantos son y con que verlos, para que nadie los vuelva a cargar. Va a stderr, que es otra salida.
+ * Fallo la entrega de los ya procesados de un lote cortado (por ejemplo, la pregunta del PDF): cuales tienen CAE y con
+ * que verlos, para que nadie los vuelva a cargar. No cubre un fallo asincrono de la salida, como el disco lleno: eso
+ * corta el proceso despues.
  */
 export function writePartialResultsFailure(results: readonly BillingExecutionResult[]): void {
-  const commands = new Set(
-    results
-      .filter((result) => !result.dryRun)
-      .map(
-        ({ environment, payload, voucherKind }) =>
-          `\`arcli ultimos ${voucherKind.shortcut} --pv ${payload.PtoVta} --${environment}\``,
-      ),
-  );
+  const groups = new Map<number, BillingExecutionResult[]>();
+
+  for (const result of results) {
+    if (!result.dryRun && result.response.cae && result.voucherNumber !== undefined) {
+      groups.set(result.payload.PtoVta, [...(groups.get(result.payload.PtoVta) ?? []), result]);
+    }
+  }
+
   const subject =
     results.length === 1 ? 'del comprobante ya procesado' : `de los ${results.length} comprobantes ya procesados`;
-  const verify =
-    commands.size > 0 ? ` Antes de reintentar, mirá cuáles se emitieron con ${[...commands].join(' y ')}.` : '';
+  const lines = [`No se pudieron mostrar todos los datos ${subject}.`, ...[...groups.values()].map(formatEmittedGroup)];
 
-  writeTerminalError(() => noticePanel(`No se pudieron mostrar todos los datos ${subject}.${verify}`, 'warning'));
+  writeTerminalError(() => noticePanel(lines.join('\n'), 'warning'));
 }
 
 /** En texto el comprobante ya se mostro: solo se agrega lo que paso con el PDF y los avisos nuevos. */

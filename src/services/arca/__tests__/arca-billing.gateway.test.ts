@@ -31,7 +31,11 @@ describe('ArcaBillingGateway', () => {
       getQuotation: vi.fn(async () => Promise.reject(notAuthorized)),
     });
 
-    await expect(gateway.getNextVoucherNumber(3, 11)).rejects.toMatchObject({ code: 'WSFE_SERVICE_NOT_AUTHORIZED' });
+    // Nunca "No se emitió nada": en un lote puede haber emitidos, y este texto se cita en avisos.
+    await expect(gateway.getNextVoucherNumber(3, 11)).rejects.toMatchObject({
+      code: 'WSFE_SERVICE_NOT_AUTHORIZED',
+      message: 'El certificado no está autorizado para facturar (servicio wsfe).',
+    });
     await expect(gateway.getQuotation('DOL')).rejects.toMatchObject({ code: 'WSFE_SERVICE_NOT_AUTHORIZED' });
   });
 

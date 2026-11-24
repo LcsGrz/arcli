@@ -54,15 +54,18 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
 
   if (!associatedVoucher?.numero || !associatedVoucher.puntoVenta || !associatedVoucherType) {
     const missing = [
-      ...(associatedVoucherType ? [] : ['el tipo (`--ac` o `--at`)']),
-      ...(associatedVoucher?.puntoVenta ? [] : ['el punto de venta (`--apv`)']),
-      ...(associatedVoucher?.numero ? [] : ['el número (`--ar`)']),
+      ...(associatedVoucherType ? [] : [{ flag: '`--ac <tipo>`', label: 'el tipo' }]),
+      ...(associatedVoucher?.puntoVenta ? [] : [{ flag: '`--apv <número>`', label: 'el punto de venta' }]),
+      ...(associatedVoucher?.numero ? [] : [{ flag: '`--ar <número>`', label: 'el número' }]),
     ];
 
     // Con alguno de los tres, decir que falta el comprobante entero confundiria.
     if (missing.length < 3) {
+      const labels = missing.map(({ label }) => label).join(' y ');
+      const flags = missing.map(({ flag }) => flag).join(' y ');
+
       throw new InputValidationError(
-        `El comprobante asociado de ${formatVoucherWithArticle(voucherKind)} está incompleto: le falta ${missing.join(' y ')}.`,
+        `${missing.length === 1 ? 'Falta' : 'Faltan'} ${labels} del comprobante asociado de ${formatVoucherWithArticle(voucherKind)}. Usá ${flags}${voucherKind.isElectronicCredit ? '' : ', o un período con `--periodo-desde` y `--periodo-hasta` en vez del comprobante'}.`,
       );
     }
 
