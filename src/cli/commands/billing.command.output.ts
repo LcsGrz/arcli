@@ -2,7 +2,7 @@ import { formatBillingResultAsJson, formatBillingResultAsText } from '../../modu
 import { serializeBillingBatch } from '../../modules/billing/billing.serialize';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
-import { noticePanel, writeTerminalJson, writeTerminalOutput } from '../../ui';
+import { noticePanel, writeTerminalError, writeTerminalJson, writeTerminalOutput } from '../../ui';
 
 export function formatBillingOutputs(
   results: BillingExecutionResult[],
@@ -62,6 +62,27 @@ export function writeBillingCommandResults(
       raw: options.raw,
     }),
   );
+}
+
+/**
+ * Los ya procesados de un lote cortado que no se pudieron mostrar (por ejemplo, el disco lleno al redirigir la
+ * salida): cuantos son y con que verlos, para que nadie los vuelva a cargar. Va a stderr, que es otra salida.
+ */
+export function writePartialResultsFailure(results: readonly BillingExecutionResult[]): void {
+  const commands = new Set(
+    results
+      .filter((result) => !result.dryRun)
+      .map(
+        ({ environment, payload, voucherKind }) =>
+          `\`arcli ultimos ${voucherKind.shortcut} --pv ${payload.PtoVta} --${environment}\``,
+      ),
+  );
+  const subject =
+    results.length === 1 ? 'del comprobante ya procesado' : `de los ${results.length} comprobantes ya procesados`;
+  const verify =
+    commands.size > 0 ? ` Antes de reintentar, mirá cuáles se emitieron con ${[...commands].join(' y ')}.` : '';
+
+  writeTerminalError(() => noticePanel(`No se pudieron mostrar todos los datos ${subject}.${verify}`, 'warning'));
 }
 
 /** En texto el comprobante ya se mostro: solo se agrega lo que paso con el PDF y los avisos nuevos. */

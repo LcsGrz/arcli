@@ -30,7 +30,7 @@ import { startSpinner } from '../spinner';
 
 import { emitBatch, prepareBatch } from './billing.command.batch';
 import { runInteractiveBillingPreview } from './billing.command.interactive-preview';
-import { writeBillingCommandResults, writePdfOutcomes } from './billing.command.output';
+import { writeBillingCommandResults, writePartialResultsFailure, writePdfOutcomes } from './billing.command.output';
 import { type BillingCommandDefaults, parseBillingCommandPlan, registerBillingOptions } from './billing.command.parser';
 import { attachPdfs } from './billing.command.pdf';
 
@@ -257,7 +257,17 @@ export async function executeBillingCommand(
       inputs,
       onPartialResults: async (partial) => {
         spinner?.stop();
-        await writeResultsWithPdfs(partial, deliveryOptions);
+
+        try {
+          await writeResultsWithPdfs(partial, deliveryOptions);
+        } catch (error) {
+          // Con --json no hay donde avisarlo sin cambiar la salida: `detalles.procesados` dice cuantos son.
+          if (!runtime.outputJson) {
+            writePartialResultsFailure(partial);
+          }
+
+          throw error;
+        }
       },
       plan,
     });
