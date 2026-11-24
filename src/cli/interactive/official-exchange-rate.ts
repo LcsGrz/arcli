@@ -96,7 +96,7 @@ export function officialExchangeRateLoader(
 }
 
 /** De que E es la cotizacion: la fecha de la consulta sale de estos datos, como en `ExportService`. */
-export interface ExportExchangeRateQuery {
+interface ExportExchangeRateQuery {
   readonly currencyCode: string;
   readonly exportType: ExportType;
   readonly sameCurrency?: boolean;
