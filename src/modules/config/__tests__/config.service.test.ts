@@ -138,7 +138,7 @@ describe('config.service', () => {
           ],
           message:
             'El CBU guardado en la config no es válido: no coincide el dígito verificador del bloque de la cuenta (los últimos 14 dígitos).',
-          suggestion: expect.stringContaining('`arcli config establecer cbu <CBU>`'),
+          suggestion: expect.stringContaining('`arcli config establecer cuenta <CBU> [ALIAS]`'),
         }),
       );
       expect(service.setValue('cbu', '0110599520000012345678').cbu).toBe('0110599520000012345678');

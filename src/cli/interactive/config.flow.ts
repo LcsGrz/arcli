@@ -17,7 +17,7 @@ import {
   uninstallCompletion,
 } from '../../modules/completion/installer';
 import { COMPLETION_SHELLS, type CompletionShell } from '../../modules/completion/shell-scripts';
-import { cbuAliasChange } from '../../modules/config/cbu-alias-change';
+import { accountAliasRemovedWarning } from '../../modules/config/cbu-alias-change';
 import { formatConfigAsText, formatConfigDoctorAsText } from '../../modules/config/config.presenter';
 import {
   type ArcliConfig,
@@ -38,6 +38,7 @@ import {
   resolveActiveEnvironment,
 } from '../../modules/interactive/config-fields';
 import { changesArcaAccess } from '../../modules/interactive/config-lists';
+import { validateCbu, validateOptionalCbuAlias } from '../../modules/interactive/validators';
 import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
@@ -51,6 +52,7 @@ import { type ConfigFieldLists, configFieldLists } from './config-lists';
 import { markIfNew } from './new-mark';
 import { askTextStep, type Choice, chooseOne, chooseOrTypeStep, chooseStep, confirm, fitPageSize } from './prompts';
 import { showAssistantError } from './show-assistant-error';
+import { SKIP_HINT, skipAndRemoveHint } from './text-hints';
 
 /** `--produccion` o `--testing` de `arcli interactivo`: la configuracion guiada pide el certificado de ese entorno. */
 type EnvironmentFlags = Pick<GlobalCliOptions, 'produccion' | 'testing'>;
@@ -227,13 +229,76 @@ async function askField(
     return 'sin-cambios';
   }
 
-  // El cambio lo hace `ConfigService`, como en `config establecer`; aca solo se avisa.
-  const aliasChange = field.key === 'cbu' ? cbuAliasChange(config, value) : undefined;
-
   withConfigService((service) => service.setValue(field.key, value));
 
-  if (aliasChange) {
-    writeTerminalOutput(noticePanel(aliasChange.warning, 'warning'));
+  return 'guardado';
+}
+
+interface AccountState {
+  readonly alias?: string;
+  /** Vacio, se deja como esta; "-" borra la cuenta, si hay algo guardado. */
+  readonly cbu?: string;
+}
+
+/**
+ * La cuenta, en dos pasos: el CBU, con el guardado propuesto, y su alias (Enter lo omite y borra el guardado, como
+ * `config establecer cuenta <CBU>`). Se guardan juntos al final: Esc no deja nada a medias.
+ */
+async function askAccount(config: ArcliConfig): Promise<'borrado' | 'guardado' | 'sin-cambios' | typeof BACK> {
+  const { aliasCbu, cbu: savedCbu } = config;
+  const canClear = Boolean(savedCbu ?? aliasCbu);
+  const isClear = (text: string | undefined) => canClear && text?.trim() === '-';
+  const steps: Array<WizardStep<AccountState>> = [
+    {
+      name: 'cbu',
+      run: async (_state, { previous }) => {
+        const cbu = await askTextStep(`CBU (22 dígitos${canClear ? ', "-" para borrar la cuenta' : ''}):`, {
+          defaultValue: savedCbu,
+          previousAnswer: previous?.cbu,
+          validate: (text) => (!text.trim() || isClear(text) ? true : validateCbu(text)),
+        });
+
+        return cbu === BACK ? BACK : { cbu: cbu.trim() };
+      },
+    },
+    {
+      name: 'alias',
+      run: async (_state, { previous }) => {
+        const alias = await askTextStep('Alias del CBU:', {
+          hint: aliasCbu ? skipAndRemoveHint(aliasCbu) : SKIP_HINT,
+          previousAnswer: previous?.alias,
+          validate: validateOptionalCbuAlias,
+        });
+
+        return alias === BACK ? BACK : { alias: alias.trim() || undefined };
+      },
+      skip: ({ cbu }) => !cbu || isClear(cbu),
+    },
+  ];
+  const answer = await runWizard(steps, {});
+
+  if (!answer) {
+    return BACK;
+  }
+
+  const { alias, cbu } = answer;
+
+  if (isClear(cbu)) {
+    withConfigService((service) => service.unsetValue('cuenta'));
+
+    return 'borrado';
+  }
+
+  if (!cbu || (cbu === savedCbu && alias === aliasCbu)) {
+    return 'sin-cambios';
+  }
+
+  withConfigService((service) => service.setValue('cuenta', cbu, alias));
+
+  const warning = alias ? undefined : accountAliasRemovedWarning(config);
+
+  if (warning) {
+    writeTerminalOutput(noticePanel(warning, 'warning'));
   }
 
   return 'guardado';
@@ -388,7 +453,7 @@ async function runChangeField(flags: EnvironmentFlags): Promise<void> {
 
     lastField = field;
 
-    const result = await askField(field, config, { lists });
+    const result = field.key === 'cuenta' ? await askAccount(config) : await askField(field, config, { lists });
 
     if ((result === 'guardado' || result === 'borrado') && changesArcaAccess(field.key)) {
       lists.reset();

@@ -75,11 +75,29 @@ Valores por defecto, para no repetir flags.
 
 Solo si emitís Factura de Crédito Electrónica.
 
-| Clave          | Tipo    | Valor por defecto | Descripción                                                                                                                          |
-| -------------- | ------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `cbu`          | string  | ninguno           | CBU del emisor (solo facturas FCE). Se validan los 22 dígitos y sus [dos verificadores](validation-rules.md#crédito-electrónico-fce) |
-| `aliasCbu`     | string  | ninguno           | Alias del CBU (solo facturas FCE). Se informa solo si el CBU del comprobante es el de `cbu`, y se borra al guardar otro `cbu`        |
-| `verificarFce` | boolean | `false`           | Consultar el régimen FCE del receptor al facturar                                                                                    |
+| Clave          | Tipo    | Valor por defecto | Descripción                                                                                                                                                                  |
+| -------------- | ------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cuenta`       | string  | ninguno           | CBU del emisor y, si lo tiene, su alias (solo facturas FCE). Ver [Cuenta](#cuenta)                                                                                           |
+| `cbu`          | string  | ninguno           | **Para guardarla, deprecada hasta la 3.0.0: usá `cuenta`.** CBU del emisor. Se validan los 22 dígitos y sus [dos verificadores](validation-rules.md#crédito-electrónico-fce) |
+| `aliasCbu`     | string  | ninguno           | **Para guardarla, deprecada hasta la 3.0.0: usá `cuenta`.** Alias del CBU. Se informa solo si el CBU del comprobante es el de `cbu`                                          |
+| `verificarFce` | boolean | `false`           | Consultar el régimen FCE del receptor al facturar                                                                                                                            |
+
+#### Cuenta
+
+`cuenta` guarda el CBU y su alias juntos. Es la única clave con dos valores: el alias es opcional.
+
+```bash
+arcli config establecer cuenta 0110599520000012345678 mi.alias.cbu
+arcli config establecer cuenta 0110599520000012345678
+arcli config eliminar cuenta
+```
+
+- **Sin alias, borra el guardado** y lo avisa, aunque el CBU sea el mismo.
+- Si el CBU o el alias no son válidos, no se guarda ninguno.
+- `eliminar cuenta` borra los dos.
+- En el archivo y en `arcli config --json` siguen siendo `cbu` y `aliasCbu`: leerlos no está deprecado.
+
+`config establecer` y `config eliminar` todavía aceptan `cbu` y `aliasCbu`, con un aviso, hasta la 3.0.0. `establecer cbu` con otro CBU que el guardado borra el alias, que es del anterior, y lo avisa; sin CBU guardado, el alias queda y el aviso dice que se va a usar. `eliminar cbu` borra también el alias, y `eliminar aliasCbu`, solo el alias.
 
 ### Exportación
 

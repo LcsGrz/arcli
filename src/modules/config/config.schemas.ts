@@ -146,6 +146,11 @@ export function resolveRowsPerList(config: Pick<ArcliConfig, 'comprobantesPorLis
 export const ROWS_PER_LIST_DEPRECATION_WARNING =
   'La clave "comprobantesPorLista" está deprecada y se va a sacar en la 3.0.0: usá `filasPorLista`.';
 
+/** `cbu` y `aliasCbu` se guardan juntos con `cuenta`: el alias es de ese CBU. En el archivo y en `--json` siguen igual. */
+export function accountKeyDeprecationWarning(key: 'aliasCbu' | 'cbu', use: string): string {
+  return `La clave "${key}" está deprecada y se va a sacar en la 3.0.0: usá ${use}.`;
+}
+
 export const CONFIG_DEFAULTS: ArcliConfig = {
   cert: {},
   emisor: {},
@@ -162,12 +167,11 @@ export const CONFIG_DEFAULTS: ArcliConfig = {
 
 export const configPublicKeySchema = z.enum([
   'alicuota',
-  'aliasCbu',
-  'cbu',
   'cert.produccion',
   'cert.testing',
   'concepto',
   'condicionVenta',
+  'cuenta',
   'cuit',
   'cotizacion',
   'emisor.condicionIva',

@@ -274,7 +274,7 @@ arcli fc ayuda
 - **Severidad:** frecuente
 - **Síntoma:** `La factura de crédito electrónica ... requiere el CBU del emisor.`
 - **Causa:** ARCA exige el CBU del emisor en toda factura FCE (10168).
-- **Solución:** pasar `--cbu <22 dígitos>` o configurarlo una vez con `arcli config establecer cbu <22 dígitos>`.
+- **Solución:** pasar `--cbu <22 dígitos>` o configurarlo una vez con `arcli config establecer cuenta <CBU> [ALIAS]`.
 - **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
 
 ### CBU con el dígito verificador mal
@@ -283,7 +283,7 @@ arcli fc ayuda
 - **Síntoma:** `El CBU no es válido: no coincide el dígito verificador del bloque de banco y sucursal (los primeros 8 dígitos).` (o `del bloque de la cuenta (los últimos 14 dígitos)`).
 - **Causa:** algún dígito del CBU está mal escrito o cambiado de lugar. ARCLI controla los dos dígitos verificadores antes de ir a ARCA.
 - **Solución:** copiá el CBU de nuevo desde el home banking o la constancia del banco. El mensaje dice en qué bloque está el error.
-- **Si está en la config:** cualquier comando frena con `El CBU guardado en la config no es válido: …` y el bloque que falla. Cambialo con `arcli config establecer cbu <CBU>`, que corre aunque la config tenga el CBU mal.
+- **Si está en la config:** cualquier comando frena con `El CBU guardado en la config no es válido: …` y el bloque que falla. Cambialo con `arcli config establecer cuenta <CBU> [ALIAS]`, que corre aunque la config tenga el CBU mal.
 - **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
 
 ### NC/ND: ARCA no tiene el asociado
@@ -447,7 +447,7 @@ Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `suger
 | `10152`         | En productos o FCE, la fecha es futura y cae en otro mes                                                                                                                       | Ver [Fecha del comprobante fuera de rango](#fecha-del-comprobante-fuera-de-rango)                                                                                                                        |
 | `10243`         | El IVA receptor no es válido para la letra                                                                                                                                     | Ver [El comprobante no admite el IVA receptor](#el-comprobante-no-admite-el-iva-receptor)                                                                                                                |
 | `10154`         | La nota FCE de anulación necesita que el comprador haya rechazado antes el asociado, y no lo rechazó                                                                           | Ver [ARCA rechaza la nota FCE de anulación](#arca-rechaza-la-nota-fce-de-anulación)                                                                                                                      |
-| `10174`         | El CBU de la factura FCE no está registrado a nombre del emisor                                                                                                                | Usá un CBU propio registrado en ARCA (`--cbu` o la clave `cbu`)                                                                                                                                          |
+| `10174`         | El CBU de la factura FCE no está registrado a nombre del emisor                                                                                                                | Usá un CBU propio registrado en ARCA (`--cbu` o la clave `cuenta`)                                                                                                                                       |
 | `10119`         | La cotización está fuera del rango que acepta ARCA: entre el 2 % y el 500 % de la oficial                                                                                      | Revisá `--cotizacion-moneda` contra `arcli parametros cotizacion <moneda>`                                                                                                                               |
 | `10038`         | Con `--misma-moneda`, la cotización enviada ya no es la oficial exacta                                                                                                         | Volvé a emitir: ARCLI consulta la oficial en ese momento                                                                                                                                                 |
 | `10017`         | El CUIT del receptor de una A no figura activo en el padrón; el comprobante puede estar aprobado                                                                               | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                                                                                                                  |

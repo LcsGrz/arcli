@@ -12,13 +12,13 @@ Cuando vendés a una empresa grande dentro del régimen FCE MiPyMEs y el comprob
 
 ### Requisitos
 
-- CBU del emisor, por flag o configurado una vez
+- CBU del emisor, por flag o configurado una vez, con su alias si lo tiene
 - receptor identificado con CUIT y IVA receptor válido para la letra
 
 ### Comando
 
 ```bash
-arcli config establecer cbu 0110599520000012345678
+arcli config establecer cuenta 0110599520000012345678 mi.alias.cbu
 
 arcli fcea -m 1500000 --cs --cuit 30546689979 --ir-ri \
   --vto 25 \

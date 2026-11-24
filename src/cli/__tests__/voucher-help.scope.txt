@@ -8,7 +8,7 @@ Reglas
 7. Fechas: además de D/M/YYYY, hoy, ayer, +N y -N (días desde hoy). En desde y hasta (--sd/--sh, --pd/--ph) también mes-actual y mes-pasado: el día 1 en desde y el último día en hasta.
 8. IVA (A y B): --alicuota usa 21 por defecto, o la clave alícuota de la config. Para varias, repetí --alicuota TASA:MONTO con el IVA incluido; --monto pasa a ser opcional.
 9. Asociado: la factura, el recibo u otra nota de la misma letra con --ac o --at, --apv, --ar y --acuit, o un período con --periodo-desde y --periodo-hasta.
-10. FCE: necesita CBU (--cbu o la clave cbu de la config); --transferencia es sca por defecto.
+10. FCE: necesita CBU (--cbu o la clave cuenta de la config); --transferencia es sca por defecto.
 11. Asociado: la factura FCE con --ac o --at, --apv y --ar (la fecha sale de ARCA si falta --afecha); --acuit toma tu CUIT. Con --anulacion, anula un comprobante que rechazó el comprador: la NC asocia la factura o una ND FCE, y la ND una NC FCE.
 
 fa, fb, ra, rb, recibo

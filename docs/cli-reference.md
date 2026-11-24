@@ -544,7 +544,7 @@ La base es la de una factura común, más los datos de cobro que exige el régim
 **Obligatorio**
 
 - lo mismo que en una factura común
-- CBU: `--cbu`, o configurado una vez con `arcli config establecer cbu <22 dígitos>`. Cargar otro CBU borra el `aliasCbu` guardado, que es del anterior, y lo avisa: cargá primero el CBU y después su alias, con `arcli config establecer aliasCbu <alias>`. Sin CBU guardado antes, el alias queda y se avisa que se va a usar con ese CBU
+- CBU: `--cbu`, o configurado una vez con su alias: `arcli config establecer cuenta <CBU> [ALIAS]`. Sin alias, borra el guardado y lo avisa. Ver [Cuenta](configuration.md#cuenta)
 
 **Opcional**
 

@@ -141,11 +141,13 @@ vi.mock('../commands/billing.command.shared', async (importOriginal) => {
   };
 });
 
+type Setting = readonly [key: string, value: string, alias?: string | undefined];
+
 interface Example {
   /** Lo que va despues de `arcli`. */
   readonly args: readonly string[];
   /** `arcli config establecer` que el ejemplo da por hechos, ademas de `BASE_CONFIG`. */
-  readonly config: ReadonlyArray<readonly [string, string]>;
+  readonly config: readonly Setting[];
   readonly source: string;
 }
 
@@ -261,7 +263,7 @@ function codeBlocks(text: string): CodeBlock[] {
 
 function examplesFromBashBlock(block: CodeBlock, file: string): Example[] {
   const examples: Example[] = [];
-  const config: Array<readonly [string, string]> = [];
+  const config: Setting[] = [];
   const lines = block.content.split(/\r?\n/);
 
   for (let index = 0; index < lines.length; index += 1) {
@@ -275,8 +277,9 @@ function examplesFromBashBlock(block: CodeBlock, file: string): Example[] {
 
     const args = arcliArgs(line);
 
-    if (args?.[0] === 'config' && args[1] === 'establecer' && args.length === 4) {
-      config.push([args[2] as string, args[3] as string]);
+    if (args?.[0] === 'config' && args[1] === 'establecer' && args.length >= 4) {
+      // `cuenta` lleva ademas el alias.
+      config.push([args[2] as string, args[3] as string, args[4]]);
     } else if (isBilling(args)) {
       examples.push({ args, config: [...config], source: `${file}:${block.line + first}` });
     }
@@ -382,7 +385,7 @@ const configs = new Map<string, ReturnType<ConfigService['getConfig']>>();
  * La config de `BASE_CONFIG` mas `settings`, por el `ConfigService` real (valida cada valor como `config establecer`).
  * Se arma una vez por combinacion: escribirla en disco era casi todo el tiempo del archivo y la mayoria comparte la misma.
  */
-function createConfig(settings: ReadonlyArray<readonly [string, string]>) {
+function createConfig(settings: readonly Setting[]) {
   const id = JSON.stringify(settings);
   const cached = configs.get(id);
 
@@ -391,7 +394,7 @@ function createConfig(settings: ReadonlyArray<readonly [string, string]>) {
   const service = new ConfigService({ cwd: mkdtempSync(join(tmpdir(), 'arcli-ejemplos-')) });
 
   try {
-    for (const [key, value] of [...BASE_CONFIG, ...settings]) service.setValue(key, value);
+    for (const [key, value, alias] of [...BASE_CONFIG, ...settings] as Setting[]) service.setValue(key, value, alias);
 
     const config = service.getConfig();
 
