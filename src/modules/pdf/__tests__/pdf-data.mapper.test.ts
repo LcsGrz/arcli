@@ -148,7 +148,16 @@ describe('PDF sin CAE (TEST-18)', () => {
 
     expect(() =>
       mapBillingResultToPdfData({ ...result, response: { ...result.response, caeVencimiento: null } }, ISSUER),
-    ).toThrow(/no tiene CAE/);
+    ).toThrow(/no informó el vencimiento del CAE.*está emitido/);
+  });
+
+  it('con el detalle suelto, sin lista, el número es el que se mandó (ERR-16)', () => {
+    const result = createResult('fa', FACTURA_A);
+    const raw = { cae: '', caeFchVto: '', response: { FeDetResp: { FECAEDetResponse: { CbteDesde: 1 } } } } as never;
+
+    expect(
+      mapBillingResultToPdfData({ ...result, response: { ...result.response, raw }, voucherNumber: 77 }, ISSUER),
+    ).toMatchObject({ cae: result.response.cae, cbteDesde: 77, cbteHasta: 77 });
   });
 
   it('rechaza una E sin CAE o sin vencimiento del CAE', () => {
@@ -159,7 +168,7 @@ describe('PDF sin CAE (TEST-18)', () => {
     );
     expect(() =>
       mapExportResultToPdfData({ ...result, response: { ...result.response, caeVencimiento: null } }, ISSUER),
-    ).toThrow(/no tiene CAE/);
+    ).toThrow(/no informó el vencimiento del CAE/);
     expect(mapExportResultToPdfData(result, ISSUER).cae).toBe('76123456789012');
   });
 });

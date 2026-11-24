@@ -4,7 +4,7 @@
 
 Resumen rápido:
 
-- primero ARCLI valida flags, tipos y combinaciones, y sin consultar a ARCA el documento del receptor y el punto de venta
+- primero ARCLI valida flags, tipos y combinaciones; el documento del receptor y el punto de venta, antes de consultar a ARCA
 - después aplica reglas de negocio del comprobante
 - por último pueden aparecer restricciones o errores propios de ARCA
 
@@ -62,7 +62,7 @@ Todas las de esta sección son **propias**: formato de los datos y combinaciones
 - `--cuit`, `--cuil`, `--acuit` y `--dni` aceptan guiones, puntos y espacios (`20-33333333-4`, `20 33333333 4`), pero nada más. Lo mismo el CUIT de `arcli padron`, `arcli fce-obligado`, `config establecer cuit` y `comprobanteAsociado.cuit` en el JSON
 - `--at` se valida igual que `--ac`: una NC A no puede asociar una factura B. Si en el JSON vienen `tipo` y `atajo`, tienen que coincidir
 - `--cotizacion-moneda` y `--cm` deben ser números positivos
-- Todo CUIT o CUIL debe tener 11 dígitos y un dígito verificador válido: un número mal tipeado da error antes de llegar a ARCA: el del receptor se controla antes del login, del padrón y de la cotización, como el punto de venta (también en la `E`, antes de sus tablas). La config incompleta y el certificado vencido salen primero
+- Todo CUIT o CUIL debe tener 11 dígitos y un dígito verificador válido: un número mal tipeado da error antes de llegar a ARCA: el del receptor se controla antes del login, del padrón y de la cotización (ver [Identidad del receptor](#identidad-del-receptor))
 - `--dni` debe tener de 6 a 8 dígitos. ARCA acepta un documento de hasta 11 dígitos y ARCA testing aprobó una factura B a un DNI de 6; menos de 6 es casi seguro un error de tipeo
 - `--condicion-venta` / `--cv` (y `condicionVenta` en el JSON o la config) acepta hasta 100 caracteres
 - En el JSON de `--cargar`, una clave desconocida o un tipo incorrecto (`"puntoVenta": "3"`) es error: ver [claves desconocidas y tipos](input-output.md#claves-desconocidas-y-tipos)
@@ -155,6 +155,8 @@ ARCA solo acepta una `CbteFch` cercana a la fecha de envío (ARCA 10016 para el 
 ARCA además exige que la fecha no sea anterior a la del último comprobante emitido para ese tipo y punto de venta. Esa regla no se valida localmente, porque depende de lo ya emitido.
 
 ### Identidad del receptor
+
+El documento del receptor y el punto de venta se controlan antes de consultar a ARCA (login, padrón, cotización), con flags, `--cargar`, en cada ítem de un lote y en el asistente; en la `E`, el punto de venta, antes de sus tablas. La config incompleta y el certificado vencido salen primero. No Categorizado y el tope de consumidor final se controlan después, porque necesitan el importe y la cotización.
 
 #### Según el comprobante
 

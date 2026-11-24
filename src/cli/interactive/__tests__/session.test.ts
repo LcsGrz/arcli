@@ -362,15 +362,31 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
   it('si ARCA contesta algo que no se puede leer, el menú recibe "sin confirmar" y no se ofrece el PDF (ERR-16)', async () => {
     const session = createSession('testing');
 
-    session.createVoucher.mockResolvedValueOnce(undefined);
+    session.createVoucher.mockRejectedValueOnce(new TypeError('Cannot read properties of undefined'));
     chooseOneMock.mockResolvedValueOnce('emitir');
 
     await expect(previewAndEmit(session, input)).rejects.toMatchObject({
       code: 'EMISSION_UNCERTAIN',
+      details: { causa: 'ARCA contestó algo que ARCLI no pudo leer' },
       verifyCommand: 'arcli ultimos fc --pv 3 --testing',
     });
     expect(session.createVoucher).toHaveBeenCalledTimes(1);
     expect(offerPdf).not.toHaveBeenCalled();
+  });
+
+  it('un evento suelto no pierde el CAE: se muestra y se ofrece el PDF (ERR-16)', async () => {
+    const session = createSession('testing');
+
+    session.createVoucher.mockResolvedValueOnce({
+      cae: '86400940834693',
+      caeFchVto: '20261130',
+      response: { Events: { Evt: { Code: 1, Msg: 'x' } }, FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] } },
+    });
+    chooseOneMock.mockResolvedValueOnce('emitir');
+
+    await expect(previewAndEmit(session, input)).resolves.toBe(true);
+    expect(vi.mocked(process.stdout.write).mock.calls.join('')).toContain('86400940834693');
+    expect(offerPdf).toHaveBeenCalledTimes(1);
   });
 
   it('un CUIT inválido vuelve a la última pregunta sin consultar el padrón (ERR-11)', async () => {

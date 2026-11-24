@@ -21,7 +21,7 @@ import {
 } from './billing.currency';
 import { resolveBillingDateRange } from './billing.date-range';
 import { resolveBillingDate } from './billing.dates';
-import { EmissionUncertainError, readEmissionResponse } from './billing.errors';
+import { EmissionUncertainError } from './billing.errors';
 import { resolveElectronicCreditOptionals } from './billing.fce';
 import { missingIvaReceiverMessage, validateIvaConditionForVoucher } from './billing.iva-receptor';
 import {
@@ -211,7 +211,8 @@ export class BillingService {
         CbteHasta: voucherNumber,
       });
 
-      response = readEmissionResponse(() => mapBillingResponse(raw));
+      // Adentro del try: lo que no se puede leer es una emision sin confirmar (ERR-16).
+      response = mapBillingResponse(raw);
     } catch (error) {
       throw new EmissionUncertainError({
         cause: error,

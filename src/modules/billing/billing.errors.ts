@@ -1,17 +1,6 @@
 import { AppError } from '../../lib/errors/app-error';
 
-/**
- * Lee la respuesta de la llamada que emite, A, B, C o E. Si no se puede, ARCA pudo haber autorizado el comprobante: va
- * adentro del mismo `try` que la llamada, asi sale como `EmissionUncertainError` y no como un error inesperado que invita
- * a reintentar (ERR-16). El error original queda en `cause`.
- */
-export function readEmissionResponse<T>(read: () => T): T {
-  try {
-    return read();
-  } catch (error) {
-    throw new Error('ARCA contestó algo que ARCLI no pudo leer', { cause: error });
-  }
-}
+import { isInternalError, unreadableResponseError } from './emission-response';
 
 /** A, B y C: el numero lo pone ARCA, asi que se verifica con `arcli ultimos`. */
 interface WsfeUncertainTarget {
@@ -45,7 +34,8 @@ export class EmissionUncertainError extends AppError {
   public readonly verifyCommand?: string;
 
   public constructor(options: { readonly cause: unknown } & (WsfeUncertainTarget | WsfexUncertainTarget)) {
-    const reason = options.cause instanceof Error ? options.cause.message : String(options.cause);
+    const cause = isInternalError(options.cause) ? unreadableResponseError(options.cause) : options.cause;
+    const reason = cause instanceof Error ? cause.message : String(cause);
     const verifyCommand =
       'voucherNumber' in options
         ? `arcli consultar ${options.shortcut} ${options.voucherNumber} --pv ${options.pointOfSale} --${options.environment}`
@@ -63,7 +53,7 @@ export class EmissionUncertainError extends AppError {
           : `Puede haberse emitido igual. Antes de reintentar, verificá con \`${verifyCommand}\`: si figura, ya está emitido y no hay que repetirlo.`,
     });
     this.name = 'EmissionUncertainError';
-    this.cause = options.cause;
+    this.cause = cause;
     this.verifyCommand = verifyCommand;
   }
 }

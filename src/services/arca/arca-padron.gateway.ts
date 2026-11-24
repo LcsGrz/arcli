@@ -1,5 +1,6 @@
 import type { Arca } from '@arcasdk/core';
 
+import { asArray } from '../../lib/arrays/as-array';
 import { AppError } from '../../lib/errors/app-error';
 import {
   deriveIvaCondition,
@@ -20,12 +21,6 @@ type UnknownRecord = Record<string, unknown>;
 
 function asRecord(value: unknown): UnknownRecord | undefined {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as UnknownRecord) : undefined;
-}
-
-function asArray(value: unknown): unknown[] {
-  if (Array.isArray(value)) return value;
-
-  return value === undefined || value === null ? [] : [value];
 }
 
 function asText(value: unknown): string | null {

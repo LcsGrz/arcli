@@ -102,7 +102,11 @@ async function runBatch(
                 throw new Error('socket hang up');
               }
 
-              return step === 'ilegible' ? (undefined as never) : authorization(step === 'R' ? 'R' : 'A');
+              if (step === 'ilegible') {
+                throw new TypeError("Cannot read properties of undefined (reading 'FeDetResp')");
+              }
+
+              return authorization(step === 'R' ? 'R' : 'A');
             },
             getNextVoucherNumber: async () => {
               if (steps[position] === 'sin-autorizar') {

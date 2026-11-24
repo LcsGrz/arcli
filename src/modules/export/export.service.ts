@@ -9,7 +9,7 @@ import { AMOUNT_DECIMALS, formatExchangeRate, hasAtMostDecimals } from '../../li
 import { assertRules } from '../../lib/rules/rules';
 import type { Clock } from '../../lib/time/clock';
 import { assertCurrencyInTable } from '../billing/billing.currency';
-import { EmissionUncertainError, readEmissionResponse } from '../billing/billing.errors';
+import { EmissionUncertainError } from '../billing/billing.errors';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import type { ArcliConfig } from '../config/config.schemas';
 
@@ -509,7 +509,8 @@ export class ExportService {
     try {
       const raw = await options.gateway.authorize(payload);
 
-      response = readEmissionResponse(() => mapExportResponse(raw));
+      // Adentro del try: lo que no se puede leer es una emision sin confirmar (ERR-16).
+      response = mapExportResponse(raw);
     } catch (error) {
       throw new EmissionUncertainError({
         cause: error,
