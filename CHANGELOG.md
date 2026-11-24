@@ -41,7 +41,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - `config establecer cbu` con otro CBU que el guardado borra `aliasCbu` y lo dice en `avisos`; antes el alias quedaba. Sin CBU guardado, el alias queda, con un aviso. `config eliminar cbu` borra también `aliasCbu` y lo dice en `avisos`; antes quedaba.
 > - Ya no son un error y gana el flag: `--ac`, `--at`, `--ar` o `--apv` con `periodoAsociado` en el JSON, `--periodo-desde` o `--periodo-hasta` con `comprobanteAsociado`, `--vto` con `dia` y `--dia` con `vencimientoPago`.
 > - En `BATCH_EMISSION_ERROR`, `sugerencia` es siempre un texto, antes `null`, y en `error` "Sin procesar" va en su propia línea, como rango desde tres (`#3 a #100 (98)`). La lista completa sigue en `detalles.sinProcesar`.
-> - Si una tabla auxiliar de WSFEX no responde y el dato no sale de ella, la `E` y sus notas siguen con un aviso y, con `--emitir`, se emiten; antes salían con el error de la consulta.
+> - Si una tabla auxiliar de WSFEX no responde y lo que se emite no sale de ella, los comandos de la `E` y sus notas siguen con un aviso y, con `--emitir`, se emiten; antes salían con el error de la consulta.
 > - En los comandos de la `E` con `exportacion.cert` propio, `avisos` ya no trae el vencimiento del certificado general de ese entorno.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
@@ -77,7 +77,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Salida:** A, B, C, FCE, recibos y notas muestran "Consultando ARCA..." mientras se consulta antes de la vista previa, como la `E` (#283).
 - **Fechas:** con una fecha futura, A, B, C, FCE, recibos y notas avisan desde qué fecha van los siguientes, como la `E` (#287).
 - **Factura E:** sin `--cm` avisa siempre que usa la cotización oficial, y con una fuera del 2 % al 400 %, también (#287).
-- **Factura E:** si una tabla auxiliar de WSFEX no responde, avisa y sigue, salvo que de ella salga un dato (#287).
+- **Factura E:** si una tabla auxiliar de WSFEX no responde, los comandos y la vista previa avisan y siguen, salvo que emitan algo suyo (#287).
 - **Certificados:** el propio de exportación avisa que vence en los comandos y el asistente, y dice cómo renovarlo (#287).
 - **Fechas:** en un lote que cruza la medianoche, `hoy` y las demás fechas relativas son del mismo día en todos los comprobantes (#282).
 
@@ -113,7 +113,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 **Cotización de la `E`.** En bienes y otros, sin `--cm` avisa que se usa la oficial, la de aduana, como A, B y C; si es de otro día, lo dice el mismo aviso, en vez del anterior. En servicios y con `--misma-moneda`, donde es obligatoria, sigue avisando solo si es de otro día. Con `--cm` en una factura de bienes u otros la compara con la oficial (una consulta más a WSFEX) y avisa, sin frenar, si está fuera del 2 % al 400 % (1667). Si no se puede consultar, no avisa.
 
-**Tablas de WSFEX.** Países, CUIT de países, unidades, incoterms, idiomas, monedas y actividades: si una no responde, lo escrito va sin validar y decide ARCA, o faltan solo los nombres. Corta, como antes, si de ella sale algo que se emite (el país o la unidad por nombre, el CUIT del país sin `--cuit-pais`), sin cotización o por el certificado, su autorización o WSAA. Si no se pudo comparar `--cm` en servicios o con `--misma-moneda`, avisa y sigue. En el PDF, una unidad sin su nombre sale con el código.
+**Tablas de WSFEX.** En los comandos y en la vista previa del asistente, si la de CUIT de países, unidades, incoterms, idiomas, monedas o actividades contesta con un error o se corta la conexión, lo escrito va sin validar y decide ARCA, o faltan solo los nombres. Nunca se emite un dato distinto del que saldría con la tabla: corta, como antes, si de ella sale algo que se emite (el CUIT del país sin `--cuit-pais`, una unidad por nombre, la descripción del incoterm sin `--incoterms-desc`). También cortan los países, la cotización sin `--cm` y cualquier otro error, como el certificado o WSAA. Si no se pudo comparar `--cm` en servicios o con `--misma-moneda`, avisa y sigue. En el PDF, una unidad sin su nombre sale con el código.
 
 **Certificado de exportación.** El de `exportacion.cert`, con su clave, entra en los avisos de vencimiento, como "El certificado de exportación de testing", también en los comandos de A, B y C. Los comandos de la `E` que lo usan no avisan por el general de ese entorno. Vencido, `CERTIFICATE_EXPIRED` lo nombra y ya no manda a `arcli certificado generar`, que renueva el general; `config revisar` tampoco.
 

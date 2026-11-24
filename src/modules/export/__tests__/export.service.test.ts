@@ -641,7 +641,7 @@ describe('ExportService.resolve', () => {
     // Sin la oficial no hay contra que comparar.
     expect(await warningsFor(9, createGateway({ getQuotations: vi.fn(async () => []) }))).toEqual([]);
     expect(
-      await warningsFor(9, createGateway({ getQuotations: vi.fn().mockRejectedValue(new Error('timeout')) })),
+      await warningsFor(9, createGateway({ getQuotations: vi.fn().mockRejectedValue(new Error('socket hang up')) })),
     ).toEqual([]);
   });
 
@@ -733,7 +733,7 @@ describe('ExportService.resolve', () => {
     expect(resolved.payload.Fecha_cbte).toBe('20260603');
     expect(gateway.getQuotations).toHaveBeenCalledWith('20260531');
     expect(resolved.warnings).toContainEqual(
-      expect.stringMatching(/próximas facturas E del punto de venta 3 .*error 1535/),
+      expect.stringMatching(/próximas facturas de exportación E del punto de venta 3 .*error 1535/),
     );
   });
 
@@ -752,9 +752,11 @@ describe('ExportService.resolve', () => {
   });
 });
 
+const TIMEOUT = 'connect ETIMEDOUT 10.0.0.1:443';
+
 describe('ExportService.resolve: tablas que no responden (EXPO-13, ARQ-22)', () => {
   const service = new ExportService({ clock: { now: () => NOW } });
-  const down = (error: Error = new Error('timeout')) => vi.fn().mockRejectedValue(error);
+  const down = (error: Error = new Error(TIMEOUT)) => vi.fn().mockRejectedValue(error);
   /** Todo por codigo, sin nada que salga de las tablas. */
   const CODES: ExportVoucherInput = {
     ...INPUT,
@@ -768,48 +770,46 @@ describe('ExportService.resolve: tablas que no responden (EXPO-13, ARQ-22)', () 
     service.resolve({ ...CODES, currencyCode: 'ARS', ...input }, createGateway(overrides), RUNTIME);
 
   it.each<[string, Partial<ExportGateway>, Partial<ExportVoucherInput>, string]>([
-    ['idioma por defecto', { getLanguages: down() }, {}, 'idiomas de WSFEX (timeout): los nombres no se muestran.'],
-    ['idioma escrito', { getLanguages: down() }, { language: 2 }, 'idiomas de WSFEX (timeout): el idioma 2 va sin'],
-    ['moneda local', { getCurrencies: down() }, {}, 'monedas de WSFEX (timeout): los nombres no se muestran.'],
+    ['idioma por defecto', { getLanguages: down() }, {}, `idiomas de WSFEX (${TIMEOUT}): los nombres no se muestran.`],
+    ['idioma escrito', { getLanguages: down() }, { language: 2 }, `idiomas de WSFEX (${TIMEOUT}): el idioma 2 va sin`],
+    ['moneda local', { getCurrencies: down() }, {}, `monedas de WSFEX (${TIMEOUT}): los nombres no se muestran.`],
     [
       'moneda con la cotizacion de ARCA',
       { getCurrencies: down() },
       { currencyCode: 'USD' },
-      'monedas de WSFEX (timeout): los nombres no se muestran.',
+      `monedas de WSFEX (${TIMEOUT}): los nombres no se muestran.`,
     ],
     [
       'moneda con `--cm`',
       { getCurrencies: down() },
       { currencyCode: 'USD', exchangeRate: 900 },
-      'monedas de WSFEX (timeout): la moneda USD va sin',
+      `monedas de WSFEX (${TIMEOUT}): la moneda USD va sin`,
     ],
-    ['unidad por defecto', { getUnits: down() }, {}, 'unidades de medida de WSFEX (timeout): los nombres'],
+    ['unidad por defecto', { getUnits: down() }, {}, `unidades de medida de WSFEX (${TIMEOUT}): los nombres`],
     [
       'unidad escrita',
       { getUnits: down() },
       { items: [{ description: 'x', quantity: 1, unit: 1, unitPrice: 1500 }] },
-      'unidades de medida de WSFEX (timeout): la unidad 1 va sin',
+      `unidades de medida de WSFEX (${TIMEOUT}): la unidad 1 va sin`,
     ],
-    ['incoterm', { getIncoterms: down() }, { incoterm: 'fob' }, 'incoterms de WSFEX (timeout): el incoterm FOB va sin'],
-    ['actividad', { getActivities: down() }, {}, 'actividades de WSFEX (timeout): la actividad 620100 va sin'],
     [
-      'país por código',
-      { getDestinationCountries: down() },
-      {},
-      'países de WSFEX (timeout): el país de destino 203 va',
+      'incoterm',
+      { getIncoterms: down() },
+      { incoterm: 'fob', incotermDescription: 'A bordo' },
+      `incoterms de WSFEX (${TIMEOUT}): el incoterm FOB va sin`,
     ],
+    ['actividad', { getActivities: down() }, {}, `actividades de WSFEX (${TIMEOUT}): la actividad 620100 va sin`],
     [
       'CUIT de país escrito',
       { getDestinationCountryCuits: down() },
       {},
-      'CUIT de países de WSFEX (timeout): el CUIT de país 55000000050 va sin',
+      `CUIT de países de WSFEX (${TIMEOUT}): el CUIT de país 55000000050 va sin`,
     ],
   ])('%s: avisa y sigue, con los mismos datos', async (_case, gateway, input, warning) => {
     const ok = await read({}, input);
     const resolved = await read(gateway, input);
 
-    // Sin la tabla, la descripcion del incoterm es su codigo, como con la tabla vacia.
-    expect(resolved.payload).toEqual({ ...ok.payload, Incoterms_Ds: input.incoterm ? 'FOB' : '' });
+    expect(resolved.payload).toEqual(ok.payload);
     expect(resolved.warnings).toEqual([
       ...(ok.warnings ?? []),
       expect.stringContaining(`No se pudo consultar la tabla de ${warning}`),
@@ -819,7 +819,8 @@ describe('ExportService.resolve: tablas que no responden (EXPO-13, ARQ-22)', () 
   it.each<[string, Partial<ExportGateway>, Partial<ExportVoucherInput>]>([
     ['el país por nombre', { getDestinationCountries: down() }, { destinationCountry: 'brasil' }],
     ['el CUIT de país sin escribir', { getDestinationCountryCuits: down() }, { clientCountryCuit: undefined }],
-    ['ese CUIT sin el nombre del país', { getDestinationCountries: down() }, { clientCountryCuit: undefined }],
+    ['el país por código', { getDestinationCountries: down() }, {}],
+    ['la descripción del incoterm', { getIncoterms: down() }, { incoterm: 'fob' }],
     [
       'la unidad por nombre',
       { getUnits: down() },
@@ -827,12 +828,28 @@ describe('ExportService.resolve: tablas que no responden (EXPO-13, ARQ-22)', () 
     ],
     ['la cotización', { getQuotations: down() }, { currencyCode: 'USD' }],
   ])('corta con el error de la consulta si de ahí sale %s', async (_case, gateway, input) => {
-    await expect(read(gateway, input)).rejects.toThrow('timeout');
+    await expect(read(gateway, input)).rejects.toThrow(TIMEOUT);
   });
 
   it.each([
     new AppError('sin permiso', { code: 'WSFEX_SERVICE_NOT_AUTHORIZED' }),
     new Error('ns1:cms.cert.expired: Certificado expirado'),
+    // Los textos del SDK y de lo que usa: tickets, PEM, node-forge, HTTP, programacion.
+    new Error('Failed to create tickets directory: EACCES: permission denied'),
+    new Error("Access denied to ticket file: '/t/ticket.json'"),
+    new Error('Invalid access ticket format: Unexpected end of JSON input'),
+    new Error('Invalid PEM formatted message. Check your cert.'),
+    new Error('Cannot read public key. Unknown OID.'),
+    new Error('Request failed with status code 503'),
+    new Error('Invalid XML'),
+    new TypeError("Cannot read properties of undefined (reading 'x')"),
+    new Error('connect ETIMEDOUT wsaa.afip.gov.ar:443'),
+    Object.assign(new Error('timeout of 30000ms exceeded'), { config: { url: 'https://wsaa.afip.gov.ar/ws' } }),
+    Object.assign(new Error('ETIMEDOUT: connection timed out, read'), {
+      code: 'ETIMEDOUT',
+      path: '/t',
+      syscall: 'read',
+    }),
     new Error('ns1:coe.alreadyAuthenticated: El CEE ya posee un TA valido'),
     Object.assign(new Error("EACCES: permission denied, open 'x'"), { code: 'EACCES', path: 'x', syscall: 'open' }),
   ])('la autorización, el certificado y los tickets cortan: $message', async (error) => {
@@ -848,15 +865,82 @@ describe('ExportService.resolve: tablas que no responden (EXPO-13, ARQ-22)', () 
 
     expect(payload.Moneda_ctz).toBe(900);
     expect(warnings).toEqual([
-      'No se pudo comparar la cotización con la de ARCA (timeout): la rechaza si no es la oficial del día hábil anterior (error 2053).',
+      `No se pudo comparar la cotización con la de ARCA (${TIMEOUT}): la rechaza si no es la oficial del día hábil anterior (error 2053).`,
     ]);
   });
 
-  it('Argentina no es un destino, tampoco sin la tabla', async () => {
-    await expect(read({ getDestinationCountries: down() }, { destinationCountry: '200' })).rejects.toThrow(
-      /Argentina no es un destino/,
-    );
+  it('un error de WSFEX en una tabla se tolera, salvo el del token', async () => {
+    const answered = new AppError('ARCA devolvió un error al consultar los idiomas: interno', {
+      code: 'ARCA_EXPORT_ERROR',
+    });
+    const token = new AppError('ARCA devolvió un error al consultar los idiomas: ValidacionDeToken: No valido T/S', {
+      code: 'ARCA_EXPORT_ERROR',
+    });
+
+    expect((await read({ getLanguages: down(answered) })).warnings).toEqual([expect.stringContaining('interno')]);
+    await expect(read({ getLanguages: down(token) })).rejects.toBe(token);
   });
+
+  it('corta sin seguir consultando', async () => {
+    const getLanguages = vi.fn(async () => []);
+
+    await expect(read({ getIncoterms: down(), getLanguages }, { incoterm: 'fob' })).rejects.toThrow(TIMEOUT);
+    expect(getLanguages).not.toHaveBeenCalled();
+  });
+
+  it('varias unidades escritas: en plural', async () => {
+    const { warnings } = await read(
+      { getUnits: down() },
+      {
+        items: [1, 2].map((unit) => ({ description: 'x', quantity: 1, unit, unitPrice: 750 })),
+      },
+    );
+
+    expect(warnings).toEqual([expect.stringContaining('las unidades 1, 2 van sin validar.')]);
+  });
+
+  it('lo heredado del asociado no es "sin validar"', async () => {
+    const { warnings } = await service.resolve(
+      { amount: 100, associatedVoucher: { number: 12 }, emit: true, voucherKind: EXPORT_CREDIT_NOTE_KIND },
+      createGateway({
+        getActivities: down(),
+        getCurrencies: down(),
+        getDestinationCountryCuits: down(),
+        getLanguages: down(),
+      }),
+      RUNTIME,
+    );
+
+    expect(warnings?.join()).not.toContain('sin validar');
+    expect(warnings).toHaveLength(3);
+  });
+
+  it('la fecha futura va despues de la cotizacion, como en A, B y C', async () => {
+    const { warnings } = await read({}, { currencyCode: 'USD', voucherDate: '02/06/2026' });
+
+    expect(warnings).toEqual([
+      expect.stringContaining('cotización oficial'),
+      expect.stringContaining('las próximas facturas de exportación E del punto de venta 3'),
+    ]);
+  });
+
+  it.each([TIMEOUT, 'ns1:coe.notAuthorized: no', 'socket hang up'])(
+    'con todo escrito y sin acceso (%s), no se llega a emitir',
+    async (message) => {
+      const error = new Error(message);
+      const everything = createGateway();
+      const gateway = Object.fromEntries(Object.keys(everything).map((name) => [name, down(error)])) as never;
+
+      await expect(
+        service.resolve(
+          { ...CODES, currencyCode: 'USD', exchangeRate: 900, requestId: 100, voucherNumber: 5 },
+          gateway,
+          RUNTIME,
+        ),
+      ).rejects.toBe(error);
+      expect((gateway as ExportGateway).authorize).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe('ExportService.resolve: notas E', () => {

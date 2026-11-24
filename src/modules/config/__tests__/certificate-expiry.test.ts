@@ -1,3 +1,4 @@
+import { basename, dirname } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { CERTIFICATE_GUIDE_URL, EXPORT_CERTIFICATE_GUIDE_URL, PRODUCTION_RENEWAL_GUIDE_URL } from '../../../lib/links';
@@ -141,7 +142,11 @@ describe('el certificado propio de exportacion (ARQ-22)', () => {
       inspectConfiguredCertificates(config, { activeEnvironment: 'testing', now: new Date() });
 
     expect(inspect(own(certPath, ''))).toEqual([]);
-    expect(inspect({ cert: { testing: certPath }, ...own(certPath) }).map(({ use }) => use)).toEqual([undefined]);
+    expect(
+      inspect({ cert: { testing: certPath }, ...own(`${dirname(certPath)}/./${basename(certPath)}`) }).map(
+        ({ use }) => use,
+      ),
+    ).toEqual([undefined]);
   }, 10_000);
 
   it('vencido, la sugerencia es cargarlo en la config', () => {

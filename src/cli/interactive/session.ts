@@ -250,11 +250,12 @@ async function previewBilling(
     ? await resolveFceWarningsInOrder(service, [input], new ArcaFceObligationGateway(session.arca))
     : [];
   const warnings = [
-    ...flowWarnings,
+    // El orden del comando (`previewBilling` de modules): la entrada, el asociado, el Registro, la fecha y el FCE.
     ...prepared.warnings,
+    ...flowWarnings,
+    ...registryWarnings,
     ...(preview.warnings ?? []),
     ...(fceWarnings[0] ?? []),
-    ...registryWarnings,
   ];
 
   return { input, preview: { ...preview, warnings }, warnings };

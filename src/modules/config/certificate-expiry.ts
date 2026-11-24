@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import { formatArcaDateAsArgentineDate, formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
@@ -145,13 +146,15 @@ export function inspectConfiguredCertificates(
  * El certificado propio de WSFEX, si no es el mismo archivo que el general. Solo con el par completo: a medias, la E
  * corta antes (`resolveExportCredentials`).
  */
-function ownExportCertificate(
+export function ownExportCertificate(
   config: Partial<Pick<ArcliConfig, 'cert' | 'exportacion'>>,
   environment: ArcliEnvironment,
 ): string | undefined {
   const cert = config.exportacion?.key?.[environment] ? config.exportacion.cert?.[environment] : undefined;
 
-  return cert === config.cert?.[environment] ? undefined : cert;
+  const general = config.cert?.[environment];
+
+  return cert && general && resolve(cert) === resolve(general) ? undefined : cert;
 }
 
 /** Los avisos del vencimiento de los certificados, y el del que se usa, si vence o vencio. */

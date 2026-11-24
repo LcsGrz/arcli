@@ -560,6 +560,20 @@ describe('factura E: certificado de exportacion', () => {
     expect(Arca).not.toHaveBeenCalled();
   });
 
+  it('el mismo archivo como par propio: banner y error, los del general (ARQ-22)', () => {
+    profile.writeConfig(
+      profile.configWith(profile.expiring, {
+        exportacion: { cert: { testing: profile.expiring.certPath }, key: { testing: profile.expiring.keyPath } },
+      }),
+    );
+    profile.moveClockAfterExpiry(profile.expiring, 5);
+
+    const runtime = resolveArcaRuntime({}, { service: 'wsfex' });
+
+    expect(stripAnsi(profile.stderr)).toContain('El certificado de testing venció');
+    expect(() => new ArcaClientFactory().createForExport(runtime)).toThrow(/^El certificado de testing venció/);
+  });
+
   it('con dedicado sano: sigue aunque el de facturacion este vencido', () => {
     profile.writeConfig(
       profile.configWith(profile.expiring, {

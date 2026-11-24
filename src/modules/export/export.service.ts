@@ -17,6 +17,7 @@ import {
 import { futureDateWarnings } from '../billing/billing.dates';
 import { EmissionUncertainError } from '../billing/billing.errors';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
+import { formatNextVouchers } from '../billing/voucher-names';
 import type { ArcliConfig } from '../config/config.schemas';
 
 import {
@@ -59,7 +60,7 @@ import {
 import { checkExportPermits } from './export.permits';
 import { createDryRunExportResponse, mapExportResponse } from './export.response';
 import { EXPORT_DATE_RULES } from './export.rules';
-import { describeQueryFailure, readExportTable, requireExportTable, unreadExportTableWarnings } from './export.tables';
+import { describeQueryFailure, readExportTable, unreadExportTableWarnings } from './export.tables';
 import {
   DEFAULT_EXPORT_UNIT_CODE,
   EXPORT_VOUCHER_KIND,
@@ -159,13 +160,6 @@ function assertRequiredFields(input: ExportVoucherInput): void {
   }
 }
 
-/** Como se nombran en plural los comprobantes del mismo tipo, para el aviso de la fecha futura. */
-const PLURAL_NAMES: Record<ExportVoucherKind['shortcut'], string> = {
-  fe: 'facturas E',
-  nce: 'notas de crédito E',
-  nde: 'notas de débito E',
-};
-
 interface ResolvedAssociatedVoucher {
   readonly payload: ExportAssociatedVoucherPayload;
   readonly voucher: ExportIssuedVoucher;
@@ -242,7 +236,7 @@ function exportQuotationWarnings(options: {
 }
 
 /**
- * 1667 (WSFEX v3.1.0, p. 19): la cotizacion va "entre el 2% y el 400% de la oficial" (citado en TEST-8), y no hasta
+ * 1667 (WSFEX v3.1.0, p. 19), solo en la factura: la cotizacion va "entre el 2% y el 400% de la oficial" (citado en TEST-8), y no hasta
  * "superior en un 400%" como la 10119: por eso no comparte su maximo. Solo avisa: en testing no se puede probar, porque
  * sus cotizaciones son ficticias.
  */
@@ -287,7 +281,7 @@ function describeWrittenUnits(input: ExportVoucherInput): string | undefined {
 
   codes.delete(DEFAULT_EXPORT_UNIT_CODE);
 
-  return codes.size > 0 ? `la unidad ${[...codes].join(', ')}` : undefined;
+  return codes.size > 0 ? `${codes.size === 1 ? 'la unidad' : 'las unidades'} ${[...codes].join(', ')}` : undefined;
 }
 
 function describeAssociated(voucher: ExportIssuedVoucher): ExportDisplayInfo['associatedVoucher'] {
@@ -365,17 +359,9 @@ export class ExportService {
     // La ultima de las locales, antes de consultar las tablas (ERR-11). En una nota con asociado ya se valido al buscarlo.
     const pointOfSale = resolveExportPointOfSale(input.pointOfSale, config);
 
-    const countryTable = await readExportTable(() => gateway.getDestinationCountries());
-    const typedCountryCode = Number(/^\d+$/.exec(input.destinationCountry?.trim() ?? '')?.[0] ?? 0);
-    // Sin la tabla, el codigo alcanza para emitir; un nombre no.
-    const destinationCountry = resolveExportDestinationCountry(
-      input.destinationCountry,
-      typedCountryCode > 0 && !countryTable.ok
-        ? [{ code: typedCountryCode, name: '' }]
-        : requireExportTable(countryTable),
-    );
-    const countryCuitTable = await readExportTable(() => gateway.getDestinationCountryCuits());
-    const countryCuits = countryCuitTable.rows;
+    // Siempre hace falta, tambien con el pais por codigo: el CUIT del pais se compara con su nombre.
+    const countryList = await gateway.getDestinationCountries();
+    const destinationCountry = resolveExportDestinationCountry(input.destinationCountry, countryList);
     // El mismo destino que el asociado, escrito por nombre: recien con la tabla se sabe.
     const associatedCuit =
       associated?.voucher.destinationCountry === destinationCountry.code
@@ -383,12 +369,11 @@ export class ExportService {
         : undefined;
     const givenCountryCuit = input.clientCountryCuit ?? associatedCuit;
 
-    // El CUIT del pais que no se escribio sale de las dos tablas, y se emite.
-    if (givenCountryCuit === undefined) {
-      requireExportTable(countryTable);
-      requireExportTable(countryCuitTable);
-    }
-
+    // Sin escribirlo, el CUIT del pais sale de la tabla.
+    const countryCuitTable = await readExportTable(() => gateway.getDestinationCountryCuits(), {
+      required: givenCountryCuit === undefined,
+    });
+    const countryCuits = countryCuitTable.rows;
     const clientCountryCuit = countryCuitTable.ok
       ? resolveExportClientCountryCuit({
           country: destinationCountry,
@@ -403,11 +388,11 @@ export class ExportService {
       country: destinationCountry,
     });
 
-    const unitTable = await readExportTable(() => gateway.getUnits());
     // Una unidad escrita por nombre sale de la tabla.
-    const units = input.items?.some(({ unit }) => typeof unit === 'string')
-      ? requireExportTable(unitTable)
-      : unitTable.rows;
+    const unitTable = await readExportTable(() => gateway.getUnits(), {
+      required: input.items?.some(({ unit }) => typeof unit === 'string'),
+    });
+    const units = unitTable.rows;
     const items = buildExportItems(
       input.items,
       input.amount as number,
@@ -415,7 +400,10 @@ export class ExportService {
       input.description?.trim() || DEFAULT_EXPORT_ITEM_DESCRIPTION,
     );
 
-    const incotermTable = input.incoterm?.trim() ? await readExportTable(() => gateway.getIncoterms()) : undefined;
+    // Sin `--incoterms-desc`, la descripcion (`Incoterms_Ds`) sale de la tabla.
+    const incotermTable = input.incoterm?.trim()
+      ? await readExportTable(() => gateway.getIncoterms(), { required: !input.incotermDescription?.trim() })
+      : undefined;
     const incoterm = resolveExportIncoterm(input.incoterm, incotermTable?.rows ?? []);
     // Se consulta siempre: la vista previa muestra el nombre del idioma, tambien el de por defecto.
     const languageTable = await readExportTable(() => gateway.getLanguages());
@@ -449,7 +437,7 @@ export class ExportService {
       : undefined;
 
     // `--cotizacion-moneda`: en servicios o con `--misma-moneda` tiene que ser la de ARCA (2053, 1604), y en bienes y
-    // otros se avisa si esta fuera de rango (1667). La de una nota sale del asociado.
+    // otros se avisa si esta fuera de rango (1667). Solo en la factura: la de una nota sale del asociado.
     const exchangeRateWarnings =
       currency.needsQuotation || isLocalCurrency || isExportNote(voucherKind)
         ? []
@@ -521,7 +509,7 @@ export class ExportService {
     }
 
     // Ultima lectura antes de emitir: un permiso que ARCA no reconoce corta aca y no en el rechazo de `FEXAuthorize`.
-    const permitChecks = await checkExportPermits(payload, gateway, destinationCountry.name || undefined);
+    const permitChecks = await checkExportPermits(payload, gateway, destinationCountry.name);
     const currencyCode = payload.Moneda_Id.trim().toUpperCase();
     const display: ExportDisplayInfo = {
       ...(associated ? { associatedVoucher: describeAssociated(associated.voucher) } : {}),
@@ -529,7 +517,7 @@ export class ExportService {
         clientCountryCuit === undefined
           ? undefined
           : countryCuits.find((entry) => entry.cuit === clientCountryCuit)?.countryName,
-      countryName: destinationCountry.name || undefined,
+      countryName: destinationCountry.name,
       currencyName: currencyTable.rows.find((entry) => entry.code.trim().toUpperCase() === currencyCode)?.name,
       incotermName: incoterm?.name,
       languageName: languageTable.rows.find((language) => language.id === languageId)?.name,
@@ -538,14 +526,6 @@ export class ExportService {
     };
     // La cotizacion de aduana del dia se publica mas tarde: se emite con la ultima disponible, avisando de que dia es.
     const warnings = [
-      ...exportAssociatedVoucherWarnings(rawInput.associatedVoucher),
-      ...futureDateWarnings({
-        code: 1535,
-        next: `las próximas ${PLURAL_NAMES[voucherKind.shortcut]}`,
-        pointOfSale,
-        today,
-        voucherDate,
-      }),
       // En las notas `--fecha-pago` es un error (ver `assertExportNoteFields`); en la factura de bienes se ignora.
       ...(!isExportNote(voucherKind) && input.paymentDate?.trim() && !exportTypeTakesPaymentDate(exportType, false)
         ? [
@@ -563,25 +543,43 @@ export class ExportService {
           })
         : []),
       ...exchangeRateWarnings,
+      ...exportAssociatedVoucherWarnings(rawInput.associatedVoucher),
+      ...futureDateWarnings({
+        code: 1535,
+        next: formatNextVouchers(voucherKind),
+        pointOfSale,
+        today,
+        voucherDate,
+      }),
       ...(permitChecks?.warnings ?? []),
-      ...unreadExportTableWarnings(countryTable, 'países', `el país de destino ${destinationCountry.code}`),
-      ...unreadExportTableWarnings(countryCuitTable, 'CUIT de países', `el CUIT de país ${clientCountryCuit}`),
+      // "Sin validar" es solo lo que se escribio: lo heredado del asociado ya lo autorizo ARCA.
+      ...unreadExportTableWarnings(
+        countryCuitTable,
+        'CUIT de países',
+        rawInput.clientCountryCuit === undefined ? undefined : `el CUIT de país ${clientCountryCuit}`,
+      ),
       ...unreadExportTableWarnings(unitTable, 'unidades de medida', describeWrittenUnits(input)),
       ...(incoterm && incotermTable
-        ? unreadExportTableWarnings(incotermTable, 'incoterms', `el incoterm ${incoterm.code}`)
+        ? unreadExportTableWarnings(
+            incotermTable,
+            'incoterms',
+            rawInput.incoterm?.trim() ? `el incoterm ${incoterm.code}` : undefined,
+          )
         : []),
       ...unreadExportTableWarnings(
         languageTable,
         'idiomas',
-        input.language === undefined ? undefined : `el idioma ${languageId}`,
+        rawInput.language === undefined ? undefined : `el idioma ${languageId}`,
       ),
       // Con la cotizacion de ARCA, la moneda ya se encontro en su tabla de cotizaciones.
       ...unreadExportTableWarnings(
         currencyTable,
         'monedas',
-        isLocalCurrency || quotation ? undefined : `la moneda ${requestedCurrency.toUpperCase()}`,
+        isLocalCurrency || quotation || (associated && !rawInput.currencyCode?.trim())
+          ? undefined
+          : `la moneda ${requestedCurrency.toUpperCase()}`,
       ),
-      ...(activity !== undefined && activityTable
+      ...(activity !== undefined && activityTable && input.activity === rawInput.activity
         ? unreadExportTableWarnings(activityTable, 'actividades', `la actividad ${activity}`)
         : []),
       ...(activity !== undefined && activityTable?.ok && activityTable.rows.length === 0

@@ -101,7 +101,7 @@ describe('previewAndEmit', () => {
     }).format(Date.now() + 24 * 60 * 60 * 1000);
 
     chooseOneMock.mockResolvedValueOnce(false);
-    await previewAndEmit(createSession('testing'), { ...input, billingDate: tomorrow });
+    await previewAndEmit(createSession('testing'), { ...input, billingDate: tomorrow }, ['AVISO DEL ASOCIADO']);
 
     const output = stripAnsi(
       vi
@@ -110,6 +110,8 @@ describe('previewAndEmit', () => {
         .join(''),
     );
 
+    // Como en el comando: primero el asociado.
+    expect(output.indexOf('AVISO DEL ASOCIADO')).toBeLessThan(output.indexOf('es futura'));
     expect(output.match(/error\s+[^\d]*10016/g)).toHaveLength(1);
   });
 
