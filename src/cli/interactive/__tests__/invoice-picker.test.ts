@@ -554,6 +554,18 @@ describe('pickExportVoucher', () => {
     expect(shown()).not.toContain('No hay');
   });
 
+  it('si no se entiende ninguna y no hay más, solo ofrece buscarla a mano', async () => {
+    const gateway = exportGateway(0);
+
+    vi.spyOn(gateway, 'getVoucher').mockImplementation(async (query) =>
+      exportGateway(query.number, { broken: unreadable(query.number) }).getVoucher(query),
+    );
+    script = createScript([[/Cuál/, BACK]]);
+
+    expect(await pickExportVoucher(createSession([], 3), gateway, exportOptions)).toBe(BACK);
+    expect(script.chooseStep.mock.calls[0]?.[1]).toHaveLength(1);
+  });
+
   it('si falla la primera tanda y al reintentar saltea una, la avisa y no dice que no hay', async () => {
     script = createScript([
       [/Cuál/, 'Volver a cargar'],

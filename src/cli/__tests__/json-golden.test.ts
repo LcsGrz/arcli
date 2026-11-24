@@ -1254,6 +1254,16 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
       }
     });
 
+    it('un R con el vencimiento y un CAE en ceros no muestra el vencimiento', async () => {
+      sdk.wsfe.createVoucher.mockResolvedValue(withDetail({ CAE: '0', CAEFchVto: '20261127', Resultado: 'R' }));
+      prepareConfig({});
+
+      expect(JSON.parse((await runCli([...FC, '--emitir', '--json'])).stdout)).toMatchObject({
+        cae: null,
+        caeVencimiento: null,
+      });
+    });
+
     it('un CAE en ceros y un error de validación: rechazada', async () => {
       sdk.wsfe.createVoucher.mockImplementation(
         approvedWith({ Errors: { Err: [VALIDATION] } }, { CAE: '0', Resultado: '' }, { cae: '0' }),
@@ -1682,6 +1692,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
       ['con el código en cero', [{ Code: 0, Msg: 'x' }], 'x'],
       ['con un código que no es un número', [{ Code: 'abc', Msg: 'x' }], 'x'],
       ['nulo', [null], 'ARCA no informó el detalle.'],
+      ['vacío', [{}], 'ARCA no informó el detalle.'],
       ['de texto', 'hola', 'hola'],
       ['sin código y un 501', [{ Msg: 'x' }, INTERNAL], 'x; 501 Error interno de base de datos'],
     ])('fc, un error %s, sin CAE ni resultado: EMISSION_UNCERTAIN', async (_name, Err, reasons) => {
