@@ -773,6 +773,187 @@ describe('lotes', () => {
     ]));
 });
 
+describe('códigos en el lote y causa del error (ERR-5 y ERR-6)', () => {
+  // Tests primero.
+  const ITEM = { concepto: 'servicios', ivaReceptor: 'consumidor-final', montoTotal: 1000 };
+  const NCEA = [
+    ...['ncea', '-m', '1000000', '--cs', '--cuit', String(CLIENT_CUIT), '--ir-ri'],
+    ...['--ac', 'fcea', '--apv', '3', '--ar', '12', '--previsualizar'],
+  ];
+  const FA_PADRON = ['fa', '-m', '12100', '--cs', '--cuit', String(CLIENT_CUIT), '--previsualizar'];
+
+  interface JsonError {
+    readonly codigo: string;
+    readonly detalles: Record<string, unknown> | null;
+    readonly error: string;
+    readonly sugerencia: string | null;
+  }
+
+  async function jsonError(args: readonly string[]): Promise<JsonError> {
+    prepareConfig({});
+
+    return JSON.parse((await runCli([...args, '--json'])).stderr) as JsonError;
+  }
+
+  async function panel(args: readonly string[]): Promise<string> {
+    prepareConfig({});
+
+    return (await runCli(args)).stderr;
+  }
+
+  const CASES: ReadonlyArray<{
+    readonly arrange?: () => void;
+    readonly codigo: string;
+    readonly command: string;
+    readonly item: Record<string, unknown>;
+    readonly name: string;
+    readonly sugerencia?: RegExp;
+  }> = [
+    {
+      codigo: 'INPUT_VALIDATION_ERROR',
+      command: 'fa',
+      item: { ...ITEM, ivaReceptor: 'responsable-inscripto', numeroDocumento: 20123456, tipoDocumento: 'dni' },
+      name: 'una regla con sugerencia',
+      sugerencia: /emití el comprobante B/,
+    },
+    {
+      codigo: 'INPUT_VALIDATION_ERROR',
+      command: 'fc',
+      item: { ...ITEM, montoTotal: undefined },
+      name: 'el esquema (falta el monto)',
+    },
+    {
+      codigo: 'INPUT_VALIDATION_ERROR',
+      command: 'fc',
+      item: { ...ITEM, montototal: 1 },
+      name: 'el JSON mal escrito',
+    },
+    {
+      arrange: () => sdk.wsfe.getQuotation.mockRejectedValue(new Error('connect ETIMEDOUT')),
+      codigo: 'UNEXPECTED_ERROR',
+      command: 'fc',
+      item: { ...ITEM, codigoMoneda: 'USD' },
+      name: 'la red caída al consultar la cotización',
+    },
+    {
+      arrange: () => sdk.wsfe.getQuotation.mockRejectedValue(new Error('ns1:coe.alreadyAuthenticated: ya posee un TA')),
+      codigo: 'TRANSIENT_ERROR',
+      command: 'fc',
+      item: { ...ITEM, codigoMoneda: 'USD' },
+      name: 'un error pasajero de ARCA',
+      sugerencia: /Esperá un par de minutos/,
+    },
+    {
+      arrange: () => sdk.padron.getTaxpayerDetails.mockRejectedValue(new Error('connect ETIMEDOUT')),
+      codigo: 'INPUT_VALIDATION_ERROR',
+      command: 'fa',
+      item: { concepto: 'servicios', montoTotal: 1000, numeroDocumento: CLIENT_CUIT, tipoDocumento: 'cuit' },
+      name: 'el padrón caído sin IVA receptor',
+    },
+  ];
+
+  it.fails.each(CASES)(
+    '$name: lo mismo en el lote que solo',
+    async ({ arrange, codigo, command, item, sugerencia }) => {
+      arrange?.();
+
+      const alone = await jsonError([command, '--cargar', writeInput('solo.json', item), '--previsualizar']);
+      const batch = await jsonError([command, '--cargar', writeInput('lote.json', [item]), '--previsualizar']);
+      const [entry] = (batch.detalles as { comprobantes: JsonError[] }).comprobantes;
+
+      expect(entry).toEqual({
+        codigo: alone.codigo,
+        error: expect.any(String),
+        indice: 1,
+        sugerencia: alone.sugerencia,
+      });
+      expect(entry?.codigo).toBe(codigo);
+
+      if (sugerencia) {
+        expect(entry?.sugerencia).toMatch(sugerencia);
+      } else {
+        expect(entry?.sugerencia).toBeNull();
+      }
+
+      expect(batch).toMatchObject({
+        codigo: 'BATCH_VALIDATION_ERROR',
+        error: `1 de 1 comprobante del lote tiene errores. No se emitió ninguno.\n\n#1: ${entry?.error ?? ''}`,
+        sugerencia: null,
+      });
+    },
+  );
+
+  it.fails.each([
+    ['la red caída', 'connect ETIMEDOUT', 'UNEXPECTED_ERROR'],
+    ['un error pasajero', 'ns1:coe.alreadyAuthenticated: ya posee un TA', 'TRANSIENT_ERROR'],
+    ['sin autorizar', 'ns1:cms.cert.notAuthorized', 'PADRON_SERVICE_NOT_AUTHORIZED'],
+  ])('padrón, sin IVA receptor, con %s: detalles.codigoCausa', async (_case, message, codigoCausa) => {
+    sdk.padron.getTaxpayerDetails.mockRejectedValue(new Error(message));
+
+    const error = await jsonError(FA_PADRON);
+
+    expect(error).toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR', sugerencia: null });
+    expect(error.error).toMatch(/^Falta IVA receptor\. No se pudo consultar el padrón de ARCA \(/);
+    expect(error.detalles).toEqual({ codigoCausa });
+
+    const text = await panel(FA_PADRON);
+
+    expect(text).not.toContain('codigoCausa');
+    expect(text).not.toContain(codigoCausa);
+  });
+
+  it.fails.each([
+    ['la red caída', () => sdk.generic.call.mockRejectedValue(new Error('connect ETIMEDOUT')), 'UNEXPECTED_ERROR'],
+    [
+      'un error pasajero',
+      () => sdk.generic.call.mockRejectedValue(new Error('(502) Transacción Activa')),
+      'TRANSIENT_ERROR',
+    ],
+    [
+      'sin autorizar',
+      () => sdk.generic.call.mockRejectedValue(new Error('ns1:coe.notAuthorized')),
+      'WSFE_SERVICE_NOT_AUTHORIZED',
+    ],
+    [
+      'un error de ARCA en un punto de venta de otro sistema',
+      () => {
+        sdk.generic.call.mockImplementation(failingQuery());
+        sdk.wsfe.getSalesPoints.mockResolvedValue({
+          resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE - RECE', fchBaja: 'NULL', nro: 9 }] },
+        });
+      },
+      'ARCA_VOUCHER_QUERY_ERROR',
+    ],
+    [
+      'un error de ARCA en un punto de venta que no se puede clasificar',
+      () => {
+        sdk.generic.call.mockImplementation(failingQuery());
+        sdk.wsfe.getSalesPoints.mockRejectedValue(new Error('timeout'));
+      },
+      'ARCA_VOUCHER_QUERY_ERROR',
+    ],
+  ])('nota FCE sin --afecha con %s: detalles.codigoCausa', async (_case, arrange, codigoCausa) => {
+    arrange();
+
+    const error = await jsonError(NCEA);
+
+    expect(error).toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR', sugerencia: expect.stringContaining('--afecha') });
+    expect(error.error).toMatch(/^No se pudo consultar/);
+    expect(error.detalles).toEqual({ codigoCausa });
+
+    const text = await panel(NCEA);
+
+    expect(text).not.toContain('codigoCausa');
+    expect(text).not.toContain(codigoCausa);
+  });
+
+  it('ARCA no tiene el asociado: no hubo falla, sin causa', async () => {
+    sdk.generic.call.mockImplementation(consulting(null));
+
+    await expect(jsonError(NCEA)).resolves.toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR', detalles: null });
+  });
+});
+
 describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () => {
   const RC = ['rc', '-m', '1000', '--cs', '--cfinal'];
   const NCEA = [
