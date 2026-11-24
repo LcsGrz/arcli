@@ -1,5 +1,7 @@
 import { ZodError } from 'zod';
 
+import { describeFileError } from '../files/file-error';
+
 import { AppError } from './app-error';
 import { isQueryError, VERIFY_BEFORE_RETRY } from './query-error';
 
@@ -44,6 +46,12 @@ export function summarizeError(error: unknown): ErrorSummary {
 
   if (error instanceof ZodError) {
     return { code: 'INPUT_VALIDATION_ERROR', suggestion: null };
+  }
+
+  const fileError = describeFileError(error);
+
+  if (fileError) {
+    return { code: 'UNEXPECTED_ERROR', suggestion: fileError.suggestion };
   }
 
   const transient = error instanceof Error ? detectTransientError(error.message, isQueryError(error)) : null;
