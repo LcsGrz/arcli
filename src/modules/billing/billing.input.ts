@@ -36,6 +36,10 @@ export interface BillingInputOptions {
   readonly defaults: BillingDefaults;
   /** Un comprobante de `--cargar`, ya validado con `parseBillingJsonInput`. */
   readonly file?: BillingJsonInput;
+  /**
+   * Quien los arma controla las incompatibilidades (`errors`): acá no se vuelven a mirar. Los arma el CLI; HTTP y MCP
+   * mandan solo el comprobante (`file`, o `source` en `resolveBillingInputPlan`).
+   */
   readonly flags?: BillingFlags;
   /** La referencia de las fechas relativas, la misma para todo el lote. */
   readonly now: Date;

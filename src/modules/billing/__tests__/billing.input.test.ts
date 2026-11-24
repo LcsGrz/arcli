@@ -65,6 +65,38 @@ describe('resolveBillingInput', () => {
     });
   });
 
+  it('`anulacion` y `mismaMoneda` en `false` también le ganan al `true` del archivo', () => {
+    expect(
+      resolve({ file: { ...FILE, anulacion: true }, flags: { anulacion: false }, shortcut: 'ncea' }).input.cancellation,
+    ).toBe(false);
+
+    const foreign = { ...FILE, codigoMoneda: 'USD' };
+
+    expect(resolve({ file: { ...foreign, mismaMoneda: true }, flags: { mismaMoneda: false } }).input.sameCurrency).toBe(
+      false,
+    );
+    // Sin misma moneda, la cotización del archivo vale.
+    expect(
+      resolve({ file: { ...foreign, cotizacionMoneda: 1400 }, flags: { mismaMoneda: false } }).input,
+    ).toMatchObject({ exchangeRate: 1400, fromFile: ['exchangeRate'], sameCurrency: false });
+  });
+
+  it('`mismaMoneda` descarta la cotización del archivo y nada más', () => {
+    expect(
+      resolve({
+        file: { ...FILE, codigoMoneda: 'USD', cotizacionMoneda: 1400, descripcion: 'Horas', dia: 5 },
+        flags: { mismaMoneda: true },
+      }).input,
+    ).toMatchObject({ dueDay: 5, exchangeRate: undefined, fromFile: ['dueDay', 'pdfDescription'], sameCurrency: true });
+  });
+
+  it('un mes en el período asociado va del primer día al último', () => {
+    expect(
+      resolve({ file: { ...FILE, periodoAsociado: { desde: 'mes-pasado', hasta: 'mes-pasado' } }, shortcut: 'ncb' })
+        .input.associatedPeriod,
+    ).toEqual({ desde: '01/10/2026', hasta: '31/10/2026' });
+  });
+
   it('los flags incompatibles salen en su lugar entre los demás errores', () => {
     const flags = { errors: { pdf: new InputValidationError('flags de PDF') } };
 

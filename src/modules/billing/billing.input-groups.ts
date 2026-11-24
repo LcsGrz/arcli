@@ -105,8 +105,7 @@ export function resolveCurrency(layers: BillingInputLayers) {
   const { defaults, file, flags } = layers;
   const currencyCode = written(layers, 'codigoMoneda') ?? defaults.defaultCurrencyCode;
   // Un flag pisa lo del archivo: --cm descarta "mismaMoneda" del JSON y --misma-moneda, su "cotizacionMoneda".
-  const sameCurrency =
-    flags.mismaMoneda === true || (flags.cotizacionMoneda === undefined && file.mismaMoneda === true);
+  const sameCurrency = flags.mismaMoneda ?? (flags.cotizacionMoneda === undefined && file.mismaMoneda === true);
   const explicitRate = flags.cotizacionMoneda ?? (flags.mismaMoneda === true ? undefined : file.cotizacionMoneda);
 
   // Quien arma los flags no deja pasar los dos juntos, asi que las dos claves vienen del JSON.
@@ -234,12 +233,12 @@ export function resolveAmounts(layers: BillingInputLayers) {
 }
 
 export function resolveFceFields(layers: BillingInputLayers) {
-  const { defaults, file, flags, shortcut } = layers;
+  const { defaults, shortcut } = layers;
   // El CBU de la config solo aplica a facturas FCE: ARCA rechaza esos opcionales en otros comprobantes (10169).
   const fceDefaults = isFceInvoice(getVoucherKindByShortcut(shortcut)) ? defaults : undefined;
 
   return {
-    cancellation: flags.anulacion === true || file.anulacion === true,
+    cancellation: written(layers, 'anulacion') === true,
     cbu: written(layers, 'cbu') ?? fceDefaults?.defaultCbu,
     cbuAlias: written(layers, 'aliasCbu') ?? fceDefaults?.defaultCbuAlias,
     transferMode: written(layers, 'transferencia'),
