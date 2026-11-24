@@ -25,6 +25,8 @@ La factura de exportación `E` y sus notas recorren el mismo camino con otro mó
 
 `previewExport` y `emitExport` (`export.emission.ts`) son los casos de uso de la `E`, con la misma forma: la vista previa recibe un gateway sin `authorize` y la emisión devuelve `{ results, error }`, siempre de un comprobante.
 
+El PDF también es del núcleo (REV-51), con el mismo camino en todas las familias: `decidePdfs` (pura) dice qué hacer con cada comprobante y `generatePdfs` (`modules/pdf/pdf-generation.ts`) genera los elegidos con el puerto `PdfExporter`, sin preguntas, spinner ni rutas, y nunca lanza: un PDF que falla es un dato y no cambia la emisión. `services/pdf` es el adaptador (el plugin y los archivos). El CLI resuelve la carpeta, pregunta, instala y muestra. `PUPPETEER_EXECUTABLE_PATH` se escribe solo en `services/pdf/pdf-plugin.ts`, porque `@arcasdk/pdf` no recibe la ruta del navegador; es de todo el proceso, así que generar dos PDF a la vez con navegadores distintos no es seguro (API-1).
+
 El comportamiento visible de cada paso está en el [modelo mental](mental-model.md).
 
 ## Núcleo y adaptadores

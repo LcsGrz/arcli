@@ -1,10 +1,9 @@
 import { InputValidationError } from '../../lib/errors/app-error';
-import type { BillingExecutionResult } from '../billing/billing.types.internal';
 import type { ArcliPdfMode } from '../config/config.schemas';
 
 export type PdfDecision = 'generar' | 'omitir' | 'preguntar';
 
-export interface PdfDecisionInput {
+interface PdfDecisionInput {
   /** `true` con --exportar-pdf, `false` con --sin-pdf. */
   readonly flag?: boolean;
   /** Hay alguien para responder: terminal interactiva y sin --json. */
@@ -37,7 +36,11 @@ export function resolvePdfFlag(input: PdfFlagInput): boolean | undefined {
   return input.skipPdf ? false : input.filePdf;
 }
 
-/** El flag gana; sin flag decide la config, y "preguntar" sin nadie que responda no genera. */
+/**
+ * El flag gana; sin flag decide la config, y "preguntar" sin nadie que responda no genera.
+ *
+ * @internal Exportado para los tests.
+ */
 export function resolvePdfDecision(input: PdfDecisionInput): PdfDecision {
   if (input.flag !== undefined) {
     return input.flag ? 'generar' : 'omitir';
@@ -85,7 +88,34 @@ export function resolvePdfAfterConfirmation(flag: boolean | undefined, choice: E
   return flag ?? choice === 'emitir-con-pdf';
 }
 
+/** Lo que hace falta de un resultado de cualquier familia para saber si puede llevar PDF. */
+interface PdfCandidateResult {
+  readonly dryRun: boolean;
+  readonly response: { readonly cae?: string | null; readonly status: string };
+}
+
 /** Sin CAE no hay PDF: ni en vista previa ni en rechazados. Un observado tiene CAE y si lleva. */
-export function canHavePdf(result: BillingExecutionResult): boolean {
+export function canHavePdf(result: PdfCandidateResult): boolean {
   return !result.dryRun && result.response.status !== 'rechazado' && Boolean(result.response.cae);
+}
+
+/** Que hacer con el PDF de cada comprobante, en orden y en todas las familias. `preguntar` lo responde quien llama. */
+export function decidePdfs(options: {
+  readonly interactive: boolean;
+  readonly mode?: ArcliPdfMode;
+  readonly vouchers: ReadonlyArray<{ readonly flag?: boolean; readonly result: PdfCandidateResult }>;
+}): PdfDecision[] {
+  const { interactive, mode } = options;
+
+  return options.vouchers.map(({ flag, result }) =>
+    canHavePdf(result) ? resolvePdfDecision({ flag, interactive, mode }) : 'omitir',
+  );
+}
+
+/** Las decisiones con la respuesta a la pregunta: una sola para todos los que habia que preguntar. */
+export function answerPdfDecisions(
+  decisions: readonly PdfDecision[],
+  accepted: boolean,
+): ReadonlyArray<Exclude<PdfDecision, 'preguntar'>> {
+  return decisions.map((decision) => (decision === 'preguntar' ? (accepted ? 'generar' : 'omitir') : decision));
 }

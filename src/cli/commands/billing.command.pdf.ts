@@ -5,10 +5,9 @@ import type { BillingExecutionResult } from '../../modules/billing/billing.types
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { PDF_INSTALL_SUGGESTION, PdfError } from '../../modules/pdf/pdf.errors';
-import type { PdfOutcome } from '../../modules/pdf/pdf.types';
-import { canHavePdf, type PdfDecision, resolvePdfDecision } from '../../modules/pdf/pdf-decision';
-import { resolvePdfIssuer } from '../../modules/pdf/pdf-issuer';
-import { exportBillingPdf, toPdfFailure } from '../../services/pdf/pdf-exporter';
+import { answerPdfDecisions, canHavePdf, decidePdfs, type PdfDecision } from '../../modules/pdf/pdf-decision';
+import { billingPdfVoucher, generatePdfs, type PdfExporter } from '../../modules/pdf/pdf-generation';
+import { createPdfFileExporter } from '../../services/pdf/pdf-file-exporter';
 import { PdfPlugin, type PdfRenderer } from '../../services/pdf/pdf-plugin';
 import { confirm, isPromptCancellation } from '../interactive/prompts';
 import { startSpinner } from '../spinner';
@@ -132,41 +131,28 @@ export function pdfOnlyDataWarning(input: BillingCommandInput | undefined): stri
   return `${subject[0]?.toUpperCase() ?? ''}${subject.slice(1)} solo ${verb} en el PDF; no se generó ninguno.`;
 }
 
-function resolveSaleCondition(input: BillingCommandInput | undefined, config: ArcliConfig): string | undefined {
-  if (input?.saleCondition === null) {
-    return undefined;
-  }
-
-  return input?.saleCondition ?? config.condicionVenta;
-}
-
-async function resolveDecisions(options: PdfStepOptions, deps: PdfStepDependencies): Promise<PdfDecision[]> {
-  const decisions = options.results.map((result, index) =>
-    canHavePdf(result)
-      ? resolvePdfDecision({
-          flag: options.inputs[index]?.pdf,
-          interactive: options.interactive,
-          mode: options.config.pdf,
-        })
-      : 'omitir',
-  );
+/** La pregunta del PDF, una sola para todos los que hay que preguntar. */
+export async function confirmPdfs(
+  decisions: readonly PdfDecision[],
+  deps: PdfStepDependencies,
+): Promise<ReturnType<typeof answerPdfDecisions>> {
   const pending = decisions.filter((decision) => decision === 'preguntar').length;
 
   if (pending === 0) {
-    return decisions;
+    return answerPdfDecisions(decisions, false);
   }
 
-  const answer = await deps.confirm(
+  const accepted = await deps.confirm(
     pending === 1 ? '¿Generamos el PDF del comprobante?' : `¿Generamos los PDFs de los ${pending} comprobantes?`,
     pending === 1 ? 'Sí, generar el PDF' : 'Sí, generar los PDFs',
     'No',
   );
 
-  return decisions.map((decision) => (decision === 'preguntar' ? (answer ? 'generar' : 'omitir') : decision));
+  return answerPdfDecisions(decisions, accepted);
 }
 
 /** Si falta el plugin, en una terminal se ofrece instalarlo; sin terminal nunca se descarga solo. */
-export async function loadPdfRenderer(
+async function loadPdfRenderer(
   plugin: PdfPlugin,
   interactive: boolean,
   deps: PdfStepDependencies,
@@ -200,6 +186,31 @@ export async function loadPdfRenderer(
   return plugin.load();
 }
 
+/** El plugin cargado, con la carpeta de la config: el exportador que usa `generatePdfs`. */
+export async function loadPdfExporter(
+  config: ArcliConfig,
+  interactive: boolean,
+  deps: PdfStepDependencies,
+): Promise<PdfExporter> {
+  const renderer = await loadPdfRenderer(deps.createPlugin(config), interactive, deps);
+
+  return createPdfFileExporter({ folder: deps.resolveFolder(config), renderer });
+}
+
+function withSpinner(exporter: PdfExporter): PdfExporter {
+  return {
+    export: async (...args) => {
+      const spinner = startSpinner('Generando PDF...');
+
+      try {
+        return await exporter.export(...args);
+      } finally {
+        spinner?.stop();
+      }
+    },
+  };
+}
+
 /**
  * Genera los PDFs de los comprobantes emitidos. Nunca lanza: el comprobante ya esta emitido, asi que un
  * error del PDF se devuelve en `pdf.error` y no cambia el codigo de salida.
@@ -209,59 +220,31 @@ export async function attachPdfs(
   defaultDeps: PdfStepDependencies = defaultPdfStepDependencies,
 ): Promise<BillingExecutionResult[]> {
   const deps = withCancellationAsNo(defaultDeps);
-  const decisions = await resolveDecisions(options, deps);
+  const { config, inputs, interactive, results } = options;
+  const decisions = await confirmPdfs(
+    decidePdfs({
+      interactive,
+      mode: config.pdf,
+      vouchers: results.map((result, index) => ({ flag: inputs[index]?.pdf, result })),
+    }),
+    deps,
+  );
   const targets = decisions.flatMap((decision, index) => (decision === 'generar' ? [index] : []));
-  const outcomes = new Map<number, PdfOutcome>();
+  const outcomes = await generatePdfs({
+    config,
+    loadExporter: async () => withSpinner(await loadPdfExporter(config, interactive, deps)),
+    vouchers: targets.map((index) => billingPdfVoucher(results[index], inputs[index], config)),
+  });
 
-  if (targets.length > 0) {
-    try {
-      // Antes de descargar nada: sin los datos del emisor no se puede armar ningun PDF.
-      resolvePdfIssuer(options.config, options.results[targets[0]].voucherKind.letter);
-
-      const renderer = await loadPdfRenderer(deps.createPlugin(options.config), options.interactive, deps);
-      const folder = deps.resolveFolder(options.config);
-
-      for (const index of targets) {
-        const spinner = startSpinner('Generando PDF...');
-
-        try {
-          const input = options.inputs[index];
-          const path = await exportBillingPdf({
-            config: options.config,
-            extras: {
-              condicionVenta: resolveSaleCondition(input, options.config),
-              descripcion: input?.pdfDescription,
-              receptorDomicilio: input?.receiverAddress,
-              receptorNombre: input?.receiverName,
-            },
-            folder,
-            renderer,
-            result: options.results[index],
-          });
-
-          outcomes.set(index, { path });
-        } catch (error) {
-          outcomes.set(index, toPdfFailure(error));
-        } finally {
-          spinner?.stop();
-        }
-      }
-    } catch (error) {
-      for (const index of targets) {
-        outcomes.set(index, toPdfFailure(error));
-      }
-    }
-  }
-
-  return options.results.map((result, index) => {
-    const pdf = outcomes.get(index);
+  return results.map((result, index) => {
+    const pdf = outcomes[targets.indexOf(index)];
 
     if (pdf) {
       return { ...result, pdf };
     }
 
     // Avisa que esos datos no quedaron en ningun lado: ARCA no los recibe.
-    const warning = canHavePdf(result) ? pdfOnlyDataWarning(options.inputs[index]) : undefined;
+    const warning = canHavePdf(result) ? pdfOnlyDataWarning(inputs[index]) : undefined;
 
     if (warning) {
       return { ...result, warnings: [...(result.warnings ?? []), warning] };
