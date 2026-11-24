@@ -1,10 +1,9 @@
 import { asArray } from '../../lib/arrays/as-array';
 import type { IFEXAuthorizeOutput } from '../../services/arca/arca-sdk.types';
-import { readCae, readCaeExpiration, readResponseText } from '../billing/emission-response';
+import { NO_DETAIL_TEXT, readCae, readCaeExpiration, readResponseText } from '../billing/emission-response';
 
 import type { ExportResponseError, ExportResponseSummary } from './export.types';
 
-const NO_DETAIL = 'ARCA no informó el detalle.';
 const POINT_OF_SALE_HINT = 'Revisá los puntos de venta habilitados para WSFEX con `arcli parametros puntos-venta`.';
 
 /**
@@ -16,7 +15,14 @@ function toEntry(code: number | undefined, message: unknown): ExportResponseErro
     return [];
   }
 
-  return [{ code, message: readResponseText(message)?.trim() || NO_DETAIL }];
+  return [{ code, message: readResponseText(message)?.trim() || NO_DETAIL_TEXT }];
+}
+
+/** Un texto donde va un bloque: se muestra, sin codigo. */
+function toTextEntry(item: unknown): ExportResponseError[] {
+  const message = typeof item === 'object' ? null : readResponseText(item)?.trim();
+
+  return message ? [{ message }] : [];
 }
 
 function buildSuggestions(options: {
@@ -86,16 +92,22 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
   const result = output.FEXAuthorizeResult;
   const authorization = asArray(result?.FEXResultAuth)[0];
   // Nada de esto puede costar el CAE: se acepta suelto, en lista, nulo o de otro tipo (ERR-16).
-  const errors = asArray(result?.FEXErr).flatMap((error) => toEntry(error?.ErrCode, error?.ErrMsg));
-  const events = asArray(result?.FEXEvents).flatMap((event) => toEntry(event?.EventCode, event?.EventMsg));
+  const codedErrors = asArray(result?.FEXErr).flatMap((error) => toEntry(error?.ErrCode, error?.ErrMsg));
+  // Sin codigo no se sabe si es un error (`ErrCode: 0` es "OK"): se muestra, pero no rechaza.
+  const errors = [...codedErrors, ...asArray(result?.FEXErr).flatMap(toTextEntry)];
+  const events = asArray(result?.FEXEvents).flatMap((event) => [
+    ...toEntry(event?.EventCode, event?.EventMsg),
+    ...toTextEntry(event),
+  ]);
   const observaciones = asArray<unknown>(authorization?.Motivos_Obs).flatMap(
     (motivo) => readResponseText(motivo)?.trim() ?? [],
   );
   const resultado = readResponseText(authorization?.Resultado)?.trim() ?? null;
-  // En un rechazo no hay CAE, venga lo que venga en su lugar.
+  // En un rechazo, algo ilegible en lugar del CAE no lo vuelve incierto. Lo que se lee (el CAE, el vencimiento) sale como
+  // vino, igual que siempre.
   const cae = resultado === 'R' ? (readResponseText(authorization?.Cae)?.trim() ?? null) : readCae(authorization?.Cae);
   const status =
-    resultado === 'R' || errors.length > 0
+    resultado === 'R' || codedErrors.length > 0
       ? 'rechazado'
       : resultado === 'A' && observaciones.length === 0
         ? 'aprobado'

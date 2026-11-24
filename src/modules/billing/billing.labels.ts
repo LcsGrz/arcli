@@ -48,8 +48,8 @@ export function formatMoneyLabel(value: number | undefined, currency?: string): 
 export function formatArcaMessages(items: readonly unknown[]): string {
   return items
     .map((item, index) => {
-      const { Code, Msg, code, message } = (item ?? {}) as Record<string, unknown>;
-      const text = Msg ?? message;
+      const { Code, Msg, code, mensaje, message } = (item ?? {}) as Record<string, unknown>;
+      const text = Msg ?? message ?? mensaje;
       const prefix = `${index + 1}. `;
 
       if (typeof text !== 'string') {

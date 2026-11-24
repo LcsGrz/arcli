@@ -367,7 +367,7 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
 
     await expect(previewAndEmit(session, input)).rejects.toMatchObject({
       code: 'EMISSION_UNCERTAIN',
-      details: { causa: 'ARCA contestó algo que ARCLI no pudo leer' },
+      details: { causa: 'hubo un error inesperado al emitir (Cannot read properties of undefined)' },
       verifyCommand: 'arcli ultimos fc --pv 3 --testing',
     });
     expect(session.createVoucher).toHaveBeenCalledTimes(1);

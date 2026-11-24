@@ -7,9 +7,9 @@ exit: 1
 {
   "codigo": "EMISSION_UNCERTAIN",
   "detalles": {
-    "causa": "ARCA contestó algo que ARCLI no pudo leer"
+    "causa": "hubo un error inesperado al emitir (Cannot read properties of undefined (reading 'FeDetResp'))"
   },
-  "error": "No se pudo confirmar la emisión: ARCA contestó algo que ARCLI no pudo leer",
+  "error": "No se pudo confirmar la emisión: hubo un error inesperado al emitir (Cannot read properties of undefined (reading 'FeDetResp'))",
   "sugerencia": "Puede haberse emitido igual. Antes de reintentar, verificá con `arcli ultimos fc --pv 3 --testing`: si figura, ya está emitido y no hay que repetirlo."
 }
 

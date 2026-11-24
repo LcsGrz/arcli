@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import forge from 'node-forge';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import { reportCliError, shouldPrintErrorAsJson } from '../error-output';
 import { createProgram } from '../program';
 
@@ -778,10 +779,12 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     ...['--ac', 'fcea', '--apv', '3', '--ar', '12'],
   ];
   const FE_APPROVABLE = [...FE, '--cuit-pais', '55000002126', '--pv', '4'];
-  const CAUSE = 'ARCA contestó algo que ARCLI no pudo leer';
   const CAE = '76463926585341';
   const CAE_E = '76463926585399';
+  const CAUSE = "hubo un error inesperado al emitir (Cannot read properties of undefined (reading 'FeDetResp'))";
+  const CAE_CAUSE = 'el CAE de la respuesta no es un texto ni un número';
   const ONE = { Code: 1, Msg: 'x' };
+  const HELLO = { codigo: null, mensaje: 'hola' };
   /** Lo que tira el SDK si ARCA contesta vacío (ver `arca-sdk.emission.test.ts`). */
   const SDK_EMPTY = new TypeError("Cannot read properties of undefined (reading 'FeDetResp')");
 
@@ -816,16 +819,24 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     };
   };
 
-  const UNREADABLE: ReadonlyArray<readonly [string, Answer]> = [
-    ['el SDK no la pudo leer', async () => Promise.reject(SDK_EMPTY)],
-    ['el CAE no es un texto ni un número', approvedWith({}, {}, { cae: { valor: CAE } })],
+  const UNREADABLE: ReadonlyArray<readonly [string, Answer, string]> = [
+    ['el SDK no la pudo leer', async () => Promise.reject(SDK_EMPTY), CAUSE],
+    // Como rechaza node-soap ante HTML o XML cortado: no es un `Error`.
+    [
+      'XML inválido',
+      async () => Promise.reject({ Fault: { faultstring: 'Invalid XML' }, body: 'secreto' }),
+      'hubo un error inesperado al emitir (Invalid XML)',
+    ],
+    ['un rechazo sin motivo', async () => Promise.reject({ Fault: {} }), 'hubo un error inesperado al emitir'],
+    ['un rechazo vacío', async () => Promise.reject(undefined), 'hubo un error inesperado al emitir'],
+    ['el CAE no es un texto ni un número', approvedWith({}, {}, { cae: { valor: CAE } }), CAE_CAUSE],
   ];
 
   /** Un dato accesorio con otra forma: el CAE se ve igual. */
   const READABLE: ReadonlyArray<readonly [string, Answer, Record<string, unknown>]> = [
     ['un evento suelto', approvedWith({ Events: { Evt: ONE } }), { eventos: [{ ...ONE, codigo: 1, mensaje: 'x' }] }],
-    ['un evento nulo', approvedWith({ Events: { Evt: [null] } }), { eventos: [null] }],
-    ['un evento de texto', approvedWith({ Events: { Evt: 'hola' } }), { eventos: ['hola'] }],
+    ['un evento nulo', approvedWith({ Events: { Evt: [null] } }), { eventos: [] }],
+    ['un evento de texto', approvedWith({ Events: { Evt: 'hola' } }), { eventos: [HELLO] }],
     [
       'una observación suelta',
       approvedWith({}, { Observaciones: { Obs: ONE } }),
@@ -895,13 +906,13 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     return JSON.parse(json.stdout) as Record<string, unknown>;
   }
 
-  it.each(UNREADABLE)('fc, %s: EMISSION_UNCERTAIN con el comando para verificar', async (_name, answer) => {
+  it.each(UNREADABLE)('fc, %s: EMISSION_UNCERTAIN con el comando para verificar', async (_name, answer, causa) => {
     sdk.wsfe.createVoucher.mockImplementation(answer);
 
     expect(await uncertain(FC)).toEqual({
       codigo: 'EMISSION_UNCERTAIN',
-      detalles: { causa: CAUSE },
-      error: `No se pudo confirmar la emisión: ${CAUSE}`,
+      detalles: { causa },
+      error: `No se pudo confirmar la emisión: ${causa}`,
       sugerencia: expect.stringContaining('`arcli ultimos fc --pv 3 --testing`'),
     });
     expect(sdk.wsfe.createVoucher).toHaveBeenCalledTimes(1);
@@ -927,22 +938,42 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
   // El estado es el de una lista con un error: `rechazado`, con el CAE a la vista.
   it.each<[string, unknown, unknown[]]>([
     ['un error suelto', ONE, [{ ...ONE, codigo: 1, mensaje: 'x' }]],
-    ['un error nulo', [null], [null]],
-    ['un error de texto', 'hola', ['hola']],
+    ['un error nulo', [null], [{ codigo: null, mensaje: 'ARCA no informó el detalle.' }]],
+    ['un error de texto', 'hola', [HELLO]],
   ])('fc, %s junto con un CAE: se ve el CAE', async (_name, Err, errores) => {
     sdk.wsfe.createVoucher.mockImplementation(approvedWith({ Errors: { Err } }));
 
     expect(await showsCae(FC, CAE, 2)).toMatchObject({ cae: CAE, errores, estado: 'rechazado', resultado: 'A' });
   });
 
-  it('con --exportar-pdf, lo que falle del PDF no pierde el CAE', async () => {
-    sdk.wsfe.createVoucher.mockImplementation(approvedWith({ Events: { Evt: ONE } }, {}, { caeFchVto: {} }));
-    prepareConfig({});
+  it.each<[string, () => void, readonly string[]]>([
+    ['fc', () => sdk.wsfe.createVoucher.mockImplementation(approvedWith({}, {}, { caeFchVto: {} })), FC],
+    ['fe', () => sdk.wsfex.authorize.mockImplementation(approvedExport({ Fch_venc_Cae: {} })), FE_APPROVABLE],
+  ])('%s con --exportar-pdf y sin el vencimiento: el CAE, y por qué no hay PDF', async (_name, answer, args) => {
+    const render = vi.fn();
 
-    const result = await runCli([...FC, '--emitir', '--exportar-pdf', '--json']);
+    vi.spyOn(PdfPlugin.prototype, 'load').mockResolvedValue({ render });
+    answer();
+    prepareConfig({
+      config: {
+        emisor: { domicilio: 'Calle 1', inicioActividades: '20200301', razonSocial: 'Yo' },
+        pdfCarpeta: configDir,
+      },
+    });
+
+    const result = await runCli([...args, '--emitir', '--exportar-pdf', '--json']);
 
     expect(result).toMatchObject({ code: 0, stderr: '' });
-    expect(JSON.parse(result.stdout)).toMatchObject({ cae: CAE, pdf: { error: { codigo: expect.any(String) } } });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      cae: expect.stringMatching(/^764639265853/),
+      pdf: {
+        error: {
+          codigo: 'PDF_GENERATION_ERROR',
+          mensaje: 'ARCA no informó el vencimiento del CAE: no se puede generar el PDF. El comprobante está emitido.',
+        },
+      },
+    });
+    expect(render).not.toHaveBeenCalled();
   });
 
   it('en un lote, un evento suelto no corta ni pierde ningún CAE', async () => {
@@ -977,17 +1008,25 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     });
   });
 
-  it.each<[string, () => Promise<unknown>]>([
-    ['sin respuesta (el SDK la devuelve tal cual)', async () => undefined],
-    ['el CAE no es un texto ni un número', async () => ({ FEXAuthorizeResult: { FEXResultAuth: { Cae: {} } } })],
-    ['un error interno adentro de la llamada', async () => Promise.reject(SDK_EMPTY)],
-  ])('fe, %s: EMISSION_UNCERTAIN con su número y su solicitud', async (_name, answer) => {
+  it.each<[string, () => Promise<unknown>, string]>([
+    [
+      'XML inválido',
+      async () => Promise.reject({ Fault: { faultstring: 'Invalid XML' } }),
+      'hubo un error inesperado al emitir (Invalid XML)',
+    ],
+    [
+      'el CAE no es un texto ni un número',
+      async () => ({ FEXAuthorizeResult: { FEXResultAuth: { Cae: {} } } }),
+      CAE_CAUSE,
+    ],
+    ['un error interno adentro de la llamada', async () => Promise.reject(SDK_EMPTY), CAUSE],
+  ])('fe, %s: EMISSION_UNCERTAIN con su número y su solicitud', async (_name, answer, causa) => {
     sdk.wsfex.authorize.mockImplementation(answer);
 
     expect(await uncertain(FE_APPROVABLE)).toEqual({
       codigo: 'EMISSION_UNCERTAIN',
-      detalles: { causa: CAUSE, idSolicitud: 42, numero: 8 },
-      error: `No se pudo confirmar la emisión: ${CAUSE}`,
+      detalles: { causa, idSolicitud: 42, numero: 8 },
+      error: `No se pudo confirmar la emisión: ${causa}`,
       sugerencia: expect.stringContaining('`arcli consultar fe 8 --pv 4 --testing`'),
     });
     expect(sdk.wsfex.authorize).toHaveBeenCalledTimes(1);
@@ -1012,6 +1051,24 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     });
   });
 
+  it('fe, un evento de texto: se ve el CAE y el evento', async () => {
+    sdk.wsfex.authorize.mockImplementation(approvedExport({}, { FEXEvents: 'hola' }));
+
+    const json = await showsCae(FE_APPROVABLE, CAE_E);
+
+    expect(json).toMatchObject({ cae: CAE_E, estado: 'aprobado' });
+    expect(json.eventos).toEqual([HELLO]);
+  });
+
+  it('fe, un error de texto junto con un CAE: se ve, sin cambiar el estado', async () => {
+    sdk.wsfex.authorize.mockImplementation(approvedExport({}, { FEXErr: 'hola' }));
+
+    const json = await showsCae(FE_APPROVABLE, CAE_E);
+
+    expect(json).toMatchObject({ cae: CAE_E, estado: 'aprobado' });
+    expect(json.errores).toEqual([HELLO]);
+  });
+
   it('fe, un error sin texto junto con un CAE: rechazado, como con texto, y se ve el CAE', async () => {
     sdk.wsfex.authorize.mockImplementation(approvedExport({}, { FEXErr: { ErrCode: 1, ErrMsg: {} } }));
 
@@ -1029,7 +1086,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
   });
 
   it.each(['nce', 'nde'])('%s', async (shortcut) => {
-    sdk.wsfex.authorize.mockResolvedValue(undefined);
+    sdk.wsfex.authorize.mockRejectedValue(SDK_EMPTY);
 
     expect(await uncertain([shortcut, ...NCE.slice(1)])).toMatchObject({
       codigo: 'EMISSION_UNCERTAIN',
@@ -1067,7 +1124,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
   });
 
   it('fe: el error entero', () => {
-    sdk.wsfex.authorize.mockResolvedValue(undefined);
+    sdk.wsfex.authorize.mockRejectedValue(SDK_EMPTY);
 
     return golden('error-fe-emision-ilegible', [...FE_APPROVABLE, '--emitir', '--json']);
   });

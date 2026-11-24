@@ -3,7 +3,7 @@ import type { CreateVoucherResultDto } from '../../services/arca/arca-sdk.types'
 
 import { findArcaRejections, formatArcaRejection } from './arca-rejections';
 import type { BillingResponseSummary } from './billing.types.internal';
-import { readCae, readCaeExpiration, readResponseText } from './emission-response';
+import { NO_DETAIL_TEXT, readCae, readCaeExpiration, readResponseText } from './emission-response';
 
 export function createDryRunResponse(): BillingResponseSummary {
   return {
@@ -36,8 +36,11 @@ function readDetail(response: CreateVoucherResultDto): RawDetail | undefined {
 export function mapBillingResponse(response: CreateVoucherResultDto): BillingResponseSummary {
   const detail = readDetail(response);
   // Nada de esto puede costar el CAE: se acepta suelto, en lista, nulo o de otro tipo (ERR-16).
-  const events = asArray<unknown>(response.response?.Events?.Evt);
-  const errors = asArray<unknown>(response.response?.Errors?.Err);
+  const events = asArray<unknown>(response.response?.Events?.Evt)
+    .filter((item) => item !== null)
+    .map(toItem);
+  // Uno nulo tambien cuenta: ARCA informo un error, aunque no se lea.
+  const errors = asArray<unknown>(response.response?.Errors?.Err).map(toItem);
   const observations = asArray<unknown>(detail?.Observaciones?.Obs);
   const observaciones = observations.map(readMessage).filter(Boolean);
   const resultado = readResponseText(detail?.Resultado);
@@ -61,6 +64,13 @@ export function mapBillingResponse(response: CreateVoucherResultDto): BillingRes
       resultado,
     }),
   };
+}
+
+/** Lo que no es `{ Code, Msg }` (un texto suelto, un nulo), con la forma que tiene en el JSON. */
+function toItem(item: unknown): unknown {
+  return typeof item === 'object' && item !== null
+    ? item
+    : { codigo: null, mensaje: readResponseText(item) ?? NO_DETAIL_TEXT };
 }
 
 function readCode(item: unknown): number | undefined {

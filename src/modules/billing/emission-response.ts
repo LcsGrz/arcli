@@ -6,19 +6,20 @@ import { addDaysToArcaDate } from '../../lib/dates/arca-date';
  * `EmissionUncertainError` (ERR-16).
  */
 
-/** Lo que dice `EMISSION_UNCERTAIN` si la respuesta no se entiende, en vez del texto interno de JavaScript. */
-const UNREADABLE_RESPONSE = 'ARCA contestó algo que ARCLI no pudo leer';
+/** No dice que ARCA contestó ni que se mando: pudo fallar antes, al armar la solicitud. */
+const UNEXPECTED_EMISSION_ERROR = 'hubo un error inesperado al emitir';
 
-/** El error de una respuesta que no se entiende; el original queda en `cause`. */
-export function unreadableResponseError(cause?: unknown): Error {
-  return new Error(UNREADABLE_RESPONSE, { cause });
-}
+/** Hasta donde se cita el mensaje original. */
+const MAX_REASON_LENGTH = 200;
+
+/** Lo que dice la fila de un error o un evento que ARCA mando sin texto. */
+export const NO_DETAIL_TEXT = 'ARCA no informó el detalle.';
 
 /**
  * Un error propio de JavaScript (`Cannot read properties of undefined`): el SDK o ARCLI leyeron algo que no estaba. Los
  * de red tambien pueden ser `TypeError` (`fetch failed`, con su `cause`, o los de Node, con `code`): esos quedan igual.
  */
-export function isInternalError(error: unknown): boolean {
+function isInternalError(error: Error): boolean {
   const isBuiltIn =
     error instanceof TypeError ||
     error instanceof RangeError ||
@@ -26,6 +27,35 @@ export function isInternalError(error: unknown): boolean {
     error instanceof SyntaxError;
 
   return isBuiltIn && error.cause === undefined && !('code' in error);
+}
+
+function readReason(cause: unknown): string | null {
+  if (typeof cause !== 'object' || cause === null) {
+    return null;
+  }
+
+  // node-soap rechaza asi, sin `Error`, si lo que llega no es XML. Solo `faultstring`: `body` trae la respuesta cruda.
+  const { Fault: fault, message } = cause as { readonly Fault?: { readonly faultstring?: unknown }; message?: unknown };
+
+  return readResponseText(fault?.faultstring) ?? readResponseText(message);
+}
+
+/**
+ * El motivo de una emision sin confirmar, para mostrar. La red, un timeout o un SOAP fault conservan su error; lo demas
+ * va con un texto propio, el mensaje original para poder diagnosticarlo y el original en `cause`.
+ */
+export function describeEmissionFailure(cause: unknown): Error {
+  if (cause instanceof Error && !isInternalError(cause)) {
+    return cause;
+  }
+
+  if (typeof cause === 'string' && cause.trim()) {
+    return new Error(cause, { cause });
+  }
+
+  const reason = readReason(cause)?.replace(/\s+/g, ' ').trim().slice(0, MAX_REASON_LENGTH);
+
+  return new Error(`${UNEXPECTED_EMISSION_ERROR}${reason ? ` (${reason})` : ''}`, { cause });
 }
 
 /** El texto de un dato de ARCA, sin recortar; un numero vale como texto y cualquier otra cosa, no. */
@@ -46,7 +76,7 @@ export function readCae(value: unknown): string | null {
   const text = readResponseText(value);
 
   if (text === null && typeof value !== 'string') {
-    throw unreadableResponseError();
+    throw new Error('el CAE de la respuesta no es un texto ni un número');
   }
 
   return text?.trim() ?? null;

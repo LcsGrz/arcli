@@ -1095,7 +1095,9 @@ Con el certificado del entorno vencido, los comandos que van a ARCA cortan antes
 
 ### Emisión sin confirmar
 
-Si falla la llamada que emite en ARCA (red, timeout, transacción activa) o de lo que contestó no se puede saber si hay CAE, no se sabe si el comprobante quedó autorizado: pudo emitirse y perderse la respuesta. Si el CAE se lee, se muestra aunque un evento, una observación o el vencimiento vengan con otra forma (`caeVencimiento` es `null` si no es una fecha). **No reintentes sin verificar**, porque se duplicaría.
+Si falla la llamada que emite en ARCA (red, timeout, transacción activa) o de lo que contestó no se puede saber si hay CAE, no se sabe si el comprobante quedó autorizado: pudo emitirse y perderse la respuesta. **No reintentes sin verificar**, porque se duplicaría.
+
+Si el CAE se lee, no es este caso: el comprobante se muestra con su CAE aunque un evento, una observación o el vencimiento vengan con otra forma (`caeVencimiento` es `null` si no es una fecha; un texto suelto en `errores` o `eventos` sale como `{"codigo": null, "mensaje": "…"}`).
 
 Los pasos previos no cuentan: si falla el login en WSAA (por ejemplo, un certificado no autorizado; uno vencido corta antes, con [`CERTIFICATE_EXPIRED`](#certificado-vencido)) o el pedido del último número, no se envió nada: sale como `ARCA_LAST_VOUCHER_ERROR` si ARCA devolvió errores, o como `UNEXPECTED_ERROR` o `TRANSIENT_ERROR` si falló la red o WSAA.
 

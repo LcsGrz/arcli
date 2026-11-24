@@ -62,7 +62,7 @@ exit: 1
     "sinConfirmar": 2,
     "total": 3
   },
-  "error": "El lote se interrumpió en el comprobante #2: No se pudo confirmar la emisión: ARCA contestó algo que ARCLI no pudo leer\nProcesados: 1 de 3. Sin procesar: #3.\nEl #2 puede haberse emitido: verificalo con `arcli ultimos fc --pv 3 --testing` antes de reintentarlo.",
+  "error": "El lote se interrumpió en el comprobante #2: No se pudo confirmar la emisión: hubo un error inesperado al emitir (Cannot read properties of undefined (reading 'FeDetResp'))\nProcesados: 1 de 3. Sin procesar: #3.\nEl #2 puede haberse emitido: verificalo con `arcli ultimos fc --pv 3 --testing` antes de reintentarlo.",
   "sugerencia": null
 }
 

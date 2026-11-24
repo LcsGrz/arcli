@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { asArray } from '../../../lib/arrays/as-array';
 import { mapExportResponse } from '../../export/export.response';
 import { EmissionUncertainError } from '../billing.errors';
+import { formatArcaMessages } from '../billing.labels';
 import { mapBillingResponse } from '../billing-response';
 import { readCae, readCaeExpiration } from '../emission-response';
 
@@ -16,7 +17,7 @@ describe('lo que ARCA contesta a la emisión (ERR-16)', () => {
   });
 
   it.each([{}, [], true, Number.NaN])('con %j no se sabe si hay CAE', (value) => {
-    expect(() => readCae(value)).toThrow('ARCA contestó algo que ARCLI no pudo leer');
+    expect(() => readCae(value)).toThrow('el CAE de la respuesta no es un texto ni un número');
   });
 
   it('el vencimiento es una fecha o null', () => {
@@ -39,10 +40,31 @@ describe('lo que ARCA contesta a la emisión (ERR-16)', () => {
     });
   });
 
+  it('un texto suelto se lee en la terminal', () => {
+    expect(formatArcaMessages([{ codigo: null, mensaje: 'hola' }])).toBe('1. hola');
+  });
+
   it('la E con el resultado en una lista', () => {
     const output = { FEXAuthorizeResult: { FEXResultAuth: [{ Cae: '1', Resultado: 'A' }] } };
 
     expect(mapExportResponse(output as never)).toMatchObject({ cae: '1', status: 'aprobado' });
+  });
+
+  it.each([
+    [
+      { Fault: { faultstring: 'Invalid XML', detail: 'Unclosed root tag' } },
+      'hubo un error inesperado al emitir (Invalid XML)',
+    ],
+    [{ message: 'algo' }, 'hubo un error inesperado al emitir (algo)'],
+    [{ Fault: { faultstring: {} } }, 'hubo un error inesperado al emitir'],
+    [null, 'hubo un error inesperado al emitir'],
+    ['socket hang up', 'socket hang up'],
+    [new TypeError(`a\n  b${'x'.repeat(300)}`), `hubo un error inesperado al emitir (a b${'x'.repeat(197)})`],
+  ])('la causa %j se lee', (cause, causa) => {
+    const error = new EmissionUncertainError({ cause, environment: 'testing', pointOfSale: 3, shortcut: 'fc' });
+
+    expect(error.details).toEqual({ causa });
+    expect((error.cause as Error).cause).toBe(cause);
   });
 
   it('el error interno queda en cause', () => {
@@ -54,7 +76,9 @@ describe('lo que ARCA contesta a la emisión (ERR-16)', () => {
       shortcut: 'fc',
     });
 
-    expect(error.message).toBe('No se pudo confirmar la emisión: ARCA contestó algo que ARCLI no pudo leer');
+    expect(error.message).toBe(
+      "No se pudo confirmar la emisión: hubo un error inesperado al emitir (Cannot read properties of undefined (reading 'x'))",
+    );
     expect((error.cause as Error).cause).toBe(original);
   });
 });

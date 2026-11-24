@@ -1,6 +1,6 @@
 import { AppError } from '../../lib/errors/app-error';
 
-import { isInternalError, unreadableResponseError } from './emission-response';
+import { describeEmissionFailure } from './emission-response';
 
 /** A, B y C: el numero lo pone ARCA, asi que se verifica con `arcli ultimos`. */
 interface WsfeUncertainTarget {
@@ -34,8 +34,8 @@ export class EmissionUncertainError extends AppError {
   public readonly verifyCommand?: string;
 
   public constructor(options: { readonly cause: unknown } & (WsfeUncertainTarget | WsfexUncertainTarget)) {
-    const cause = isInternalError(options.cause) ? unreadableResponseError(options.cause) : options.cause;
-    const reason = cause instanceof Error ? cause.message : String(cause);
+    const failure = describeEmissionFailure(options.cause);
+    const reason = failure.message;
     const verifyCommand =
       'voucherNumber' in options
         ? `arcli consultar ${options.shortcut} ${options.voucherNumber} --pv ${options.pointOfSale} --${options.environment}`
@@ -53,7 +53,7 @@ export class EmissionUncertainError extends AppError {
           : `Puede haberse emitido igual. Antes de reintentar, verificá con \`${verifyCommand}\`: si figura, ya está emitido y no hay que repetirlo.`,
     });
     this.name = 'EmissionUncertainError';
-    this.cause = cause;
+    this.cause = failure;
     this.verifyCommand = verifyCommand;
   }
 }
