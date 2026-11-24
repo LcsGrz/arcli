@@ -81,7 +81,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 **Cómo te pagan una `E`.** El asistente preguntaba "¿Te pagan en dólares?" con Sí primero, así que Enter mandaba `CanMisMonExt` en `S`. Ahora pregunta "¿Cómo te pagan?", con "En pesos" primero: Enter manda `N`, como `arcli fe` sin `--misma-moneda`. "Repetir" copiaba el dato sin preguntar; ahora pregunta siempre que la factura sea en moneda extranjera, con lo que informó marcado o, si ARCA no lo devolvió, "En pesos". Los comandos no cambian.
 
-**Monedas de la `E`.** La lista es la de A, B y C, limitada a las monedas de la tabla de WSFEX, con los dólares primero. La cotización, la pregunta de cobro y el comando equivalente valen para cualquiera. Si ARCA no devuelve la tabla, quedan dólares, pesos o escribir el código.
+**Monedas de la `E`.** La lista es la de A, B y C, limitada a las monedas de la tabla de WSFEX, con los dólares primero. La cotización, la pregunta de cobro y el comando equivalente valen para cualquiera. Si ARCA no devuelve la tabla, quedan dólares, pesos o escribir el código. Si no publica la cotización de aduana de la moneda, en bienes y otros cobrados en pesos la escribís; en servicios o cobrada en la moneda, el asistente avisa y vuelve a elegirla. Si el error aparece en la vista previa (`ARCA_QUOTATION_ERROR`), también en A, B y C, ya no se pierde lo respondido.
 
 **Notas `E` en pesos.** Si el comprobante que ajusta no está en pesos, el asistente pregunta "¿En qué moneda va la nota?": la suya, por defecto, o pesos. En pesos va con cotización 1, sin el tope del total, y los ítems se cargan en vez de copiarse. El comando equivalente lleva `--moneda PES`.
 

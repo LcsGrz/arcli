@@ -235,8 +235,11 @@ function exportSteps(
       },
     },
     exportPaymentStep<ExportFlowState>({
+      choosesCurrency: true,
       dependsOn: ['tipo', 'moneda'],
       sameCurrency: fieldLens('sameCurrency'),
+      unpublished: (state, voucher) =>
+        loaders.exchangeRate.unpublished({ ...voucher, voucherDate: state.options.voucherDate }),
       voucher: exchangeRateCase,
     }),
     // Despues de la moneda, arrancando con la de aduana de ARCA, como "En pesos" en A, B y C (NAV-9).
@@ -246,6 +249,8 @@ function exportSteps(
       rules: (state) => exportRuleScope(state, ruleEnv),
       suggestion: (state) =>
         loaders.exchangeRate({ ...exchangeRateCase(state), voucherDate: state.options.voucherDate }),
+      unpublished: (state) =>
+        loaders.exchangeRate.unpublished({ ...exchangeRateCase(state), voucherDate: state.options.voucherDate }),
       voucher: exchangeRateCase,
     }),
     // Sin "Monto total": el total es la suma de los items, que ARCA exige (NAV-10). Los precios van en la moneda: si

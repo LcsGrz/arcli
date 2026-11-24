@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AppError } from '../../../lib/errors/app-error';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { ExportGateway } from '../../../modules/export/export.types';
 import { BACK } from '../../../modules/interactive/wizard';
@@ -1346,8 +1347,147 @@ describe('runExportFlow: el cobro y la moneda (ARQ-22)', () => {
   });
 
   it.each([
+    ['de autorización', new AppError('El certificado no está autorizado', { code: 'WSFEX_SERVICE_NOT_AUTHORIZED' })],
+    ['de programación', new TypeError('x is not a function')],
+  ])('un error %s al consultar las monedas no se toma como una tabla vacía', async (_case, error) => {
+    vi.mocked(gateway.getCurrencies).mockRejectedValueOnce(error);
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, 'Servicios'],
+    ]);
+
+    await expect(emit()).rejects.toBe(error);
+  });
+
+  it('si la consulta de las monedas falló, volver la reintenta y lo escrito sigue marcado', async () => {
+    vi.mocked(gateway.getCurrencies).mockRejectedValueOnce(new Error('Sin conexión'));
+    script = exportOf('Servicios', [
+      [/Moneda del comprobante/, '060'],
+      [/Cómo te pagan/, BACK],
+      [/Moneda del comprobante/, 'Euros'],
+      [/Cómo te pagan/, 'En pesos'],
+    ]);
+
+    await emit();
+
+    expect(listOf(/Moneda del comprobante/)?.[2]).toBe('060');
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ CanMisMonExt: 'N', Moneda_Id: '060' }));
+  });
+
+  it('sin tabla, volver muestra escrito el código; ARS escrito es pesos y no pregunta cómo te pagan', async () => {
+    vi.mocked(gateway.getCurrencies).mockResolvedValue([]);
+    script = exportOf('Servicios', [
+      [/Moneda del comprobante/, ' eur '],
+      [/Cómo te pagan/, BACK],
+      [/Moneda del comprobante/, 'ars'],
+    ]);
+
+    await emit();
+
+    const previous = script.chooseOrTypeStep.mock.calls
+      .filter(([message]) => /Moneda del comprobante/.test(message))
+      .map((call) => call[2].previous);
+
+    expect(previous).toEqual([undefined, '060']);
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1, Moneda_Id: 'PES' }));
+  });
+
+  // ARCA no publica la cotización de los reales.
+  describe('una moneda sin cotización de aduana', () => {
+    const flat = () => printed().replace(/[│┃╏\s]+/g, ' ');
+
+    it('en bienes cobrada en pesos, se escribe', async () => {
+      script = exportOf('Bienes', [
+        [/Moneda del comprobante/, 'Reales'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/^Cotización de BRL:$/, '210'],
+      ]);
+
+      await emit();
+
+      expect(flat()).toContain('ARCA no publica la cotización de BRL: escribí la que acordaste.');
+      expect(gateway.authorize).toHaveBeenCalledWith(
+        expect.objectContaining({ CanMisMonExt: 'N', Moneda_ctz: 210, Moneda_Id: '012' }),
+      );
+    });
+
+    it('en bienes cobrada en la moneda, avisa y vuelve a la moneda', async () => {
+      script = exportOf('Bienes', [
+        [/Moneda del comprobante/, 'Reales'],
+        [/Cómo te pagan/, 'En reales'],
+        [/Moneda del comprobante/, 'Dólares'],
+        [/Cómo te pagan/, 'En dólares'],
+      ]);
+
+      await emit();
+
+      expect(flat()).toContain(
+        'ARCA no publica la cotización de BRL y no acepta otra si te pagan en BRL. Elegí otra moneda, o cobrala en pesos con la cotización que acuerden.',
+      );
+      expect(flat()).not.toContain('No se pudo consultar');
+      expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ CanMisMonExt: 'S', Moneda_Id: 'DOL' }));
+    });
+
+    it('en servicios avisa y vuelve a la moneda, sin preguntar cómo te pagan', async () => {
+      script = exportOf('Servicios', [
+        [/Moneda del comprobante/, 'Reales'],
+        [/Moneda del comprobante/, BACK],
+        [/Qué exportás/, 'Servicios'],
+        [/Moneda del comprobante/, 'Dólares'],
+        [/Cómo te pagan/, 'En pesos'],
+      ]);
+
+      await emit();
+
+      expect(flat()).toContain(
+        'ARCA no publica la cotización de BRL y no acepta otra en servicios. Elegí otra moneda.',
+      );
+      expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_Id: 'DOL' }));
+    });
+
+    it('si recién falta en la vista previa, vuelve a la última pregunta con lo cargado', async () => {
+      const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+      vi.mocked(gateway.getQuotations)
+        .mockResolvedValueOnce([{ code: 'DOL', date: '20261029', rate: 1174.6 }])
+        .mockResolvedValueOnce([{ code: '060', date: '20261029', rate: 1350.25 }]);
+      script = createScript([
+        [/cliente del exterior/, 'ACME LLC'],
+        [/Domicilio/, '123 Main St'],
+        [/País de destino/, '212'],
+        [/ID impositivo/, ''],
+        [/Qué exportás/, 'Servicios'],
+        [/Moneda del comprobante/, 'Dólares'],
+        [/Cómo te pagan/, 'En pesos'],
+        ...singleExportItem('1.500'),
+        [/Forma de pago/, ''],
+        [/Fecha de pago/, ''],
+        [/Agregamos algún opcional/, []],
+        [/Agregamos algún opcional/, []],
+        [/Emitimos/, 'Sí, emitir ahora'],
+      ]);
+
+      await emit();
+
+      expect(errors.mock.calls.join('')).toContain('ARCA no informó la cotización de DOL');
+      expect(flat()).toContain('Volvemos a la última pregunta');
+      expect(gateway.authorize).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it.each([
     ['vacía', () => vi.mocked(gateway.getCurrencies).mockResolvedValue([])],
     ['que falla', () => vi.mocked(gateway.getCurrencies).mockRejectedValueOnce(new Error('Sin conexión'))],
+    [
+      'con un error de ARCA',
+      () =>
+        vi
+          .mocked(gateway.getCurrencies)
+          .mockRejectedValueOnce(new AppError('ARCA devolvió un error', { code: 'ARCA_EXPORT_ERROR' })),
+    ],
   ])('con la tabla de monedas %s ofrece dólares, pesos o escribir el código', async (_case, fail) => {
     fail();
     script = exportOf('Servicios', [

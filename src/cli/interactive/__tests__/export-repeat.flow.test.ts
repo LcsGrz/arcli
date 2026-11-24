@@ -698,6 +698,41 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     expect((await repeatOf({ ...INVOICE, sameCurrency }))?.sameCurrency).toBe(false);
   });
 
+  it('una moneda que ARCA no publica: cobrada en ella avisa y vuelve a preguntar; en pesos se escribe (ARQ-22)', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En reales'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/^Cotización de BRL:$/, '210'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    expect(await repeatOf({ ...INVOICE, currencyCode: '012' })).toMatchObject({
+      currencyCode: '012',
+      exchangeRate: 210,
+      sameCurrency: false,
+    });
+    expect(printed().replace(/[│┃╏\s]+/g, ' ')).toContain(
+      'ARCA no publica la cotización de BRL y no acepta otra si te pagan en BRL. Cobrala en pesos, con la cotización que acuerden.',
+    );
+  });
+
+  it('en servicios, en una moneda que ARCA no publica, avisa y vuelve para elegir otra factura (ARQ-22)', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      ...KEEP_EXPORT_ITEMS,
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
+      [/Cuál repetimos/, BACK],
+    ]);
+
+    expect(await repeatOf({ ...INVOICE, currencyCode: '012', exportType: 2, incoterm: undefined })).toBeUndefined();
+    expect(printed().replace(/[│┃╏\s]+/g, ' ')).toContain(
+      'ARCA no publica la cotización de BRL y no acepta otra en servicios. Volvé y elegí otra factura.',
+    );
+  });
+
   it('una E en pesos no pregunta la moneda de pago ni la cotización', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],

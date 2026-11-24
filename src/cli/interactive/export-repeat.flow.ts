@@ -149,8 +149,11 @@ export function exportRepeatSteps(
     }),
     // Arranca en lo que informo la factura (`CanMisMonExt`); si FEXGetCMP no lo trae, en pesos.
     exportPaymentStep<ExportRepeatState>({
+      choosesCurrency: false,
       dependsOn: ['factura'],
       sameCurrency: nestedLens('copy', 'sameCurrency', (state) => requireStepValue(state.copy, 'copy')),
+      unpublished: (state, voucher) =>
+        exchangeRate.unpublished({ ...voucher, voucherDate: state.options?.voucherDate }),
       voucher: exchangeRateCase,
     }),
     // La de la factura no sirve (es de otro dia): arranca con la de aduana de ARCA, como en "Emitir factura" (NAV-9).
@@ -159,6 +162,8 @@ export function exportRepeatSteps(
       exchangeRate: fieldLens('exchangeRate'),
       rules: (state) => exportRepeatRuleScope(state, ruleEnv),
       suggestion: (state) => exchangeRate({ ...exchangeRateCase(state), voucherDate: state.options?.voucherDate }),
+      unpublished: (state) =>
+        exchangeRate.unpublished({ ...exchangeRateCase(state), voucherDate: state.options?.voucherDate }),
       voucher: exchangeRateCase,
     }),
     {

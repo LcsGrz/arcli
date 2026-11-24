@@ -1,4 +1,4 @@
-import { InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
+import { AppError, InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
 import { checkFceCancellationInRegistry } from '../../modules/billing/billing.associated-lookup';
 import { prepareBillingInput, resolveFceWarningsInOrder } from '../../modules/billing/billing.prepare';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
@@ -185,15 +185,17 @@ export function formatEquivalentCommand(command: string): string {
 
 /**
  * Un error de validacion de la vista previa (`InputValidationError` o `InputIssuesError`: lo que el CLI rechazaria
- * con `INPUT_VALIDATION_ERROR`) se muestra y devuelve BACK: como `confirm` de `runWizard`, el asistente vuelve a la
- * ultima pregunta con todo lo respondido, en vez de volver al menu y perderlo (TUI-15). Los errores de ARCA o de red
- * siguen de largo, como antes.
+ * con `INPUT_VALIDATION_ERROR`), o una moneda sin cotizacion de ARCA, se muestra y devuelve BACK: como `confirm` de `runWizard`, el asistente vuelve a la
+ * ultima pregunta con todo lo respondido, en vez de volver al menu y perderlo (TUI-15). Los demas errores de ARCA o
+ * de red siguen de largo, como antes.
  */
 export async function rejectedAsBack<T>(preview: () => Promise<T>): Promise<Back | T> {
   try {
     return await preview();
   } catch (error) {
-    if (!(error instanceof InputValidationError || error instanceof InputIssuesError)) {
+    const missingQuotation = error instanceof AppError && error.code === 'ARCA_QUOTATION_ERROR';
+
+    if (!(error instanceof InputValidationError || error instanceof InputIssuesError || missingQuotation)) {
       throw error;
     }
 

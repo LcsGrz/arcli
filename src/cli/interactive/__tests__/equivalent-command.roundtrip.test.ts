@@ -19,6 +19,7 @@ import {
 import { initialAdvancedOptions } from '../../../modules/interactive/billing-optionals';
 import { buildEquivalentCommand } from '../../../modules/interactive/equivalent-command';
 import { buildExportEquivalentCommand } from '../../../modules/interactive/export-equivalent-command';
+import { buildExportInput } from '../../../modules/interactive/export-input';
 import { buildExportNoteInput } from '../../../modules/interactive/export-note-input';
 import { buildExportRepeatInput } from '../../../modules/interactive/export-repeat-input';
 import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
@@ -963,8 +964,55 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       }
     });
 
+    const euroGateway: ExportGateway = {
+      ...exportGateway,
+      getCurrencies: async () => [{ code: '060', name: 'Euro' }],
+      getQuotations: async () => [{ code: '060', date: '20261118', rate: 1600 }],
+    };
+
+    // ARQ-22: la E en otra moneda que dólares, con lo que arma el asistente.
+    it.each([
+      ['cobrada en euros', 1, { sameCurrency: true }, 'S', 1600, '--moneda 060 --misma-moneda'],
+      ['cobrada en pesos, con --cm', 1, { exchangeRate: 1650.5, sameCurrency: false }, 'N', 1650.5, '--cm 1650,50'],
+      ['de otros (tipo 4), cobrada en pesos', 4, { sameCurrency: false }, 'N', 1600, '--tipo-expo 4'],
+      ['de otros (tipo 4), cobrada en euros', 4, { sameCurrency: true }, 'S', 1600, '--misma-moneda'],
+    ] as const)('factura E en euros, %s', async (_case, exportType, paid, sameCurrencyFlag, rate, flag) => {
+      const input = buildExportInput(
+        {
+          clientAddress: '123 Main St',
+          clientName: 'ACME LLC',
+          currencyCode: '060',
+          destinationCountry: 'ESTADOS UNIDOS',
+          exportType,
+          incoterm: exportType === 1 ? 'FOB' : undefined,
+          items: [{ description: 'Bienes varios', quantity: 2, unit: 7, unitPrice: 750 }],
+          options: {},
+          ...paid,
+        },
+        { configuredActivity: 620100 },
+      );
+      const { line, sent } = await expectSameGoodsRequest(input, euroGateway);
+      const { payload } = await new ExportService({ clock: { now: () => NOW } }).resolve(
+        input,
+        euroGateway,
+        exportRuntime,
+      );
+
+      expect(line).toContain('--moneda 060');
+      expect(line).toContain(flag);
+      expect(sent).toBe(rate);
+      expect(payload).toMatchObject({ CanMisMonExt: sameCurrencyFlag, Moneda_Id: '060' });
+    });
+
     // ARQ-22: la nota en pesos sobre una factura en dólares (2051), con su propio monto y cotización 1.
-    it.each([1, 2] as const)('nota de crédito E en pesos, tipo de exportación %s', async (exportType) => {
+    it.each([
+      ['credito', 1],
+      ['credito', 2],
+      ['credito', 4],
+      ['debito', 1],
+      ['debito', 2],
+      ['debito', 4],
+    ] as const)('nota de %s E en pesos, tipo de exportación %s', async (kind, exportType) => {
       script = createScript([
         [/Punto de venta de la factura E/, '4'],
         [/Número de la factura E/, '1'],
@@ -982,8 +1030,8 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
           incoterm: exportType === 1 ? 'FOB' : undefined,
         }),
       };
-      const state = await runWizard(exportNoteSteps('credito', notesGateway, 4), {});
-      const input = buildExportNoteInput(state as NonNullable<typeof state>, { kind: 'credito' });
+      const state = await runWizard(exportNoteSteps(kind, notesGateway, 4), {});
+      const input = buildExportNoteInput(state as NonNullable<typeof state>, { kind });
       const request = await expectSameGoodsRequest(input, notesGateway);
 
       expect(request.line).toContain('--moneda PES');

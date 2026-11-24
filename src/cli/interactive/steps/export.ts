@@ -1,4 +1,5 @@
 import { formatDateAsArcaDate } from '../../../lib/dates/arca-date';
+import { AppError } from '../../../lib/errors/app-error';
 import { formatExchangeRate } from '../../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../../lib/numbers/strict-integer';
 import { isForeignCurrency } from '../../../modules/billing/billing.currency';
@@ -16,7 +17,7 @@ import type {
 import { DEFAULT_EXPORT_CURRENCY_CODE, EXPORT_TYPES_WITH_PAYMENT_DATE } from '../../../modules/export/export.types';
 import { parseExchangeRateInput } from '../../../modules/interactive/amount-input';
 import type { ExchangeRateSuggestion } from '../../../modules/interactive/billing-optionals';
-import { exportCurrencyChoices } from '../../../modules/interactive/choices';
+import { availableChoice, exportCurrencyChoices } from '../../../modules/interactive/choices';
 import type { ExportRuleEnv } from '../../../modules/interactive/export-input';
 import type { ExportOptions, ExportRuleScope } from '../../../modules/interactive/export-optionals';
 import { scopedRuleValidator } from '../../../modules/interactive/rule-validator';
@@ -198,9 +199,21 @@ export function exportPaymentDateStep<S extends { readonly options?: ExportOptio
   });
 }
 
+/** Un error de ARCA o de red al consultar una tabla; no uno de autorizacion, de la config ni de programacion. */
+function isTableQueryError(error: unknown): boolean {
+  if (error instanceof AppError) {
+    return error.code === 'ARCA_EXPORT_ERROR';
+  }
+
+  return (
+    error instanceof Error &&
+    ![RangeError, ReferenceError, SyntaxError, TypeError].some((programming) => error instanceof programming)
+  );
+}
+
 /**
  * La tabla de monedas de WSFEX, una vez por flujo y al preguntar la moneda. Vacia si ARCA no la devolvio o la consulta
- * fallo: la pregunta deja escribir el codigo y la vista previa vuelve a consultarla.
+ * fallo: la pregunta deja escribir el codigo. Una falla no se recuerda: al volver a la pregunta se reintenta.
  */
 export function currenciesLoader(
   gateway: Pick<ExportGateway, 'getCurrencies'>,
@@ -208,7 +221,17 @@ export function currenciesLoader(
   let loaded: Promise<readonly ExportCurrency[]> | undefined;
 
   return () => {
-    loaded ??= withSpinner('Consultando las monedas de WSFEX...', () => gateway.getCurrencies()).catch(() => []);
+    loaded ??= withSpinner('Consultando las monedas de WSFEX...', () => gateway.getCurrencies()).catch(
+      (error: unknown) => {
+        loaded = undefined;
+
+        if (!isTableQueryError(error)) {
+          throw error;
+        }
+
+        return [];
+      },
+    );
 
     return loaded;
   };
@@ -235,7 +258,7 @@ export function exportCurrencyStep<S>(def: ExportCurrencyStepDef<S>): WizardStep
       const message = 'Moneda del comprobante:';
       const answer =
         table.length > 0
-          ? await chooseStep(message, choices, typed ?? DEFAULT_EXPORT_CURRENCY_CODE)
+          ? await chooseStep(message, choices, availableChoice(choices, typed, DEFAULT_EXPORT_CURRENCY_CODE))
           : await chooseOrTypeStep<string>(
               message,
               choices.map(({ name, value, ...choice }) => ({ ...choice, label: name, value })),
@@ -256,6 +279,10 @@ export interface ExportPaymentStepDef<S> {
   /** Si te pagan en la moneda del comprobante (`--misma-moneda`). */
   readonly sameCurrency: Lens<S, boolean>;
   readonly voucher: (state: S) => ExportExchangeRateCase;
+  /** La moneda se puede cambiar en la pregunta anterior ("Emitir factura E"); en "Repetir" es la de la factura. */
+  readonly choosesCurrency: boolean;
+  /** ARCA no publica la cotizacion para ese caso (`exportExchangeRateLoader`). */
+  readonly unpublished: (state: S, voucher: ExportExchangeRateCase) => Promise<boolean>;
   /** Los pasos de donde salen la moneda y el tipo: la pregunta los nombra. */
   readonly dependsOn: readonly WizardDependency[];
 }
@@ -263,7 +290,8 @@ export interface ExportPaymentStepDef<S> {
 /**
  * "¿Cómo te pagan?" de una E en moneda extranjera, la de A, B y C (`askPaymentCurrency`): sin otra cosa, en pesos, como
  * `arcli fe` sin `--misma-moneda`. Arranca en lo que haya en el estado: "Repetir" propone lo que informo la factura. La
- * comparten "Emitir factura E" y "Repetir" E.
+ * comparten "Emitir factura E" y "Repetir" E. Si ARCA exige su cotizacion (servicios o la misma moneda) y no la publica,
+ * no hay con que emitir: lo avisa aca y vuelve a la moneda.
  */
 export function exportPaymentStep<S>(def: ExportPaymentStepDef<S>): WizardStep<S> {
   return {
@@ -271,15 +299,41 @@ export function exportPaymentStep<S>(def: ExportPaymentStepDef<S>): WizardStep<S
     name: 'pago',
     run: async (state, { previous }) => {
       const voucher = def.voucher(state);
-      const answered = previous ? def.sameCurrency.get(previous as S) : undefined;
-      const sameCurrency = await askPaymentCurrency(
-        voucher.currencyCode,
-        answered ?? def.sameCurrency.get(state) ?? false,
-        // En servicios la cotizacion tampoco se puede cambiar cobrando en pesos.
-        { fixedExchangeRate: exportFixedExchangeRate({ ...voucher, sameCurrency: false }) !== undefined },
-      );
+      const iso = toIsoCurrencyCode(voucher.currencyCode);
+      const unresolved = async (sameCurrency: boolean) =>
+        exportFixedExchangeRate({ ...voucher, sameCurrency }) !== undefined &&
+        (await def.unpublished(state, { ...voucher, sameCurrency }));
+      const warn = (reason: string) =>
+        writeTerminalOutput(
+          noticePanel(`ARCA no publica la cotización de ${iso} y no acepta otra ${reason}`, 'warning'),
+        );
+      // En servicios la cotizacion tampoco se puede cambiar cobrando en pesos.
+      const fixedExchangeRate = exportFixedExchangeRate({ ...voucher, sameCurrency: false }) !== undefined;
 
-      return sameCurrency === BACK ? BACK : def.sameCurrency.set(sameCurrency, state);
+      if (fixedExchangeRate && (await unresolved(false))) {
+        warn(`en servicios. ${def.choosesCurrency ? 'Elegí otra moneda.' : 'Volvé y elegí otra factura.'}`);
+
+        return BACK;
+      }
+
+      let proposed = (previous ? def.sameCurrency.get(previous as S) : undefined) ?? def.sameCurrency.get(state);
+
+      for (;;) {
+        const sameCurrency = await askPaymentCurrency(voucher.currencyCode, proposed ?? false, { fixedExchangeRate });
+
+        if (sameCurrency === BACK || !sameCurrency || !(await unresolved(true))) {
+          return sameCurrency === BACK ? BACK : def.sameCurrency.set(sameCurrency, state);
+        }
+
+        if (def.choosesCurrency) {
+          warn(`si te pagan en ${iso}. Elegí otra moneda, o cobrala en pesos con la cotización que acuerden.`);
+
+          return BACK;
+        }
+
+        warn(`si te pagan en ${iso}. Cobrala en pesos, con la cotización que acuerden.`);
+        proposed = false;
+      }
     },
     skip: (state) => !isForeignCurrency({ currencyCode: def.voucher(state).currencyCode }),
   };
@@ -294,6 +348,8 @@ export interface ExportExchangeRateStepDef<S> {
    * (`exportExchangeRateLoader`) o la del asociado en la nota. Donde ARCA exige la suya, es la que muestra el aviso.
    */
   readonly suggestion: (state: S) => Promise<ExchangeRateSuggestion | undefined>;
+  /** ARCA no publica la cotizacion: la pregunta lo avisa y arranca vacia. Las notas usan la del asociado. */
+  readonly unpublished?: (state: S) => Promise<boolean>;
   /** Las reglas de la E con lo respondido: las mismas que `--cm` (`EXPORT_RULES`). */
   readonly rules: (state: S) => ExportRuleScope;
   /** Los pasos de donde salen la moneda, el tipo y como pagan: si cambian, la cotizacion se pregunta de cero. */
@@ -331,6 +387,15 @@ export function exportExchangeRateStep<S>(def: ExportExchangeRateStepDef<S>): Wi
 
   return {
     ...step,
+    run: async (state, options) => {
+      if (await def.unpublished?.(state)) {
+        const iso = toIsoCurrencyCode(def.voucher(state).currencyCode);
+
+        writeTerminalOutput(noticePanel(`ARCA no publica la cotización de ${iso}: escribí la que acordaste.`, 'info'));
+      }
+
+      return step.run(state, options);
+    },
     skipNotice: async (state) => {
       const voucher = def.voucher(state);
       const fixed = exportFixedExchangeRate(voucher);
