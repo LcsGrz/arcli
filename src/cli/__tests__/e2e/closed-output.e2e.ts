@@ -519,6 +519,13 @@ describe('con stdout que no se puede escribir', () => {
     });
   });
 
+  it('con --json, la ayuda (que commander corta como un error) también lo dice', async () => {
+    const result = await runFailing(['fc', '--ayuda', '--json']);
+
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.stderr)).toMatchObject({ codigo: 'UNEXPECTED_ERROR', error: UNWRITTEN });
+  });
+
   it('con --json y un lote cortado, stderr sigue siendo un solo JSON: el error del lote', async () => {
     configure();
     writeBatch();

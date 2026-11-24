@@ -31,6 +31,7 @@ import { systemClock } from '../../services/time/system-clock';
 import { colorize, noticePanel, renderPanel, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
 import { type CliArcaRuntime, loadArcaRuntime } from '../arca-runtime';
 import { formatBillingOutputs } from '../commands/billing.command.output';
+import { recordEmission } from '../emitted-vouchers';
 import { formatCliError } from '../error-output';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
@@ -307,12 +308,14 @@ export async function previewAndEmit(
   const spinner = startSpinner(`Emitiendo ${label} en ARCA...`);
 
   try {
-    const result = await service.execute({
-      gateway: session.billingGateway,
-      input: { ...input, dryRun: false, emit: true },
-      runtime,
-      warnings,
-    });
+    const result = recordEmission(
+      await service.execute({
+        gateway: session.billingGateway,
+        input: { ...input, dryRun: false, emit: true },
+        runtime,
+        warnings,
+      }),
+    );
 
     spinner?.stop();
     writeTerminalOutput(

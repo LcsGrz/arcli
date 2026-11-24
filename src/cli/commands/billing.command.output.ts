@@ -2,8 +2,8 @@ import { formatBillingResultAsJson, formatBillingResultAsText } from '../../modu
 import { serializeBillingBatch } from '../../modules/billing/billing.serialize';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
-import { MAX_RECENT_VOUCHERS } from '../../modules/vouchers/voucher-history';
 import { noticePanel, writeTerminalError, writeTerminalJson, writeTerminalOutput } from '../../ui';
+import { describeEmittedVouchers, listEmittedVouchers } from '../emitted-vouchers';
 
 export function formatBillingOutputs(
   results: BillingExecutionResult[],
@@ -65,61 +65,18 @@ export function writeBillingCommandResults(
   );
 }
 
-/** Numeros ordenados, con los seguidos juntos: `del 42 al 61`, `42 y 43` o `7 y del 10 al 14`. */
-function formatNumberRuns(numbers: readonly number[]): string {
-  const runs: Array<{ from: number; to: number }> = [];
-
-  for (const number of [...numbers].sort((left, right) => left - right)) {
-    const last = runs.at(-1);
-
-    if (last && number === last.to + 1) {
-      last.to = number;
-    } else {
-      runs.push({ from: number, to: number });
-    }
-  }
-
-  const labels = runs.flatMap(({ from, to }) =>
-    to - from > 1 ? [`del ${from} al ${to}`] : from === to ? [String(from)] : [String(from), String(to)],
-  );
-
-  return labels.length > 1 ? `${labels.slice(0, -1).join(', ')} y ${labels.at(-1)}` : labels.join('');
-}
-
-/** Que se emitio en un punto de venta y con que verlo: con mas de los que lista `ultimos`, de a uno. */
-function formatEmittedGroup(group: readonly BillingExecutionResult[]): string {
-  const { environment, payload, voucherKind } = group[0];
-  const numbers = group.flatMap(({ voucherNumber }) => voucherNumber ?? []);
-  // Uno mas: el que corto el lote puede haberse emitido despues y correr la lista.
-  const quantity = Math.max(...numbers) - Math.min(...numbers) + 2;
-  const scope = `--pv ${payload.PtoVta}`;
-  const command =
-    quantity <= MAX_RECENT_VOUCHERS
-      ? `arcli ultimos ${voucherKind.shortcut} ${scope} --cantidad ${quantity} --${environment}`
-      : `arcli consultar ${voucherKind.shortcut} <número> ${scope} --${environment}`;
-
-  const [emitted, verify] = numbers.length === 1 ? ['Se emitió', 'Verificalo'] : ['Se emitieron', 'Verificalos'];
-
-  return `${emitted}: ${voucherKind.shortcut} del punto de venta ${payload.PtoVta}, ${formatNumberRuns(numbers)}. ${verify} con \`${command}\`.`;
-}
-
 /**
  * Fallo la entrega de los ya procesados de un lote cortado (por ejemplo, la pregunta del PDF): cuales tienen CAE y con
- * que verlos, para que nadie los vuelva a cargar. No cubre un fallo asincrono de la salida, como el disco lleno: eso
- * corta el proceso despues.
+ * que verlos, para que nadie los vuelva a cargar. Un fallo asincrono de la salida, como el disco lleno, lo
+ * dice `reportOutputFailure` al terminar.
  */
 export function writePartialResultsFailure(results: readonly BillingExecutionResult[]): void {
-  const groups = new Map<number, BillingExecutionResult[]>();
-
-  for (const result of results) {
-    if (!result.dryRun && result.response.cae && result.voucherNumber !== undefined) {
-      groups.set(result.payload.PtoVta, [...(groups.get(result.payload.PtoVta) ?? []), result]);
-    }
-  }
-
   const subject =
     results.length === 1 ? 'del comprobante ya procesado' : `de los ${results.length} comprobantes ya procesados`;
-  const lines = [`No se pudieron mostrar todos los datos ${subject}.`, ...[...groups.values()].map(formatEmittedGroup)];
+  const lines = [
+    `No se pudieron mostrar todos los datos ${subject}.`,
+    ...describeEmittedVouchers(listEmittedVouchers(results)),
+  ];
 
   writeTerminalError(() => noticePanel(lines.join('\n'), 'warning'));
 }

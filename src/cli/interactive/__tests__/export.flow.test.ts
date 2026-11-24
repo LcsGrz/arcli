@@ -7,6 +7,7 @@ import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types'
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { attachExportPdf } from '../../commands/export.command.pdf';
+import { describeEmittedInThisRun } from '../../emitted-vouchers';
 import { runExportFlow } from '../export.flow';
 import type { InteractiveSession } from '../session';
 
@@ -170,6 +171,8 @@ describe('runExportFlow', () => {
         Tipo_expo: 2,
       }),
     );
+    // Si despues no se puede escribir la salida, el aviso dice que se emitio (ERR-18).
+    expect(describeEmittedInThisRun()).toEqual([expect.stringContaining('fe del punto de venta 4, 7.')]);
     expect(printed()).toContain(
       "arcli fe -m 1500 --cliente 'ACME LLC' --domicilio-cliente '123 Main St' --pais-destino 'ESTADOS UNIDOS' --id-impositivo 12-3456789 --actividad 620100 --descripcion 'Consultoría de software' --moneda DOL --misma-moneda --testing --emitir",
     );

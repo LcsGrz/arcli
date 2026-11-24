@@ -25,6 +25,7 @@ import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gatew
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
 import { systemClock } from '../../services/time/system-clock';
 import { certificateWarnings, type CliArcaRuntime, resolveArcaRuntime } from '../arca-runtime';
+import { recordEmission } from '../emitted-vouchers';
 import { getGlobalOptions, registerGlobalOptions } from '../global-options';
 import { startSpinner } from '../spinner';
 
@@ -253,7 +254,8 @@ export async function executeBillingCommand(
       },
     };
     const results = await emitBatch({
-      emit: (input, position) => service.execute({ gateway, input, runtime, warnings: warnings[position] }),
+      emit: async (input, position) =>
+        recordEmission(await service.execute({ gateway, input, runtime, warnings: warnings[position] })),
       inputs,
       onPartialResults: async (partial) => {
         spinner?.stop();

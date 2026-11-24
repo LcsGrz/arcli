@@ -3,9 +3,19 @@ import { ZodError } from 'zod';
 
 import { AppError, HELP_SUGGESTION, InputIssuesError } from '../lib/errors/app-error';
 import { describeZodIssues } from '../modules/billing/billing.zod-errors';
-import { formatAppError, formatInputIssues, noticePanel, writeTerminalError, writeTerminalJsonError } from '../ui';
+import {
+  formatAppError,
+  formatInputIssues,
+  noticePanel,
+  renderJson,
+  writeTerminalError,
+  writeTerminalJsonError,
+  writeTerminalOutput,
+} from '../ui';
 
+import { describeOutputFailure, type OutputFailures } from './closed-output';
 import { EmissionCancelledError } from './emission-cancelled';
+import { describeEmittedInThisRun } from './emitted-vouchers';
 import { readJsonDefault } from './global-options';
 import { isPromptCancellation } from './interactive/prompts';
 
@@ -40,7 +50,7 @@ export function shouldPrintErrorAsJson(argv: readonly string[], readDefault = re
 const COMMANDER_NON_ERROR_CODES = new Set(['commander.help', 'commander.helpDisplayed', 'commander.version']);
 
 /** Ayuda o version: commander ya las imprimio y solo queda salir con su exit code. */
-function isCommanderExit(error: unknown): error is CommanderError {
+export function isCommanderExit(error: unknown): error is CommanderError {
   return error instanceof CommanderError && COMMANDER_NON_ERROR_CODES.has(error.code);
 }
 
@@ -112,34 +122,95 @@ export function configureUsageErrors(program: Command): void {
   });
 }
 
+/** Un error, como lo muestra el panel. */
+function formatErrorPanel(error: unknown): string {
+  if (isCommanderUsageError(error)) {
+    return formatCliError(toUsageError(error), false);
+  }
+
+  if (error instanceof EmissionCancelledError) {
+    return noticePanel(error.message, 'muted');
+  }
+
+  // Ctrl+C en una pregunta que el comando no atrapo: aca no se sabe si ya se emitio algo, asi que no se dice.
+  return isPromptCancellation(error) ? noticePanel('Cancelado.', 'muted') : formatCliError(error, false);
+}
+
 /**
  * Imprime un error que corto la ejecucion y devuelve el exit code. Ayuda y version no son errores.
+ *
+ * Con JSON, si ademas fallo stdout, lo que diria `reportOutputFailure` va en la `sugerencia`: dos documentos en stderr
+ * no se podrian parsear.
  */
-export function reportCliError(error: unknown, errorsAsJson: boolean): number {
+export function reportCliError(
+  error: unknown,
+  errorsAsJson: boolean,
+  outputFailures: OutputFailures = new Map(),
+): number {
   if (isCommanderExit(error)) {
     return error.exitCode;
   }
 
-  if (isCommanderUsageError(error)) {
-    if (errorsAsJson) {
-      writeTerminalJsonError(formatCliError(toUsageError(error), true));
-    } else {
-      writeTerminalError(() => formatCliError(toUsageError(error), false));
-    }
-
-    return error.exitCode;
-  }
+  const usageError = isCommanderUsageError(error);
 
   if (errorsAsJson) {
-    writeTerminalJsonError(formatCliError(error, true));
-  } else if (error instanceof EmissionCancelledError) {
-    writeTerminalError(() => noticePanel(error.message, 'muted'));
-  } else if (isPromptCancellation(error)) {
-    // Ctrl+C en una pregunta que el comando no atrapo: aca no se sabe si ya se emitio algo, asi que no se dice.
-    writeTerminalError(() => noticePanel('Cancelado.', 'muted'));
+    writeTerminalJsonError(
+      addSuggestion(formatCliError(usageError ? toUsageError(error) : error, true), outputFailures),
+    );
   } else {
-    writeTerminalError(() => formatCliError(error, false));
+    writeTerminalError(() => formatErrorPanel(error));
   }
 
-  return 1;
+  return usageError ? error.exitCode : 1;
+}
+
+function addSuggestion(json: string, outputFailures: OutputFailures): string {
+  const failure = outputFailures.get('stdout');
+
+  if (!failure) {
+    return json;
+  }
+
+  const report = JSON.parse(json) as { readonly sugerencia: string | null };
+  const notes = [describeOutputFailure('stdout', failure), ...describeEmittedInThisRun()];
+
+  return renderJson({ ...report, sugerencia: [report.sugerencia, ...notes].filter(Boolean).join(' ') });
+}
+
+/**
+ * No se pudo escribir una salida: se dice por la otra, con lo que se emitio. Si fallaron las dos no hay donde.
+ *
+ * Si la que fallo es stderr, tambien se perdio el error del comando y va con el aviso. Con JSON no se escribe nada:
+ * stdout es solo el resultado, y lo dice el exit code.
+ */
+export function reportOutputFailure(
+  failures: OutputFailures,
+  options: { readonly commandError: unknown; readonly json: boolean },
+): void {
+  const [failure, other] = failures;
+
+  if (!failure || other) {
+    return;
+  }
+
+  const [output] = failure;
+  const message = describeOutputFailure(...failure);
+  const emitted = describeEmittedInThisRun();
+  const formatNotice = (): string => noticePanel([message, ...emitted].join('\n'), 'warning');
+
+  if (output === 'stdout') {
+    if (options.json) {
+      const suggestion = emitted.join(' ') || undefined;
+
+      writeTerminalJsonError(formatAppError(new AppError(message, { code: 'UNEXPECTED_ERROR', suggestion }), true));
+    } else {
+      writeTerminalError(formatNotice);
+    }
+  } else if (!options.json) {
+    writeTerminalOutput(formatNotice());
+
+    if (options.commandError !== undefined && !isCommanderExit(options.commandError)) {
+      writeTerminalOutput(formatErrorPanel(options.commandError));
+    }
+  }
 }

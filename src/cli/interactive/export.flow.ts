@@ -32,6 +32,7 @@ import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { systemClock } from '../../services/time/system-clock';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { attachExportPdf } from '../commands/export.command.pdf';
+import { recordExportEmission } from '../emitted-vouchers';
 import { withSpinner } from '../spinner';
 
 import { askCountryCuit, askDestinationCountry, exportOptionalsStep, validateExportText } from './export-options';
@@ -404,8 +405,10 @@ export async function emitExportVoucher(
     return emission;
   }
 
-  const result = await withSpinner(`Emitiendo ${label} en ARCA...`, () =>
-    service.execute({ gateway, resolved, runtime, warnings: resolved.warnings }),
+  const result = recordExportEmission(
+    await withSpinner(`Emitiendo ${label} en ARCA...`, () =>
+      service.execute({ gateway, resolved, runtime, warnings: resolved.warnings }),
+    ),
   );
 
   writeTerminalOutput(

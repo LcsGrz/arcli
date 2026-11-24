@@ -5,6 +5,7 @@ import { BillingService } from '../../../modules/billing/billing.service';
 import { BACK } from '../../../modules/interactive/wizard';
 import { systemClock } from '../../../services/time/system-clock';
 import type { CliArcaRuntime } from '../../arca-runtime';
+import { describeEmittedInThisRun } from '../../emitted-vouchers';
 import { offerPdf } from '../pdf.flow';
 import { askTextStep, chooseOne, confirm } from '../prompts';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from '../session';
@@ -105,6 +106,8 @@ describe('previewAndEmit', () => {
       response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] } },
     });
     await expect(previewAndEmit(session, input)).resolves.toBe(true);
+    // Si despues no se puede escribir la salida, el aviso dice que se emitio (ERR-18).
+    expect(describeEmittedInThisRun()).toEqual([expect.stringContaining('fc del punto de venta 3, 1.')]);
 
     session.createVoucher.mockResolvedValueOnce({
       cae: '',
@@ -115,6 +118,7 @@ describe('previewAndEmit', () => {
 
     chooseOneMock.mockResolvedValue(false);
     await expect(previewAndEmit(session, input)).resolves.toBe(false);
+    expect(describeEmittedInThisRun()).toEqual([expect.stringContaining('fc del punto de venta 3, 1.')]);
   });
 
   it('emite en testing con una sola confirmacion', async () => {

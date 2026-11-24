@@ -15,6 +15,7 @@ import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { systemClock } from '../../services/time/system-clock';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { certificateWarnings, type CliArcaRuntime, resolveArcaRuntime } from '../arca-runtime';
+import { recordExportEmission } from '../emitted-vouchers';
 import { getGlobalOptions } from '../global-options';
 import { startSpinner } from '../spinner';
 
@@ -136,7 +137,7 @@ export async function executeExportCommand(
 
     spinner = runtime.outputJson ? null : startSpinner(`Emitiendo ${formatVoucherWithArticle(voucherKind)} en ARCA...`);
 
-    result = await service.execute({ gateway, resolved, runtime, warnings });
+    result = recordExportEmission(await service.execute({ gateway, resolved, runtime, warnings }));
 
     spinner?.stop();
     spinner = null;
