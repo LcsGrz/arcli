@@ -268,7 +268,7 @@ arcli fc ayuda
 - **Severidad:** ocasional
 - **Síntoma:** `ARCA no tiene la factura B 00003-00099999.` En NC/ND FCE sin `--afecha`: `ARCA no tiene la factura de crédito electrónica ..., así que no se puede tomar su fecha.`
 - **Causa:** antes de la vista previa, arcli consulta en ARCA el asociado propio de la nota (A, B, C, FCE y `E`) y no existe en un punto de venta de web service tuyo. En NC/ND FCE, además, ARCA exige la fecha del asociado (10158) y sin `--afecha` arcli la toma de esa consulta. Hasta la 2.5.0, una nota A, B o C con un asociado inexistente se emitía: ARCA testing llega a aprobarla.
-- **Solución:** revisar `--ac`, `--apv` y `--ar`: tienen que apuntar a un comprobante tuyo ya emitido (`arcli ultimos <atajo>` lista los últimos). Si ARCA no respondió o contestó con un error, sale el aviso `No se pudo verificar en ARCA …` y la nota se puede emitir igual, pero una nota FCE sin `--afecha` frena: reintentar o pasar la fecha con `--afecha`.
+- **Solución:** revisar `--ac`, `--apv` y `--ar`: tienen que apuntar a un comprobante tuyo ya emitido (`arcli ultimos <atajo>` lista los últimos). Si ARCA no respondió o contestó con un error, sale el aviso `No se pudo verificar en ARCA …` (o `No se pudo consultar … y el punto de venta … no es de web service`, si es de otro sistema) y la nota se puede emitir igual, pero una nota FCE sin `--afecha` frena: reintentar o pasar la fecha con `--afecha`.
 - **Asociado de Comprobantes en línea o de un controlador fiscal:** si el punto de venta del asociado no es de web service, ARCA no lo tiene para consultar pero lo acepta como asociado. La nota no frena: sale el aviso `No se encontró la factura … en ARCA y el punto de venta … no es de web service`, sin controlar el tope de la NC. Pasá su fecha con `--afecha` (ARCA la exige para controlador fiscal y FactuWeb, error 10211; en NC/ND FCE ARCLI la pide siempre). En el modo interactivo, ingresá el número a mano: el asistente pregunta los datos que no puede copiar. En la 2.5.1 esto frenaba con `ARCA no tiene …`.
 - **Documentación relacionada:** [Comprobantes asociados](validation-rules.md#comprobantes-asociados)
 
@@ -358,8 +358,8 @@ arcli fc ayuda
 
 - **Severidad:** ocasional
 - **Síntoma:** `ARCA devolvió un error al consultar el comprobante 00003-00000099 y no se sabe si existe: …` (o `una respuesta inesperada`) con `ultimos` o `consultar` de A, B, C, FCE o recibos, o en el asistente. En una nota sale como aviso, sin ese código: `No se pudo verificar en ARCA …`.
-- **Causa:** ARCA contestó la consulta con un error que no es el 602 (el que dice que no existe). Hasta la 2.6.0, `consultar` daba `VOUCHER_NOT_FOUND` y `ultimos` mostraba una lista vacía o incompleta.
-- **Solución:** leer el mensaje de ARCA: si es pasajero, volver a consultar en unos minutos; si no, corregir lo que dice. Si se repite, no insistir. Si estabas verificando una emisión sin confirmar, **no la reintentes** hasta ver si el comprobante existe: se puede duplicar.
+- **Causa:** ARCA contestó la consulta con un error que no es el 602 (el que dice que no existe) o con una respuesta inesperada, sin los datos del comprobante. Hasta la 2.6.0, `consultar` daba `VOUCHER_NOT_FOUND` y `ultimos` mostraba una lista vacía o incompleta.
+- **Solución:** leer el mensaje de ARCA: si es pasajero, volver a consultar en unos minutos; si no, corregir lo que dice. Si se repite, no insistir. Si estabas verificando una emisión sin confirmar, **no la reintentes** hasta ver si el comprobante existe: se puede duplicar. En una nota, si el punto de venta del asociado no es de web service, el aviso lo dice y la nota sigue: pasá su fecha con `--afecha`.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#códigos-de-error)
 
 ### El receptor coincide con el emisor

@@ -77,7 +77,7 @@ function voucherQueryError(query: {
 }): VoucherQueryError {
   const { errors, number, pointOfSale } = query;
   const voucher = `el comprobante ${formatVoucherNumber(pointOfSale, number)} y no se sabe si existe`;
-  const reasons = errors.map(({ code, msg }) => [code, msg].filter(Boolean).join(' ')).join('; ');
+  const reasons = errors.map(({ code, msg }) => [code ?? '', msg].join(' ').trim()).join('; ');
 
   return new VoucherQueryError(
     reasons

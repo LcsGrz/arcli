@@ -13,8 +13,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 >
 > - Si ARCA contesta con un error al consultar un comprobante A, B, C, FCE o recibo, `consultar` sale con `ARCA_VOUCHER_QUERY_ERROR`, antes `VOUCHER_NOT_FOUND`.
 > - En el mismo caso, `ultimos` sale con `ARCA_VOUCHER_QUERY_ERROR` y exit code `1`, antes `0` con la lista vacía o incompleta.
-> - En el mismo caso, una nota A, B, C o FCE que frenaba con "ARCA no tiene…" sigue con un aviso y, con `--emitir`, se emite.
-> - Una falla con "no existe" en el texto (`El dominio no existe`) ya no es `VOUCHER_NOT_FOUND`: sale con su error, por ejemplo `UNEXPECTED_ERROR`.
+> - En el mismo caso, una nota A, B, C o FCE que frenaba con "ARCA no tiene…" sigue con un aviso y, con `--emitir`, se emite. Si el punto de venta es de otro sistema ya seguía: cambia el texto del aviso.
+> - Una falla con "no existe" en el texto (`El dominio no existe`) ya no es `VOUCHER_NOT_FOUND`: sale con su error, por ejemplo `UNEXPECTED_ERROR`. Por el asociado de una nota es un aviso, y en FCE sin `--afecha` frena.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
 
@@ -44,14 +44,14 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 - **Consultas:** `consultar` y `ultimos` dan `ARCA_VOUCHER_QUERY_ERROR` si ARCA contesta con un error, en vez de decir que no existe (#268).
 - **Notas:** si ARCA contesta con un error por el asociado, A, B, C y FCE ya no dicen que no existe (#268).
-- **Asistente:** si ARCA contesta con un error en una lista A, B, C o FCE, lo muestra y podés reintentar o buscar a mano (#268).
+- **Asistente:** si ARCA contesta con un error al listar A, B, C, FCE o recibos, lo muestra y podés reintentar o buscar a mano (#268).
 - **Salida:** cortar la salida (`arcli ayuda | head`) ya no muestra un error de Node ni corta el comando a mitad de camino (#266).
 
 <details><summary>Detalle</summary>
 
 **Un error de ARCA no es "no existe".** Al consultar un comprobante A, B, C, FCE o recibo, solo el error 602 de ARCA significa que no existe. Antes, cualquier otro error (por ejemplo 600) y una respuesta sin datos se leían igual: `consultar` daba `VOUCHER_NOT_FOUND` y `ultimos` terminaba bien con la lista vacía o incompleta, que al verificar una emisión sin confirmar podía llevar a emitir dos veces. Ahora los dos dan `ARCA_VOUCHER_QUERY_ERROR`, con los errores de ARCA en `detalles.errores` (`codigo` es `null` si ARCA no lo mandó) y una `sugerencia`; `ultimos` falla si no se puede leer uno de los comprobantes, y saltea como antes el que no existe. Una falla con "no existe" en el texto, como `El dominio no existe`, también se tomaba por inexistente: ahora sale con su propio error (`UNEXPECTED_ERROR`). `VOUCHER_NOT_FOUND`, `WSFE_SERVICE_NOT_AUTHORIZED`, `TRANSIENT_ERROR` y la factura `E` no cambian.
 
-**Notas.** Si ARCA contesta con un error por el asociado, se mira su punto de venta como cuando no lo tiene. Si no es de web service (Comprobantes en línea, controlador fiscal), todo sigue igual que antes: el aviso y `--afecha`, y en el asistente las preguntas. Si lo es, o no se puede saber, una nota que frenaba con "ARCA no tiene…" sigue con "No se pudo verificar en ARCA…" en `avisos`, también al emitir. Una nota FCE sin `--afecha` sigue frenando con `INPUT_VALIDATION_ERROR`, porque no hay de dónde tomar la fecha, y el mensaje dice que no se pudo consultar.
+**Notas.** Si ARCA contesta con un error por el asociado, se mira si su punto de venta es de web service. Si no lo es (Comprobantes en línea, controlador fiscal), la nota sigue como antes, con `--afecha` y, en el asistente, las mismas preguntas, pero el texto ya no dice que ARCA no lo tiene: dice que no se pudo consultar y el motivo. Si es de web service, la nota que frenaba con "ARCA no tiene…" sigue con "No se pudo verificar en ARCA…" en `avisos`, también al emitir. Si no se puede saber (la lista de puntos de venta viene vacía, como en testing, o falla), con flags la nota sigue con ese aviso; el asistente muestra el error y vuelve a la lista, donde antes podía seguir con las preguntas. Una nota FCE sin `--afecha` sigue frenando con `INPUT_VALIDATION_ERROR`, porque no hay de dónde tomar la fecha, y el mensaje dice que no se pudo consultar. Una falla con "no existe" en el texto tampoco es ya un asociado inexistente: con flags sale como "No se pudo verificar en ARCA…" y en el asistente vuelve al menú.
 
 **Asistente.** En las listas de comprobantes A, B, C, FCE y recibos (Mis comprobantes, Repetir y notas), el error se muestra y seguís en la lista, con lo que ya estaba cargado y lo que respondiste. Si falla la primera carga, quedan "Volver a cargar" e "Ingresar el número a mano". La `E` no cambia.
 

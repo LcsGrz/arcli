@@ -183,14 +183,18 @@ export type AssociatedPointOfSaleOrigin = 'other' | 'unknown' | 'web-service';
  * Clasifica el punto de venta con `FEParamGetPtosVenta`, que lista solo los de web service (CAE y CAEA). En testing
  * esa lista viene vacia ("Sin Resultados", 602), asi que si no hay lista se mira si ARCA tiene comprobantes de ese
  * tipo en ese punto de venta (`FECompUltimoAutorizado`): si tiene, es de web service.
+ *
+ * Con `queryFailed` (ARCA contesto con un error, no con el 602) solo vale la lista con datos: que no haya ultimo
+ * numero no alcanza para decir que es de otro sistema.
  */
 export async function classifyAssociatedPointOfSale(options: {
   readonly history: Pick<VoucherHistoryGateway, 'getLastNumber'>;
   readonly pointOfSale: number;
+  readonly queryFailed?: boolean;
   readonly salesPoints?: Pick<ParametersGateway, 'getSalesPoints'>;
   readonly voucherType: number;
 }): Promise<AssociatedPointOfSaleOrigin> {
-  const { history, pointOfSale, salesPoints, voucherType } = options;
+  const { history, pointOfSale, queryFailed, salesPoints, voucherType } = options;
   let listed: readonly number[] | undefined;
 
   try {
@@ -201,6 +205,10 @@ export async function classifyAssociatedPointOfSale(options: {
 
   if (listed && listed.length > 0) {
     return listed.includes(pointOfSale) ? 'web-service' : 'other';
+  }
+
+  if (queryFailed) {
+    return 'unknown';
   }
 
   try {
@@ -214,8 +222,13 @@ export async function classifyAssociatedPointOfSale(options: {
   return listed ? 'other' : 'unknown';
 }
 
+/** `No se pudo consultar la factura C 00050-00000015 en ARCA (600 …)`: ARCA contesto con un error. */
+export function describeQueryFailure(label: string, reason: string): string {
+  return `No se pudo consultar ${label} en ARCA (${reason})`;
+}
+
 /**
- * El aviso de un asociado que ARCA no tiene en un punto de venta que no es de web service (o que no se pudo
+ * El aviso de un asociado que ARCA no tiene (o que no se pudo consultar) en un punto de venta que no es de web service (o que no se pudo
  * clasificar): la nota sigue, sin controlar su tope, y si falta la fecha se recuerda la 10211. Lo usan los flags y el
  * modo interactivo.
  */
@@ -225,15 +238,17 @@ export function missingAssociatedWarning(options: {
   readonly label: string;
   readonly origin: Exclude<AssociatedPointOfSaleOrigin, 'web-service'>;
   readonly pointOfSale: number;
+  /** El motivo, si ARCA contesto con un error: no se puede decir que no lo tiene. */
+  readonly queryReason?: string;
 }): string {
-  const { hasDate, isCreditNote, label, origin, pointOfSale } = options;
+  const { hasDate, isCreditNote, label, origin, pointOfSale, queryReason } = options;
   const where =
     origin === 'other'
       ? `el punto de venta ${pointOfSale} no es de web service`
       : `no se pudo consultar si el punto de venta ${pointOfSale} es de web service`;
 
   return [
-    `No se encontró ${label} en ARCA y ${where}: si es de Comprobantes en línea, de un controlador fiscal o de otro sistema, está bien; si no, revisá \`--ar\`, \`--apv\` y \`--ac\`.`,
+    `${queryReason === undefined ? `No se encontró ${label} en ARCA` : describeQueryFailure(label, queryReason)} y ${where}: si es de Comprobantes en línea, de un controlador fiscal o de otro sistema, está bien; si no, revisá \`--ar\`, \`--apv\` y \`--ac\`.`,
     ...(isCreditNote ? ['No se pudo controlar que la nota de crédito no lo supere.'] : []),
     ...(hasDate
       ? []
@@ -267,7 +282,7 @@ function reasonOf(error: unknown): string {
  *
  * Si ARCA contesta con un error (`VoucherQueryError`) no se sabe si existe: no frena como "ARCA no tiene". Pero no se
  * sabe con que contesta para un punto de venta de otro sistema, asi que se lo clasifica igual: si no es de web
- * service sigue como si no estuviera, y si lo es o no se puede saber, como si no respondiera.
+ * service sigue como si no estuviera, con el motivo en el texto, y si lo es o no se puede saber, como si no respondiera.
  */
 export async function checkAssociatedInArca(options: {
   readonly gateway: Pick<VoucherHistoryGateway, 'getLastNumber' | 'getVoucher'>;
@@ -295,22 +310,23 @@ export async function checkAssociatedInArca(options: {
 
   const label = describeAssociated(reference.Tipo, reference.PtoVta, reference.Nro);
   const needsDate = voucherKind.isElectronicCredit && !associated.fecha;
-  const classifyPointOfSale = () =>
+  const classifyPointOfSale = (queryFailed: boolean) =>
     classifyAssociatedPointOfSale({
       history: gateway,
       pointOfSale: reference.PtoVta,
+      queryFailed,
       salesPoints,
       voucherType: reference.Tipo,
     });
   let voucher: IssuedVoucher | undefined;
-  let knownOrigin: AssociatedPointOfSaleOrigin | undefined;
+  let queryReason: string | undefined;
 
   try {
     voucher = await gateway.getVoucher(reference.Nro, reference.PtoVta, reference.Tipo);
   } catch (error) {
-    knownOrigin = error instanceof VoucherQueryError ? await classifyPointOfSale() : undefined;
-
-    if (knownOrigin !== 'other') {
+    if (error instanceof VoucherQueryError && (await classifyPointOfSale(true)) === 'other') {
+      queryReason = error.reason;
+    } else {
       if (needsDate) {
         throw new InputValidationError(
           `No se pudo consultar en ARCA ${label} para tomar su fecha: ${reasonOf(error)}`,
@@ -327,7 +343,7 @@ export async function checkAssociatedInArca(options: {
   }
 
   if (!voucher) {
-    const origin = knownOrigin ?? (await classifyPointOfSale());
+    const origin = queryReason === undefined ? await classifyPointOfSale(false) : 'other';
 
     if (origin === 'web-service') {
       throw missingAssociatedVoucherError(label, needsDate ? 'no se puede tomar su fecha' : undefined);
@@ -335,7 +351,11 @@ export async function checkAssociatedInArca(options: {
 
     if (needsDate) {
       throw new InputValidationError(
-        `No se encontró ${label} en ARCA, así que no se puede tomar su fecha.`,
+        `${
+          queryReason === undefined
+            ? `No se encontró ${label} en ARCA`
+            : `${describeQueryFailure(label, queryReason)} y el punto de venta ${reference.PtoVta} no es de web service`
+        }, así que no se puede tomar su fecha.`,
         undefined,
         'Si es de Comprobantes en línea o de un controlador fiscal, pasá su fecha con `--afecha <fecha>`. Si no, revisá `--ar`, `--apv` y `--ac`.',
       );
@@ -350,6 +370,7 @@ export async function checkAssociatedInArca(options: {
           label,
           origin,
           pointOfSale: reference.PtoVta,
+          queryReason,
         }),
       ],
     };

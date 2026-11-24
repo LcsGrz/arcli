@@ -1,6 +1,6 @@
 import { Separator } from '@inquirer/core';
 
-import { classifyAssociatedPointOfSale } from '../../modules/billing/billing.associated-lookup';
+import { classifyAssociatedPointOfSale, describeQueryFailure } from '../../modules/billing/billing.associated-lookup';
 import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { resolveRowsPerList } from '../../modules/config/config.schemas';
@@ -54,9 +54,9 @@ interface VoucherSource<T extends { readonly number: number }, M = never> {
   formatRows(pointOfSale: number, vouchers: readonly T[], separator: string, width: number): string[];
   /**
    * Si el comprobante ingresado a mano no existe y hay algo mas que decir que "No existe", o igual sirve. Con
-   * `queryFailed`, ARCA contesto con un error y no se sabe si existe: sin respuesta, se muestra ese error.
+   * `queryReason`, ARCA contesto con un error (ese es el motivo) y no se sabe si existe: sin respuesta, se muestra ese error.
    */
-  describeMissing?(pointOfSale: number, number: number, queryFailed: boolean): Promise<MissingVoucher<M> | undefined>;
+  describeMissing?(pointOfSale: number, number: number, queryReason?: string): Promise<MissingVoucher<M> | undefined>;
 }
 
 /** Solo el nombre y la familia: tambien la E, que no es un VoucherKindDefinition. */
@@ -168,11 +168,13 @@ async function askVoucherByNumber<T extends { readonly number: number }, M>(
 
         return {
           invoice: found,
-          missing: found ? undefined : await source.describeMissing?.(pointOfSale, number, false),
+          missing: found ? undefined : await source.describeMissing?.(pointOfSale, number),
         };
       } catch (error) {
         const missing =
-          error instanceof VoucherQueryError ? await source.describeMissing?.(pointOfSale, number, true) : undefined;
+          error instanceof VoucherQueryError
+            ? await source.describeMissing?.(pointOfSale, number, error.reason)
+            : undefined;
 
         if (!missing) {
           throw error;
@@ -205,7 +207,7 @@ async function askVoucherByNumber<T extends { readonly number: number }, M>(
 }
 
 /**
- * Una factura que ARCA no tiene, en un punto de venta que no es de web service: el asistente no puede copiar sus
+ * Una factura que ARCA no tiene (o que no se pudo consultar: `queryReason`), en un punto de venta que no es de web service: el asistente no puede copiar sus
  * datos, asi que los pregunta (ver `noteSteps`).
  *
  * @internal Exportado para los tests.
@@ -215,13 +217,17 @@ export function missingNonWebServiceInvoiceNotice(
   pointOfSale: number,
   number: number,
   origin: OtherSystemInvoice['origin'],
+  queryReason?: string,
 ): string {
   const where =
     origin === 'other'
       ? `el punto de venta ${pointOfSale} no es de web service`
       : `no se pudo consultar si el punto de venta ${pointOfSale} es de web service`;
 
-  return `ARCA no tiene ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)} y ${where}. Si es de Comprobantes en línea o de un controlador fiscal, seguí: como no se pueden copiar sus datos, te los pregunto. Si no, volvé y revisá el número.`;
+  const label = `${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)}`;
+  const what = queryReason === undefined ? `ARCA no tiene ${label}` : describeQueryFailure(label, queryReason);
+
+  return `${what} y ${where}. Si es de Comprobantes en línea o de un controlador fiscal, seguí: como no se pueden copiar sus datos, te los pregunto. Si no, volvé y revisá el número.`;
 }
 
 /** Un comprobante A, B o C emitido, por wsfe. Ver `pickVoucher`. */
@@ -245,19 +251,26 @@ export async function pickNoteInvoice(
 
   return pickVoucher(session, options, {
     ...invoiceSource(session, voucherKind),
-    describeMissing: async (pointOfSale: number, number: number, queryFailed: boolean) => {
+    describeMissing: async (pointOfSale: number, number: number, queryReason?: string) => {
       const origin = await classifyAssociatedPointOfSale({
         history: session.historyGateway,
         pointOfSale,
+        queryFailed: queryReason !== undefined,
         salesPoints: new ArcaParametersGateway(session.arca),
         voucherType: voucherKind.arcaType,
       });
 
-      return origin === 'web-service' || (queryFailed && origin === 'unknown')
+      return origin === 'web-service' || (queryReason !== undefined && origin === 'unknown')
         ? undefined
         : {
-            accepted: { number, origin, otherSystem: true, pointOfSale },
-            notice: missingNonWebServiceInvoiceNotice(voucherKind, pointOfSale, number, origin),
+            accepted: {
+              number,
+              origin,
+              otherSystem: true,
+              pointOfSale,
+              ...(queryReason === undefined ? {} : { queryReason }),
+            },
+            notice: missingNonWebServiceInvoiceNotice(voucherKind, pointOfSale, number, origin, queryReason),
           };
     },
   });
@@ -407,7 +420,10 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
           firstBatchPending = false;
           invoices.push(...result.loaded);
           warnIfEmpty();
-          defaultChoice = findPrevious() ?? (previous ? BY_NUMBER : invoices[0]);
+          // El boton de volver a cargar ya no esta: marcarlo no es elegir.
+          const marked = markedValue() === LOAD_MORE ? undefined : markedValue();
+
+          defaultChoice = marked ?? findPrevious() ?? (previous ? BY_NUMBER : invoices[0]);
           continue;
         }
 
