@@ -71,8 +71,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Errores:** una sugerencia propia para los errores de red, detalles que no se repiten y el mismo texto para la misma regla (#270).
 - **Facturas:** un CUIT mal escrito o un punto de venta inválido da error antes de consultar a ARCA (#272).
 - **Consultas:** con el certificado sin autorizar, `parametros` y `ultimos` de una `E` dicen qué autorizar (#272).
-- **Certificados:** `generar` ya no pisa un pedido pendiente que no puede leer por falta de permiso (#PR).
-- **Config:** con varios datos inválidos guardados, `config establecer` y `config eliminar` los arreglan de a uno y avisan cuáles quedan (#PR).
+- **Certificados:** `generar` ya no pisa un pedido pendiente que no puede leer por falta de permiso (#279).
+- **Config:** con varios datos inválidos guardados, `config establecer` y `config eliminar` los arreglan de a uno y avisan cuáles quedan (#279).
 - **Config:** un dato inválido guardado dice que está en la configuración, con qué clave y cómo arreglarlo (#276).
 - **Errores:** si no se puede leer o escribir un archivo, el error dice cuál, por qué y qué hacer, en castellano (#276).
 - **Errores:** un JSON de `--cargar` ilegible dice la línea y la columna, y ya no muestra un trozo del archivo (#276).
