@@ -11,7 +11,11 @@ export async function withPendingSpinner<T>(text: string | null, run: () => Prom
 
   let spinner: ReturnType<typeof startSpinner> = null;
   const timer = setTimeout(() => {
-    spinner = startSpinner(text);
+    try {
+      spinner = startSpinner(text);
+    } catch {
+      // Un error dentro del timer tumbaria el proceso: sin spinner, la consulta sigue.
+    }
   }, 0);
 
   try {

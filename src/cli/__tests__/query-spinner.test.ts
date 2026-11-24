@@ -16,8 +16,14 @@ import { previewAndEmit } from '../interactive/session';
 /** Los spinners de consultar antes de la vista previa y de generar el PDF: cuándo arrancan y que no quedan girando. */
 const log = vi.hoisted(() => [] as string[]);
 
+const broken = vi.hoisted(() => ({ value: false }));
+
 vi.mock('../spinner', () => ({
   startSpinner: (text: string) => {
+    if (broken.value) {
+      throw new Error('write EPIPE');
+    }
+
     log.push(`gira: ${text}`);
 
     return { stop: () => log.push('para') };
@@ -146,6 +152,18 @@ describe('consultar antes de la vista previa', () => {
     log.length = 0;
     await expect(previewAndEmit(session(failure), entry('USD'))).rejects.toBe(failure);
     expect(log).toEqual(QUERYING);
+  });
+
+  it('si el spinner no se puede mostrar, la consulta sigue', async () => {
+    broken.value = true;
+
+    try {
+      await runCommand(DOLLARS);
+    } finally {
+      broken.value = false;
+    }
+
+    expect(log).toEqual(['salida', 'pregunta', 'salida']);
   });
 
   it('con --json no hay spinner', async () => {

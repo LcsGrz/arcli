@@ -224,9 +224,6 @@ async function previewBilling(
     runtime,
   );
   const input: BillingCommandInput = { ...prepared.input, dryRun: true, emit: false };
-  const fceWarnings = runtime.config.verificarFce
-    ? await resolveFceWarningsInOrder(service, [input], new ArcaFceObligationGateway(session.arca))
-    : [];
   // Como con flags: una nota FCE de anulacion avisa si el comprador no rechazo el asociado en el Registro.
   const registryWarnings = await checkFceCancellationInRegistry({
     gateway: new ArcaFceRegistryGateway(session.arca),
@@ -234,10 +231,14 @@ async function previewBilling(
     runtime,
     service,
   });
+  // Armarla es validarla: si no vale, no se consulta el regimen FCE.
+  const preview = service.preview({ input, runtime });
+  const fceWarnings = runtime.config.verificarFce
+    ? await resolveFceWarningsInOrder(service, [input], new ArcaFceObligationGateway(session.arca))
+    : [];
   const warnings = [...flowWarnings, ...prepared.warnings, ...(fceWarnings[0] ?? []), ...registryWarnings];
-  const preview = service.preview({ input, runtime, warnings });
 
-  return { input, preview, warnings };
+  return { input, preview: { ...preview, warnings }, warnings };
 }
 
 /**

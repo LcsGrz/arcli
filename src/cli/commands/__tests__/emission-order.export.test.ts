@@ -5,6 +5,7 @@ import {
   EXPORT_DEBIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
 } from '../../../modules/export/export.types';
+import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { createProgram } from '../../program';
 
@@ -120,6 +121,32 @@ describe('una factura E', () => {
       `salida: ${output}`,
       'fin: exit 2',
     ]);
+  });
+
+  it.each([
+    ['--previsualizar', [...FE, '--previsualizar'], {}],
+    ['--emitir', [...FE, '--emitir'], {}],
+    ['confirmada', FE, { answers: [EMIT], tty: true }],
+  ] as const)('%s: los datos de la factura se muestran una vez', async (_name, args, options) => {
+    const { stdout } = await runExport(args, options);
+
+    expect(stripAnsi(stdout).match(/ACME LLC/g)).toHaveLength(1);
+    expect(stripAnsi(stdout).match(/Estás en TESTING/g)).toHaveLength(1);
+  });
+
+  it.each([
+    ['--previsualizar', [...FE, '--previsualizar']],
+    ['--emitir', [...FE, '--emitir']],
+  ])('%s: `bruto` de la config suma la respuesta, con --json', async (_name, args) => {
+    const shown = async (raw: boolean) =>
+      'respuesta' in (JSON.parse((await runExport(args, { json: true, raw })).stdout) as object);
+
+    expect([await shown(false), await shown(true)]).toEqual([false, true]);
+  });
+
+  it('--emitir --bruto en texto: la respuesta al final', async () => {
+    expect(stripAnsi((await runExport([...FE, '--emitir'], { raw: true })).stdout)).toMatch(/respuesta bruta/i);
+    expect(stripAnsi((await runExport([...FE, '--emitir'], {})).stdout)).not.toMatch(/respuesta bruta/i);
   });
 
   it('rechazada: el exit 2 queda fijado aunque falle la salida', async () => {
