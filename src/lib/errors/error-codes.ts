@@ -1,6 +1,8 @@
 /**
  * Los `codigo` de los errores de ARCLI, en el `--json` y en el panel. Son contrato: cada uno esta en la tabla de
  * docs/input-output.md (lo revisa public-contract.test.ts), y sacar o renombrar uno es un cambio que rompe.
+ *
+ * @internal Exportado para los tests.
  */
 export const ERROR_CODES = [
   'ARCA_EXPORT_ERROR',

@@ -139,7 +139,7 @@ Nunca `N/D`: no dice si falta, no aplica o falló. `renderKeyValueRows` no muest
 
 - **Resultados a stdout, errores y avisos a stderr.** Con `--json`, stdout queda solo para el JSON.
 - **Siempre por `writeTerminal*`:** sanitizan el texto de afuera (observaciones de ARCA, datos del usuario). No uses `process.stdout.write` para contenido.
-- **Para stderr se pasa una función:** `writeTerminalError(() => formatCliError(error, false))`. El color depende de si stderr es una terminal, y eso se decide mientras se arma el panel.
+- **Para stderr se pasa una función:** `writeTerminalError(() => formatCliError(error))`. El color depende de si stderr es una terminal, y eso se decide mientras se arma el panel.
 
 ## Antes de sumar una pantalla
 

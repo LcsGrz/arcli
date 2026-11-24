@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { AppError, ConfigurationError, InputValidationError } from '../../../lib/errors/app-error';
 import type { ErrorCode } from '../../../lib/errors/error-codes';
+import { serializeError } from '../../../lib/errors/serialize-error';
 import { formatAppError } from '../errors.presenter';
 
 describe('errors.presenter', () => {
@@ -10,7 +11,6 @@ describe('errors.presenter', () => {
       new ConfigurationError('La ruta de la clave privada apunta a un archivo con formato PEM inválido.', {
         path: '.../testing/ARCATestingKey.key',
       }),
-      false,
     );
 
     expect(output).toContain('ERROR DE CONFIGURACIÓN');
@@ -28,8 +28,8 @@ describe('errors.presenter', () => {
       suggestion: 'Renovalo.',
     });
 
-    expect(formatAppError(error, false)).toContain('CERTIFICADO VENCIDO');
-    expect(JSON.parse(formatAppError(error, true))).toEqual({
+    expect(formatAppError(error)).toContain('CERTIFICADO VENCIDO');
+    expect(serializeError(error)).toEqual({
       codigo: 'CERTIFICATE_EXPIRED',
       detalles: { entorno: 'produccion', vencimiento: '20/11/2026' },
       error: 'El certificado de producción venció el 20/11/2026: ARCA no lo acepta.',
@@ -38,7 +38,7 @@ describe('errors.presenter', () => {
   });
 
   it('formats input errors in a friendly text panel', () => {
-    const output = formatAppError(new InputValidationError('Falta el concepto.'), false);
+    const output = formatAppError(new InputValidationError('Falta el concepto.'));
 
     expect(output).toContain('ERROR DE ENTRADA');
     expect(output).toContain('Falta el concepto.');
@@ -51,15 +51,19 @@ describe('errors.presenter', () => {
       suggestion: 'Verificá con arcli ultimos fc --pv 3.',
     });
 
-    expect(formatAppError(error, false)).toContain('Verificá con arcli ultimos fc --pv 3.');
-    expect(JSON.parse(formatAppError(error, true))).toMatchObject({
+    expect(formatAppError(error)).toContain('Verificá con arcli ultimos fc --pv 3.');
+    expect(serializeError(error)).toMatchObject({
       codigo: 'EMISSION_UNCERTAIN',
       sugerencia: 'Verificá con arcli ultimos fc --pv 3.',
     });
   });
 
   it('keeps json output structured for app errors', () => {
-    const output = formatAppError(new ConfigurationError('Mensaje de prueba', { path: '/tmp/test.key' }), true);
+    const output = JSON.stringify(
+      serializeError(new ConfigurationError('Mensaje de prueba', { path: '/tmp/test.key' })),
+      null,
+      2,
+    );
 
     expect(output).toContain('"codigo": "CONFIGURATION_ERROR"');
     expect(output).toContain('"error": "Mensaje de prueba"');
@@ -80,14 +84,14 @@ describe('errors.presenter', () => {
       'ARCA devolvió una transacción activa. Esperá unos segundos y reintentá la emisión antes de modificar datos del comprobante.',
     ],
   ])('reports %s as TRANSIENT_ERROR with its suggestion', (_name, error, title, suggestion) => {
-    expect(JSON.parse(formatAppError(error, true))).toEqual({
+    expect(serializeError(error)).toEqual({
       codigo: 'TRANSIENT_ERROR',
       detalles: null,
       error: error.message,
       sugerencia: suggestion,
     });
 
-    const text = formatAppError(error, false);
+    const text = formatAppError(error);
 
     expect(text).toContain(title.toUpperCase());
     expect(text).toContain('Esperá');
@@ -97,11 +101,11 @@ describe('errors.presenter', () => {
     ['an unrelated error', new Error('socket hang up')],
     ['a non-Error value', 'coe.alreadyAuthenticated'],
   ])('reports %s as UNEXPECTED_ERROR without a suggestion', (_name, error) => {
-    expect(JSON.parse(formatAppError(error, true))).toMatchObject({
+    expect(serializeError(error)).toMatchObject({
       codigo: 'UNEXPECTED_ERROR',
       sugerencia: null,
     });
-    expect(formatAppError(error, false)).toContain('ERROR INESPERADO');
+    expect(formatAppError(error)).toContain('ERROR INESPERADO');
   });
 
   it.each([
@@ -109,7 +113,7 @@ describe('errors.presenter', () => {
     ['input error', new InputValidationError('Falta el concepto.')],
     ['unexpected error', new Error('boom')],
   ])('always includes sugerencia in JSON, null when there is none (%s)', (_name, error) => {
-    const json = JSON.parse(formatAppError(error, true)) as Record<string, unknown>;
+    const json = serializeError(error) as Record<string, unknown>;
 
     expect(Object.keys(json).sort()).toEqual(['codigo', 'detalles', 'error', 'sugerencia']);
     expect(json.sugerencia).toBeNull();
@@ -126,7 +130,7 @@ describe('titulos y sugerencias por codigo', () => {
     ['PDF_PLUGIN_MISSING', 'PDF NO GENERADO', undefined],
     ['PDF_PLUGIN_INSTALL_ERROR', 'PLUGIN DE PDF NO INSTALADO', undefined],
   ])('%s se titula "%s"', (code, title, hint) => {
-    const output = formatAppError(new AppError('Algo pasó.', { code }), false).replace(/\s+/g, ' ');
+    const output = formatAppError(new AppError('Algo pasó.', { code })).replace(/\s+/g, ' ');
 
     expect(output).toContain(title);
     expect(output).not.toContain('undefined');
@@ -142,24 +146,24 @@ describe('titulos y sugerencias por codigo', () => {
       details: { lista: [1, 2], nada: null, path: '/tmp/x.json', vacio: '' },
     });
 
-    const text = formatAppError(error, false);
+    const text = formatAppError(error);
 
     expect(text).toContain('Ruta:');
     expect(text).not.toContain('lista');
     expect(text).not.toContain('nada');
-    expect(JSON.parse(formatAppError(error, true)).detalles).toEqual({ lista: [1, 2], ruta: '/tmp/x.json' });
+    expect(serializeError(error).detalles).toEqual({ lista: [1, 2], ruta: '/tmp/x.json' });
   });
 
   it('el entorno de otros errores se muestra con su etiqueta si el texto no lo dice (REV-49)', () => {
     const error = new AppError('Falló.', { code: 'CERTIFICATE_EXPIRED', details: { entorno: 'testing' } });
 
-    expect(formatAppError(error, false)).toContain('Entorno:');
+    expect(formatAppError(error)).toContain('Entorno:');
   });
 
   it('un error de sesion abierta en WSAA o de transaccion activa se reconoce como transitorio', () => {
-    expect(JSON.parse(formatAppError(new Error('coe.alreadyAuthenticated'), true))).toMatchObject({
+    expect(serializeError(new Error('coe.alreadyAuthenticated'))).toMatchObject({
       codigo: 'TRANSIENT_ERROR',
     });
-    expect(formatAppError(new Error('Transacción Activa en ARCA'), false)).toContain('reintentá');
+    expect(formatAppError(new Error('Transacción Activa en ARCA'))).toContain('reintentá');
   });
 });

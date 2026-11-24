@@ -42,7 +42,7 @@ async function panelOf(run: Promise<unknown>): Promise<string> {
     (reason: unknown) => reason,
   );
 
-  return stripAnsi(formatCliError(error, false)).replace(/[│┃║╏\s]+/g, ' ');
+  return stripAnsi(formatCliError(error)).replace(/[│┃║╏\s]+/g, ' ');
 }
 
 beforeEach(() => {

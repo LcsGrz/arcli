@@ -561,10 +561,9 @@ function buildErrorScene(): string {
       new ConfigurationError('Falta la ruta de la clave privada para testing.', {
         path: '/Users/demo/.arcli/testing/clave.key',
       }),
-      false,
     ),
-    formatAppError(new InputValidationError('Falta el concepto.'), false),
-    formatAppError(new Error('Fallo inesperado de red.'), false),
+    formatAppError(new InputValidationError('Falta el concepto.')),
+    formatAppError(new Error('Fallo inesperado de red.')),
   ].join('\n\n');
 }
 

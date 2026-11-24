@@ -8,7 +8,13 @@ import { parseZodInput } from '../../modules/billing/billing.zod-errors';
 import { type CanonicalConfigKey, parseConfigValue } from '../../modules/config/config-value-parser';
 import { stripAnsi } from '../../ui';
 import { EmissionCancelledError } from '../emission-cancelled';
-import { configureUsageErrors, formatCliError, reportCliError, shouldPrintErrorAsJson } from '../error-output';
+import {
+  configureUsageErrors,
+  formatCliError,
+  reportCliError,
+  serializeCliError,
+  shouldPrintErrorAsJson,
+} from '../error-output';
 
 describe('shouldPrintErrorAsJson', () => {
   it('uses JSON with --json without reading the config', () => {
@@ -51,7 +57,7 @@ describe('formatCliError con errores de zod', () => {
       totalAmount: 100,
     });
 
-    expect(formatCliError(error, false)).toContain('Falta el dato: shortcut.');
+    expect(formatCliError(error)).toContain('Falta el dato: shortcut.');
   });
 
   it('usa un mensaje especifico para montos invalidos', () => {
@@ -62,7 +68,7 @@ describe('formatCliError con errores de zod', () => {
       totalAmount: -5,
     });
 
-    expect(formatCliError(error, false)).toContain('El monto debe ser mayor a 0.');
+    expect(formatCliError(error)).toContain('El monto debe ser mayor a 0.');
   });
 
   it('marca valores no soportados con la etiqueta legible en español', () => {
@@ -74,8 +80,8 @@ describe('formatCliError con errores de zod', () => {
       totalAmount: 100,
     });
 
-    expect(formatCliError(error, false)).toContain('Tipo de documento tiene un valor no soportado.');
-    expect(stripAnsi(formatCliError(error, false)).replace(/[│┃\s]+/g, ' ')).toContain(
+    expect(formatCliError(error)).toContain('Tipo de documento tiene un valor no soportado.');
+    expect(stripAnsi(formatCliError(error)).replace(/[│┃\s]+/g, ' ')).toContain(
       'Valores válidos: consumidor-final, cuil, cuit, dni.',
     );
   });
@@ -87,7 +93,7 @@ describe('formatCliError con errores de zod', () => {
       totalAmount: 100,
     });
 
-    const parsed = JSON.parse(formatCliError(error, true)) as {
+    const parsed = serializeCliError(error) as unknown as {
       codigo: string;
       detalles: Array<{ mensaje: string; ruta: string[] }>;
       error: string;
@@ -106,7 +112,7 @@ describe('formatCliError con errores de zod', () => {
       totalAmount: 100,
     });
 
-    expect(formatCliError(error, false)).toContain('El punto de venta tiene que ser un número entero positivo.');
+    expect(formatCliError(error)).toContain('El punto de venta tiene que ser un número entero positivo.');
   });
 
   it('traduce a la clave del JSON tambien los campos que solo usa el PDF', () => {
@@ -118,7 +124,7 @@ describe('formatCliError con errores de zod', () => {
       totalAmount: 100,
     });
 
-    const parsed = JSON.parse(formatCliError(error, true)) as { detalles: Array<{ ruta: string[] }> };
+    const parsed = serializeCliError(error) as unknown as { detalles: Array<{ ruta: string[] }> };
 
     expect(parsed.detalles).toContainEqual(expect.objectContaining({ ruta: ['descripcion'] }));
   });
@@ -127,7 +133,7 @@ describe('formatCliError con errores de zod', () => {
 describe('formatCliError', () => {
   it('siempre incluye sugerencia en el JSON de un error de zod, null porque no hay', () => {
     const error = z.object({ monto: z.number() }).safeParse({}).error as ZodError;
-    const json = JSON.parse(formatCliError(error, true)) as Record<string, unknown>;
+    const json = serializeCliError(error) as Record<string, unknown>;
 
     expect(Object.keys(json).sort()).toEqual(['codigo', 'detalles', 'error', 'sugerencia']);
     expect(json.sugerencia).toBeNull();
@@ -205,7 +211,7 @@ describe('formatCliError: errores de config establecer', () => {
     try {
       parseConfigValue(key, value, displayKey);
     } catch (error) {
-      return JSON.parse(formatCliError(error, true)) as Record<string, unknown>;
+      return serializeCliError(error) as Record<string, unknown>;
     }
 
     throw new Error('debería fallar');
@@ -225,7 +231,7 @@ describe('formatCliError: errores de config establecer', () => {
 
   it('en texto muestra el mensaje y la sugerencia, sin la lista de zod', () => {
     const error = new InputIssuesError('`pdf` no acepta "a".', [{ label: 'x', mensaje: 'zod', ruta: [] }], 'Mirá');
-    const panel = stripAnsi(formatCliError(error, false));
+    const panel = stripAnsi(formatCliError(error));
 
     expect(panel).toContain('`pdf` no acepta "a".');
     expect(panel).toContain('Mirá');

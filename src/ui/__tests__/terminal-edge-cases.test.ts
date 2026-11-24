@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { AppError } from '../../lib/errors/app-error';
 import type { ErrorCode } from '../../lib/errors/error-codes';
+import { serializeError } from '../../lib/errors/serialize-error';
 import { errorPanel } from '../components/errorPanel';
 import { noticePanel } from '../components/noticePanel';
 import { sectionHeading } from '../components/sectionHeading';
@@ -210,7 +211,7 @@ describe('lo que queda chico', () => {
   });
 
   it('un error de la app con un codigo sin titulo propio sale como "Error", sin sugerencia inventada', () => {
-    const text = stripAnsi(formatAppError(new AppError('Algo raro.', { code: 'CODIGO_NUEVO' as ErrorCode }), false));
+    const text = stripAnsi(formatAppError(new AppError('Algo raro.', { code: 'CODIGO_NUEVO' as ErrorCode })));
 
     expect(text).toMatch(/ERROR/);
     expect(text).toContain('Algo raro.');
@@ -218,7 +219,7 @@ describe('lo que queda chico', () => {
   });
 
   it('un error que no es Error dice que fue inesperado, en texto y en JSON', () => {
-    expect(stripAnsi(formatAppError('cadena suelta', false))).toContain('Ocurrió un error inesperado.');
-    expect(JSON.parse(formatAppError(42, true))).toMatchObject({ codigo: 'UNEXPECTED_ERROR' });
+    expect(stripAnsi(formatAppError('cadena suelta'))).toContain('Ocurrió un error inesperado.');
+    expect(serializeError(42)).toMatchObject({ codigo: 'UNEXPECTED_ERROR' });
   });
 });

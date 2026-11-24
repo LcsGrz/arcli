@@ -4,3 +4,6 @@ export interface InputIssue {
   readonly mensaje: string;
   readonly ruta: readonly string[];
 }
+
+/** El mensaje de una entrada que no paso el esquema, si el dominio no da el suyo. */
+export const INPUT_ISSUES_MESSAGE = 'Hay parámetros inválidos o incompletos en la entrada.';

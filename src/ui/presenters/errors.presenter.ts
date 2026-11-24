@@ -1,12 +1,11 @@
 import { AppError, HELP_SUGGESTION } from '../../lib/errors/app-error';
 import type { ErrorCode } from '../../lib/errors/error-codes';
 import { summarizeError } from '../../lib/errors/error-summary';
-import { errorText } from '../../lib/files/file-error';
+import { serializeError } from '../../lib/errors/serialize-error';
 import { ISSUES_URL } from '../../lib/links';
 import { shortenPath } from '../../lib/paths/mask-path';
 import { normalizeSearchText } from '../../lib/text/search';
 import { errorPanel } from '../components/errorPanel';
-import { renderJson } from '../primitives/renderJson';
 import { bold } from '../primitives/text';
 
 /** Los que no estan se titulan "Error". */
@@ -112,52 +111,22 @@ function formatErrorDetails(details: Record<string, unknown> | undefined, said: 
     .map(([key, value]) => `${bold(`${DETAIL_LABELS[key] ?? key}:`)} ${String(value)}`);
 }
 
-function formatErrorDetailsAsJson(details: Record<string, unknown> | undefined): Record<string, unknown> | null {
-  if (!details) {
-    return null;
-  }
-
-  return Object.fromEntries(
-    Object.entries(details)
-      .filter(([, value]) => value !== null && value !== undefined && value !== '')
-      .map(([key, value]) => [key === 'path' ? 'ruta' : key, value]),
-  );
-}
-
 /** Un error de la app o inesperado. Los de un esquema (zod) los describe el dominio: ver `formatInputIssues`. */
-export function formatAppError(error: unknown, useJson: boolean): string {
+export function formatAppError(error: unknown): string {
   if (error instanceof AppError) {
-    if (useJson) {
-      return renderJson({
-        codigo: error.code,
-        detalles: formatErrorDetailsAsJson(error.details),
-        error: error.message,
-        // Siempre presente: `null` cuando no hay que sugerir, igual que en los errores inesperados.
-        sugerencia: error.suggestion ?? null,
-      });
-    }
-
     const hint = formatErrorHint(error);
     const details = formatErrorDetails(error.details, `${error.message}\n${hint ?? ''}`);
+
     return errorPanel(ERROR_TITLES[error.code] ?? 'Error', error.message, details, hint ?? undefined);
   }
 
-  const message = error instanceof Error ? errorText(error) : 'Ocurrió un error inesperado.';
-  const { code, suggestion, transient } = summarizeError(error);
-
-  if (useJson) {
-    return renderJson({
-      codigo: code,
-      detalles: null,
-      error: message,
-      sugerencia: suggestion,
-    });
-  }
+  const { error: message, sugerencia } = serializeError(error);
+  const { transient } = summarizeError(error);
 
   return errorPanel(
     transient ? TRANSIENT_ERROR_TITLES[transient] : 'Error inesperado',
     message,
     [],
-    suggestion ?? formatUnexpectedErrorHint(message),
+    sugerencia ?? formatUnexpectedErrorHint(message),
   );
 }

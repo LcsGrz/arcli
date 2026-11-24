@@ -15,7 +15,7 @@ import { billingCommandSchema } from '../../modules/billing/billing.schemas';
 import { installCompletion } from '../../modules/completion/installer';
 import { checkExportPermits } from '../../modules/export/export.permits';
 import { stripAnsi } from '../../ui';
-import { formatCliError, reportCliError } from '../error-output';
+import { formatCliError, reportCliError, serializeCliError } from '../error-output';
 import { showAssistantError } from '../interactive/show-assistant-error';
 import { createProgram } from '../program';
 
@@ -57,7 +57,7 @@ async function fail(...args: string[]): Promise<{ readonly json: JsonError; read
 
   return {
     json: JSON.parse(stderr) as JsonError,
-    text: stripAnsi(formatCliError(thrown, false)).replace(/[│┃║╏\s]+/g, ' '),
+    text: stripAnsi(formatCliError(thrown)).replace(/[│┃║╏\s]+/g, ' '),
   };
 }
 
@@ -288,7 +288,7 @@ describe('errores de archivos (ERR-8)', () => {
   it('un error de red con el mismo código no se traduce', () => {
     const error = Object.assign(new Error('connect EACCES 10.0.0.1:443'), { code: 'EACCES', syscall: 'connect' });
 
-    expect(JSON.parse(formatCliError(error, true))).toEqual({
+    expect(serializeCliError(error)).toEqual({
       codigo: 'UNEXPECTED_ERROR',
       detalles: null,
       error: 'connect EACCES 10.0.0.1:443',
@@ -302,7 +302,7 @@ describe('errores de archivos (ERR-8)', () => {
       path: '/Users/ana/x/y.key',
       syscall: 'open',
     });
-    const alone = JSON.parse(formatCliError(error, true)) as JsonError;
+    const alone = serializeCliError(error) as JsonError;
 
     expect(alone.error).toBe('No se pudo abrir .../x/y.key: no tenés permiso.');
     expect(toBatchItemError(1, error)).toEqual({
