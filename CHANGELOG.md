@@ -72,10 +72,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Config:** `config establecer cbu` con otro CBU borra el `aliasCbu` del anterior, y `config eliminar cbu` también; lo avisan (#282, #284).
 - **Notas:** un flag del comprobante o del período asociado gana al otro del JSON, y una punta del período conserva la otra (#282).
 - **Salida:** A, B, C, FCE, recibos y notas muestran "Consultando ARCA..." mientras se consulta antes de la vista previa, como la `E` (#283).
-- **Fechas:** con una fecha futura, A, B, C, FCE, recibos y notas avisan desde qué fecha van los siguientes, como la `E` (#NNN).
-- **Factura E:** sin `--cm` avisa siempre que usa la cotización oficial, y con una fuera del 2 % al 400 %, también (#NNN).
-- **Factura E:** si una tabla auxiliar de WSFEX no responde, avisa y sigue, salvo que de ella salga un dato (#NNN).
-- **Certificados:** el propio de exportación avisa que vence en los comandos y el asistente, y dice cómo renovarlo (#NNN).
+- **Fechas:** con una fecha futura, A, B, C, FCE, recibos y notas avisan desde qué fecha van los siguientes, como la `E` (#287).
+- **Factura E:** sin `--cm` avisa siempre que usa la cotización oficial, y con una fuera del 2 % al 400 %, también (#287).
+- **Factura E:** si una tabla auxiliar de WSFEX no responde, avisa y sigue, salvo que de ella salga un dato (#287).
+- **Certificados:** el propio de exportación avisa que vence en los comandos y el asistente, y dice cómo renovarlo (#287).
 - **Fechas:** en un lote que cruza la medianoche, `hoy` y las demás fechas relativas son del mismo día en todos los comprobantes (#282).
 
 <details><summary>Detalle</summary>
