@@ -31,11 +31,11 @@ vi.mock('../../../modules/config/config.service', async (importOriginal) => ({
   deprecatedConfigKeyWarning: (await importOriginal<typeof import('../../../modules/config/config.service')>())
     .deprecatedConfigKeyWarning,
   ConfigService: class {
-    public setValue(): ArcliConfig {
-      return storedConfig;
+    public repairValue(): { config: ArcliConfig } {
+      return { config: storedConfig };
     }
-    public unsetValue(): ArcliConfig {
-      return storedConfig;
+    public repairUnset(): { config: ArcliConfig } {
+      return { config: storedConfig };
     }
     public close(): void {}
     public ensureInitialized(): ArcliConfig {

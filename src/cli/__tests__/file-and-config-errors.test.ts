@@ -104,7 +104,6 @@ const COMMANDS: ReadonlyArray<readonly [string, string[]]> = [
   ['estado', ['estado']],
   ['config', ['config']],
   ['config revisar', ['config', 'revisar']],
-  ['config establecer de otra clave', ['config', 'establecer', 'alicuota', '21']],
   ['fc', ['fc', '-m', '1000', '--cs', '--cfinal', '--pv', '1']],
   ['fe', ['fe', '--pv', '1']],
 ];
@@ -143,7 +142,7 @@ describe('config guardada con datos inválidos (ERR-4)', () => {
       expect(text).not.toContain('PorDefecto');
     });
 
-    it('varias a la vez: las nombra, y como de a una no se pueden guardar, manda al archivo', async () => {
+    it('varias a la vez: las nombra y dice cómo arreglarlas de a una', async () => {
       const path = saveConfig({ cuit: '123', entornoPorDefecto: 'x' });
       const { json } = await fail(...args);
 
@@ -158,8 +157,9 @@ describe('config guardada con datos inválidos (ERR-4)', () => {
       expect(json.error).toBe(
         'La configuración guardada tiene datos inválidos. `cuit`: el CUIT debe tener 11 dígitos. `entorno`: tiene un valor no soportado. Valores válidos: testing, produccion.',
       );
-      expect(json.sugerencia).toContain(path);
-      expect(json.sugerencia).toContain('arcli config establecer');
+      expect(json.sugerencia).not.toContain(path);
+      expect(json.sugerencia).toContain('arcli config establecer cuit');
+      expect(json.sugerencia).toContain('arcli config eliminar entorno');
       expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({ cuit: '123', entornoPorDefecto: 'x' });
     });
   });
@@ -180,16 +180,6 @@ describe('config guardada con datos inválidos (ERR-4)', () => {
 
     expect(json.error).toContain(`${key}: `);
     expect(json.sugerencia).toContain(command);
-  });
-
-  it('con una arreglada y otra rota en el archivo, no manda a un comando que tampoco puede guardar', async () => {
-    const path = saveConfig({ cuit: '123', entornoPorDefecto: 'x' });
-    const { json } = await fail('config', 'establecer', 'cuit', '20168598204');
-
-    expect(json.error).toBe(
-      'La configuración guardada tiene un dato inválido. `entorno`: tiene un valor no soportado. Valores válidos: testing, produccion.',
-    );
-    expect(json.sugerencia).toContain(path);
   });
 
   it('un valor malo recién pasado no dice "guardada", tampoco con otra clave rota', async () => {

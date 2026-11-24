@@ -8,13 +8,14 @@ import {
   formatConfigDoctor,
   formatConfigDoctorAsText,
   formatConfigPathAsJson,
+  formatPendingConfigWarnings,
 } from '../../modules/config/config.presenter';
 import {
   type ArcliConfig,
   type ArcliEnvironment,
   COTIZACION_DEPRECATION_WARNING,
 } from '../../modules/config/config.schemas';
-import { ConfigService, deprecatedConfigKeyWarning } from '../../modules/config/config.service';
+import { type ConfigChange, ConfigService, deprecatedConfigKeyWarning } from '../../modules/config/config.service';
 import { buildConfigDoctorReport, type ConfigDoctorRuntimeCheck } from '../../modules/config/config-doctor';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import { writeTerminalJson, writeTerminalNotice, writeTerminalOutput } from '../../ui';
@@ -37,6 +38,18 @@ function printConfigResult(textValue: string, jsonValue: string, useJson = false
   }
 
   writeTerminalOutput(textValue);
+}
+
+/** La config como quedo y, si hay otras claves que siguen rotas, el aviso: con JSON va en `avisos`. */
+function printConfigChange(service: ConfigService, { config, pending }: ConfigChange, command: Command): void {
+  const paths = service.resolvePaths(config);
+  const useJson = resolveOutputJson(command, config);
+
+  printConfigResult(formatConfigAsText(config, paths, pending), formatConfig(config, paths, pending), useJson);
+
+  if (!useJson) {
+    writeTerminalNotice(() => formatPendingConfigWarnings(pending));
+  }
 }
 
 /** Una clave deprecada (`comprobantesPorLista`) se guarda con su reemplazo: se avisa para que la cambien. */
@@ -148,8 +161,7 @@ export function registerConfigCommand(program: Command): void {
       const service = new ConfigService();
 
       try {
-        const config = service.setValue(key, value);
-        const paths = service.resolvePaths(config);
+        const change = service.repairValue(key, value);
 
         if (key === 'cotizacion') {
           writeTerminalNotice(() => COTIZACION_DEPRECATION_WARNING);
@@ -157,11 +169,7 @@ export function registerConfigCommand(program: Command): void {
 
         warnIfDeprecatedKey(key);
 
-        printConfigResult(
-          formatConfigAsText(config, paths),
-          formatConfig(config, paths),
-          resolveOutputJson(command, config),
-        );
+        printConfigChange(service, change, command);
       } finally {
         service.close();
       }
@@ -178,15 +186,10 @@ export function registerConfigCommand(program: Command): void {
       const service = new ConfigService();
 
       try {
-        const config = service.unsetValue(key);
-        const paths = service.resolvePaths(config);
+        const change = service.repairUnset(key);
 
         warnIfDeprecatedKey(key);
-        printConfigResult(
-          formatConfigAsText(config, paths),
-          formatConfig(config, paths),
-          resolveOutputJson(command, config),
-        );
+        printConfigChange(service, change, command);
       } finally {
         service.close();
       }

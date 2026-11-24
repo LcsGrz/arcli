@@ -6,6 +6,7 @@ import { ZodError } from 'zod';
 import { ConfigurationError, InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
 import { withFilePath } from '../../lib/files/file-error';
 import { parseCbu } from '../../lib/identity/cbu';
+import { deleteAtPath, setAtPath } from '../../lib/json/object-path';
 import { describeZodIssues, parseZodInput } from '../billing/billing.zod-errors';
 
 import {
@@ -14,61 +15,20 @@ import {
   CONFIG_DEFAULTS,
   type ConfigPublicKey,
   configPublicKeySchema,
-  ROWS_PER_LIST_DEPRECATION_WARNING,
 } from './config.schemas';
+import { CONFIG_KEY_ALIASES, DEPRECATED_CONFIG_KEYS } from './config-keys';
+import {
+  describePending,
+  invalidSavedCbuError,
+  invalidSavedConfigError,
+  isSameOrInside,
+  issuePath,
+  onlyOldProblems,
+  parseConfigProblems,
+  type PendingConfigProblems,
+  suggestConfigFix,
+} from './config-problems';
 import { type CanonicalConfigKey, parseConfigValue } from './config-value-parser';
-
-const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
-  alicuota: 'alicuotaPorDefecto',
-  aliasCbu: 'aliasCbu',
-  cbu: 'cbu',
-  'cert.produccion': 'cert.produccion',
-  'cert.testing': 'cert.testing',
-  concepto: 'conceptoPorDefecto',
-  condicionVenta: 'condicionVenta',
-  cotizacion: 'cotizacionPorDefecto',
-  cuit: 'cuit',
-  'emisor.condicionIva': 'emisor.condicionIva',
-  'emisor.domicilio': 'emisor.domicilio',
-  'emisor.iibb': 'emisor.iibb',
-  'emisor.inicioActividades': 'emisor.inicioActividades',
-  'emisor.logo': 'emisor.logo',
-  'emisor.razonSocial': 'emisor.razonSocial',
-  entorno: 'entornoPorDefecto',
-  emitir: 'output.emitirPorDefecto',
-  'exportacion.actividad': 'exportacion.actividad',
-  'exportacion.cert.produccion': 'exportacion.cert.produccion',
-  'exportacion.cert.testing': 'exportacion.cert.testing',
-  'exportacion.key.produccion': 'exportacion.key.produccion',
-  'exportacion.key.testing': 'exportacion.key.testing',
-  filasPorLista: 'filasPorLista',
-  ivaReceptor: 'ivaReceptorPorDefecto',
-  json: 'output.jsonPorDefecto',
-  'key.produccion': 'key.produccion',
-  'key.testing': 'key.testing',
-  moneda: 'monedaPorDefecto',
-  'monotributo.tope': 'monotributo.tope',
-  bruto: 'output.brutoPorDefecto',
-  pdf: 'pdf',
-  pdfCarpeta: 'pdfCarpeta',
-  pdfNavegador: 'pdfNavegador',
-  puntoVenta: 'puntoVentaPorDefecto',
-  ticketPath: 'ticketPath',
-  verificarFce: 'verificarFce',
-  consultarPadron: 'consultarPadron',
-};
-
-/**
- * Claves deprecadas que `config establecer` y `config eliminar` todavia aceptan, con la clave que las reemplaza. No
- * son claves publicas: no salen en la ayuda, el autocompletado ni `arcli config`. Se sacan en la 3.0.0.
- *
- * @internal Exportado para los tests.
- */
-export const DEPRECATED_CONFIG_KEYS: Readonly<
-  Record<string, { readonly replacement: ConfigPublicKey; readonly warning: string }>
-> = {
-  comprobantesPorLista: { replacement: 'filasPorLista', warning: ROWS_PER_LIST_DEPRECATION_WARNING },
-};
 
 /**
  * Claves guardadas que se borran al cambiar o borrar la clave publica: la deprecada no puede quedar en el archivo
@@ -170,97 +130,19 @@ function invalidConfigFileError(path: string): ConfigurationError {
   );
 }
 
-/**
- * Un CBU guardado que ya no pasa la validación (por ejemplo, desde que se controlan los verificadores): el error
- * dice que viene de la config, el motivo y cómo cambiarlo.
- */
-function invalidSavedCbuError(reason: string): InputIssuesError {
-  return new InputIssuesError(
-    `El CBU guardado en la config no es válido: ${reason}.`,
-    [{ label: 'CBU', mensaje: `${reason[0]?.toUpperCase() ?? ''}${reason.slice(1)}.`, ruta: ['cbu'] }],
-    'Cambialo por el correcto con `arcli config establecer cbu <CBU>`; copialo desde el home banking o la constancia del banco.',
-  );
+export interface ConfigChange {
+  /** Con `pending`, sin las claves rotas: las que tienen default lo traen y no es lo guardado. */
+  readonly config: ArcliConfig;
+  readonly pending?: PendingConfigProblems;
 }
 
-/** Como se llama en la config publica lo que esta en esa ruta del archivo, y con que clave se cambia. */
-interface SavedKey {
-  /** Con `config eliminar` tambien se arregla: no alcanza para un grupo entero, como `emisor`. */
-  readonly canDelete: boolean;
-  readonly key: ConfigPublicKey;
-  readonly names: readonly string[];
-}
-
-function findSavedKey(path: string): SavedKey | undefined {
-  if (Object.hasOwn(DEPRECATED_CONFIG_KEYS, path)) {
-    return { canDelete: false, key: DEPRECATED_CONFIG_KEYS[path].replacement, names: [path] };
-  }
-
-  const entries = Object.entries(CONFIG_KEY_ALIASES) as Array<[ConfigPublicKey, CanonicalConfigKey]>;
-  const exact = entries.find(([, canonical]) => canonical === path);
-
-  if (exact) {
-    return { canDelete: true, key: exact[0], names: [exact[0]] };
-  }
-
-  const keys = entries.filter(([, canonical]) => canonical.startsWith(`${path}.`)).map(([key]) => key);
-
-  return keys.length === 0
-    ? undefined
-    : { canDelete: false, key: keys[0], names: keys.every((key) => key.startsWith(`${path}.`)) ? [path] : keys };
-}
-
-function issuePath(issue: { readonly path: PropertyKey[] }): string {
-  return issue.path.map(String).join('.');
-}
-
-/** El motivo, para despues del nombre publico: sin el interno adelante y en minuscula. */
-function describeReason(mensaje: string, path: string): string {
-  const subject = `\`${path}\` `;
-  const reason = mensaje.startsWith(subject) ? mensaje.slice(subject.length) : mensaje;
-  const text = reason.replace(/^\p{Lu}(?=\p{Ll})/u, (letter) => letter.toLowerCase());
-
-  return text.endsWith('.') ? text : `${text}.`;
-}
-
-/**
- * Datos invalidos que ya estaban en el archivo: el error dice que vienen de la config guardada, con la clave publica y
- * que hacer. `detalles` es el de siempre, con las rutas internas (contrato).
- *
- * @param saved los problemas del archivo tal como esta: con mas de uno, `config establecer` no puede guardar ninguno.
- */
-function invalidSavedConfigError(error: ZodError, saved: ZodError, configPath: string): InputIssuesError {
-  const issues = describeZodIssues(error);
-  const problems = error.issues.map((issue, index) => {
-    const path = issuePath(issue);
-    const names = findSavedKey(path)?.names ?? [path];
-
-    return `${names.map((name) => `\`${name}\``).join(', ')}: ${describeReason(issues[index].mensaje, path)}`;
-  });
-  const subject = problems.length === 1 ? 'un dato inválido' : 'datos inválidos';
-
-  return new InputIssuesError(
-    `La configuración guardada tiene ${subject}. ${problems.join(' ')}`,
-    issues,
-    suggestConfigFix(saved, configPath),
-  );
-}
-
-function suggestConfigFix(saved: ZodError, configPath: string): string {
-  const keys = saved.issues.map((issue) => findSavedKey(issuePath(issue)));
-  const [first] = keys;
-
-  if (!first || keys.some((key) => key?.key !== first.key)) {
-    // La ruta va entera: hay que poder abrir el archivo, y `arcli config ruta` tampoco anda con la config rota.
-    return `Con más de un dato mal, \`arcli config establecer\` no puede guardar ninguno: corregilos en ${configPath}, o renombrá ese archivo y volvé a cargar los datos.`;
-  }
-
-  const set = `Corregilo con \`arcli config establecer ${first.key} <valor>\``;
-
-  return first.canDelete ? `${set} o borralo con \`arcli config eliminar ${first.key}\`.` : `${set}.`;
+interface PlannedChange {
+  readonly apply: (draft: Record<string, unknown>) => void;
+  readonly key: CanonicalConfigKey;
 }
 
 export class ConfigService {
-  private readonly store: Conf<ArcliConfig>;
+  private readonly store: Conf<Record<string, unknown>>;
 
   public constructor(options: ConfigServiceOptions = {}) {
     try {
@@ -268,12 +150,12 @@ export class ConfigService {
       this.store = withFilePath(
         join(options.cwd ?? resolveConfigDirectory() ?? 'arcli', `${options.configName ?? 'config'}.json`),
         () =>
-          new Conf<ArcliConfig>({
+          new Conf<Record<string, unknown>>({
             ...storeLocation(options),
             clearInvalidConfig: false,
-            defaults: CONFIG_DEFAULTS,
           }),
       );
+      this.completeDefaults();
     } catch (error) {
       if (error instanceof SyntaxError) {
         throw invalidConfigFileError(resolveStorePath(options));
@@ -289,13 +171,17 @@ export class ConfigService {
 
   public getConfig(): ArcliConfig {
     try {
-      return parseZodInput(arcliConfigSchema, this.store.store);
+      return parseZodInput(arcliConfigSchema, this.readSaved());
     } catch (error) {
-      const savedCbu: unknown = (this.store.store as Record<string, unknown>).cbu;
+      const savedCbu = this.store.store.cbu;
       const cbuResult = typeof savedCbu === 'string' ? parseCbu(savedCbu) : undefined;
 
       if (cbuResult && !cbuResult.ok) {
-        throw invalidSavedCbuError(cbuResult.reason);
+        // Con otra clave rota, la sugerencia del CBU sola no alcanza.
+        throw invalidSavedCbuError(
+          cbuResult.reason,
+          error instanceof ZodError && error.issues.length > 1 ? suggestConfigFix(error, this.store.path) : undefined,
+        );
       }
 
       throw error instanceof ZodError ? invalidSavedConfigError(error, error, this.store.path) : error;
@@ -343,7 +229,7 @@ export class ConfigService {
 
   public initialize(): ArcliConfig {
     const config = this.getConfig();
-    this.store.store = config;
+    this.writeComplete(config);
 
     return config;
   }
@@ -353,39 +239,118 @@ export class ConfigService {
   }
 
   public setValue(rawKey: string, rawValue: string): ArcliConfig {
+    return this.saveIfValid(this.planSet(rawKey, rawValue));
+  }
+
+  public unsetValue(rawKey: string): ArcliConfig {
+    return this.saveIfValid(this.planUnset(rawKey));
+  }
+
+  /** `config establecer`: como `setValue`, pero guarda aunque queden otras claves que ya estaban rotas. */
+  public repairValue(rawKey: string, rawValue: string): ConfigChange {
+    return this.saveIfNotWorse(this.planSet(rawKey, rawValue));
+  }
+
+  /** `config eliminar`: como `unsetValue`, pero guarda aunque queden otras claves que ya estaban rotas. */
+  public repairUnset(rawKey: string): ConfigChange {
+    return this.saveIfNotWorse(this.planUnset(rawKey));
+  }
+
+  private planSet(rawKey: string, rawValue: string): PlannedChange {
     const key = this.resolveKey(rawKey);
     const canonicalKey = CONFIG_KEY_ALIASES[key];
     const parsedValue = withConfigHelp(() => parseConfigValue(canonicalKey, rawValue, key));
 
-    return this.saveIfValid(canonicalKey, (draft) => {
-      deleteLegacyKeys(draft, key);
-      setAtPath(draft, canonicalKey, parsedValue);
-    });
+    return {
+      apply: (draft) => {
+        deleteLegacyKeys(draft, key);
+        setAtPath(draft, canonicalKey, parsedValue);
+      },
+      key: canonicalKey,
+    };
   }
 
-  public unsetValue(rawKey: string): ArcliConfig {
+  private planUnset(rawKey: string): PlannedChange {
     const key = this.resolveKey(rawKey);
     const canonicalKey = CONFIG_KEY_ALIASES[key];
 
-    return this.saveIfValid(canonicalKey, (draft) => {
-      deleteLegacyKeys(draft, key);
-      deleteAtPath(draft, canonicalKey);
-    });
+    return {
+      apply: (draft) => {
+        deleteLegacyKeys(draft, key);
+        deleteAtPath(draft, canonicalKey);
+      },
+      key: canonicalKey,
+    };
+  }
+
+  /**
+   * Lo guardado, completo con los defaults. El archivo se completa solo si esta sano (`completeDefaults`): con una
+   * clave rota no se toca nada que la persona no haya pedido.
+   */
+  private readSaved(): Record<string, unknown> {
+    return { ...CONFIG_DEFAULTS, ...this.store.store };
+  }
+
+  private writeComplete(config: ArcliConfig): void {
+    this.store.store = { ...CONFIG_DEFAULTS, ...config };
+  }
+
+  private completeDefaults(): void {
+    const stored = this.store.store;
+
+    if (
+      Object.keys(CONFIG_DEFAULTS).some((key) => stored[key] === undefined) &&
+      arcliConfigSchema.safeParse(this.readSaved()).success
+    ) {
+      this.store.store = this.readSaved();
+    }
   }
 
   /**
    * Aplica el cambio sobre una copia y la guarda solo si queda valida: un valor invalido no puede dejar el CLI
    * inutilizable. Una config que ya estaba rota se puede arreglar cambiando o borrando la clave que falla.
    */
-  private saveIfValid(changedKey: CanonicalConfigKey, change: (draft: Record<string, unknown>) => void): ArcliConfig {
-    const draft = structuredClone(this.store.store) as Record<string, unknown>;
+  private saveIfValid(change: PlannedChange): ArcliConfig {
+    const draft = structuredClone(this.readSaved());
 
-    change(draft);
+    change.apply(draft);
 
-    const config = this.parseDraft(changedKey, draft);
-    this.store.store = config;
+    const config = this.parseDraft(change.key, draft);
+    this.writeComplete(config);
 
     return config;
+  }
+
+  /**
+   * Si el cambio deja la config sana, guarda como `saveIfValid`. Si no, guarda solo esa clave sobre lo que hay en el
+   * archivo, sin normalizar ni completar el resto, y nada mas que si no hay problemas nuevos.
+   */
+  private saveIfNotWorse(change: PlannedChange): ConfigChange {
+    const saved = this.readSaved();
+    const draft = structuredClone(saved);
+
+    change.apply(draft);
+
+    const error = parseConfigProblems(draft);
+
+    if (!error || !onlyOldProblems(error, parseConfigProblems(saved), change.key)) {
+      return { config: this.saveIfValid(change) };
+    }
+
+    for (const issue of error.issues) {
+      deleteAtPath(draft, issuePath(issue));
+    }
+
+    const result: ConfigChange = {
+      config: parseZodInput(arcliConfigSchema, draft),
+      pending: describePending(error, this.store.path),
+    };
+    const stored = structuredClone({ ...this.store.store });
+
+    change.apply(stored);
+    this.store.store = stored;
+
+    return result;
   }
 
   private parseDraft(changedKey: CanonicalConfigKey, draft: Record<string, unknown>): ArcliConfig {
@@ -393,15 +358,11 @@ export class ConfigService {
       return parseZodInput(arcliConfigSchema, draft);
     } catch (error) {
       // El valor recien pasado no es un dato guardado: ese error sale como siempre.
-      const isNewValue = (path: string) => path === changedKey || path.startsWith(`${changedKey}.`);
-
-      if (!(error instanceof ZodError) || error.issues.some((issue) => isNewValue(issuePath(issue)))) {
+      if (!(error instanceof ZodError) || error.issues.some((issue) => isSameOrInside(issuePath(issue), changedKey))) {
         throw error;
       }
 
-      const saved = arcliConfigSchema.safeParse(this.store.store).error;
-
-      throw invalidSavedConfigError(error, saved ?? error, this.store.path);
+      throw invalidSavedConfigError(error, parseConfigProblems(this.readSaved()) ?? error, this.store.path);
     }
   }
 
@@ -429,31 +390,5 @@ export class ConfigService {
 function deleteLegacyKeys(draft: Record<string, unknown>, key: ConfigPublicKey): void {
   for (const legacyKey of LEGACY_STORED_KEYS[key] ?? []) {
     deleteAtPath(draft, legacyKey);
-  }
-}
-
-function setAtPath(target: Record<string, unknown>, path: string, value: unknown): void {
-  const keys = path.split('.');
-  const last = keys.pop() as string;
-  let node = target;
-
-  for (const key of keys) {
-    const next = node[key];
-    node = (next && typeof next === 'object' ? next : (node[key] = {})) as Record<string, unknown>;
-  }
-
-  node[last] = value;
-}
-
-function deleteAtPath(target: Record<string, unknown>, path: string): void {
-  const keys = path.split('.');
-  const last = keys.pop() as string;
-  const parent = keys.reduce<unknown>(
-    (node, key) => (node && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined),
-    target,
-  );
-
-  if (parent && typeof parent === 'object') {
-    delete (parent as Record<string, unknown>)[last];
   }
 }

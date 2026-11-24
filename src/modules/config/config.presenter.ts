@@ -1,8 +1,9 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
+import { deleteAtPath } from '../../lib/json/object-path';
 import { formatArgentineMoney, formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { maskPath } from '../../lib/paths/mask-path';
-import { checklistPanel, sheetPanel } from '../../ui/components';
+import { attentionPanel, checklistPanel, sheetPanel } from '../../ui/components';
 import {
   bold,
   colorize,
@@ -19,6 +20,7 @@ import type { ArcliConfig, ConfigPublicKey } from './config.schemas';
 import { formatEnvironmentLabel, isPadronLookupEnabled, resolveConfiguredRowsPerList } from './config.schemas';
 import { CONFIG_LABELS, CONFIG_SECTIONS } from './config.sections';
 import { CONFIG_DOCTOR_SECTIONS, type ConfigDoctorReport } from './config-doctor';
+import type { PendingConfigProblems } from './config-problems';
 
 interface PublicConfigSnapshot {
   readonly alicuota?: ArcliConfig['alicuotaPorDefecto'];
@@ -131,8 +133,43 @@ function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): Publi
   };
 }
 
-export function formatConfig(config: ArcliConfig, paths: ConfigPathSnapshot): string {
-  return JSON.stringify(toPublicSnapshot(config, paths), null, 2);
+export function formatConfig(config: ArcliConfig, paths: ConfigPathSnapshot, pending?: PendingConfigProblems): string {
+  const snapshot = toPublicSnapshot(config, paths);
+
+  if (!pending) {
+    return JSON.stringify(snapshot, null, 2);
+  }
+
+  const visible = structuredClone(snapshot) as unknown as Record<string, unknown>;
+
+  for (const key of pending.keys) {
+    deleteAtPath(visible, key);
+  }
+
+  if (pending.keys.includes('comprobantesPorLista')) {
+    delete visible.deprecado;
+  }
+
+  return JSON.stringify({ ...visible, avisos: pending.warnings }, null, 2);
+}
+
+/** Lo que sigue mal despues de `config establecer` o `config eliminar`, para stderr. */
+export function formatPendingConfigWarnings(pending: PendingConfigProblems | undefined): string | undefined {
+  return (
+    pending &&
+    attentionPanel('Avisos', pending.warnings.map((warning) => `${uiSymbol('bullet')} ${warning}`).join('\n'))
+  );
+}
+
+function isPending(key: ConfigPublicKey, config: ArcliConfig, pending: PendingConfigProblems | undefined): boolean {
+  return (
+    pending?.keys.some(
+      (name) =>
+        key === name ||
+        key.startsWith(`${name}.`) ||
+        (name === 'comprobantesPorLista' && key === 'filasPorLista' && config.filasPorLista === undefined),
+    ) ?? false
+  );
 }
 
 /** `{ "ruta": "..." }`, como `ruta` en el JSON de `pdf desinstalar`. */
@@ -144,6 +181,7 @@ const ROWS_PER_LIST_JSON_DEPRECATION =
   '`comprobantesPorLista` se saca en la 3.0.0: usá `filasPorLista`, que trae el mismo valor.';
 
 const NOT_SET = 'sin configurar';
+const INVALID = 'dato inválido';
 
 type PublicConfigValue = (config: PublicConfigSnapshot) => number | string;
 
@@ -214,12 +252,21 @@ const CONFIG_PATHS: Partial<
   ticketPath: (_c, paths) => paths.ticketPath,
 };
 
-export function formatConfigAsText(config: ArcliConfig, paths: ConfigPathSnapshot): string {
+export function formatConfigAsText(
+  config: ArcliConfig,
+  paths: ConfigPathSnapshot,
+  pending?: PendingConfigProblems,
+): string {
   const safeConfig = toPublicSnapshot(config, paths);
   const sections = CONFIG_SECTIONS.map((section) => ({
     id: section.id,
     label: section.label,
     rows: section.keys.map((key) => {
+      // Lo que se leyo no es lo guardado: con un default en su lugar, un `entorno` roto se leeria como testing.
+      if (isPending(key, config, pending)) {
+        return [CONFIG_LABELS[key], colorize(INVALID, 'warning')] as const;
+      }
+
       const path = CONFIG_PATHS[key]?.(config, paths);
 
       // Las rutas se abren con un clic; el texto es el mismo que sin link.

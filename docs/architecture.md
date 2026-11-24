@@ -88,7 +88,7 @@ La letra `E` no pasa por `VOUCHER_KIND_MAP`: WSFEX tiene otro contrato (autoriza
 ### Agregar una clave de configuración
 
 1. Sumala a `configPublicKeySchema` y al esquema en `src/modules/config/config.schemas.ts`.
-2. Mapeala en `ConfigService` (`config.service.ts`) y validala en `config-value-parser.ts`.
+2. Mapeala en `config-keys.ts` y validala en `config-value-parser.ts`.
 3. Ubicala en una sección y ponele nombre en `config.sections.ts`: de ahí salen el orden de `arcli config` y de "Modificar configuración" (un test exige que cada clave esté en una sola sección). Agregá cómo se muestra su valor en `config.presenter.ts`.
 4. Documentala en [configuración](configuration.md) y, si el modo interactivo la expone, en `src/modules/interactive/config-fields.ts`.
 

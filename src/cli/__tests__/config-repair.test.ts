@@ -85,7 +85,6 @@ afterEach(() => {
   rmSync(directory, { force: true, recursive: true });
 });
 
-// Tests primero
 describe('varias claves rotas en la config guardada (ERR-22)', () => {
   // Con una clave que ARCLI no conoce y un valor sin normalizar: nada de eso se toca.
   const BROKEN = {
@@ -96,7 +95,7 @@ describe('varias claves rotas en la config guardada (ERR-22)', () => {
     puntoVentaPorDefecto: 'a',
   };
 
-  it.fails.each([
+  it.each([
     [['establecer', 'alicuota', '21'], { ...BROKEN, alicuotaPorDefecto: '21' }],
     [['establecer', 'cuit', CUIT], { ...BROKEN, cuit: CUIT }],
     [['establecer', 'emitir', 'true'], { ...BROKEN, output: { emitirPorDefecto: true } }],
@@ -108,15 +107,14 @@ describe('varias claves rotas en la config guardada (ERR-22)', () => {
 
     expect(result.exitCode).toBe(0);
     expect(stored()).toEqual(JSON.parse(JSON.stringify(expected)));
-    expect(result.stdout).toContain('Configuración');
-    expect(result.stdout).not.toContain('testing Punto');
-    expect(result.stdout).toContain('dato inválido');
+    expect(result.stdout).toContain('CONFIGURACIÓN');
+    expect(result.stdout).toContain('Entorno dato inválido');
     expect(result.stderr).toContain('arcli config establecer entorno <valor>');
     expect(result.stderr).toContain('arcli config eliminar puntoVenta');
     expect(result.stderr).not.toContain('PorDefecto');
   });
 
-  it.fails('con --json, la config sin las claves rotas y los avisos', async () => {
+  it('con --json, la config sin las claves rotas y los avisos', async () => {
     save({ ...BROKEN, emisor: { logo: '', razonSocial: 'Ana' }, output: 3 });
 
     const json = await runJson('config', 'establecer', 'alicuota', '21');
@@ -136,9 +134,9 @@ describe('varias claves rotas en la config guardada (ERR-22)', () => {
     ]);
   });
 
-  it.fails('si `json` es la clave rota, manda el flag; si está sana, vale', async () => {
+  it('si `json` es la clave rota, manda el flag; si está sana, vale', async () => {
     save({ cuit: '123', output: { jsonPorDefecto: 'x' } });
-    expect((await run('config', 'establecer', 'alicuota', '21')).stdout).toContain('Configuración');
+    expect((await run('config', 'establecer', 'alicuota', '21')).stdout).toContain('CONFIGURACIÓN');
     expect(await runJson('config', 'establecer', 'alicuota', '21')).toHaveProperty('avisos');
 
     save({ cuit: '123', output: { emitirPorDefecto: 'x', jsonPorDefecto: true } });
@@ -149,7 +147,7 @@ describe('varias claves rotas en la config guardada (ERR-22)', () => {
     expect(result.stderr).toBe('');
   });
 
-  it.fails('de a una hasta dejarla sana, que sale como siempre', async () => {
+  it('de a una hasta dejarla sana, que sale como siempre', async () => {
     save({ cbu: '0110599520000012345677', cuit: '123' });
 
     const first = await runError('config');
@@ -170,7 +168,7 @@ describe('varias claves rotas en la config guardada (ERR-22)', () => {
     expect(stored()).toMatchObject({ cuit: CUIT, entornoPorDefecto: 'testing', output: { jsonPorDefecto: false } });
   });
 
-  it.fails('los demás comandos siguen frenando y no tocan el archivo', async () => {
+  it('los demás comandos siguen frenando y no tocan el archivo', async () => {
     save(BROKEN);
 
     for (const args of [['config'], ['config', 'revisar'], ['estado'], ['certificado', 'generar']]) {
@@ -209,7 +207,7 @@ describe('varias claves rotas en la config guardada (ERR-22)', () => {
     }
   });
 
-  it.fails.each([
+  it.each([
     [{ output: 3 }, ['establecer', 'json', 'false'], { jsonPorDefecto: false }, 'output'],
     [{ output: [] }, ['establecer', 'json', 'false'], { jsonPorDefecto: false }, 'output'],
     [{ emisor: 'x' }, ['establecer', 'emisor.razonSocial', 'Ana'], { razonSocial: 'Ana' }, 'emisor'],
@@ -227,7 +225,7 @@ describe('varias claves rotas en la config guardada (ERR-22)', () => {
     expect(error.sugerencia).toContain('arcli config establecer emisor.condicionIva <valor>');
   });
 
-  it.fails('la clave deprecada rota no se muestra y se arregla con su reemplazo', async () => {
+  it('la clave deprecada rota no se muestra y se arregla con su reemplazo', async () => {
     save({ comprobantesPorLista: 0, cuit: '123', filasPorLista: 20 });
 
     const json = await runJson('config', 'establecer', 'alicuota', '21');
@@ -251,7 +249,6 @@ describe('varias claves rotas en la config guardada (ERR-22)', () => {
   });
 });
 
-// Tests primero
 describe('certificado generar con el pedido pendiente ilegible (ERR-21)', () => {
   const folder = () => join(directory, 'certificados', CUIT);
   const key = () => join(folder(), 'testing.nueva.key');
@@ -288,9 +285,9 @@ describe('certificado generar con el pedido pendiente ilegible (ERR-21)', () => 
     expect(readFileSync(request(), 'utf8')).toBe('CSR');
   }
 
-  it.runIf(withPermissions).fails('con la carpeta del CUIT sin permiso', () => expectUntouched(folder));
+  it.runIf(withPermissions)('con la carpeta del CUIT sin permiso', () => expectUntouched(folder));
 
-  it.runIf(withPermissions).fails('con la carpeta de certificados sin permiso', () =>
+  it.runIf(withPermissions)('con la carpeta de certificados sin permiso', () =>
     expectUntouched(() => join(directory, 'certificados')),
   );
 
