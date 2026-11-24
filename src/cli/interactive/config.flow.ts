@@ -39,9 +39,8 @@ import { changesArcaAccess } from '../../modules/interactive/config-lists';
 import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
-import { bold, noticePanel, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
+import { bold, noticePanel, uiSymbol, writeTerminalOutput } from '../../ui';
 import { buildRuntimeChecks } from '../commands/config.command';
-import { formatCliError } from '../error-output';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
@@ -49,6 +48,7 @@ import { runCertificateMenu, runGenerateCertificate } from './certificate.flow';
 import { type ConfigFieldLists, configFieldLists } from './config-lists';
 import { markIfNew } from './new-mark';
 import { askTextStep, type Choice, chooseOne, chooseOrTypeStep, chooseStep, confirm, fitPageSize } from './prompts';
+import { showAssistantError } from './show-assistant-error';
 
 /** `--produccion` o `--testing` de `arcli interactivo`: la configuracion guiada pide el certificado de ese entorno. */
 type EnvironmentFlags = Pick<GlobalCliOptions, 'produccion' | 'testing'>;
@@ -484,7 +484,7 @@ function isFileSystemError(error: unknown): error is NodeJS.ErrnoException {
 }
 
 /** Un error aca no corta el menu: se avisa y se puede seguir (por ejemplo, si no hay escritorio). */
-function runDesktopShortcut(): void {
+async function runDesktopShortcut(): Promise<void> {
   try {
     const environment = withConfigService((service) => currentDesktopShortcutEnvironment(service.getPath()));
 
@@ -494,7 +494,7 @@ function runDesktopShortcut(): void {
       throw error;
     }
 
-    writeTerminalError(() => formatCliError(error, false));
+    await showAssistantError(error);
   }
 }
 
@@ -577,6 +577,6 @@ export async function runConfigMenu(flags: EnvironmentFlags = {}): Promise<void>
     if (option === 'certificados') await runCertificateMenu();
     if (option === 'pdf') await runPdfPluginMenu();
     if (option === 'completado') await runCompletionMenu();
-    if (option === 'acceso-directo') runDesktopShortcut();
+    if (option === 'acceso-directo') await runDesktopShortcut();
   }
 }

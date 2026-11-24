@@ -31,12 +31,15 @@ import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../mod
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { systemClock } from '../../services/time/system-clock';
 import { noticePanel, writeTerminalOutput } from '../../ui';
+import { isOutputLost } from '../closed-output';
 import { attachExportPdf } from '../commands/export.command.pdf';
+import { recordExportEmission, recordMissingExportPdf } from '../emitted-vouchers';
 import { withSpinner } from '../spinner';
 
 import { askCountryCuit, askDestinationCountry, exportOptionalsStep, validateExportText } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
 import { exportExchangeRateLoader } from './official-exchange-rate';
+import { assertOutputVisible } from './output-guard';
 import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseOrTypeStep, chooseStep, isPromptCancellation } from './prompts';
 import { offerConfig } from './save-to-config';
@@ -404,8 +407,12 @@ export async function emitExportVoucher(
     return emission;
   }
 
-  const result = await withSpinner(`Emitiendo ${label} en ARCA...`, () =>
-    service.execute({ gateway, resolved, runtime, warnings: resolved.warnings }),
+  await assertOutputVisible();
+
+  const result = recordExportEmission(
+    await withSpinner(`Emitiendo ${label} en ARCA...`, () =>
+      service.execute({ gateway, resolved, runtime, warnings: resolved.warnings }),
+    ),
   );
 
   writeTerminalOutput(
@@ -424,10 +431,18 @@ export async function emitExportVoucher(
 
     if (withPdf.pdf) {
       writeTerminalOutput(formatPdfOutcomeAsText(withPdf.pdf));
+
+      if ('error' in withPdf.pdf) {
+        recordMissingExportPdf(result);
+      }
     }
   } catch (error) {
     if (!isPromptCancellation(error)) {
       throw error;
+    }
+
+    if (isOutputLost('stdout')) {
+      recordMissingExportPdf(result);
     }
 
     writeTerminalOutput(noticePanel('El comprobante ya quedó emitido; no se generó el PDF.', 'muted'));

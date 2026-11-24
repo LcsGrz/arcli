@@ -26,8 +26,7 @@ import {
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
-import { writeTerminalError, writeTerminalOutput } from '../../ui';
-import { formatCliError } from '../error-output';
+import { writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
 import { runHistoryFlow } from './history.flow';
@@ -47,6 +46,7 @@ import {
   isPromptCancellation,
 } from './prompts';
 import type { InteractiveSession } from './session';
+import { showAssistantError } from './show-assistant-error';
 
 type QueryOption = 'comprobantes' | 'cotizacion' | 'cuit' | 'fce' | 'monotributo' | 'tablas';
 
@@ -322,7 +322,7 @@ export async function runQueriesMenu(session: InteractiveSession): Promise<void>
         throw error;
       }
 
-      writeTerminalError(() => formatCliError(error, false));
+      await showAssistantError(error);
     }
   }
 }

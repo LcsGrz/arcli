@@ -5,6 +5,9 @@ import { BillingService } from '../../../modules/billing/billing.service';
 import { BACK } from '../../../modules/interactive/wizard';
 import { systemClock } from '../../../services/time/system-clock';
 import type { CliArcaRuntime } from '../../arca-runtime';
+import { outputState } from '../../closed-output';
+import { describeEmittedInThisRun, resetEmittedInThisRun } from '../../emitted-vouchers';
+import { withOutputGuard } from '../output-guard';
 import { offerPdf } from '../pdf.flow';
 import { askTextStep, chooseOne, confirm } from '../prompts';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from '../session';
@@ -67,6 +70,7 @@ describe('previewAndEmit', () => {
   });
 
   afterEach(() => {
+    resetEmittedInThisRun();
     vi.restoreAllMocks();
     confirmMock.mockReset();
     askTextStepMock.mockReset();
@@ -105,6 +109,8 @@ describe('previewAndEmit', () => {
       response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] } },
     });
     await expect(previewAndEmit(session, input)).resolves.toBe(true);
+    // Si despues no se puede escribir la salida, el aviso dice que se emitio (ERR-18).
+    expect(describeEmittedInThisRun()).toEqual([expect.stringContaining('fc del punto de venta 3, 1.')]);
 
     session.createVoucher.mockResolvedValueOnce({
       cae: '',
@@ -115,6 +121,24 @@ describe('previewAndEmit', () => {
 
     chooseOneMock.mockResolvedValue(false);
     await expect(previewAndEmit(session, input)).resolves.toBe(false);
+    expect(describeEmittedInThisRun()).toEqual([expect.stringContaining('fc del punto de venta 3, 1.')]);
+  });
+
+  it('con stdout roto después de "¿Emitimos?" no emite (ERR-18)', async () => {
+    const session = createSession('testing');
+
+    chooseOneMock.mockImplementationOnce(async () => {
+      outputState.failures.set('stdout', new Error('write'));
+
+      return 'emitir';
+    });
+
+    try {
+      await expect(withOutputGuard(async () => void (await previewAndEmit(session, input)))).rejects.toThrow();
+      expect(session.createVoucher).not.toHaveBeenCalled();
+    } finally {
+      outputState.failures.clear();
+    }
   });
 
   it('emite en testing con una sola confirmacion', async () => {
