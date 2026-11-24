@@ -1,0 +1,13 @@
+$ arcli fc --montoo 1 --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "INPUT_VALIDATION_ERROR",
+  "detalles": null,
+  "error": "opción desconocida `--montoo` (¿quisiste decir `--monto`?)",
+  "sugerencia": "Usá `arcli ayuda` o `arcli <comando> --ayuda` para ver comandos y opciones. No se pudo escribir toda la salida: no queda espacio en el disco."
+}
+

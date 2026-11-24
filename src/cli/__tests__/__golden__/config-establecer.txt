@@ -1,0 +1,33 @@
+$ arcli config establecer puntoVenta 5 --json
+exit: 0
+--- stdout ---
+
+{
+  "cert": {
+    "testing": ".../config/testing.crt"
+  },
+  "cotizacion": 1,
+  "cuit": "20111111112",
+  "emisor": {},
+  "emitir": false,
+  "entorno": "testing",
+  "exportacion": {
+    "actividad": 620100,
+    "cert": {},
+    "key": {}
+  },
+  "json": false,
+  "key": {
+    "testing": ".../config/testing.key"
+  },
+  "moneda": "PES",
+  "pdf": "nunca",
+  "pdfCarpeta": ".../config/pdfs",
+  "puntoVenta": 5,
+  "bruto": false,
+  "ticketPath": ".../config/tickets",
+  "consultarPadron": true
+}
+
+
+--- stderr ---

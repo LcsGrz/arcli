@@ -1,0 +1,51 @@
+$ arcli parametros --json
+exit: 0
+--- stdout ---
+
+{
+  "tablas": [
+    {
+      "descripcion": "Alícuotas de IVA",
+      "tabla": "alicuotas"
+    },
+    {
+      "descripcion": "Tipos de comprobante",
+      "tabla": "comprobantes"
+    },
+    {
+      "descripcion": "Conceptos",
+      "tabla": "conceptos"
+    },
+    {
+      "descripcion": "Tipos de documento",
+      "tabla": "documentos"
+    },
+    {
+      "descripcion": "Condiciones de IVA del receptor",
+      "tabla": "iva-receptor"
+    },
+    {
+      "descripcion": "Monedas",
+      "tabla": "monedas"
+    },
+    {
+      "descripcion": "Datos opcionales",
+      "tabla": "opcionales"
+    },
+    {
+      "descripcion": "Puntos de venta",
+      "tabla": "puntos-venta"
+    },
+    {
+      "descripcion": "Tributos",
+      "tabla": "tributos"
+    },
+    {
+      "descripcion": "Cotización oficial de ARCA",
+      "tabla": "cotizacion"
+    }
+  ]
+}
+
+
+--- stderr ---

@@ -149,6 +149,12 @@ describe('titulos y sugerencias por codigo', () => {
     expect(JSON.parse(formatAppError(error, true)).detalles).toEqual({ lista: [1, 2], ruta: '/tmp/x.json' });
   });
 
+  it('el entorno de otros errores se muestra con su etiqueta si el texto no lo dice (REV-49)', () => {
+    const error = new AppError('Falló.', { code: 'CERTIFICATE_EXPIRED', details: { entorno: 'testing' } });
+
+    expect(formatAppError(error, false)).toContain('Entorno:');
+  });
+
   it('un error de sesion abierta en WSAA o de transaccion activa se reconoce como transitorio', () => {
     expect(JSON.parse(formatAppError(new Error('coe.alreadyAuthenticated'), true))).toMatchObject({
       codigo: 'TRANSIENT_ERROR',

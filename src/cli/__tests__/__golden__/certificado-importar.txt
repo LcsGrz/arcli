@@ -1,0 +1,16 @@
+$ arcli certificado importar <config>/nuevo.crt --reemplazar --json
+exit: 0
+--- stdout ---
+
+{
+  "alias": "arcli",
+  "cuit": "20111111112",
+  "entorno": "testing",
+  "reemplazado": true,
+  "rutaCertificado": "<config>/certificados/20111111112/testing.crt",
+  "rutaClave": "<config>/testing.key",
+  "vence": "2028-01-17T15:00:00.000Z"
+}
+
+
+--- stderr ---

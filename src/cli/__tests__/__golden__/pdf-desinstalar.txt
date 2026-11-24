@@ -1,0 +1,11 @@
+$ arcli pdf desinstalar --json
+exit: 0
+--- stdout ---
+
+{
+  "desinstalado": true,
+  "ruta": "<config>/plugins/pdf"
+}
+
+
+--- stderr ---

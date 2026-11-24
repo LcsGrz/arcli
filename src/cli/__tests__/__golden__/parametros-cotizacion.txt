@@ -1,0 +1,13 @@
+$ arcli parametros cotizacion USD --json
+exit: 0
+--- stdout ---
+
+{
+  "cotizacion": 1452.5,
+  "entorno": "testing",
+  "fecha": "20261116",
+  "moneda": "DOL"
+}
+
+
+--- stderr ---

@@ -1,0 +1,16 @@
+$ arcli fb -m 12100 --cs --cfinal --emitir
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+╭───────────────────────────────── EMISIÓN SIN CONFIRMAR ──────────────────────────────────╮
+┃                                                                                          │
+┃  No se pudo confirmar la emisión: socket hang up                                         │
+┃                                                                                          │
+┃  Sugerencia                                                                              │
+┃  Puede haberse emitido igual. Antes de reintentar, verificá con `arcli ultimos fb --pv   │
+┃  3 --testing`: si figura, ya está emitido y no hay que repetirlo.                        │
+┃                                                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────╯
+

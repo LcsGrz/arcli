@@ -1,0 +1,10 @@
+$ arcli config ruta --json
+exit: 0
+--- stdout ---
+
+{
+  "ruta": "<config>/config.json"
+}
+
+
+--- stderr ---

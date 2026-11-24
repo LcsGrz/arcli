@@ -1,0 +1,17 @@
+$ arcli fce-obligado 30709965812 --json
+exit: 0
+--- stdout ---
+
+{
+  "cuit": 30709965812,
+  "deprecado": [
+    "`cuit` pasa a ser texto en la 3.0.0: leelo como texto para que no te afecte."
+  ],
+  "entorno": "testing",
+  "fecha": "20261117",
+  "montoDesde": 3958316,
+  "obligado": true
+}
+
+
+--- stderr ---

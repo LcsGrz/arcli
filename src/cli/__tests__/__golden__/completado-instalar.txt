@@ -1,0 +1,13 @@
+$ arcli completado instalar zsh --json
+exit: 0
+--- stdout ---
+
+{
+  "cambio": true,
+  "instalado": true,
+  "ruta": "<config>/.zshrc",
+  "shell": "zsh"
+}
+
+
+--- stderr ---

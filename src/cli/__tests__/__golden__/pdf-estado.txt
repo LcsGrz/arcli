@@ -1,0 +1,15 @@
+$ arcli pdf estado --json
+exit: 0
+--- stdout ---
+
+{
+  "instalado": true,
+  "navegador": "/opt/chrome",
+  "origenNavegador": "sistema",
+  "ruta": "<config>/plugins/pdf",
+  "version": "25.0.0",
+  "versionInstalada": "25.0.0"
+}
+
+
+--- stderr ---

@@ -1,0 +1,15 @@
+$ arcli pdf --json
+exit: 0
+--- stdout ---
+
+{
+  "instalado": false,
+  "navegador": null,
+  "origenNavegador": null,
+  "ruta": "<config>/plugins/pdf",
+  "version": "25.0.0",
+  "versionInstalada": null
+}
+
+
+--- stderr ---

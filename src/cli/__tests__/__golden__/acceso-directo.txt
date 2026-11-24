@@ -1,0 +1,12 @@
+$ arcli acceso-directo --json
+exit: 0
+--- stdout ---
+
+{
+  "reemplazado": false,
+  "ruta": "/escritorio/ARCLI.app",
+  "usaArcliInstalado": true
+}
+
+
+--- stderr ---

@@ -1,0 +1,13 @@
+$ arcli fc -m 1000 --cs --cfinal --emitir --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "TRANSIENT_ERROR",
+  "detalles": null,
+  "error": "(502) Transacción Activa",
+  "sugerencia": "ARCA devolvió una transacción activa. Esperá unos segundos y reintentá la emisión antes de modificar datos del comprobante. No se pudo escribir toda la salida: no queda espacio en el disco."
+}
+

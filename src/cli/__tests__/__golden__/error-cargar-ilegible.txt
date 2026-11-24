@@ -1,0 +1,16 @@
+$ arcli fc --cargar <config>/datos.json --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "INPUT_VALIDATION_ERROR",
+  "detalles": {
+    "cause": "el JSON se corta en la línea 1, columna 12: falta el final",
+    "ruta": "<config>/datos.json"
+  },
+  "error": "No se pudo leer el archivo JSON .../config/datos.json: el JSON se corta en la línea 1, columna 12: falta el final.",
+  "sugerencia": null
+}
+

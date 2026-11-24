@@ -1,0 +1,23 @@
+$ arcli certificado generar --testing --alias prueba --json
+exit: 0
+--- stdout ---
+
+{
+  "alias": "prueba",
+  "csr": "<csr>\r\n",
+  "cuit": "20111111112",
+  "entorno": "testing",
+  "guia": "https://arcli.com.ar/empezar/certificado-testing/",
+  "pasos": [
+    "1. Entrá a ARCA con tu clave fiscal y abrí \"WSASS - Autoservicio de Acceso a WebServices\".",
+    "2. \"Nuevo certificado\": nombre simbólico del DN \"prueba\" y pegá el CSR de abajo.",
+    "3. Copiá el certificado que te devuelve en un archivo .crt.",
+    "4. Cargalo: `arcli certificado importar <archivo.crt>`",
+    "5. En WSASS, \"Crear autorización a servicio\" con el mismo DN, para cada servicio que uses."
+  ],
+  "rutaClave": "<config>/certificados/20111111112/testing.nueva.key",
+  "rutaCsr": "<config>/certificados/20111111112/testing.nueva.csr"
+}
+
+
+--- stderr ---

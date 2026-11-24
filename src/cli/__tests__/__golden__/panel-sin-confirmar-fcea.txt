@@ -1,0 +1,16 @@
+$ arcli fcea -m 5000000 --cs --cuit 30709965812 --ir-ri --cbu 0110599520000012345678 --emitir
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+╭───────────────────────────────── EMISIÓN SIN CONFIRMAR ──────────────────────────────────╮
+┃                                                                                          │
+┃  No se pudo confirmar la emisión: socket hang up                                         │
+┃                                                                                          │
+┃  Sugerencia                                                                              │
+┃  Puede haberse emitido igual. Antes de reintentar, verificá con `arcli ultimos fcea      │
+┃  --pv 3 --testing`: si figura, ya está emitido y no hay que repetirlo.                   │
+┃                                                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────╯
+
