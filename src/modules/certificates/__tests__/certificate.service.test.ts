@@ -219,7 +219,9 @@ describe('CertificateService', () => {
         code: 'CERTIFICATE_KEY_MISMATCH',
         message: `No se pudo leer la clave privada .../${CUIT}/testing.key: es una carpeta.`,
       });
-      expect(error.suggestion).not.toContain('Primero armá el pedido');
+      expect(error.suggestion).toBe(
+        'Revisá que tu usuario tenga permiso para leer esa clave y su carpeta, y volvé a importar el certificado. Si esa clave se perdió, armá otro pedido con `arcli certificado generar --testing`.',
+      );
       expect(JSON.stringify(error)).not.toContain(root);
     });
 
@@ -233,6 +235,8 @@ describe('CertificateService', () => {
       expect(rejection(() => service.import({ content: other }))).toMatchObject({
         code: 'CERTIFICATE_KEY_MISMATCH',
         message: `El certificado no corresponde a la clave del último pedido, y no se pudo leer la clave privada .../${CUIT}/testing.key: es una carpeta.`,
+        suggestion:
+          'Bajá de ARCA el certificado que creaste con el último CSR de `arcli certificado generar`. Si no es de ese pedido, revisá que tu usuario tenga permiso para leer esa clave y su carpeta, y volvé a importar el certificado.',
       });
     });
 
@@ -261,7 +265,8 @@ describe('CertificateService', () => {
           expect(rejection(() => service.import({ content: signRequestLikeArca(request.csrPem) }))).toMatchObject({
             code: 'CERTIFICATE_KEY_MISMATCH',
             message: `No se pudo leer la clave privada .../${CUIT}/testing.nueva.key: no tenés permiso.`,
-            suggestion: expect.stringContaining('permiso'),
+            suggestion:
+              'Revisá que tu usuario tenga permiso para leer esa clave y su carpeta, y volvé a importar el certificado.',
           });
         } finally {
           chmodSync(folder, 0o700);

@@ -1,5 +1,6 @@
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import { summarizeError } from '../../lib/errors/error-summary';
+import { errorText } from '../../lib/files/file-error';
 import type { PadronGateway, Taxpayer } from '../padron/padron';
 
 import { ivaConditionCode, ivaConditionLabel } from './arca-codes';
@@ -65,7 +66,7 @@ export async function resolveIvaConditionFromPadron(
   try {
     taxpayer = await gateway.getTaxpayer(cuit);
   } catch (error) {
-    const message = error instanceof Error ? error.message.replace(/\.$/, '') : 'error desconocido';
+    const message = error instanceof Error ? errorText(error).replace(/\.$/, '') : 'error desconocido';
 
     return fallBack(input, `No se pudo consultar el padrón de ARCA (${message})`, { error });
   }

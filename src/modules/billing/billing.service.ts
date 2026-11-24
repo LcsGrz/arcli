@@ -1,5 +1,6 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { errorText } from '../../lib/files/file-error';
 import { assertRules } from '../../lib/rules/rules';
 import type { Clock } from '../../lib/time/clock';
 import type { ICbtesAsoc, IIva, INextVoucher } from '../../services/arca/arca-sdk.types';
@@ -157,7 +158,7 @@ export class BillingService {
     try {
       official = await gateway.getQuotation(resolveBillingCurrencyCode(input.currencyCode));
     } catch (error) {
-      const reason = error instanceof Error ? error.message.replace(/\.$/, '') : 'error desconocido';
+      const reason = error instanceof Error ? errorText(error).replace(/\.$/, '') : 'error desconocido';
 
       return [
         `No se pudo comparar la cotización con la oficial de ARCA: ${reason}. ARCA la rechaza si no está entre el 2 % y el 500 % de la oficial (error 10119).`,
@@ -258,7 +259,7 @@ export class BillingService {
 
       return evaluateFceObligation(obligation, voucherKind, amountInPesos);
     } catch (error) {
-      const reason = error instanceof Error ? error.message : 'error desconocido';
+      const reason = error instanceof Error ? errorText(error) : 'error desconocido';
 
       return [`No se pudo verificar el régimen FCE del receptor: ${reason}`];
     }

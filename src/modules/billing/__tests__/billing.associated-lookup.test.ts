@@ -634,6 +634,18 @@ describe('checkFceCancellationInRegistry: el comprador tiene que rechazar el aso
     expect(await registry(undefined).result).toEqual([]);
   });
 
+  it('un error de archivo al consultar el Registro va traducido', async () => {
+    const failure = Object.assign(new Error("EACCES: permission denied, open '/Users/ana/x/y.json'"), {
+      code: 'EACCES',
+      path: '/Users/ana/x/y.json',
+      syscall: 'open',
+    });
+
+    expect((await registry(failure).result)[0]).toContain(
+      ': No se pudo abrir .../x/y.json: no tenés permiso. Si no lo rechazó',
+    );
+  });
+
   it('si wsfecred no responde, avisa sin frenar', async () => {
     expect(await registry(new Error('El certificado no está autorizado para el servicio wsfecred.')).result).toEqual([
       'No se pudo consultar en el Registro de FCE si el comprador rechazó la factura de crédito electrónica A 00003-00000007: El certificado no está autorizado para el servicio wsfecred. Si no lo rechazó, ARCA rechaza la nota de anulación con el error 10154.',

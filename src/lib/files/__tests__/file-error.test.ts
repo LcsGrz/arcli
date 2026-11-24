@@ -54,6 +54,13 @@ describe('describeFileError', () => {
     expect(describeFileError(error)?.message).toBe('No se pudo escribir .../arcli/config.json: no tenés permiso.');
   });
 
+  it.each([
+    ['ENOENT', 'No se pudo copiar .../facturas/datos.json: no existe.'],
+    ['EACCES', 'No se pudo copiar .../otra/copia.json: no tenés permiso.'],
+  ])('al copiar, %s nombra el que falla', (code, message) => {
+    expect(describeFileError(nodeError(code, 'copyfile', PATH, '/otra/copia.json'))?.message).toBe(message);
+  });
+
   it('nombra la .app de macOS y no una carpeta de adentro', () => {
     expect(describeFileError(nodeError('EPERM', 'mkdir', '/usr/lib/ARCLI.app/Contents/MacOS'))?.message).toBe(
       'No se pudo crear la carpeta .../lib/ARCLI.app: el sistema no lo permite.',

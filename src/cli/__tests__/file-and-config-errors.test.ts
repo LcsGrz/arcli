@@ -10,6 +10,10 @@ import {
   type SelfSignedCertificate,
 } from '../../lib/security/__tests__/self-signed-certificate';
 import { toBatchItemError } from '../../modules/billing/billing.batch';
+import { resolveIvaConditionFromPadron } from '../../modules/billing/billing.padron';
+import { billingCommandSchema } from '../../modules/billing/billing.schemas';
+import { installCompletion } from '../../modules/completion/installer';
+import { checkExportPermits } from '../../modules/export/export.permits';
 import { stripAnsi } from '../../ui';
 import { formatCliError, reportCliError } from '../error-output';
 import { showAssistantError } from '../interactive/show-assistant-error';
@@ -254,7 +258,7 @@ describe('errores de archivos (ERR-8)', () => {
 
   it('config.json es una carpeta', async () => {
     mkdirSync(join(directory, 'config.json'));
-    expectFileError(await fail('config'), /^No se pudo leer \.\.\.\/.+\/config\.json: es una carpeta\.$/);
+    expectFileError(await fail('config'), /^No se pudo leer \.\.\.\/dos\/config\.json: es una carpeta\.$/);
   });
 
   it.runIf(withPermissions)('config.json sin permiso', async () => {
@@ -317,6 +321,56 @@ describe('errores de archivos (ERR-8)', () => {
       message: alone.error,
       suggestion: alone.sugerencia,
     });
+  });
+
+  describe('adentro de otro texto', () => {
+    const ticketError = () =>
+      Object.assign(new Error("EACCES: permission denied, open '/Users/ana/arcli/tickets/x.json'"), {
+        code: 'EACCES',
+        path: '/Users/ana/arcli/tickets/x.json',
+        syscall: 'open',
+      });
+    const TEXT = 'No se pudo abrir .../arcli/tickets/x.json: no tenés permiso';
+
+    it('en el aviso y en el error del padrón, con el punto recortado', async () => {
+      const input = billingCommandSchema.parse({
+        concept: 'servicios',
+        documentNumber: 20201797064,
+        documentType: 'cuit',
+        ivaCondition: 'consumidor-final',
+        ivaConditionSource: 'default',
+        shortcut: 'fa',
+        totalAmount: 1000,
+      });
+      const gateway = { getTaxpayer: () => Promise.reject(ticketError()) };
+
+      expect((await resolveIvaConditionFromPadron(input, gateway)).warnings[0]).toContain(`(${TEXT}).`);
+      await expect(
+        resolveIvaConditionFromPadron({ ...input, ivaConditionSource: 'missing' }, gateway),
+      ).rejects.toMatchObject({
+        details: { codigoCausa: 'UNEXPECTED_ERROR' },
+        message: expect.stringContaining(`(${TEXT})`),
+      });
+    });
+
+    it('en los permisos de embarque de la E', async () => {
+      const result = await checkExportPermits(
+        { Permisos: { Permiso: [{ Dst_merc: 203, Id_permiso: 'P1' }] } } as never,
+        { checkPermit: () => Promise.reject(ticketError()) },
+      );
+
+      expect(result?.warnings).toEqual([
+        `No se pudo verificar el permiso de embarque P1 en ARCA (${TEXT}): revisalo antes de emitir.`,
+      ]);
+    });
+  });
+
+  it('el autocompletado nombra el archivo que es una carpeta', () => {
+    mkdirSync(join(directory, '.zshrc'));
+
+    expect(() => installCompletion('zsh', { home: directory, platform: 'linux' })).toThrow(
+      expect.objectContaining({ code: 'EISDIR', path: join(directory, '.zshrc') }),
+    );
   });
 
   it('el asistente muestra lo mismo', async () => {

@@ -113,7 +113,7 @@ arcli fc -m 1000 --pv 3 --cs --consumidor-final
 - **Síntoma:** `arcli certificado importar` corta con `El certificado no corresponde a la clave del último pedido` (`CERTIFICATE_KEY_MISMATCH`). No se toca la config.
 - **Causa:** el `.crt` se creó en ARCA con otro CSR: uno de un pedido anterior que descartaste con `--reemplazar`, uno armado en otra computadora o uno hecho con `openssl`.
 - **Solución:** en ARCA, creá el certificado con el CSR del último `arcli certificado generar` (está en `certificados/<CUIT>/<entorno>.nueva.csr`, junto a la config) y volvé a importar. Si el certificado es de un par que armaste con `openssl`, configuralo con `arcli config establecer cert.<entorno>` y `key.<entorno>`.
-- **Si dice que no se pudo leer la clave privada:** la clave existe pero tu usuario no tiene permiso, o la ruta es una carpeta. Revisá los permisos de ese archivo y de su carpeta, y volvé a importar.
+- **Si dice que no se pudo leer la clave privada:** la clave existe pero tu usuario no tiene permiso, o la ruta es una carpeta. Revisá los permisos de ese archivo y de su carpeta, y volvé a importar. Si la ilegible es la clave del pedido pendiente (`<entorno>.nueva.key`) y no su carpeta, sale como `UNEXPECTED_ERROR`, con el mismo motivo.
 - **Documentación relacionada:** [Comando `arcli certificado`](cli-reference.md#comando-arcli-certificado)
 
 ### Al importar: otros rechazos del certificado

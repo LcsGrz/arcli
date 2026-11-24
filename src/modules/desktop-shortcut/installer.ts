@@ -14,6 +14,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
+import { withFilePath } from '../../lib/files/file-error';
 
 import {
   buildLinuxDesktopEntry,
@@ -130,7 +131,7 @@ function assertFolder(folder: string, isDefault: boolean): void {
 }
 
 function assertOwned(path: string, marker: string): void {
-  if (!readFileSync(path, 'utf8').includes(marker)) {
+  if (!withFilePath(path, () => readFileSync(path, 'utf8')).includes(marker)) {
     throw new InputValidationError(`${path} ya existe y no lo creó ARCLI. Borralo o indicá otra carpeta.`);
   }
 }

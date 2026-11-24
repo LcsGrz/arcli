@@ -309,8 +309,9 @@ export class CertificateService {
     }
 
     // Sin permiso en la carpeta, `readIfExists` da lo mismo que si no hubiera pedido.
-    const problem =
-      configuredKey?.problem ?? (pendingKey === undefined ? readKey(files.pendingKey).problem : undefined);
+    const pendingProblem = pendingKey === undefined ? readKey(files.pendingKey).problem : undefined;
+    const problem = configuredKey?.problem ?? pendingProblem;
+    const downloadLatest = 'Bajá de ARCA el certificado que creaste con el último CSR de `arcli certificado generar`.';
 
     if (problem) {
       throw certificateError(
@@ -318,7 +319,14 @@ export class CertificateService {
         pendingKey
           ? `El certificado no corresponde a la clave del último pedido, y no se pudo leer ${problem}.`
           : `No se pudo leer ${problem}.`,
-        `Revisá que tu usuario tenga permiso para leer ese archivo y su carpeta, y volvé a importar el certificado. Si esa clave se perdió, armá otro pedido con \`arcli certificado generar --${environment}\`.`,
+        [
+          ...(pendingKey ? [`${downloadLatest} Si no es de ese pedido, revisá`] : ['Revisá']),
+          'que tu usuario tenga permiso para leer esa clave y su carpeta, y volvé a importar el certificado.',
+          // Con un pedido (o sin poder saberlo), `generar` cortaria o lo pisaria.
+          ...(pendingKey === undefined && !pendingProblem
+            ? [`Si esa clave se perdió, armá otro pedido con \`arcli certificado generar --${environment}\`.`]
+            : []),
+        ].join(' '),
       );
     }
 
@@ -326,7 +334,7 @@ export class CertificateService {
       'CERTIFICATE_KEY_MISMATCH',
       `El certificado no corresponde a ${pendingKey ? 'la clave del último pedido' : 'ninguna clave de este CUIT'}.`,
       pendingKey
-        ? 'Bajá de ARCA el certificado que creaste con el último CSR de `arcli certificado generar`.'
+        ? downloadLatest
         : `Primero armá el pedido con \`arcli certificado generar --${environment}\` y subí ese CSR a ARCA.`,
     );
   }

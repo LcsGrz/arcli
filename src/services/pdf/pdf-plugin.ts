@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 
+import { errorText, withFilePath } from '../../lib/files/file-error';
 import { PDF_INSTALL_SUGGESTION, PdfError } from '../../modules/pdf/pdf.errors';
 import type { InvoicePdfData, InvoicePdfOptions } from '../../modules/pdf/pdf.types';
 
@@ -127,7 +128,7 @@ export class PdfPlugin {
       return undefined;
     }
 
-    return (JSON.parse(readFileSync(manifest, 'utf8')) as { version?: string }).version;
+    return (JSON.parse(withFilePath(manifest, () => readFileSync(manifest, 'utf8'))) as { version?: string }).version;
   }
 
   /** Orden: config, variable de entorno de Puppeteer, navegador del sistema y, por ultimo, el descargado. */
@@ -273,11 +274,9 @@ export class PdfPlugin {
         try {
           return await new sdk.InvoicePdfGenerator(options).generate(data);
         } catch (error) {
-          throw new PdfError(
-            'PDF_GENERATION_ERROR',
-            `No se pudo generar el PDF: ${error instanceof Error ? error.message : String(error)}`,
-            { suggestion: 'Si el navegador falla, probá con otro: `arcli config establecer pdfNavegador <ruta>`.' },
-          );
+          throw new PdfError('PDF_GENERATION_ERROR', `No se pudo generar el PDF: ${errorText(error)}`, {
+            suggestion: 'Si el navegador falla, probá con otro: `arcli config establecer pdfNavegador <ruta>`.',
+          });
         }
       },
     };

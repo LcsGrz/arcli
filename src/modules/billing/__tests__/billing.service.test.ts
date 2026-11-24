@@ -1057,6 +1057,26 @@ describe('billing.service', () => {
       expect(getObligation).not.toHaveBeenCalled();
     });
 
+    it('un error de archivo en el aviso va traducido', async () => {
+      const failure = Object.assign(new Error("EACCES: permission denied, open '/Users/ana/x/y.json'"), {
+        code: 'EACCES',
+        path: '/Users/ana/x/y.json',
+        syscall: 'open',
+      });
+
+      expect(
+        await new BillingService({ clock: systemClock }).resolveFceWarnings(
+          createBillingInput({
+            documentNumber: 30709965812,
+            documentType: 'cuit',
+            ivaCondition: 'responsable-inscripto',
+            shortcut: 'fa',
+          }),
+          { getObligation: () => Promise.reject(failure) },
+        ),
+      ).toEqual(['No se pudo verificar el régimen FCE del receptor: No se pudo abrir .../x/y.json: no tenés permiso.']);
+    });
+
     it('turns query failures into a warning instead of blocking', async () => {
       const warnings = await new BillingService({ clock: systemClock }).resolveFceWarnings(
         createBillingInput({

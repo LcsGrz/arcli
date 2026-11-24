@@ -264,9 +264,9 @@ export class ConfigService {
 
   public constructor(options: ConfigServiceOptions = {}) {
     try {
-      // La ruta entera la sabe `Conf`, que no llego a crearse: alcanza para nombrar el archivo si es una carpeta.
+      // La carpeta por defecto la sabe `Conf`, que no llego a crearse: ahi alcanza con `arcli`.
       this.store = withFilePath(
-        join('arcli', 'config.json'),
+        join(options.cwd ?? resolveConfigDirectory() ?? 'arcli', `${options.configName ?? 'config'}.json`),
         () =>
           new Conf<ArcliConfig>({
             ...storeLocation(options),

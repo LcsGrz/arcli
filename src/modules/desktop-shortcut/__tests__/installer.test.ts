@@ -86,6 +86,14 @@ describe('createDesktopShortcut', () => {
     expect(run).toHaveBeenCalledWith('gio', ['set', join(folder, 'ARCLI.desktop'), 'metadata::trusted', 'true']);
   });
 
+  it('Linux: si ARCLI.desktop es una carpeta, el error la nombra', () => {
+    mkdirSync(join(folder, 'ARCLI.desktop'));
+
+    expect(() => createDesktopShortcut(folder, environment({ platform: 'linux' }))).toThrow(
+      expect.objectContaining({ code: 'EISDIR', path: join(folder, 'ARCLI.desktop') }),
+    );
+  });
+
   it('Linux: no pisa un ARCLI.desktop que no creó', () => {
     writeFileSync(join(folder, 'ARCLI.desktop'), '[Desktop Entry]\nName=Otro\n');
 

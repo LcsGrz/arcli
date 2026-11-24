@@ -99,7 +99,10 @@ export function describeFileError(
 
   const { dest, path } = error as NodeJS.ErrnoException & { readonly dest?: string };
   const temporary = path !== undefined && TEMPORARY_SUFFIX.test(path);
-  const target = (dest ?? path)?.replace(TEMPORARY_SUFFIX, '').replace(INSIDE_MAC_APP, '$1');
+  // Al copiar o mover, lo que no existe es el origen.
+  const target = (error.code === 'ENOENT' ? path : (dest ?? path))
+    ?.replace(TEMPORARY_SUFFIX, '')
+    .replace(INSIDE_MAC_APP, '$1');
   const action = temporary ? 'escribir' : operation;
   const subject = target ? ` ${shortenPath(target)}` : action.endsWith('carpeta') ? '' : ' el archivo';
 

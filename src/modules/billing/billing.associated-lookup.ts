@@ -1,6 +1,7 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { summarizeError } from '../../lib/errors/error-summary';
+import { errorText } from '../../lib/files/file-error';
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
 import { FCE_REGISTRY_STATE_LABELS, type FceRegistryGateway, type FceRegistryState } from '../fce/fce-registry';
 import type { ParametersGateway } from '../parameters/parameters';
@@ -268,7 +269,7 @@ function reasonOf(error: unknown): string {
     return error.reason;
   }
 
-  return error instanceof Error ? error.message : 'error desconocido';
+  return error instanceof Error ? errorText(error) : 'error desconocido';
 }
 
 /**

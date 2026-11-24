@@ -2,6 +2,7 @@ import type { Command } from 'commander';
 
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
+import { errorText } from '../../lib/files/file-error';
 import { filterCurrentEntries, resolveParameterTable, salesPointToEntry } from '../../modules/parameters/parameters';
 import {
   formatParameterEntriesAsJson,
@@ -97,7 +98,7 @@ export function registerParametersCommands(program: Command): void {
           pointOfSale: runtime.pointOfSale,
         });
       } catch (error) {
-        throw new AppError(`ARCA no respondió: ${error instanceof Error ? error.message : String(error)}`, {
+        throw new AppError(`ARCA no respondió: ${errorText(error)}`, {
           code: 'ARCA_UNAVAILABLE',
         });
       }

@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 
+import { withFilePath } from '../../lib/files/file-error';
+
 import { COMPLETION_SHELLS, type CompletionShell } from './shell-scripts';
 
 /** Lo que hace falta del entorno para saber donde instalar; en los tests se pasa a mano. */
@@ -76,7 +78,7 @@ function activationLine(shell: CompletionShell): string {
 }
 
 function readText(path: string): string {
-  return existsSync(path) ? readFileSync(path, 'utf8') : '';
+  return existsSync(path) ? withFilePath(path, () => readFileSync(path, 'utf8')) : '';
 }
 
 /** Lo agrego arcli o se agrego a mano: cualquier linea que active `arcli completado <shell>`. */

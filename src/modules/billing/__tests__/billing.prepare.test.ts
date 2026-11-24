@@ -190,19 +190,29 @@ describe('prepareBillingInput', () => {
       }
     });
 
-    it('si la consulta falla, avisa y sigue', async () => {
+    it.each([
+      ['ARCA no responde', new Error('ARCA no responde.')],
+      [
+        'No se pudo abrir .../x/y.json: no tenés permiso',
+        Object.assign(new Error("EACCES: permission denied, open '/Users/ana/x/y.json'"), {
+          code: 'EACCES',
+          path: '/Users/ana/x/y.json',
+          syscall: 'open',
+        }),
+      ],
+    ])('si la consulta falla, avisa y sigue: %s', async (reason, failure) => {
       const prepared = await prepareBillingInput(
         service,
         input({ currencyCode: 'USD', exchangeRate: 5000 }),
         {
-          billing: { getQuotation: vi.fn(async () => Promise.reject(new Error('ARCA no responde.'))) },
+          billing: { getQuotation: vi.fn(async () => Promise.reject(failure)) },
           padron: PADRON,
         },
         RUNTIME,
       );
 
       expect(prepared.warnings).toEqual([
-        'No se pudo comparar la cotización con la oficial de ARCA: ARCA no responde. ARCA la rechaza si no está entre el 2 % y el 500 % de la oficial (error 10119).',
+        `No se pudo comparar la cotización con la oficial de ARCA: ${reason}. ARCA la rechaza si no está entre el 2 % y el 500 % de la oficial (error 10119).`,
       ]);
     });
   });
