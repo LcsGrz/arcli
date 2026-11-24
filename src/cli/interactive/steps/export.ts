@@ -1,3 +1,4 @@
+import { formatDateAsArcaDate } from '../../../lib/dates/arca-date';
 import { formatExchangeRate } from '../../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../../lib/numbers/strict-integer';
 import { toIsoCurrencyCode } from '../../../modules/billing/currency-codes';
@@ -13,6 +14,7 @@ import type {
 import { EXPORT_TYPES_WITH_PAYMENT_DATE } from '../../../modules/export/export.types';
 import { parseExchangeRateInput } from '../../../modules/interactive/amount-input';
 import type { ExchangeRateSuggestion } from '../../../modules/interactive/billing-optionals';
+import type { ExportRuleEnv } from '../../../modules/interactive/export-input';
 import type { ExportOptions, ExportRuleScope } from '../../../modules/interactive/export-optionals';
 import { scopedRuleValidator } from '../../../modules/interactive/rule-validator';
 import {
@@ -39,6 +41,11 @@ import { dateStep } from './date';
 export interface ExportTables {
   readonly countries: readonly ExportCountry[];
   readonly countryCuits: readonly ExportCountryCuit[];
+}
+
+/** Lo que las reglas de la E toman de la sesion, con hoy leido cada vez que se pide (ARQ-19): la factura y "Repetir". */
+export function exportRuleEnv(configuredActivity: number | undefined): () => ExportRuleEnv {
+  return () => ({ configuredActivity, today: formatDateAsArcaDate(new Date()) });
 }
 
 export function loadExportTables(

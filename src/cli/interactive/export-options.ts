@@ -54,19 +54,20 @@ export function validateExportText(field: ExportTextField, required?: string): (
  */
 export function validateExportPaymentDate(
   voucherDate: string | undefined,
-  options: { readonly now?: Date; readonly undecided?: boolean } = {},
+  options: { readonly now?: () => Date; readonly undecided?: boolean } = {},
 ): (value: string) => string | true {
-  const now = options.now ?? new Date();
+  // Hoy se lee en cada validacion, no al abrir la pregunta (ARQ-19).
+  const now = options.now ?? (() => new Date());
 
   return ruleValidator<string | undefined, ExportVoucherInput, ExportRuleContext>({
-    context: () => ({ today: formatDateAsArcaDate(now), undecidedVoucherDate: options.undecided ?? true }),
+    context: () => ({ today: formatDateAsArcaDate(now()), undecidedVoucherDate: options.undecided ?? true }),
     draft: (typed, value) => ({
-      paymentDate: value.trim() ? completeDateInput(value, now) : undefined,
+      paymentDate: value.trim() ? completeDateInput(value, now()) : undefined,
       voucherDate: typed,
     }),
     field: 'paymentDate',
     rules: EXPORT_RULES,
-    validate: (value: string) => validateOptionalDate(value, new Date()),
+    validate: (value: string) => validateOptionalDate(value, now()),
   })(voucherDate);
 }
 

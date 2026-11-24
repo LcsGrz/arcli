@@ -13,7 +13,7 @@ describe('validateExportText', () => {
 });
 
 describe('validateExportPaymentDate (1674)', () => {
-  const now = new Date('2026-11-18T15:00:00Z');
+  const now = () => new Date('2026-11-18T15:00:00Z');
 
   // TUI-22: se pregunta antes de los opcionales, donde se elige la fecha del comprobante.
   it('sin fecha del comprobante todavia, contra la mas temprana que acepta ARCA (hoy - 5): antes de esa, no', () => {

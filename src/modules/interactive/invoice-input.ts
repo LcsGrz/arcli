@@ -93,15 +93,18 @@ export interface RuleEnv {
   readonly today: string;
 }
 
-/** Las reglas desde una pregunta de "Emitir factura", "Emitir recibo" o "Repetir" (`ruleValidator`). */
-export function invoiceRuleScope(state: InvoiceState, env: InvoiceInputEnv & RuleEnv): BillingRuleScope {
+/**
+ * Las reglas desde una pregunta de "Emitir factura", "Emitir recibo" o "Repetir" (`ruleValidator`). `env` se lee en cada
+ * validacion (hoy).
+ */
+export function invoiceRuleScope(state: InvoiceState, env: () => InvoiceInputEnv & RuleEnv): BillingRuleScope {
   return {
-    context: {
-      emitterCuit: env.emitterCuit,
-      today: env.today,
-      voucherKind: requireStepValue(state.voucherKind, 'voucherKind'),
+    context: () => {
+      const { emitterCuit, today } = env();
+
+      return { emitterCuit, today, voucherKind: requireStepValue(state.voucherKind, 'voucherKind') };
     },
-    draft: (patch) => ({ ...invoiceInputFields(state, env), ...patch }),
+    draft: (patch) => ({ ...invoiceInputFields(state, env()), ...patch }),
   };
 }
 
@@ -119,7 +122,7 @@ export function billingRuleEnv(
  */
 export function invoiceFinalize<S extends InvoiceState>(env: () => InvoiceInputEnv & RuleEnv): WizardFinalize<S> {
   const rules = rulesFinalize<S, BillingCommandInput, BillingRuleContext>({
-    context: (state) => invoiceRuleScope(state, env()).context,
+    context: (state) => invoiceRuleScope(state, env).context(),
     draft: (state) => (state.exported || !state.voucherKind ? undefined : invoiceInputFields(state, env())),
     rules: BILLING_RULES,
   });

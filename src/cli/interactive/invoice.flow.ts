@@ -89,7 +89,7 @@ export function invoiceSteps(
   retry: AmountCurrencyRetry<InvoiceState> = invoiceAmountRetry(),
 ): Array<WizardStep<InvoiceState>> {
   const { config } = session.runtime;
-  const rules = (state: InvoiceState) => invoiceRuleScope(state, billingRuleEnv(session.runtime, new Date()));
+  const rules = (state: InvoiceState) => invoiceRuleScope(state, () => billingRuleEnv(session.runtime, new Date()));
   const officialExchangeRate = officialExchangeRateLoader(session);
   const exchangeRateSuggestion = exchangeRateSuggestionLoader(config, officialExchangeRate);
   const optionals = billingOptionalsGroup<InvoiceState>({

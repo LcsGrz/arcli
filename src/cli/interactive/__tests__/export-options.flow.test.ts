@@ -63,7 +63,7 @@ function context(overrides: Partial<Context> = {}): Context {
     ...overrides,
     // Las reglas de la E con hoy y la entrada armada solo con lo que escribe cada pregunta, con el tipo del contexto.
     rules: overrides.rules ?? {
-      context: { today: formatDateAsArcaDate(new Date()) },
+      context: () => ({ today: formatDateAsArcaDate(new Date()) }),
       draft: (patch) => ({ exportType: overrides.exportType ?? 2, ...patch }),
     },
   };
@@ -272,10 +272,10 @@ describe('exportOptionalsStep', () => {
           {},
           context({
             rules: {
-              context: {
+              context: () => ({
                 associated: { date: '20261117', label: 'la factura de exportación E 00003-00000001' },
                 today: '20261118',
-              },
+              }),
               draft: (patch) => ({ voucherKind: EXPORT_CREDIT_NOTE_KIND, ...patch }),
             },
           }),
