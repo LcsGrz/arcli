@@ -12,7 +12,7 @@ export async function emitWithBillingAnswer(answer: unknown): Promise<BillingRes
   const arca = {
     electronicBillingService: { createVoucher: async () => answer, getLastVoucher: async () => ({ cbteNro: 41 }) },
   };
-  const { response } = await new BillingService({ clock: systemClock }).execute({
+  const { response } = await new BillingService({ clock: systemClock }).emit({
     gateway: new ArcaBillingGateway(arca as unknown as ConstructorParameters<typeof ArcaBillingGateway>[0]),
     input: billingCommandSchema.parse({
       concept: 'servicios',

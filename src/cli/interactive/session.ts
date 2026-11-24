@@ -50,18 +50,6 @@ export interface InteractiveSession {
   readonly typedPointOfSale?: number;
 }
 
-const PREVIEW_GATEWAY: BillingGateway = {
-  createVoucher: async () => {
-    throw new Error('La vista previa no emite comprobantes.');
-  },
-  getNextVoucherNumber: async () => {
-    throw new Error('La vista previa no emite comprobantes.');
-  },
-  getQuotation: async () => {
-    throw new Error('La vista previa no consulta cotizaciones.');
-  },
-};
-
 /** Resuelve config y credenciales; si falta algo, el error explica que configurar. */
 export function createInteractiveSession(options: GlobalCliOptions): InteractiveSession {
   const runtime = loadArcaRuntime(options);
@@ -246,7 +234,7 @@ async function previewBilling(
     service,
   });
   const warnings = [...flowWarnings, ...prepared.warnings, ...(fceWarnings[0] ?? []), ...registryWarnings];
-  const preview = await service.execute({ gateway: PREVIEW_GATEWAY, input, runtime, warnings });
+  const preview = service.preview({ input, runtime, warnings });
 
   return { input, preview, warnings };
 }
@@ -311,7 +299,7 @@ export async function previewAndEmit(
 
   try {
     const result = recordEmission(
-      await service.execute({
+      await service.emit({
         gateway: session.billingGateway,
         input: { ...input, dryRun: false, emit: true },
         preview,

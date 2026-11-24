@@ -1,20 +1,14 @@
 import type { Command } from 'commander';
 
-import { checkAssociatedInArca, checkFceCancellationInRegistry } from '../../modules/billing/billing.associated-lookup';
 import { billingDefaultsFromConfig } from '../../modules/billing/billing.defaults';
-import { prepareBillingInput, resolveFceWarningsInOrder } from '../../modules/billing/billing.prepare';
+import { emitBilling, planBillingEmission } from '../../modules/billing/billing.emission';
+import { type BillingPreviewGateways, previewBilling } from '../../modules/billing/billing.preview';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
-import { BillingService } from '../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
 import type { BillingExecutionResult, BillingGateway } from '../../modules/billing/billing.types.internal';
 import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map';
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
-import type { FceObligationGateway } from '../../modules/fce/fce-obligation';
-import type { FceRegistryGateway } from '../../modules/fce/fce-registry';
-import type { PadronGateway } from '../../modules/padron/padron';
-import type { ParametersGateway } from '../../modules/parameters/parameters';
-import type { VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
@@ -28,7 +22,6 @@ import { recordEmission } from '../emitted-vouchers';
 import { getGlobalOptions, registerGlobalOptions } from '../global-options';
 import { startSpinner } from '../spinner';
 
-import { emitBatch, prepareBatch } from './billing.command.batch';
 import { runInteractiveBillingPreview } from './billing.command.interactive-preview';
 import { writeBillingCommandResults, writePartialResultsFailure, writePdfOutcomes } from './billing.command.output';
 import { parseBillingCommandPlan, registerBillingOptions } from './billing.command.parser';
@@ -87,6 +80,28 @@ export async function writeResultsWithPdfs(
   writePdfOutcomes(results, await attachPdfs(pdfOptions));
 }
 
+/**
+ * Lo ya procesado de un lote cortado, antes de su error: si no se mostrara, alguien volveria a correr el lote y
+ * duplicaria comprobantes. Se espera a que termine (puede generar los PDFs), y si falla no tapa el error de emision.
+ */
+async function writeInterruptedResults(
+  results: BillingExecutionResult[],
+  options: Parameters<typeof writeResultsWithPdfs>[1],
+): Promise<void> {
+  if (results.length === 0) {
+    return;
+  }
+
+  try {
+    await writeResultsWithPdfs(results, options);
+  } catch {
+    // Con --json no hay donde avisarlo sin cambiar la salida: `detalles.procesados` dice cuantos son.
+    if (!options.output.outputJson) {
+      writePartialResultsFailure(results);
+    }
+  }
+}
+
 export interface BillingCommandOptions {
   /** Avisos que arma quien llama, como los flags de la E salteados en `arcli factura a`. */
   readonly extraWarnings?: readonly string[];
@@ -97,19 +112,8 @@ export interface BillingCommandOptions {
  *
  * @internal Exportado para los tests.
  */
-export interface BillingCommandGateways {
+export interface BillingCommandGateways extends BillingPreviewGateways {
   readonly billing: BillingGateway;
-  readonly fce: FceObligationGateway;
-  /** Para avisar si el comprador no rechazó el asociado de una nota FCE de anulación. */
-  readonly fceRegistry: Pick<FceRegistryGateway, 'getVoucherState'>;
-  /**
-   * Para consultar el comprobante asociado de una nota antes de la vista previa; si ARCA no lo tiene, el ultimo
-   * numero de su punto de venta dice si es de web service (ver `classifyAssociatedPointOfSale`).
-   */
-  readonly history: Pick<VoucherHistoryGateway, 'getLastNumber' | 'getVoucher'>;
-  readonly padron: PadronGateway;
-  /** Los puntos de venta de web service del emisor, para un asociado que ARCA no tiene. */
-  readonly salesPoints?: Pick<ParametersGateway, 'getSalesPoints'>;
 }
 
 /** Lo que el comando toma de afuera: en los tests, una config y un ARCA falsos. */
@@ -147,65 +151,30 @@ export async function executeBillingCommand(
   try {
     const runtime = dependencies.resolveRuntime(globalOptions);
     const plan = parseBillingCommandPlan(command, shortcut, billingDefaultsFromConfig(runtime.config));
-    const service = new BillingService({ clock: systemClock });
     const gateways = dependencies.createGateways(runtime);
-    const gateway = gateways.billing;
     const useRaw = typeof globalOptions.bruto === 'boolean' ? globalOptions.bruto : runtime.outputRaw;
-    // En un lote, un fallo del padron o de la cotizacion sale con su indice, junto a los de validacion.
-    const prepared = await prepareBatch({
-      inputs: plan.inputs,
+    const previewed = await previewBilling({
+      clock: systemClock,
+      extraWarnings: [...certificateWarnings(runtime), ...(options.extraWarnings ?? [])],
+      gateways,
       plan,
-      // El asociado de una nota se consulta aca, una vez: la vista previa ya muestra su fecha y el tope de la NC,
-      // y la emision usa la entrada completada sin volver a consultar.
-      resolve: async (input) => {
-        const entry = await prepareBillingInput(service, input, gateways, runtime);
-        const checked = await checkAssociatedInArca({
-          gateway: gateways.history,
-          input: entry.input,
-          runtime,
-          salesPoints: gateways.salesPoints,
-          service,
-        });
-
-        const registryWarnings = await checkFceCancellationInRegistry({
-          gateway: gateways.fceRegistry,
-          input: checked.input,
-          runtime,
-          service,
-        });
-
-        return { input: checked.input, warnings: [...entry.warnings, ...checked.warnings, ...registryWarnings] };
-      },
-      validate: ({ input }) => {
-        service.buildVoucherPayload(input, runtime);
-      },
+      runtime,
     });
-    const plannedInputs = prepared.map(({ input }) => input);
-    const fceWarnings = runtime.config.verificarFce
-      ? await resolveFceWarningsInOrder(service, plannedInputs, gateways.fce)
-      : [];
-    const warnings = prepared.map((entry, position) => [
-      ...certificateWarnings(runtime),
-      ...(options.extraWarnings ?? []),
-      ...entry.warnings,
-      ...(fceWarnings[position] ?? []),
-    ]);
 
     const preview = await runInteractiveBillingPreview({
-      inputs: plannedInputs,
+      inputs: previewed.inputs,
       modeSource: plan.modeSource,
+      previews: previewed.previews,
       runtime,
-      service,
       useRaw,
       voucherLabel: voucherKind ? formatVoucherWithArticle(voucherKind) : 'este comprobante',
-      warnings,
     });
 
     if (!preview.proceed) {
       return;
     }
 
-    const { inputs, previews, previewShown } = preview;
+    const { inputs, previewShown } = preview;
 
     const emitting = inputs.some((input) => input.emit);
     const emittedVouchers =
@@ -231,36 +200,24 @@ export async function executeBillingCommand(
         raw: useRaw,
       },
     };
-    const results = await emitBatch({
-      emit: async (input, position) =>
-        recordEmission(
-          await service.execute({
-            gateway,
-            input,
-            preview: previews?.[position],
-            runtime,
-            warnings: warnings[position],
-          }),
-        ),
-      inputs,
-      onPartialResults: async (partial) => {
-        spinner?.stop();
-
-        try {
-          await writeResultsWithPdfs(partial, deliveryOptions);
-        } catch (error) {
-          // Con --json no hay donde avisarlo sin cambiar la salida: `detalles.procesados` dice cuantos son.
-          if (!runtime.outputJson) {
-            writePartialResultsFailure(partial);
-          }
-
-          throw error;
-        }
-      },
+    const outcome = await emitBilling({
+      clock: systemClock,
+      gateway: gateways.billing,
+      items: planBillingEmission({ ...previewed, confirmed: preview.previews, inputs }),
+      onEmitted: recordEmission,
       plan,
+      runtime,
     });
+    const { results } = outcome;
 
     spinner?.stop();
+
+    if ('error' in outcome) {
+      await writeInterruptedResults(results, deliveryOptions);
+
+      throw outcome.error;
+    }
+
     setExitCodeForResults(results);
     await writeResultsWithPdfs(results, deliveryOptions);
   } catch (error) {

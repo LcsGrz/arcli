@@ -1,11 +1,7 @@
-import {
-  BatchEmissionError,
-  type BatchItemError,
-  BatchValidationError,
-  toBatchItemError,
-} from '../../modules/billing/billing.batch';
+import { BatchEmissionError, type BatchItemError, BatchValidationError, toBatchItemError } from './billing.batch';
 
-interface BatchPlan {
+/** Lo que hace falta de un plan para informar cada fallo con su lugar en el lote. */
+export interface BatchPlan {
   readonly inputIndexes: readonly number[];
   readonly invalidItems: readonly BatchItemError[];
   /** Entro un array: se trata como lote aunque tenga un solo item. */
@@ -61,17 +57,21 @@ export async function prepareBatch<T, R>(options: {
 }
 
 /**
- * Emite los items en orden. Si uno falla a mitad del lote, entrega lo ya procesado a `onPartialResults`
- * antes de cortar: si no se mostrara, alguien volveria a correr el lote y duplicaria comprobantes. Se
- * espera a que termine (puede generar los PDFs de los ya emitidos), y si falla no tapa el error de emision.
+ * Lo que dejo una emision. El error es un dato y no una excepcion, para que nunca se pierda lo que ya se proceso: quien
+ * llama lo entrega antes de informar el error. Que este la clave `error` es lo que dice que se corto.
+ */
+export type EmissionOutcome<R> = { readonly results: R[] } | { readonly error: unknown; readonly results: R[] };
+
+/**
+ * Emite los items en orden, de a uno, y corta en el primero que falla: en un lote, con un `BatchEmissionError` que dice
+ * cual y cuales faltan; uno suelto, con su propio error.
  */
 export async function emitBatch<T, R>(options: {
   readonly emit: (input: T, position: number) => Promise<R>;
   readonly inputs: readonly T[];
-  readonly onPartialResults: (results: R[]) => Promise<void> | void;
-  readonly plan: BatchPlan;
-}): Promise<R[]> {
-  const { emit, inputs, onPartialResults, plan } = options;
+  readonly plan: Omit<BatchPlan, 'invalidItems'>;
+}): Promise<EmissionOutcome<R>> {
+  const { emit, inputs, plan } = options;
   const results: R[] = [];
 
   for (const [position, input] of inputs.entries()) {
@@ -79,25 +79,31 @@ export async function emitBatch<T, R>(options: {
       results.push(await emit(input, position));
     } catch (error) {
       if (!plan.isBatch) {
-        throw error;
+        return { error, results };
       }
 
-      if (results.length > 0) {
-        try {
-          await onPartialResults(results);
-        } catch {
-          // Lo importante es el error de emision: quien entrega los parciales ya aviso como verlos.
-        }
-      }
-
-      throw new BatchEmissionError({
-        cause: error,
-        emitted: results.length,
-        failedIndex: plan.inputIndexes[position] ?? position + 1,
-        total: plan.total,
-      });
+      return {
+        error: new BatchEmissionError({
+          cause: error,
+          emitted: results.length,
+          failedIndex: plan.inputIndexes[position] ?? position + 1,
+          total: plan.total,
+        }),
+        results,
+      };
     }
   }
 
-  return results;
+  return { results };
+}
+
+/** Avisa lo que respondio ARCA. Si el aviso falla, el comprobante ya esta emitido: no puede verse como no emitido. */
+export function notifyEmitted<R>(onEmitted: ((result: R) => void) | undefined, result: R): R {
+  try {
+    onEmitted?.(result);
+  } catch {
+    // El resultado llega igual en `results`.
+  }
+
+  return result;
 }

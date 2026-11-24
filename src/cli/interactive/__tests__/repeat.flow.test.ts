@@ -352,15 +352,8 @@ describe('runRepeatFlow', () => {
 });
 
 describe('repetir un comprobante con datos que ya no valen', () => {
-  const preview = (input: ReturnType<typeof buildInvoiceInput>) =>
-    new BillingService({ clock: systemClock }).execute({
-      gateway: {
-        createVoucher: async () => {
-          throw new Error('no emite');
-        },
-        getNextVoucherNumber: async () => 1,
-        getQuotation: async () => 1450,
-      },
+  const preview = async (input: ReturnType<typeof buildInvoiceInput>) =>
+    new BillingService({ clock: systemClock }).preview({
       input: { ...input, dryRun: true, emit: false },
       runtime: createSession().runtime,
       warnings: [],

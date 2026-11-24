@@ -3,10 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POINT_OF_SALE_GUIDE_URL } from '../../../lib/links';
 import { systemClock } from '../../../services/time/system-clock';
 import { billingAnswer } from '../../../testing/arca-answers';
+import { emitBilling, planBillingEmission } from '../billing.emission';
 import { EmissionUncertainError } from '../billing.errors';
 import { type BillingCommandInput, billingCommandSchema } from '../billing.schemas';
-import { BillingService } from '../billing.service';
-import type { BillingRuntime } from '../billing.types.internal';
+import { type BillingEmissionGateway, BillingService } from '../billing.service';
+import type { BillingExecutionResult, BillingRuntime } from '../billing.types.internal';
 import { mapBillingResponse } from '../billing-response';
 
 import { emitWithBillingAnswer } from './billing-answer.fixture';
@@ -1249,7 +1250,7 @@ describe('billing.service', () => {
       const gateway = { createVoucher: vi.fn(), getNextVoucherNumber: vi.fn(), getQuotation: vi.fn() };
 
       await expect(
-        new BillingService({ clock: systemClock }).execute({
+        new BillingService({ clock: systemClock }).emit({
           gateway,
           input: fceNote({
             associatedVoucher: { numero: 7, puntoVenta: 3, shortcut: 'fcea' },
@@ -1517,8 +1518,8 @@ describe('billing.service', () => {
     const createVoucher = vi.fn(async () =>
       billingAnswer({ cae: '76123456789012', caeFchVto: '20261103', response: {} }),
     );
-    const result = await new BillingService({ clock: systemClock }).execute({
-      gateway: { createVoucher, getNextVoucherNumber: async () => 125, getQuotation: async () => 1 },
+    const result = await new BillingService({ clock: systemClock }).emit({
+      gateway: { createVoucher, getNextVoucherNumber: async () => 125 },
       input: createBillingInput({ documentNumber: 0, dryRun: false, emit: true }),
       runtime: createRuntime(),
     });
@@ -1530,18 +1531,7 @@ describe('billing.service', () => {
   it('returns a mapped dry-run response without calling the gateway', async () => {
     const service = new BillingService({ clock: systemClock });
 
-    const result = await service.execute({
-      gateway: {
-        createVoucher: async () => {
-          throw new Error('No debería ejecutarse en dry-run');
-        },
-        getNextVoucherNumber: async () => {
-          throw new Error('No debería ejecutarse en dry-run');
-        },
-        getQuotation: async () => {
-          throw new Error('No debería consultarse la cotización');
-        },
-      },
+    const result = service.preview({
       input: createBillingInput({
         documentNumber: 0,
       }),
@@ -1557,6 +1547,24 @@ describe('billing.service', () => {
     });
   });
 
+  /** Lo que hace quien llama con una entrada: decide con `planBillingEmission` y emite lo que corresponde. */
+  const emitInput = (
+    gateway: BillingEmissionGateway,
+    input: BillingCommandInput,
+    confirmed?: readonly BillingExecutionResult[],
+  ) => {
+    const runtime = createRuntime();
+    const previews = [new BillingService({ clock: systemClock }).preview({ input, runtime })];
+
+    return emitBilling({
+      clock: systemClock,
+      gateway,
+      items: planBillingEmission({ confirmed, inputs: [input], previews, warnings: [[]] }),
+      plan: { inputIndexes: [1], isBatch: false, total: 1 },
+      runtime,
+    });
+  };
+
   describe('emisión segura (TEST-15): solo emite con dryRun false y emit true', () => {
     it.each([
       { dryRun: true, emit: false, emits: false },
@@ -1569,13 +1577,12 @@ describe('billing.service', () => {
       );
       const getNextVoucherNumber = vi.fn(async () => 7);
 
-      const result = await new BillingService({ clock: systemClock }).execute({
-        gateway: { createVoucher, getNextVoucherNumber, getQuotation: async () => 1 },
-        input: createBillingInput({ documentNumber: 0, dryRun, emit }),
-        runtime: createRuntime(),
-      });
+      const { results } = await emitInput(
+        { createVoucher, getNextVoucherNumber },
+        createBillingInput({ documentNumber: 0, dryRun, emit }),
+      );
 
-      expect(result.dryRun).toBe(!emits);
+      expect(results).toEqual([expect.objectContaining({ dryRun: !emits })]);
       expect(createVoucher).toHaveBeenCalledTimes(emits ? 1 : 0);
       expect(getNextVoucherNumber).toHaveBeenCalledTimes(emits ? 1 : 0);
     });
@@ -1595,13 +1602,12 @@ describe('billing.service', () => {
 
   it('flags a failed createVoucher call as uncertain, because the voucher may have been issued', async () => {
     const service = new BillingService({ clock: systemClock });
-    const run = service.execute({
+    const run = service.emit({
       gateway: {
         createVoucher: async () => {
           throw new Error('socket hang up');
         },
         getNextVoucherNumber: async () => 42,
-        getQuotation: async () => 1,
       },
       input: createBillingInput({ documentNumber: 0, dryRun: false, emit: true }),
       runtime: createRuntime(),
@@ -1622,13 +1628,12 @@ describe('billing.service', () => {
     const service = new BillingService({ clock: systemClock });
     const cause = new Error(message);
     const createVoucher = vi.fn();
-    const run = service.execute({
+    const run = service.emit({
       gateway: {
         createVoucher,
         getNextVoucherNumber: async () => {
           throw cause;
         },
-        getQuotation: async () => 1,
       },
       input: createBillingInput({ documentNumber: 0, dryRun: false, emit: true }),
       runtime: createRuntime(),
@@ -1651,8 +1656,8 @@ describe('billing.service', () => {
     const input = createBillingInput({ documentNumber: 0, dryRun: false, emit: true });
     const payload = service.buildVoucherPayload(input, createRuntime());
 
-    const result = await service.execute({
-      gateway: { createVoucher, getNextVoucherNumber, getQuotation: async () => 1 },
+    const result = await service.emit({
+      gateway: { createVoucher, getNextVoucherNumber },
       input,
       runtime: createRuntime(),
     });
@@ -1674,8 +1679,7 @@ describe('billing.service', () => {
 
     it('emite su payload más el número, sin armarlo de nuevo, y lo devuelve', async () => {
       const service = new BillingService({ clock: systemClock });
-      const preview = await service.execute({
-        gateway: gateway(),
+      const preview = service.preview({
         input: createBillingInput({ documentNumber: 0 }),
         runtime: createRuntime(),
       });
@@ -1683,7 +1687,7 @@ describe('billing.service', () => {
 
       vi.setSystemTime(new Date('2026-03-19T12:00:00Z'));
       const build = vi.spyOn(service, 'buildVoucherPayload');
-      const result = await service.execute({ gateway: emission, input: emitted, preview, runtime: createRuntime() });
+      const result = await service.emit({ gateway: emission, input: emitted, preview, runtime: createRuntime() });
 
       expect(build).not.toHaveBeenCalled();
       expect(emission.getNextVoucherNumber).toHaveBeenCalledExactlyOnceWith(3, 6);
@@ -1698,12 +1702,10 @@ describe('billing.service', () => {
     it('sin pedir emitir, no emite', async () => {
       const service = new BillingService({ clock: systemClock });
       const input = createBillingInput({ documentNumber: 0 });
-      const preview = await service.execute({ gateway: gateway(), input, runtime: createRuntime() });
+      const preview = service.preview({ input, runtime: createRuntime() });
       const emission = gateway();
 
-      await expect(
-        service.execute({ gateway: emission, input, preview, runtime: createRuntime() }),
-      ).resolves.toMatchObject({ dryRun: true });
+      await expect(emitInput(emission, input, [preview])).resolves.toMatchObject({ results: [{ dryRun: true }] });
       expect(emission.createVoucher).not.toHaveBeenCalled();
     });
 
@@ -1716,11 +1718,11 @@ describe('billing.service', () => {
         ivaCondition: 'responsable-inscripto',
         shortcut: 'ncea',
       });
-      const preview = await service.execute({ gateway: gateway(), input: note, runtime: createRuntime() });
+      const preview = service.preview({ input: note, runtime: createRuntime() });
       const emission = gateway();
 
       await expect(
-        service.execute({
+        service.emit({
           gateway: emission,
           input: { ...note, dryRun: false, emit: true },
           preview,

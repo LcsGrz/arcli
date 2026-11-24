@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { InputValidationError } from '../../../lib/errors/app-error';
-import { BatchEmissionError, type BatchItemError, BatchValidationError } from '../../../modules/billing/billing.batch';
-import { EmissionUncertainError } from '../../../modules/billing/billing.errors';
-import { emitBatch, prepareBatch } from '../billing.command.batch';
+import { BatchEmissionError, type BatchItemError, BatchValidationError } from '../billing.batch';
+import { type EmissionOutcome, emitBatch, prepareBatch } from '../billing.batch-run';
+import { EmissionUncertainError } from '../billing.errors';
 
 const batch = (total: number, invalidItems: BatchItemError[] = []) => ({
   inputIndexes: Array.from({ length: total - invalidItems.length }, (_, position) => position + 1),
@@ -104,84 +104,62 @@ describe('prepareBatch', () => {
   });
 });
 
+/** El error de un lote cortado, que tiene que ser el del lote. */
+function batchError(outcome: EmissionOutcome<string>): BatchEmissionError {
+  const error = 'error' in outcome ? outcome.error : undefined;
+
+  if (!(error instanceof BatchEmissionError)) {
+    throw new Error('el lote no se cortó');
+  }
+
+  return error;
+}
+
 describe('emitBatch', () => {
   it('emite todo en orden', async () => {
-    const results = await emitBatch({
+    const outcome = await emitBatch({
       emit: async (input: string) => `CAE-${input}`,
       inputs: ['a', 'b'],
-      onPartialResults: vi.fn(),
       plan: batch(2),
     });
 
-    expect(results).toEqual(['CAE-a', 'CAE-b']);
+    expect(outcome).toEqual({ results: ['CAE-a', 'CAE-b'] });
   });
 
   it('si falla a mitad antes de emitir, entrega lo ya procesado y deja el que fallo para reintentar', async () => {
-    const onPartialResults = vi.fn();
-    const emit = async (input: string) => {
+    const emit = vi.fn(async (input: string) => {
       if (input === 'c') {
         throw new Error('Transacción Activa');
       }
 
       return `CAE-${input}`;
-    };
-
-    const run = emitBatch({ emit, inputs: ['a', 'b', 'c', 'd'], onPartialResults, plan: batch(4) });
-
-    await expect(run).rejects.toThrow(BatchEmissionError);
-    await run.catch((error: BatchEmissionError) => {
-      expect(error.message).toContain('El lote se interrumpió en el comprobante #3: Transacción Activa');
-      expect(error.message).toContain('Procesados: 2 de 4.\nSin procesar: #3, #4.');
-      expect(error.details).toEqual({
-        codigoCausa: 'TRANSIENT_ERROR',
-        fallo: 3,
-        procesados: 2,
-        sinProcesar: [3, 4],
-        total: 4,
-      });
     });
-    expect(onPartialResults).toHaveBeenCalledWith(['CAE-a', 'CAE-b']);
+    const outcome = await emitBatch({ emit, inputs: ['a', 'b', 'c', 'd'], plan: batch(4) });
+    const error = batchError(outcome);
+
+    expect(error.message).toContain('El lote se interrumpió en el comprobante #3: Transacción Activa');
+    expect(error.message).toContain('Procesados: 2 de 4.\nSin procesar: #3, #4.');
+    expect(error.details).toEqual({
+      codigoCausa: 'TRANSIENT_ERROR',
+      fallo: 3,
+      procesados: 2,
+      sinProcesar: [3, 4],
+      total: 4,
+    });
+    expect(outcome.results).toEqual(['CAE-a', 'CAE-b']);
+    expect(emit).toHaveBeenCalledTimes(3);
   });
 
-  it('espera a que se entreguen los parciales (con sus PDFs) antes de cortar', async () => {
-    const delivered: string[][] = [];
-    const run = emitBatch({
-      emit: async (input: string) => {
-        if (input === 'b') {
-          throw new Error('boom');
-        }
-
-        return `CAE-${input}`;
+  it('el indice del que fallo es el del archivo, no el de los que se leyeron', async () => {
+    const outcome = await emitBatch({
+      emit: async (): Promise<string> => {
+        throw new Error('boom');
       },
-      inputs: ['a', 'b'],
-      onPartialResults: async (partial) => {
-        await Promise.resolve();
-        delivered.push(partial);
-      },
-      plan: batch(2),
+      inputs: ['a'],
+      plan: { inputIndexes: [3], isBatch: true, total: 4 },
     });
 
-    await expect(run).rejects.toThrow(BatchEmissionError);
-    expect(delivered).toEqual([['CAE-a']]);
-  });
-
-  it('si falla la entrega de los parciales, igual sale el error de emision', async () => {
-    const run = emitBatch({
-      emit: async (input: string) => {
-        if (input === 'b') {
-          throw new Error('Transacción Activa');
-        }
-
-        return `CAE-${input}`;
-      },
-      inputs: ['a', 'b'],
-      onPartialResults: async () => {
-        throw new Error('No se pudo generar el PDF');
-      },
-      plan: batch(2),
-    });
-
-    await expect(run).rejects.toThrow('El lote se interrumpió en el comprobante #2: Transacción Activa');
+    expect(batchError(outcome).details).toMatchObject({ fallo: 3, procesados: 0, sinProcesar: [3, 4] });
   });
 
   it('si la emision quedo sin confirmar, pide verificar el que fallo', async () => {
@@ -192,7 +170,7 @@ describe('emitBatch', () => {
       pointOfSale: 3,
       shortcut: 'fc',
     });
-    const run = emitBatch({
+    const outcome = await emitBatch({
       emit: async (input: string) => {
         if (input === 'b') {
           throw cause;
@@ -201,29 +179,25 @@ describe('emitBatch', () => {
         return `CAE-${input}`;
       },
       inputs: ['a', 'b', 'c'],
-      onPartialResults: vi.fn(),
       plan: batch(3),
     });
+    const error = batchError(outcome);
 
-    await run.catch((error: BatchEmissionError) => {
-      expect(error.message).toContain('El #2 puede haberse emitido');
-      expect(error.message).toContain('`arcli ultimos fc --pv 3 --produccion`');
-      expect(error.details).toMatchObject({ fallo: 2, sinConfirmar: 2, sinProcesar: [3] });
-    });
-    await expect(run).rejects.toThrow(BatchEmissionError);
+    expect(error.message).toContain('El #2 puede haberse emitido');
+    expect(error.message).toContain('`arcli ultimos fc --pv 3 --produccion`');
+    expect(error.details).toMatchObject({ fallo: 2, sinConfirmar: 2, sinProcesar: [3] });
   });
 
   it('en un lote de un solo comprobante corta con BATCH_EMISSION_ERROR', async () => {
-    const run = emitBatch({
-      emit: async () => {
+    const outcome = await emitBatch({
+      emit: async (): Promise<string> => {
         throw new Error('boom');
       },
       inputs: ['a'],
-      onPartialResults: vi.fn(),
       plan: oneItemBatch,
     });
 
-    await expect(run).rejects.toThrow(BatchEmissionError);
+    expect(batchError(outcome)).toBeInstanceOf(BatchEmissionError);
   });
 
   it('con un solo comprobante deja pasar el error original', async () => {
@@ -235,9 +209,8 @@ describe('emitBatch', () => {
           throw original;
         },
         inputs: ['a'],
-        onPartialResults: vi.fn(),
         plan: batch(1),
       }),
-    ).rejects.toBe(original);
+    ).resolves.toEqual({ error: original, results: [] });
   });
 });

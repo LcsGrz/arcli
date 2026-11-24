@@ -1,7 +1,6 @@
 import type { EmitDecisionSource } from '../../modules/billing/billing.emit-decision';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
-import type { BillingService } from '../../modules/billing/billing.service';
-import type { BillingExecutionResult, BillingGateway } from '../../modules/billing/billing.types.internal';
+import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import {
   type EmissionChoice,
   planEmissionConfirmation,
@@ -39,11 +38,11 @@ function applyEmitDecision(inputs: BillingCommandInput[], choice: EmissionChoice
 export async function runInteractiveBillingPreview(options: {
   readonly inputs: BillingCommandInput[];
   readonly modeSource: EmitDecisionSource;
+  /** Las vistas previas de `inputs`, en el mismo orden. */
+  readonly previews: BillingExecutionResult[];
   readonly runtime: CliArcaRuntime;
-  readonly service: BillingService;
   readonly useRaw: boolean;
   readonly voucherLabel: string;
-  readonly warnings?: ReadonlyArray<readonly string[]>;
 }): Promise<InteractiveBillingPreviewOutcome> {
   const shouldPromptForEmit =
     options.modeSource === 'default' &&
@@ -61,32 +60,8 @@ export async function runInteractiveBillingPreview(options: {
     };
   }
 
-  const previewGateway: BillingGateway = {
-    createVoucher: async () => {
-      throw new Error('No debería ejecutarse la emisión real durante la vista previa.');
-    },
-    getNextVoucherNumber: async () => {
-      throw new Error('No debería ejecutarse la emisión real durante la vista previa.');
-    },
-    getQuotation: async () => {
-      throw new Error('La cotización se resuelve antes de la vista previa.');
-    },
-  };
-  const previewResults: BillingExecutionResult[] = [];
-
-  for (const [index, input] of options.inputs.entries()) {
-    previewResults.push(
-      await options.service.execute({
-        gateway: previewGateway,
-        input,
-        runtime: options.runtime,
-        warnings: options.warnings?.[index],
-      }),
-    );
-  }
-
   writeTerminalOutput(
-    formatBillingOutputs(previewResults, { environment: options.runtime.environment, raw: options.useRaw }),
+    formatBillingOutputs(options.previews, { environment: options.runtime.environment, raw: options.useRaw }),
   );
 
   const count = options.inputs.length;
@@ -107,7 +82,7 @@ export async function runInteractiveBillingPreview(options: {
   return {
     confirmedInteractively: true,
     inputs: applyEmitDecision(options.inputs, choice),
-    previews: previewResults,
+    previews: options.previews,
     previewShown: true,
     proceed: true,
   };

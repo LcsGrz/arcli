@@ -1268,9 +1268,9 @@ describe('TUI-15: lo respondido no se pierde si la vista previa rechaza', () => 
   });
 
   it('si la vista previa de A, B o C rechaza la entrada, muestra el error y vuelve a la última pregunta', async () => {
-    const execute = vi
-      .spyOn(BillingService.prototype, 'execute')
-      .mockRejectedValueOnce(new InputValidationError('La vista previa no acepta esto.'));
+    const preview = vi.spyOn(BillingService.prototype, 'preview').mockImplementationOnce(() => {
+      throw new InputValidationError('La vista previa no acepta esto.');
+    });
 
     try {
       await run(
@@ -1289,7 +1289,7 @@ describe('TUI-15: lo respondido no se pierde si la vista previa rechaza', () => 
         runInvoiceFlow,
       );
     } finally {
-      execute.mockRestore();
+      preview.mockRestore();
     }
 
     expect(stderr.join('')).toContain('La vista previa no acepta esto.');
@@ -1338,7 +1338,9 @@ describe('TUI-15: lo respondido no se pierde si la vista previa rechaza', () => 
   });
 
   it('un error que no es de validación (ARCA, red) sigue de largo, como antes', async () => {
-    const execute = vi.spyOn(BillingService.prototype, 'execute').mockRejectedValueOnce(new Error('ARCA no responde'));
+    const preview = vi.spyOn(BillingService.prototype, 'preview').mockImplementationOnce(() => {
+      throw new Error('ARCA no responde');
+    });
 
     screens = createScreens([
       [/comprobante/, 'Factura C'],
@@ -1353,7 +1355,7 @@ describe('TUI-15: lo respondido no se pierde si la vista previa rechaza', () => 
         'ARCA no responde',
       );
     } finally {
-      execute.mockRestore();
+      preview.mockRestore();
     }
   });
 });

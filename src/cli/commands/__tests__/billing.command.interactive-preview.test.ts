@@ -77,6 +77,12 @@ function createInput(overrides: Partial<BillingCommandInput> = {}): BillingComma
   };
 }
 
+function previewsOf(inputs: readonly BillingCommandInput[]) {
+  const service = new BillingService({ clock: systemClock });
+
+  return inputs.map((input) => service.preview({ input, runtime: createRuntime() }));
+}
+
 const originalStdinIsTty = process.stdin.isTTY;
 const originalStdoutIsTty = process.stdout.isTTY;
 
@@ -102,7 +108,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'file',
       runtime: createRuntime(),
-      service: new BillingService({ clock: systemClock }),
+      previews: previewsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -123,7 +129,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime({ outputJson: true }),
-      service: new BillingService({ clock: systemClock }),
+      previews: previewsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -140,7 +146,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput({ dryRun: false, emit: true })],
       modeSource: 'default',
       runtime: createRuntime(),
-      service: new BillingService({ clock: systemClock }),
+      previews: previewsOf([createInput({ dryRun: false, emit: true })]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -157,7 +163,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      service: new BillingService({ clock: systemClock }),
+      previews: previewsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -175,7 +181,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      service: new BillingService({ clock: systemClock }),
+      previews: previewsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -200,7 +206,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime({ config: { ...createRuntime().config, pdf: 'nunca' } }),
-      service: new BillingService({ clock: systemClock }),
+      previews: previewsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -224,7 +230,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime({ config: { ...createRuntime().config, pdf: 'siempre' } }),
-      service: new BillingService({ clock: systemClock }),
+      previews: previewsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -241,7 +247,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput({ pdf: true })],
       modeSource: 'default',
       runtime: createRuntime({ config: { ...createRuntime().config, pdf: 'nunca' } }),
-      service: new BillingService({ clock: systemClock }),
+      previews: previewsOf([createInput({ pdf: true })]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -263,7 +269,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      service: new BillingService({ clock: systemClock }),
+      previews: previewsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -285,7 +291,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime({ environment: 'produccion' }),
-      service: new BillingService({ clock: systemClock }),
+      previews: previewsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'la factura A',
     });
@@ -293,7 +299,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput(), createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      service: new BillingService({ clock: systemClock }),
+      previews: previewsOf([createInput(), createInput()]),
       useRaw: false,
       voucherLabel: 'este comprobante',
     });
@@ -315,7 +321,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      service: new BillingService({ clock: systemClock }),
+      previews: previewsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -338,7 +344,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      service: new BillingService({ clock: systemClock }),
+      previews: previewsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
