@@ -47,10 +47,10 @@ export function buildExportRepeatInput(state: ExportRepeatState, env: ExportInpu
 }
 
 /** Las reglas de la E desde una pregunta de "Repetir": la factura con lo copiado y lo respondido, y hoy. */
-export function exportRepeatRuleScope(state: ExportRepeatState, env: ExportRuleEnv): ExportRuleScope {
+export function exportRepeatRuleScope(state: ExportRepeatState, env: () => ExportRuleEnv): ExportRuleScope {
   return {
-    context: { today: env.today },
-    draft: (patch) => ({ ...buildExportRepeatInput(state, env), ...patch }),
+    context: () => ({ today: env().today }),
+    draft: (patch) => ({ ...buildExportRepeatInput(state, env()), ...patch }),
   };
 }
 

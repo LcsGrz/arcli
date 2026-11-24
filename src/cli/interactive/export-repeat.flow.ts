@@ -1,4 +1,3 @@
-import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { resolveExportClientCountryCuit } from '../../modules/export/export.mappers';
 import {
@@ -37,6 +36,7 @@ import {
   activityStep,
   exportExchangeRateStep,
   exportPaymentDateStep,
+  exportRuleEnv,
   type ExportTables,
   loadExportTables,
 } from './steps/export';
@@ -80,6 +80,7 @@ export function exportRepeatSteps(
   pointOfSale: number,
 ): Array<WizardStep<ExportRepeatState>> {
   const configuredActivity = session.runtime.config.exportacion?.actividad;
+  const ruleEnv = exportRuleEnv(configuredActivity);
   const activities = activitiesLoader(gateway);
   const exchangeRate = exportExchangeRateLoader(gateway);
   const exchangeRateCase = (state: ExportRepeatState) => {
@@ -169,7 +170,7 @@ export function exportRepeatSteps(
     exportExchangeRateStep<ExportRepeatState>({
       dependsOn: ['factura', 'misma-moneda'],
       exchangeRate: fieldLens('exchangeRate'),
-      rules: (state) => exportRepeatRuleScope(state, { configuredActivity, today: formatDateAsArcaDate(new Date()) }),
+      rules: (state) => exportRepeatRuleScope(state, ruleEnv),
       suggestion: (state) => exchangeRate({ ...exchangeRateCase(state), voucherDate: state.options?.voucherDate }),
       voucher: exchangeRateCase,
     }),
@@ -229,7 +230,7 @@ export function exportRepeatSteps(
           // Sin descripcion por defecto: la copiada ya esta en las opciones y Enter la mantiene.
           incoterm: copy.incoterm ? { code: copy.incoterm } : undefined,
           languages: () => gateway.getLanguages(),
-          rules: exportRepeatRuleScope(state, { configuredActivity, today: formatDateAsArcaDate(new Date()) }),
+          rules: exportRepeatRuleScope(state, ruleEnv),
         };
       },
       name: 'opcionales',
@@ -263,10 +264,7 @@ export async function runExportRepeatFlow(
     {
       confirm: emission.confirm,
       // Las reglas sobre la factura final: si una falla, vuelve a la pregunta que escribe el campo.
-      finalize: exportRepeatFinalize(() => ({
-        configuredActivity: configured,
-        today: formatDateAsArcaDate(new Date()),
-      })),
+      finalize: exportRepeatFinalize(exportRuleEnv(configured)),
     },
   );
 

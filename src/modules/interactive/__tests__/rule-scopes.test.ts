@@ -56,9 +56,9 @@ describe('A, B y C', () => {
   });
 
   it('invoiceRuleScope arma la entrada con lo respondido y lo que escribe la pregunta', () => {
-    const scope = invoiceRuleScope(invoice, ENV);
+    const scope = invoiceRuleScope(invoice, () => ENV);
 
-    expect(scope.context).toEqual({ emitterCuit: 20111111112, today: TODAY, voucherKind: VOUCHER_KIND_MAP.fb });
+    expect(scope.context()).toEqual({ emitterCuit: 20111111112, today: TODAY, voucherKind: VOUCHER_KIND_MAP.fb });
     expect(scope.draft({ exemptAmount: 300 })).toMatchObject({ exemptAmount: 300, shortcut: 'fb', totalAmount: 1000 });
   });
 
@@ -115,14 +115,18 @@ describe('notas', () => {
   };
 
   it('noteRuleScope: el contexto es el de la nota, no el de la factura', () => {
-    expect(noteRuleScope(periodNote, NOTE_ENV).context).toEqual({
+    expect(noteRuleScope(periodNote, () => NOTE_ENV).context()).toEqual({
       emitterCuit: 20111111112,
       today: TODAY,
       voucherKind: VOUCHER_KIND_MAP.ncc,
     });
-    expect(noteRuleScope({ ...periodNote, kind: 'debito' }, NOTE_ENV).context.voucherKind).toBe(VOUCHER_KIND_MAP.ndc);
+    expect(noteRuleScope({ ...periodNote, kind: 'debito' }, () => NOTE_ENV).context().voucherKind).toBe(
+      VOUCHER_KIND_MAP.ndc,
+    );
     // Sin tipo, credito (como el menu por defecto).
-    expect(noteRuleScope({ ...periodNote, kind: undefined }, NOTE_ENV).context.voucherKind).toBe(VOUCHER_KIND_MAP.ncc);
+    expect(noteRuleScope({ ...periodNote, kind: undefined }, () => NOTE_ENV).context().voucherKind).toBe(
+      VOUCHER_KIND_MAP.ncc,
+    );
   });
 
   it('noteRuleValidator: antes de elegir la fecha de la nota, contra la mas tardia que acepta ARCA', () => {
@@ -167,8 +171,8 @@ describe('la E', () => {
   const invoice: ExportFlowState = { exportType: 2, items, options: {}, paymentDate: '17/11/2026' };
 
   it('exportRuleScope y exportFinalize: la factura con lo respondido, y hoy', () => {
-    expect(exportRuleScope(invoice, EXPORT_ENV)).toMatchObject({ context: { today: TODAY } });
-    expect(exportRuleScope(invoice, EXPORT_ENV).draft({ voucherDate: '16/11/2026' })).toMatchObject({
+    expect(exportRuleScope(invoice, () => EXPORT_ENV).context()).toEqual({ today: TODAY });
+    expect(exportRuleScope(invoice, () => EXPORT_ENV).draft({ voucherDate: '16/11/2026' })).toMatchObject({
       amount: 1500,
       voucherDate: '16/11/2026',
     });
@@ -188,8 +192,8 @@ describe('la E', () => {
       paymentDate: '17/11/2026',
     };
 
-    expect(exportRepeatRuleScope(repeat, EXPORT_ENV).draft({})).toMatchObject({ amount: 1500, exportType: 2 });
-    expect(exportRepeatRuleScope(repeat, EXPORT_ENV).context).toEqual({ today: TODAY });
+    expect(exportRepeatRuleScope(repeat, () => EXPORT_ENV).draft({})).toMatchObject({ amount: 1500, exportType: 2 });
+    expect(exportRepeatRuleScope(repeat, () => EXPORT_ENV).context()).toEqual({ today: TODAY });
     expect(exportRepeatFinalize(() => EXPORT_ENV)(repeat)).toMatchObject({ field: ['paymentDate', 'voucherDate'] });
     expect(exportRepeatFinalize(() => EXPORT_ENV)({ ...repeat, copy: undefined })).toBeUndefined();
     expect(exportRepeatFinalize(() => EXPORT_ENV)({ ...repeat, country: undefined })).toBeUndefined();
@@ -220,7 +224,7 @@ describe('la E', () => {
       exportType: 1,
       voucherKind: EXPORT_CREDIT_NOTE_KIND,
     });
-    expect(exportNoteRuleScope(note, env).context).toEqual({
+    expect(exportNoteRuleScope(note, () => env).context()).toEqual({
       associated: { date: '20261117', label: 'la factura de exportación E 00004-00000007' },
       today: TODAY,
     });

@@ -17,6 +17,7 @@ import {
 } from '../../modules/billing/billing.json-input';
 import { type BillingCommandInput, billingCommandSchema } from '../../modules/billing/billing.schemas';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
+import { parseZodInput } from '../../modules/billing/billing.zod-errors';
 import { discriminatesIva, getVoucherKindByShortcut, isFceInvoice } from '../../modules/billing/voucher-kind-map';
 import { resolvePdfFlag } from '../../modules/pdf/pdf-decision';
 
@@ -369,7 +370,7 @@ function parseBillingCommandInputFromSource(
   });
 
   return {
-    ...billingCommandSchema.parse({
+    ...parseZodInput(billingCommandSchema, {
       associatedPeriod,
       associatedVoucher: associatedVoucher && { ...associatedVoucher, fecha: date(associatedVoucher.fecha, 'day') },
       billingDate: date(pickString(commandOptions.fecha, fileInput?.fechaComprobante), 'day'),

@@ -242,7 +242,7 @@ export function noteSteps(
   const exchangeRateSuggestion = exchangeRateSuggestionLoader(config, officialExchangeRate);
   const advancedOf = (state: NoteState): AdvancedOptions => state.advanced ?? initialAdvancedOptions(config);
   const ruleEnv = () => noteRuleEnv(session, pointOfSale);
-  const rules = (state: NoteState) => noteRuleScope(state, ruleEnv());
+  const rules = (state: NoteState) => noteRuleScope(state, ruleEnv);
   const noteRule = (
     field: string,
     validate: (value: string) => string | true,

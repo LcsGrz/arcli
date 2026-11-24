@@ -84,7 +84,7 @@ describe('ruleValidator', () => {
 
 describe('scopedRuleValidator', () => {
   it('arma la entrada con `draft` y lo que escribe la pregunta', () => {
-    const scope = { context: CONTEXT, draft: (patch: Partial<Input>) => ({ b: 5, ...patch }) };
+    const scope = { context: () => CONTEXT, draft: (patch: Partial<Input>) => ({ b: 5, ...patch }) };
 
     expect(scopedRuleValidator(RULES, 'a', scope, (value) => ({ a: Number(value) }))('6')).toBe(
       '"A" no puede pasar de "B".',

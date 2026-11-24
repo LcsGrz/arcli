@@ -28,6 +28,9 @@ const certificatePathsSchema = z.object({
   testing: z.string().trim().min(1).optional(),
 });
 
+const rowsPerListSchema = (key: string) =>
+  z.number().int().min(1).max(MAX_RECENT_VOUCHERS, `\`${key}\` debe ser ${MAX_RECENT_VOUCHERS} o menos.`).optional();
+
 // Misma normalizacion que --alicuota ("10,5", "10.5%").
 export const arcliDefaultIvaRateSchema = billingIvaRateSchema;
 
@@ -54,7 +57,7 @@ export const arcliConfigSchema = z.object({
       /** yyyymmdd */
       inicioActividades: z
         .string()
-        .regex(/^\d{8}$/)
+        .regex(/^\d{8}$/, 'El inicio de actividades tiene que ser una fecha AAAAMMDD.')
         .optional(),
       logo: z.string().trim().min(1).optional(),
       razonSocial: z.string().trim().min(1).optional(),
@@ -90,9 +93,9 @@ export const arcliConfigSchema = z.object({
   /** Condicion de venta del PDF de A, B y C cuando el comprobante no trae una. */
   condicionVenta: saleConditionSchema.optional(),
   /** Filas de `arcli ultimos` y de las listas del modo interactivo (comprobantes, tablas de ARCA, monedas). */
-  filasPorLista: z.number().int().min(1).max(MAX_RECENT_VOUCHERS).optional(),
+  filasPorLista: rowsPerListSchema('filasPorLista'),
   /** Deprecada hasta la 3.0.0: se lee si no hay `filasPorLista`, y `config establecer` la pasa a `filasPorLista`. */
-  comprobantesPorLista: z.number().int().min(1).max(MAX_RECENT_VOUCHERS).optional(),
+  comprobantesPorLista: rowsPerListSchema('comprobantesPorLista'),
   puntoVentaPorDefecto: z.number().int().positive().optional(),
   ticketPath: z.string().trim().min(1).optional(),
   /** Completar el IVA receptor desde el padron al facturar con --cuit. Sin definir, si. */

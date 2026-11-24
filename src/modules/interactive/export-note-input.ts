@@ -71,14 +71,14 @@ export function exportNoteRuleInput(state: ExportNoteState, env: ExportNoteInput
 /** Las reglas de la E desde una pregunta de la nota: la nota con lo respondido, y la fecha de su asociado. */
 export function exportNoteRuleScope(
   state: ExportNoteState,
-  env: ExportNoteInputEnv & { readonly today: string },
+  env: () => ExportNoteInputEnv & { readonly today: string },
 ): ExportRuleScope {
   return {
-    context: {
+    context: () => ({
       associated: exportAssociatedRuleContext(requireStepValue(state.invoice, 'invoice')),
-      today: env.today,
-    },
-    draft: (patch) => ({ ...exportNoteRuleInput(state, env), ...patch }),
+      today: env().today,
+    }),
+    draft: (patch) => ({ ...exportNoteRuleInput(state, env()), ...patch }),
   };
 }
 
@@ -87,7 +87,7 @@ export function exportNoteFinalize(
   env: () => ExportNoteInputEnv & { readonly today: string },
 ): WizardFinalize<ExportNoteState> {
   return rulesFinalize<ExportNoteState, ExportVoucherInput, ExportRuleContext>({
-    context: (state) => exportNoteRuleScope(state, env()).context,
+    context: (state) => exportNoteRuleScope(state, env).context(),
     draft: (state) => (state.invoice ? exportNoteRuleInput(state, env()) : undefined),
     rules: EXPORT_RULES,
   });
