@@ -118,8 +118,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Consultas:** `consultar` y `ultimos` dan `ARCA_VOUCHER_QUERY_ERROR` si ARCA contesta con un error, en vez de decir que no existe (#268).
 - **Consultas:** un error pasajero o del último número ya no dice que no se emitió nada ni manda a emitir de nuevo (#273).
 - **Factura E:** si ARCA devuelve una `E` sin sus datos, `consultar`, `ultimos`, las notas y el asistente ya no dicen que no existe (#273).
-- **Factura E:** un error de ARCA al consultarla avisa que no se sabe si existe, y el asistente sigue sin perder lo cargado (#N).
-- **Errores:** en la `E`, los de moneda, incoterm y punto de venta ya no mandan a `arcli parametros`: dicen qué usar (#N).
+- **Factura E:** un error de ARCA al consultarla avisa que no se sabe si existe, y el asistente sigue sin perder lo cargado (#285).
+- **Errores:** en la `E`, los de moneda, incoterm y punto de venta ya no mandan a `arcli parametros`: dicen qué usar (#285).
 - **Notas:** si ARCA contesta con un error por el asociado, A, B, C y FCE ya no dicen que no existe (#268).
 - **Asistente:** si ARCA contesta con un error al listar A, B, C, FCE o recibos, lo muestra y podés reintentar o buscar a mano (#268).
 - **Facturas:** Ctrl+C en "¿Emitimos?" dice que se canceló y que no se emitió nada, en vez de "Error inesperado" (#270).
