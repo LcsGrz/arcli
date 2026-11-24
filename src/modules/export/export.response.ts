@@ -3,9 +3,11 @@ import type { IFEXAuthorizeOutput } from '../../services/arca/arca-sdk.types';
 import {
   type EmissionStatus,
   EMITTED_WITH_ERROR_SUGGESTION,
+  EMITTED_WITH_OBSERVATION_SUGGESTION,
   NO_DETAIL_TEXT,
   readCae,
   readCaeExpiration,
+  readErrorCode,
   readRejectedCae,
   readResponseText,
   resolveEmissionStatus,
@@ -26,6 +28,25 @@ function toEntry(code: number | undefined, message: unknown): ExportResponseErro
   }
 
   return [{ code, message: readResponseText(message)?.trim() || NO_DETAIL_TEXT }];
+}
+
+/**
+ * Un error de `FEXErr`. Sin codigo (ausente, nulo o ilegible) tambien se cuenta, como en A, B y C; `ErrCode: 0` es "OK".
+ */
+function toErrorEntry(error: unknown): ExportResponseError[] {
+  if (typeof error !== 'object' || error === null) {
+    return toTextEntry(error);
+  }
+
+  const { ErrCode, ErrMsg } = error as { readonly ErrCode?: unknown; readonly ErrMsg?: unknown };
+
+  if (Number(readResponseText(ErrCode) ?? NaN) === 0) {
+    return [];
+  }
+
+  const code = readErrorCode(ErrCode);
+
+  return [{ ...(code === undefined ? {} : { code }), message: readResponseText(ErrMsg)?.trim() || NO_DETAIL_TEXT }];
 }
 
 /** Un texto donde va un bloque: se muestra, sin codigo. */
@@ -63,13 +84,17 @@ function buildSuggestions(options: {
     suggestions.add('Revisá el incoterm (`--incoterm`) contra la tabla de ARCA.');
   }
 
-  if (/actividad/i.test(options.messages)) {
+  // Proponen otra solicitud: con CAE duplicarian el comprobante.
+  const emitted = options.status !== 'rechazado';
+  const retry = /actividad|correlativ/i.test(options.messages);
+
+  if (!emitted && /actividad/i.test(options.messages)) {
     suggestions.add(
       'La actividad tiene que estar vinculada al emisor y activa para WSFEX: revisá las actividades habilitadas en ARCA o indicá otra con `--actividad`.',
     );
   }
 
-  if (/correlativ/i.test(options.messages)) {
+  if (!emitted && /correlativ/i.test(options.messages)) {
     suggestions.add(
       'Revisá el número del comprobante: tiene que ser el siguiente al último de ese tipo en el punto de venta. Sin `--numero`, ARCLI lo consulta en ARCA; mirá los últimos con `arcli ultimos fe`.',
     );
@@ -82,6 +107,8 @@ function buildSuggestions(options: {
 
   if (options.emittedWithError) {
     suggestions.add(EMITTED_WITH_ERROR_SUGGESTION);
+  } else if (emitted && retry) {
+    suggestions.add(EMITTED_WITH_OBSERVATION_SUGGESTION);
   }
 
   return [...suggestions];
@@ -108,10 +135,7 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
   const result = output.FEXAuthorizeResult;
   const authorization = asArray(result?.FEXResultAuth)[0];
   // Nada de esto puede costar el CAE: se acepta suelto, en lista, nulo o de otro tipo (ERR-16).
-  const errors = asArray(result?.FEXErr).flatMap((error) => [
-    ...toEntry(error?.ErrCode, error?.ErrMsg),
-    ...toTextEntry(error),
-  ]);
+  const errors = asArray<unknown>(result?.FEXErr).flatMap(toErrorEntry);
   const events = asArray(result?.FEXEvents).flatMap((event) => [
     ...toEntry(event?.EventCode, event?.EventMsg),
     ...toTextEntry(event),
@@ -134,7 +158,7 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
 
   return {
     cae,
-    caeVencimiento: readCaeExpiration(authorization?.Fch_venc_Cae),
+    caeVencimiento: cae === null ? null : readCaeExpiration(authorization?.Fch_venc_Cae),
     errors,
     events,
     observacion: observaciones.join(' | ') || null,

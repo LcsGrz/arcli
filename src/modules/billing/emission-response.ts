@@ -19,6 +19,10 @@ export const NO_DETAIL_TEXT = 'ARCA no informó el detalle.';
 export const EMITTED_WITH_ERROR_SUGGESTION =
   'El comprobante está emitido: ARCA dio el CAE, aunque también informó un error. No lo repitas: revisá el error.';
 
+/** Lo mismo, con una observacion que proponia emitir de nuevo. */
+export const EMITTED_WITH_OBSERVATION_SUGGESTION =
+  'El comprobante está emitido: ARCA dio el CAE. No lo repitas: revisá la observación.';
+
 /**
  * Errores internos de ARCA (500 de aplicacion, 501 de base de datos, 502 transaccion activa): no son validaciones y no
  * dicen si se emitio. Sin fuente en el repo (el manual no esta); los decidio quien mantiene el proyecto (ERR-20).

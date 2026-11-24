@@ -1,4 +1,5 @@
 import { AppError, HELP_SUGGESTION } from '../../lib/errors/app-error';
+import { isQueryError, VERIFY_BEFORE_RETRY } from '../../lib/errors/query-error';
 import { ISSUES_URL } from '../../lib/links';
 import { normalizeSearchText } from '../../lib/text/search';
 import { errorPanel } from '../components/errorPanel';
@@ -76,22 +77,23 @@ function formatUnexpectedErrorHint(message: string): string {
     : `Si el problema persiste, revisá la configuración con \`arcli config revisar\` o avisanos en ${ISSUES_URL}.`;
 }
 
-function detectTransientError(message: string): {
+function detectTransientError(
+  message: string,
+  query: boolean,
+): {
   readonly sugerencia: string;
   readonly title: string;
 } | null {
   if (message.includes('coe.alreadyAuthenticated')) {
     return {
-      sugerencia:
-        'ARCA todavía tiene abierta una sesión anterior. Esperá un par de minutos y probá de nuevo, con los mismos datos.',
+      sugerencia: `ARCA todavía tiene abierta una sesión anterior. Esperá un par de minutos y ${query ? `repetí la consulta. ${VERIFY_BEFORE_RETRY}` : 'probá de nuevo, con los mismos datos.'}`,
       title: 'Error transitorio WSAA',
     };
   }
 
   if (message.includes('Transacción Activa')) {
     return {
-      sugerencia:
-        'ARCA devolvió una transacción activa. Esperá unos segundos y reintentá la emisión antes de modificar datos del comprobante.',
+      sugerencia: `ARCA devolvió una transacción activa. Esperá unos segundos y ${query ? `repetí la consulta. ${VERIFY_BEFORE_RETRY}` : 'reintentá la emisión antes de modificar datos del comprobante.'}`,
       title: 'Error transitorio ARCA',
     };
   }
@@ -163,7 +165,7 @@ export function formatAppError(error: unknown, useJson: boolean): string {
   }
 
   const message = error instanceof Error ? error.message : 'Ocurrió un error inesperado.';
-  const transientError = detectTransientError(message);
+  const transientError = detectTransientError(message, isQueryError(error));
 
   if (useJson) {
     return renderJson({

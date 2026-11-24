@@ -1,5 +1,6 @@
 import { Separator } from '@inquirer/core';
 
+import { asQuery } from '../../lib/errors/query-error';
 import { classifyAssociatedPointOfSale, describeQueryFailure } from '../../modules/billing/billing.associated-lookup';
 import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
@@ -164,7 +165,7 @@ async function askVoucherByNumber<T extends { readonly number: number }, M>(
   const search = await orShowQueryError(() =>
     withSpinner('Buscando en ARCA...', async () => {
       try {
-        const found = await source.getVoucher(number, pointOfSale);
+        const found = await asQuery(() => source.getVoucher(number, pointOfSale));
 
         return {
           invoice: found,
@@ -319,10 +320,14 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
   let skippedAny = false;
   const listFrom = async (fromNumber: number): Promise<T[]> => {
     const skipped: number[] = [];
-    const batch = await fetchVouchersBackwards(fromNumber, (number) => source.getVoucher(number, pointOfSale), {
-      limit: pageSize,
-      onSkip: (number) => skipped.push(number),
-    });
+    const batch = await fetchVouchersBackwards(
+      fromNumber,
+      (number) => asQuery(() => source.getVoucher(number, pointOfSale)),
+      {
+        limit: pageSize,
+        onSkip: (number) => skipped.push(number),
+      },
+    );
 
     skippedIn.set(batch, skipped);
 
@@ -336,7 +341,7 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
       writeTerminalOutput(notice);
     }
   };
-  const lastNumber = await withSpinner('Buscando en ARCA...', () => source.getLastNumber(pointOfSale));
+  const lastNumber = await withSpinner('Buscando en ARCA...', () => asQuery(() => source.getLastNumber(pointOfSale)));
   const firstBatch = await orShowQueryError(() => withSpinner('Buscando en ARCA...', () => listFrom(lastNumber)));
   const invoices: T[] = firstBatch ?? [];
   // La primera tanda fallo y todavia no se pudo cargar: no se sabe si hay comprobantes.

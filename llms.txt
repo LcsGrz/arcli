@@ -15,11 +15,12 @@
   `previsualizacion`. La excepción es el error `EMISSION_UNCERTAIN`: no trae `cae` y puede haberse emitido.
   Con `cae` está emitido aunque haya `errores` (`estado` es `observado`): no lo repitas.
 - Reintentos:
-  - Se puede reintentar igual: `TRANSIENT_ERROR`, `ARCA_LAST_VOUCHER_ERROR` (salvo un punto de venta no habilitado)
-    y `UNEXPECTED_ERROR` de red. No se emitió nada.
+  - Al facturar se puede reintentar igual: `TRANSIENT_ERROR`, `ARCA_LAST_VOUCHER_ERROR` (salvo un punto de venta no
+    habilitado) y `UNEXPECTED_ERROR` de red. Ese comprobante no se emitió.
   - No reintentar sin verificar antes: `EMISSION_UNCERTAIN`, `BATCH_EMISSION_ERROR` y `OUTPUT_WRITE_ERROR` (ver "Salida de error").
-    `ARCA_VOUCHER_QUERY_ERROR` en `ultimos` o `consultar` no verifica nada: no se sabe si el comprobante existe
-    (salvo que `error` diga que existe, con su CAE: ya está emitido).
+    En `ultimos` o `consultar`, cualquier error que no sea `VOUCHER_NOT_FOUND` (`ARCA_VOUCHER_QUERY_ERROR`,
+    `ARCA_LAST_VOUCHER_ERROR`, `ARCA_EXPORT_ERROR`, `TRANSIENT_ERROR`, `UNEXPECTED_ERROR` de red) no verifica nada: no se
+    sabe si el comprobante existe (salvo que `error` diga que existe, con su CAE: ya está emitido).
     Repetí la consulta, no la emisión. Si se repite, no insistas: avisale a la persona con el mensaje de ARCA.
   - Corregir antes de reintentar: `INPUT_VALIDATION_ERROR`, `CONFIGURATION_ERROR`, `CERTIFICATE_*` y
     `*_NOT_AUTHORIZED`. Si el error habla del certificado, avisale a la persona: no se arregla reintentando.

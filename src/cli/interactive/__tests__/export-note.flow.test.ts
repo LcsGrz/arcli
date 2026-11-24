@@ -13,6 +13,7 @@ import { VoucherQueryError } from '../../../modules/vouchers/voucher-history';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
+import { formatCliError } from '../../error-output';
 import { exportNoteSteps, runExportNoteFlow } from '../export-note.flow';
 import type { InteractiveSession } from '../session';
 
@@ -315,13 +316,16 @@ describe('runExportNoteFlow', () => {
   });
 
   it('sin cambios: otro error al buscar el asociado sale al menú', async () => {
-    vi.mocked(gateway.getVoucher).mockRejectedValueOnce(new Error('ETIMEDOUT'));
+    vi.mocked(gateway.getVoucher).mockRejectedValueOnce(new Error('ETIMEDOUT: Transacción Activa'));
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
     ]);
 
-    await expect(runExportNoteFlow(createSession(), 'credito')).rejects.toThrow('ETIMEDOUT');
+    const error: unknown = await runExportNoteFlow(createSession(), 'credito').catch((reason: unknown) => reason);
+
+    expect(error).toMatchObject({ message: 'ETIMEDOUT: Transacción Activa' });
+    expect(formatCliError(error, true)).toContain('repetí la consulta');
   });
 
   it('ajusta otra nota E con --ac y suma los opcionales, sin ofrecer la cotización en servicios', async () => {

@@ -18,7 +18,7 @@ export class ArcaVoucherHistoryGateway implements VoucherHistoryGateway {
   public constructor(private readonly arca: Arca) {}
 
   public async getLastNumber(pointOfSale: number, voucherType: number): Promise<number> {
-    return getLastAuthorizedNumber(this.arca, pointOfSale, voucherType);
+    return getLastAuthorizedNumber(this.arca, pointOfSale, voucherType, 'consultar');
   }
 
   /**

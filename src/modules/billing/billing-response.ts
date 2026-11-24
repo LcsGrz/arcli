@@ -5,6 +5,7 @@ import { findArcaRejections, formatArcaRejection } from './arca-rejections';
 import type { BillingResponseSummary } from './billing.types.internal';
 import {
   EMITTED_WITH_ERROR_SUGGESTION,
+  EMITTED_WITH_OBSERVATION_SUGGESTION,
   NO_DETAIL_TEXT,
   readCae,
   readCaeExpiration,
@@ -54,17 +55,17 @@ export function mapBillingResponse(response: CreateVoucherResultDto): BillingRes
   const observations = asArray<unknown>(detail?.Observaciones?.Obs);
   const observaciones = observations.map(readMessage).filter(Boolean);
   const resultado = readResponseText(detail?.Resultado);
-  // Sin el resultado del comprobante vale el de la cabecera, que con uno solo es el mismo; con CAE, no: manda el CAE.
-  const rejectedByHeader = resultado === null && readResponseText(response.response?.FeCabResp?.Resultado) === 'R';
+  // Sin el resultado del comprobante vale el de la cabecera, que con uno solo es el mismo.
+  const rejected = (resultado ?? readResponseText(response.response?.FeCabResp?.Resultado)) === 'R';
   // El SDK solo devuelve el CAE con `A`; el JSON publico promete null.
-  const readAnswerCae = resultado === 'R' || rejectedByHeader ? readRejectedCae : readCae;
+  const readAnswerCae = rejected ? readRejectedCae : readCae;
   const cae = readAnswerCae(response.cae) ?? readAnswerCae(detail?.CAE);
   const status = resolveEmissionStatus({
     cae,
     errors: errors.map((item) => ({ code: readCode(item), message: readMessage(item) || readText(item) })),
     hasObservations: observaciones.length > 0,
     internalErrors: WSFE_INTERNAL_ERRORS,
-    rejected: resultado === 'R' || (rejectedByHeader && cae === null),
+    rejected,
     result: resultado,
   });
 
@@ -112,11 +113,17 @@ function buildResponseSuggestions(options: {
   const items = emittedWithError ? options.observations : [...options.errors, ...options.observations];
   const codes = items.map(readCode).filter((code): code is number => code !== undefined);
   const messages = items.map(readMessage).filter(Boolean).join(' | ');
-  const suggestions = findArcaRejections(codes, messages).map(formatArcaRejection);
+  const rejections = findArcaRejections(codes, messages);
+  const shown = options.emitted ? rejections.filter(({ retry }) => !retry) : rejections;
+  const suggestions = shown.map(formatArcaRejection);
 
   if (!options.emitted && suggestions.length === 0) {
     suggestions.push('Revisá observaciones y errores de ARCA antes de volver a emitir.');
   }
 
-  return emittedWithError ? [...suggestions, EMITTED_WITH_ERROR_SUGGESTION] : suggestions;
+  if (emittedWithError) {
+    return [...suggestions, EMITTED_WITH_ERROR_SUGGESTION];
+  }
+
+  return shown.length < rejections.length ? [...suggestions, EMITTED_WITH_OBSERVATION_SUGGESTION] : suggestions;
 }

@@ -18,7 +18,7 @@ export class ArcaBillingGateway implements BillingGateway {
    * Si falla, no se envio nada a ARCA. Como el SDK, sin comprobantes previos arranca en 1.
    */
   public async getNextVoucherNumber(pointOfSale: number, voucherType: number): Promise<number> {
-    const nextNumber = (await getLastAuthorizedNumber(this.arca, pointOfSale, voucherType)) + 1;
+    const nextNumber = (await getLastAuthorizedNumber(this.arca, pointOfSale, voucherType, 'emitir')) + 1;
 
     if (nextNumber > MAX_VOUCHER_NUMBER) {
       throw new Error(`Número de comprobante no puede ser mayor a ${MAX_VOUCHER_NUMBER}.`);

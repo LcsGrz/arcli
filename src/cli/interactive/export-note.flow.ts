@@ -1,4 +1,5 @@
 import { formatArcaDateAsArgentineDate, formatDateAsArcaDate } from '../../lib/dates/arca-date';
+import { asQuery } from '../../lib/errors/query-error';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { creditNoteOverTotalHint } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
@@ -141,7 +142,9 @@ export function exportNoteSteps(
           const number = parseStrictInteger(answer) as number;
           const invoice = await orShowQueryError(() =>
             withSpinner(`Buscando ${name} en ARCA...`, () =>
-              gateway.getVoucher({ arcaType: associatedKind.arcaType, number, pointOfSale: invoicePointOfSale }),
+              asQuery(() =>
+                gateway.getVoucher({ arcaType: associatedKind.arcaType, number, pointOfSale: invoicePointOfSale }),
+              ),
             ),
           );
 

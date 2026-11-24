@@ -1,6 +1,7 @@
 import type { Arca } from '@arcasdk/core';
 
 import { AppError } from '../../lib/errors/app-error';
+import { ARCA_QUERY_ERROR_SUGGESTION } from '../../lib/errors/query-error';
 import { CERTIFICATE_GUIDE_URL, POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
 
 import { toDetailErrors } from './arca-error-details';
@@ -30,9 +31,15 @@ export function rethrowIfWsfeNotAuthorized(error: unknown): never {
 
 /**
  * Pide el ultimo numero autorizado y corta si ARCA devolvio errores.
+ * Al consultar, la sugerencia no habla de emitir: con eso se puede estar verificando una emision.
  * El SDK los deja en `errors` y no lanza: sin este chequeo, un punto de venta invalido parece no tener comprobantes.
  */
-export async function getLastAuthorizedNumber(arca: Arca, pointOfSale: number, voucherType: number): Promise<number> {
+export async function getLastAuthorizedNumber(
+  arca: Arca,
+  pointOfSale: number,
+  voucherType: number,
+  purpose: 'consultar' | 'emitir',
+): Promise<number> {
   const result = await arca.electronicBillingService
     .getLastVoucher(pointOfSale, voucherType)
     .catch(rethrowIfWsfeNotAuthorized);
@@ -48,7 +55,9 @@ export async function getLastAuthorizedNumber(arca: Arca, pointOfSale: number, v
         details: { errores: toDetailErrors(errors) },
         suggestion: pointOfSaleProblem
           ? `El punto de venta no está habilitado para web service (los de "Factura en línea" no sirven). Revisá los habilitados con \`arcli parametros puntos-venta\` o creá uno para web service: ${POINT_OF_SALE_GUIDE_URL}`
-          : 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.',
+          : purpose === 'consultar'
+            ? ARCA_QUERY_ERROR_SUGGESTION
+            : 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.',
       },
     );
   }

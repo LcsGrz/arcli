@@ -41,3 +41,9 @@ describe('rechazos de ARCA por código, sin depender del texto (TEST-19)', () =>
     expect(findArcaRejections([], '')).toEqual([]);
   });
 });
+
+it('solo las filas con `retry` proponen emitir de nuevo: con CAE no se muestran (ERR-20)', () => {
+  for (const { retry, todo } of ARCA_REJECTIONS) {
+    expect(/volv[eé] a (?:emitir|intentar)|reintent|emití(?!s)|^Usá /i.test(todo), todo).toBe(retry === true);
+  }
+});

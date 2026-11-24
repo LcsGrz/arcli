@@ -6,7 +6,8 @@ import forge from 'node-forge';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
-import { reportCliError, shouldPrintErrorAsJson } from '../error-output';
+import { outputState } from '../closed-output';
+import { reportCliError, reportOutputFailure, shouldPrintErrorAsJson } from '../error-output';
 import { createProgram } from '../program';
 
 /**
@@ -1295,7 +1296,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
         'ARCA contestó sin CAE, sin resultado y con errores: 1000 Error interno',
       ],
       [
-        'con un código que no es un número',
+        'con un código ilegible',
         fex({ ErrCode: {}, ErrMsg: 'x' }),
         'ARCA contestó sin CAE, sin resultado y con errores: x',
       ],
@@ -1605,9 +1606,9 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
         { estado: 'aprobado', resultado: 'A' },
       ],
       [
-        'sin resultado, con la cabecera en R',
-        approvedWith({ FeCabResp: { Resultado: 'R' } }, { Resultado: '' }),
-        { estado: 'observado', resultado: null },
+        'A, con la cabecera en R',
+        approvedWith({ FeCabResp: { Resultado: 'R' } }),
+        { estado: 'aprobado', resultado: 'A' },
       ],
     ])('sin cambios, fc con CAE y %s', async (_name, answer, expected) => {
       sdk.wsfe.createVoucher.mockImplementation(answer);
@@ -1627,6 +1628,92 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
 
       await uncertainCause(FC, contradiction(CAE));
       await uncertainCause(FE_APPROVABLE, contradiction(CAE_E), { idSolicitud: 42, numero: 8 });
+    });
+
+    it('la cabecera en R, sin resultado en el detalle y con un CAE legible: EMISSION_UNCERTAIN', async () => {
+      sdk.wsfe.createVoucher.mockImplementation(
+        approvedWith({ FeCabResp: { Resultado: 'R' } }, { Resultado: '' }, { cae: '' }),
+      );
+
+      await uncertainCause(FC, contradiction(CAE));
+    });
+
+    // Con CAE ninguna sugerencia propone emitir de nuevo, venga de un error o de una observación.
+    const EMITTED_OBSERVED_HINT = 'El comprobante está emitido: ARCA dio el CAE. No lo repitas: revisá la observación.';
+
+    it.each<[string, { readonly Code: number; readonly Msg: string }]>([
+      ['10038', { Code: 10038, Msg: 'x' }],
+      ['10154', { Code: 10154, Msg: 'x' }],
+      ['10243', { Code: 10243, Msg: 'x' }],
+      ['transacción activa', { Code: 1, Msg: 'Transacción Activa' }],
+      ['objeto IVA', { Code: 1, Msg: 'El objeto IVA es obligatorio' }],
+      ['padrones', { Code: 1, Msg: 'no se encuentra registrado en los padrones' }],
+    ])('fc con CAE y la observación %s: se ve, y no propone repetirlo', async (_name, obs) => {
+      sdk.wsfe.createVoucher.mockImplementation(approvedWith({}, { Observaciones: { Obs: [obs] } }));
+
+      expect(await showsCae(FC, CAE)).toMatchObject({
+        estado: 'observado',
+        observaciones: [obs.Msg],
+        sugerencias: [EMITTED_OBSERVED_HINT],
+      });
+
+      // Con un error además, una sola sugerencia.
+      sdk.wsfe.createVoucher.mockImplementation(
+        approvedWith({ Errors: { Err: [VALIDATION] } }, { Observaciones: { Obs: [obs] } }),
+      );
+      process.exitCode = undefined;
+      expect((await showsCae(FC, CAE)).sugerencias).toEqual([EMITTED_HINT]);
+    });
+
+    it.each(['La actividad no es valida', 'El numero no es correlativo'])(
+      'fe con CAE y el motivo "%s": se ve, y no propone repetirlo',
+      async (Motivos_Obs) => {
+        sdk.wsfex.authorize.mockImplementation(approvedExport({ Motivos_Obs }));
+
+        expect(await showsCae(FE_APPROVABLE, CAE_E)).toMatchObject({
+          estado: 'observado',
+          observaciones: [Motivos_Obs],
+          sugerencias: [EMITTED_OBSERVED_HINT],
+        });
+      },
+    );
+
+    it.each<[string, unknown, Array<{ codigo: number | null; mensaje: string }>]>([
+      ['sin código', { ErrMsg: 'x' }, [{ codigo: null, mensaje: 'x' }]],
+      ['con el código nulo', { ErrCode: null, ErrMsg: 'x' }, [{ codigo: null, mensaje: 'x' }]],
+      ['vacío', {}, [{ codigo: null, mensaje: 'ARCA no informó el detalle.' }]],
+      ['con un código que no es un número', { ErrCode: {}, ErrMsg: 'x' }, [{ codigo: null, mensaje: 'x' }]],
+    ])('fe, un error %s: se cuenta y se muestra', async (_name, FEXErr, errores) => {
+      sdk.wsfex.authorize.mockImplementation(approvedExport({}, { FEXErr }));
+      expect(await showsCae(FE_APPROVABLE, CAE_E)).toMatchObject({
+        estado: 'observado',
+        errores,
+        sugerencias: [EMITTED_HINT],
+      });
+
+      sdk.wsfex.authorize.mockResolvedValue(fex(FEXErr));
+      await uncertainCause(
+        FE_APPROVABLE,
+        `ARCA contestó sin CAE, sin resultado y con errores: ${errores[0]!.mensaje}`,
+        { idSolicitud: 42, numero: 8 },
+      );
+    });
+
+    it.each([0, '0'])('fe, ErrCode %j sigue siendo "OK"', async (ErrCode) => {
+      sdk.wsfex.authorize.mockImplementation(approvedExport({}, { FEXErr: { ErrCode, ErrMsg: 'OK' } }));
+
+      expect(await showsCae(FE_APPROVABLE, CAE_E)).toMatchObject({ errores: [], estado: 'aprobado', sugerencias: [] });
+    });
+
+    it('fe sin CAE no muestra el vencimiento', async () => {
+      sdk.wsfex.authorize.mockImplementation(approvedExport({ Cae: '', Resultado: 'R' }));
+      prepareConfig({});
+
+      expect(JSON.parse((await runCli([...FE_APPROVABLE, '--emitir', '--json'])).stdout)).toMatchObject({
+        cae: null,
+        caeVencimiento: null,
+        estado: 'rechazado',
+      });
     });
 
     it('R con un CAE legible y un error: el motivo trae los dos', async () => {
@@ -2416,6 +2503,32 @@ describe('otros comandos que van a ARCA', () => {
       ).toEqual([7, 5]);
     });
 
+    it('ultimos fe --json: si stdout falló, el aviso no acompaña a OUTPUT_WRITE_ERROR', async () => {
+      sdk.wsfex.getCmp.mockImplementation(answering({ 6: unreadable(6) }));
+      prepareConfig({});
+
+      let stderr = '';
+
+      // El error de la escritura llega un turno después, como en un disco lleno.
+      vi.spyOn(process.stdout, 'write').mockImplementation(() => {
+        setImmediate(() => outputState.failures.set('stdout', Object.assign(new Error('write'), { code: 'ENOSPC' })));
+
+        return true;
+      });
+      vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => ((stderr += String(chunk)), true));
+
+      try {
+        await createProgram().parseAsync(['node', 'arcli', 'ultimos', 'fe', '--pv', '4', '--json']);
+        reportOutputFailure(outputState.failures, { commandError: undefined, json: true });
+      } finally {
+        outputState.failures.clear();
+        vi.mocked(process.stdout.write).mockRestore();
+        vi.mocked(process.stderr.write).mockRestore();
+      }
+
+      expect(JSON.parse(stderr)).toMatchObject({ codigo: 'OUTPUT_WRITE_ERROR' });
+    });
+
     it('ultimos fe, si no se entiende ninguna: las nombra y no dice que no hay', async () => {
       sdk.wsfex.getCmp.mockImplementation(answering({ 5: unreadable(5), 6: unreadable(6), 7: unreadable(7) }));
       prepareConfig({});
@@ -2490,6 +2603,77 @@ describe('otros comandos que van a ARCA', () => {
     );
 
     return golden('ultimos-con-hueco', ['ultimos', 'fc', '--cantidad', '3', '--json']);
+  });
+
+  // Con estos comandos se verifica una emisión: no pueden decir que no se emitió ni mandar a emitir.
+  describe('un error al consultar no habla de emitir', () => {
+    const VERIFY = 'Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.';
+
+    async function failure(args: readonly string[]): Promise<Record<string, unknown>> {
+      prepareConfig({});
+      process.exitCode = undefined;
+
+      const result = await runCli([...args, '--json']);
+
+      expect(result).toMatchObject({ code: 1, stdout: '' });
+
+      return JSON.parse(result.stderr) as Record<string, unknown>;
+    }
+
+    const fail = (error: Error) => {
+      sdk.generic.call.mockRejectedValue(error);
+      sdk.wsfe.getLastVoucher.mockRejectedValue(error);
+      sdk.wsfe.getQuotation.mockRejectedValue(error);
+      sdk.wsfex.getCmp.mockRejectedValue(error);
+      sdk.wsaa.login.mockRejectedValue(error);
+    };
+
+    it.each<[string, string[]]>([
+      ['ultimos fc', ['ultimos', 'fc']],
+      ['consultar fc', ['consultar', 'fc', '9']],
+      ['ultimos fe', ['ultimos', 'fe', '--pv', '4']],
+      ['consultar fe', ['consultar', 'fe', '9', '--pv', '4']],
+      ['parametros cotizacion', ['parametros', 'cotizacion', 'USD']],
+    ])('%s: TRANSIENT_ERROR', async (_name, args) => {
+      fail(new Error('(502) Transacción Activa'));
+      expect(await failure(args)).toEqual({
+        codigo: 'TRANSIENT_ERROR',
+        detalles: null,
+        error: '(502) Transacción Activa',
+        sugerencia: `ARCA devolvió una transacción activa. Esperá unos segundos y repetí la consulta. ${VERIFY}`,
+      });
+
+      fail(new Error('ns1:coe.alreadyAuthenticated'));
+      expect(await failure(args)).toMatchObject({
+        codigo: 'TRANSIENT_ERROR',
+        sugerencia: `ARCA todavía tiene abierta una sesión anterior. Esperá un par de minutos y repetí la consulta. ${VERIFY}`,
+      });
+    });
+
+    it('ultimos fc: ARCA_LAST_VOUCHER_ERROR', async () => {
+      sdk.wsfe.getLastVoucher.mockResolvedValue({ errors: { err: [{ code: 501, msg: 'Error interno' }] } });
+
+      expect(await failure(['ultimos', 'fc'])).toEqual({
+        codigo: 'ARCA_LAST_VOUCHER_ERROR',
+        detalles: { errores: [{ code: 501, codigo: 501, mensaje: 'Error interno', msg: 'Error interno' }] },
+        error: 'ARCA devolvió un error al pedir el último comprobante del punto de venta 3: 501 Error interno',
+        sugerencia: `Revisá el mensaje de ARCA: si es pasajero, volvé a consultar en unos minutos; si no, corregí lo que dice. Si se repite, no insistas. ${VERIFY}`,
+      });
+    });
+
+    it('sin cambios al facturar: antes de la llamada que emite, no se emitió nada', async () => {
+      sdk.wsfe.getLastVoucher.mockResolvedValue({ errors: { err: [{ code: 501, msg: 'x' }] } });
+      expect(await failure([...FC, '--emitir'])).toMatchObject({
+        codigo: 'ARCA_LAST_VOUCHER_ERROR',
+        sugerencia: 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.',
+      });
+
+      sdk.wsfe.getLastVoucher.mockRejectedValue(new Error('Transacción Activa'));
+      expect(await failure([...FC, '--emitir'])).toMatchObject({
+        codigo: 'TRANSIENT_ERROR',
+        sugerencia: expect.stringContaining('reintentá la emisión'),
+      });
+    });
   });
 
   it('consultar con un error transitorio sigue siendo TRANSIENT_ERROR', () => {

@@ -343,7 +343,7 @@ arcli fc ayuda
 - **Severidad:** frecuente
 - **Síntoma:** error ARCA con referencia a transacción activa.
 - **Causa:** ARCA informa una operación transitoria en curso.
-- **Solución:** esperar unos segundos y reintentar antes de modificar el comprobante. Al emitir, se lance o venga en la respuesta (502), sale como `EMISSION_UNCERTAIN`: no reintentes, verificá primero con `arcli ultimos` (ver abajo).
+- **Solución:** esperar unos segundos y reintentar antes de modificar el comprobante; si apareció en una consulta, repetir la consulta y no la emisión. Al emitir, se lance o venga en la respuesta (502), sale como `EMISSION_UNCERTAIN`: no reintentes, verificá primero con `arcli ultimos` (ver abajo).
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md), [Limitaciones actuales](limitations.md)
 
 ### No se pudo confirmar la emisión (`EMISSION_UNCERTAIN`)

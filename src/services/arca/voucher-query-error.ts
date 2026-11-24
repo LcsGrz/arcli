@@ -1,3 +1,4 @@
+import { ARCA_QUERY_ERROR_SUGGESTION, VERIFY_BEFORE_RETRY } from '../../lib/errors/query-error';
 import { ISSUES_URL } from '../../lib/links';
 import { VoucherQueryError } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
@@ -23,11 +24,9 @@ export function voucherQueryError(query: {
       ? `ARCA devolvió un error al consultar ${voucher}: ${reasons}`
       : `ARCA devolvió una respuesta inesperada al consultar ${voucher}.`,
     { errores: toDetailErrors(errors) },
-    `${
-      reasons
-        ? 'Revisá el mensaje de ARCA: si es pasajero, volvé a consultar en unos minutos; si no, corregí lo que dice.'
-        : 'Volvé a consultar en unos minutos.'
-    } Si se repite, no insistas. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.`,
+    reasons
+      ? ARCA_QUERY_ERROR_SUGGESTION
+      : `Volvé a consultar en unos minutos. Si se repite, no insistas. ${VERIFY_BEFORE_RETRY}`,
     reasons || 'respuesta inesperada',
   );
 }

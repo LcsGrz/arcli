@@ -9,6 +9,7 @@ import type { Arca } from '../../../services/arca/arca-sdk.types';
 import { ArcaVoucherHistoryGateway } from '../../../services/arca/arca-voucher-history.gateway';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
+import { formatCliError } from '../../error-output';
 import { missingNonWebServiceInvoiceNotice, pickExportVoucher, pickInvoice, pickNoteInvoice } from '../invoice-picker';
 import type { InteractiveSession } from '../session';
 
@@ -552,6 +553,46 @@ describe('pickExportVoucher', () => {
     expect(shown()).toContain('No se muestran 2 comprobantes');
     expect(shown()).toContain('00003-00000003 y 00003-00000002.');
     expect(shown()).not.toContain('No hay');
+  });
+
+  it('un error transitorio sale al menú sin hablar de emitir', async () => {
+    const gateway = exportGateway(0);
+
+    vi.spyOn(gateway, 'getVoucher').mockRejectedValue(new Error('Transacción Activa'));
+
+    const error: unknown = await pickExportVoucher(createSession([]), gateway, exportOptions).catch(
+      (reason: unknown) => reason,
+    );
+
+    expect(stripAnsi(formatCliError(error, false))).toContain('repetí la consulta');
+
+    vi.spyOn(gateway, 'getLastVoucherNumber').mockRejectedValue(new Error('Transacción Activa'));
+    expect(
+      formatCliError(
+        await pickExportVoucher(createSession([]), gateway, exportOptions).catch((reason: unknown) => reason),
+        true,
+      ),
+    ).toContain('repetí la consulta');
+  });
+
+  it('al buscar a mano, un error transitorio tampoco', async () => {
+    const gateway = exportGateway(0);
+    const original = gateway.getVoucher.bind(gateway);
+
+    vi.spyOn(gateway, 'getVoucher').mockImplementation(async (query) =>
+      query.number === 99 ? Promise.reject(new Error('Transacción Activa')) : original(query),
+    );
+    script = createScript([
+      [/Cuál/, 'Ingresar el número a mano'],
+      [/Punto de venta/, '3'],
+      [/Número/, '99'],
+    ]);
+
+    const error: unknown = await pickExportVoucher(createSession([]), gateway, exportOptions).catch(
+      (reason: unknown) => reason,
+    );
+
+    expect(formatCliError(error, true)).toContain('repetí la consulta');
   });
 
   it('si no se entiende ninguna y no hay más, solo ofrece buscarla a mano', async () => {

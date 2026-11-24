@@ -8,6 +8,6 @@ exit: 1
   "codigo": "TRANSIENT_ERROR",
   "detalles": null,
   "error": "ns1:coe.alreadyAuthenticated",
-  "sugerencia": "ARCA todavía tiene abierta una sesión anterior. Esperá un par de minutos y probá de nuevo, con los mismos datos."
+  "sugerencia": "ARCA todavía tiene abierta una sesión anterior. Esperá un par de minutos y repetí la consulta. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe."
 }
 
