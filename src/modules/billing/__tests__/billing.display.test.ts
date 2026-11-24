@@ -1,15 +1,15 @@
 import { stripVTControlCharacters } from 'node:util';
 import { describe, expect, it } from 'vitest';
 
-import type { INextVoucher } from '../../../services/arca/arca-sdk.types';
 import { formatPayloadTable, formatResultSummary } from '../billing.display';
 import { formatBillingResultAsText } from '../billing.text';
 import type { BillingExecutionResult } from '../billing.types.internal';
 import { getVoucherKindByShortcut } from '../voucher-kind-map';
+import type { UnnumberedVoucherRequest } from '../voucher-request';
 
 function createResult(
   shortcut: string,
-  payload: Partial<INextVoucher>,
+  payload: Partial<UnnumberedVoucherRequest>,
   overrides: Partial<BillingExecutionResult> = {},
 ): BillingExecutionResult {
   const voucherKind = getVoucherKindByShortcut(shortcut);

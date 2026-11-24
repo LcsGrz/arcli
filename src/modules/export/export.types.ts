@@ -138,12 +138,6 @@ export interface ExportAssociatedVoucherPayload {
   readonly Cbte_tipo: number;
 }
 
-/** Fila de `Opcionales` (`ClsFEX_Opcional`). */
-interface ExportOptionalPayload {
-  readonly Id: string;
-  readonly Valor: string;
-}
-
 export interface ExportItemPayload {
   readonly Pro_bonificacion: number;
   readonly Pro_codigo: string;
@@ -190,7 +184,6 @@ export interface ExportVoucherPayload {
   readonly Moneda_Id: string;
   readonly Obs: string;
   readonly Obs_comerciales: string;
-  readonly Opcionales?: { Opcional: ExportOptionalPayload[] };
   /**
    * Vacio en los tipos de exportacion 2 y 4: ARCA pide el campo asi (error 1550). En el resto va `N` sin
    * permisos de embarque y `S` cuando el comprobante los informa.

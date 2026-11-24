@@ -1,4 +1,3 @@
-import type { IIva } from '../../services/arca/arca-sdk.types';
 import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
 import { formatVoucherNumber } from '../vouchers/voucher-number';
 
@@ -20,12 +19,13 @@ import {
 import type { BillingExecutionResult } from './billing.types.internal';
 import { ARCA_LOCAL_CURRENCY_CODE } from './currency-codes';
 import { getVoucherKindByArcaType } from './voucher-kind-map';
+import type { VoucherRequestIva } from './voucher-request';
 
 /** Una fila sin valor no se muestra (renderKeyValueRows). */
 type Row = readonly [string, string | undefined];
 
 /** Una alicuota: su tasa. Varias: el desglose de neto e IVA de cada una. */
-function formatIvaRows(iva: readonly IIva[], currency: string): Row[] {
+function formatIvaRows(iva: readonly VoucherRequestIva[], currency: string): Row[] {
   if (iva.length === 0) {
     return [];
   }

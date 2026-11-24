@@ -11,11 +11,4 @@ export type {
 } from '@arcasdk/core';
 
 // La raiz del SDK no exporta los tipos del comprobante de wsfe: es la unica ruta interna que se importa.
-export type {
-  ICbtesAsoc,
-  IIva,
-  INextVoucher,
-  IOpcional,
-  IPeriodoAsoc,
-  IVoucher,
-} from '@arcasdk/core/lib/domain/types/voucher.types';
+export type { IVoucher } from '@arcasdk/core/lib/domain/types/voucher.types';

@@ -1,8 +1,9 @@
-import type { CreateVoucherResultDto, INextVoucher, IVoucher } from '../../services/arca/arca-sdk.types';
+import type { CreateVoucherResultDto } from '../../services/arca/arca-sdk.types';
 import type { ArcliEnvironment } from '../config/config.schemas';
 import type { PdfOutcome } from '../pdf/pdf.types';
 
 import type { VoucherKindDefinition } from './billing.types';
+import type { UnnumberedVoucherRequest, VoucherRequest } from './voucher-request';
 
 /** Quien emite y donde: lo que facturar necesita del perfil de ARCA. */
 export interface BillingRuntime {
@@ -13,7 +14,7 @@ export interface BillingRuntime {
 
 export interface BillingGateway {
   /** Emite en ARCA. Un error aca puede haber dejado el comprobante autorizado. */
-  createVoucher(voucher: IVoucher): Promise<CreateVoucherResultDto>;
+  createVoucher(voucher: VoucherRequest): Promise<CreateVoucherResultDto>;
   /** Autentica y pide el ultimo numero autorizado. Un error aca no emitio nada. */
   getNextVoucherNumber(pointOfSale: number, voucherType: number): Promise<number>;
   /**
@@ -44,7 +45,7 @@ export interface BillingResponseSummary {
 export interface BillingExecutionResult {
   readonly dryRun: boolean;
   readonly environment: 'produccion' | 'testing';
-  readonly payload: INextVoucher;
+  readonly payload: UnnumberedVoucherRequest;
   /** Solo si se intento generar el PDF. */
   readonly pdf?: PdfOutcome;
   /** Solo para mostrar: ARCA no recibe el nombre del receptor. */
@@ -53,7 +54,7 @@ export interface BillingExecutionResult {
     readonly name?: string;
   };
   readonly response: BillingResponseSummary;
-  /** El numero con que se envio a ARCA; no esta en `payload` porque el SDK lo asigna al emitir. Solo si se emitio. */
+  /** El numero con que se envio a ARCA; no esta en `payload` porque se pide al emitir. Solo si se emitio. */
   readonly voucherNumber?: number;
   readonly voucherKind: VoucherKindDefinition;
   readonly warnings?: readonly string[];

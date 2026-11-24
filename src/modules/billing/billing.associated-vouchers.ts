@@ -1,7 +1,6 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { assertRules } from '../../lib/rules/rules';
-import type { ICbtesAsoc } from '../../services/arca/arca-sdk.types';
 
 import { parseBillingDateInput } from './billing.dates';
 import { ASSOCIATED_NOT_AFTER_NOTE_RULE } from './billing.rules';
@@ -9,6 +8,7 @@ import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherFamily, VoucherKindDefinition } from './billing.types';
 import { getVoucherKindByArcaType, getVoucherKindByFamilyAndLetter, isNote, isReceipt } from './voucher-kind-map';
 import { formatVoucherLabel, formatVoucherSubject, formatVoucherWithArticle } from './voucher-names';
+import type { VoucherRequestAssociated } from './voucher-request';
 
 interface ResolveAssociatedVoucherOptions {
   readonly billingDate: string;
@@ -20,7 +20,9 @@ interface ResolveAssociatedVoucherOptions {
   readonly voucherKind: VoucherKindDefinition;
 }
 
-export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptions): ICbtesAsoc[] | undefined {
+export function resolveAssociatedVouchers(
+  options: ResolveAssociatedVoucherOptions,
+): VoucherRequestAssociated[] | undefined {
   const { billingDate, emitterCuit, input, requireVoucherKind, today, voucherKind } = options;
 
   if (!isNote(voucherKind)) {

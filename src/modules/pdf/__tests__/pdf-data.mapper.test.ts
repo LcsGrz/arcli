@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import type { INextVoucher } from '../../../services/arca/arca-sdk.types';
 import type { BillingExecutionResult } from '../../billing/billing.types.internal';
 import { getVoucherKindByShortcut } from '../../billing/voucher-kind-map';
+import type { UnnumberedVoucherRequest } from '../../billing/voucher-request';
 import { EXPORT_VOUCHER_KIND, type ExportExecutionResult } from '../../export/export.types';
 import { mapBillingResultToPdfData, mapExportResultToPdfData } from '../pdf-data.mapper';
 import { resolvePdfIssuer } from '../pdf-issuer';
@@ -15,7 +15,7 @@ const ISSUER = resolvePdfIssuer(
   'a',
 );
 
-function createResult(shortcut: string, payload: Partial<INextVoucher>): BillingExecutionResult {
+function createResult(shortcut: string, payload: Partial<UnnumberedVoucherRequest>): BillingExecutionResult {
   const voucherKind = getVoucherKindByShortcut(shortcut);
 
   if (!voucherKind) {
@@ -72,7 +72,7 @@ const FACTURA_A = {
   ImpTotConc: 50,
   ImpTotal: 1360,
   Iva: [{ BaseImp: 1000, Id: 5, Importe: 210 }],
-} satisfies Partial<INextVoucher>;
+} satisfies Partial<UnnumberedVoucherRequest>;
 
 describe('mapBillingResultToPdfData: importes por letra (TEST-18)', () => {
   it('en la A, el neto gravado es ImpNeto, no el total, y exento y no gravado van aparte', () => {

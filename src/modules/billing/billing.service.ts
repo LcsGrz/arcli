@@ -3,12 +3,11 @@ import { InputValidationError } from '../../lib/errors/app-error';
 import { errorText } from '../../lib/files/file-error';
 import { assertRules } from '../../lib/rules/rules';
 import type { Clock } from '../../lib/time/clock';
-import type { ICbtesAsoc, IIva, INextVoucher } from '../../services/arca/arca-sdk.types';
 import { MISSING_POINT_OF_SALE_MESSAGE } from '../config/config.schemas';
 import { evaluateFceObligation, type FceObligationGateway, shouldCheckFceObligation } from '../fce/fce-obligation';
 import type { PadronGateway } from '../padron/padron';
 
-import { conceptCode, CONSUMER_DOCUMENT_NUMBER, documentTypeCode, ivaConditionCode } from './arca-codes';
+import { conceptCode, documentTypeCode, ivaConditionCode } from './arca-codes';
 import { resolveTaxAmounts, sumTaxAmounts } from './billing.amounts';
 import { resolveAssociatedPeriod } from './billing.associated-period';
 import { resolveAssociatedVouchers } from './billing.associated-vouchers';
@@ -40,6 +39,7 @@ import { createDryRunResponse, mapBillingResponse } from './billing-response';
 import { findArcaCurrency, resolveBillingCurrencyCode } from './currency-codes';
 import { getVoucherKindByShortcut } from './voucher-kind-map';
 import { formatVoucherSubject } from './voucher-names';
+import type { UnnumberedVoucherRequest } from './voucher-request';
 
 export interface BillingExecutionOptions {
   readonly gateway: BillingGateway;
@@ -51,12 +51,6 @@ export interface BillingExecutionOptions {
   readonly preview?: Pick<BillingExecutionResult, 'payload'>;
   readonly runtime: BillingRuntime;
   readonly warnings?: readonly string[];
-}
-
-interface CliVoucherPayload extends Omit<INextVoucher, 'CbtesAsoc' | 'DocNro'> {
-  CbtesAsoc?: ICbtesAsoc[];
-  DocNro?: number;
-  Iva?: IIva[];
 }
 
 type ExchangeRateInput = Pick<
@@ -277,7 +271,7 @@ export class BillingService {
     input: BillingCommandInput,
     runtime: BillingRuntime,
     voucherKind = this.requireVoucherKind(input.shortcut),
-  ): INextVoucher {
+  ): UnnumberedVoucherRequest {
     // Resguardo: un IVA receptor que esperaba al padron nunca llega a ARCA con el valor provisorio.
     if (input.ivaConditionSource === 'missing') {
       throw new InputValidationError(missingIvaReceiverMessage());
@@ -300,7 +294,8 @@ export class BillingService {
     const currencyFields = resolveBillingCurrencyFields(input);
     const taxAmounts = resolveTaxAmounts(input, voucherKind, today);
 
-    validateDocumentIdentity(input, voucherKind, { emitterCuit: runtime.cuit, today });
+    const documentNumber = validateDocumentIdentity(input, voucherKind, { emitterCuit: runtime.cuit, today });
+
     validateUncategorizedReceiver(input, voucherKind, taxAmounts.netAmount + taxAmounts.ivaAmount);
     validateIvaConditionForVoucher(input.ivaCondition, voucherKind);
     // RG 5700/2025, con la cotizacion ya resuelta: la misma regla que el asistente.
@@ -310,7 +305,10 @@ export class BillingService {
       voucherKind,
     });
 
-    const payload: CliVoucherPayload = {
+    const associatedPeriod = resolveAssociatedPeriod(input, voucherKind, dateRange.billingDate, today);
+    const optionals = resolveElectronicCreditOptionals(input, voucherKind);
+
+    return {
       CantReg: 1,
       CbteFch: dateRange.billingDate,
       CbteTipo: voucherKind.arcaType,
@@ -329,42 +327,14 @@ export class BillingService {
       MonCotiz: currencyFields.MonCotiz,
       MonId: currencyFields.MonId,
       PtoVta: pointOfSale,
+      // El orden de las claves es el de `solicitud` en el JSON.
+      ...(currencyFields.CanMisMonExt ? { CanMisMonExt: currencyFields.CanMisMonExt } : {}),
+      ...(taxAmounts.iva ? { Iva: taxAmounts.iva } : {}),
+      DocNro: documentNumber,
+      ...(associatedVouchers ? { CbtesAsoc: associatedVouchers } : {}),
+      ...(associatedPeriod ? { PeriodoAsoc: associatedPeriod } : {}),
+      ...(optionals ? { Opcionales: optionals } : {}),
     };
-
-    if (currencyFields.CanMisMonExt) {
-      payload.CanMisMonExt = currencyFields.CanMisMonExt;
-    }
-
-    if (taxAmounts.iva) {
-      payload.Iva = taxAmounts.iva;
-    }
-
-    // Consumidor final va siempre con 0, se haya pasado `--cf` o no (REV-63): sin `DocNro`, la solicitud y la vista
-    // previa quedaban distintas a las de `--cf`. La validacion ya frena otro numero.
-    if (input.documentType === 'consumidor-final') {
-      payload.DocNro = CONSUMER_DOCUMENT_NUMBER;
-    } else if (typeof input.documentNumber === 'number') {
-      payload.DocNro = input.documentNumber;
-    }
-
-    if (associatedVouchers) {
-      payload.CbtesAsoc = associatedVouchers;
-    }
-
-    const associatedPeriod = resolveAssociatedPeriod(input, voucherKind, dateRange.billingDate, today);
-
-    if (associatedPeriod) {
-      payload.PeriodoAsoc = associatedPeriod;
-    }
-
-    const optionals = resolveElectronicCreditOptionals(input, voucherKind);
-
-    if (optionals) {
-      payload.Opcionales = optionals;
-    }
-
-    // El SDK tipa DocNro como obligatorio, pero el CLI permite omitirlo cuando el usuario no lo informa.
-    return payload as INextVoucher;
   }
 
   /** Hoy en Argentina (yyyymmdd), leido en cada operacion. */

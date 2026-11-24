@@ -7,12 +7,12 @@ import { BILLING_IVA_RATES, ivaConditionCode, ivaRateId } from '../../../modules
 import { listAllowedIvaConditions } from '../../../modules/billing/billing.iva-receptor';
 import type { BillingIvaCondition } from '../../../modules/billing/billing.schemas';
 import type { VoucherLetter } from '../../../modules/billing/billing.types';
+import type { VoucherRequest } from '../../../modules/billing/voucher-request';
 import { mapExportResponse } from '../../../modules/export/export.response';
 import type { ExportVoucherPayload } from '../../../modules/export/export.types';
 import { ArcaBillingGateway } from '../../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../../services/arca/arca-client.factory';
 import type { ArcaExportGateway } from '../../../services/arca/arca-export.gateway';
-import type { IVoucher } from '../../../services/arca/arca-sdk.types';
 import { loadArcaRuntime } from '../../arca-runtime';
 
 import { assertArcaTestingReady } from './arca-guard';
@@ -153,7 +153,7 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
     const pointOfSale = Number(request.PtoVta);
     const voucherType = Number(request.CbteTipo);
     const number = await billing.getNextVoucherNumber(pointOfSale, voucherType);
-    const voucher = { ...request, CantReg: 1, CbteDesde: number, CbteHasta: number } as unknown as IVoucher;
+    const voucher = { ...request, CantReg: 1, CbteDesde: number, CbteHasta: number } as unknown as VoucherRequest;
     const { cae, response } = await billing.createVoucher(voucher);
     const result = response as unknown as Record<string, unknown>;
     const detail = (result.FeDetResp as { FECAEDetResponse?: Array<Record<string, unknown>> } | undefined)

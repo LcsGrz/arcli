@@ -2,10 +2,12 @@ import { asArray } from '../../lib/arrays/as-array';
 import { addDaysToArcaDate, formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
+import type { VoucherRequest } from '../../modules/billing/voucher-request';
 
 import { toDetailErrors, withDeprecatedErrors } from './arca-error-details';
 import type { Arca, CreateVoucherResultDto, IVoucher } from './arca-sdk.types';
 import { getLastAuthorizedNumber, rethrowIfWsfeNotAuthorized } from './last-voucher';
+import type { SdkRequest } from './sdk-request';
 
 /** Tope de numeracion de ARCA; el SDK lo valida igual en `createNextVoucher`. */
 const MAX_VOUCHER_NUMBER = 99_999_999;
@@ -28,7 +30,7 @@ export class ArcaBillingGateway implements BillingGateway {
   }
 
   /** Segundo paso: la llamada que emite. Si falla, ARCA pudo haber autorizado el comprobante igual. */
-  public async createVoucher(voucher: IVoucher): Promise<CreateVoucherResultDto> {
+  public async createVoucher(voucher: SdkRequest<VoucherRequest, IVoucher>): Promise<CreateVoucherResultDto> {
     return this.arca.electronicBillingService.createVoucher(voucher);
   }
 

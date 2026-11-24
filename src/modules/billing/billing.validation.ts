@@ -3,6 +3,7 @@ import { parseCuit } from '../../lib/identity/cuit';
 import { parseDni } from '../../lib/identity/dni';
 import { assertRules } from '../../lib/rules/rules';
 
+import { CONSUMER_DOCUMENT_NUMBER } from './arca-codes';
 import { type BillingRuleContext, formatDocumentFlag, RECEIVER_NOT_EMITTER_RULE } from './billing.rules';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
@@ -137,11 +138,12 @@ export function validateUncategorizedReceiver(
   );
 }
 
+/** Valida el documento del receptor y devuelve su numero, el que va a ARCA. */
 export function validateDocumentIdentity(
   input: BillingCommandInput,
   voucherKind: VoucherKindDefinition,
   { emitterCuit, today }: Pick<BillingRuleContext, 'emitterCuit' | 'today'>,
-): void {
+): number {
   validateDocumentTypeForVoucher(input, voucherKind);
 
   // Consumidor final con documento 0 y numero obligatorio en el resto: ARCA 10015 (WSFEv1 v4.7). Que el IVA receptor
@@ -159,7 +161,9 @@ export function validateDocumentIdentity(
       );
     }
 
-    return;
+    // Consumidor final va siempre con 0, se haya pasado `--cf` o no (REV-63): sin `DocNro`, la solicitud y la vista
+    // previa quedaban distintas a las de `--cf`. La validacion ya freno otro numero.
+    return CONSUMER_DOCUMENT_NUMBER;
   }
 
   if (typeof input.documentNumber !== 'number') {
@@ -182,9 +186,11 @@ export function validateDocumentIdentity(
   }
 
   // Propia (ver `parseDni`): de 6 a 8 dígitos.
-  const dni = input.documentType === 'dni' ? parseDni(input.documentNumber ?? '') : undefined;
+  const dni = input.documentType === 'dni' ? parseDni(input.documentNumber) : undefined;
 
   if (dni && !dni.ok) {
     throw new InputValidationError(`\`--dni\` debe tener ${dni.reason} en ${formatVoucherWithArticle(voucherKind)}.`);
   }
+
+  return input.documentNumber;
 }
