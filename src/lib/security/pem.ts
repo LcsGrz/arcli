@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 
 import { ConfigurationError } from '../errors/app-error';
+import { withFilePath } from '../files/file-error';
 import { maskPath } from '../paths/mask-path';
 
 type PemKind = 'certificado' | 'clave privada';
@@ -56,7 +57,7 @@ function ensurePemFormat(content: string, filePath: string, label: PemKind): voi
 export function readPemFile(filePath: string, label: PemKind): string {
   ensurePathExists(filePath, label);
 
-  const content = readFileSync(filePath, 'utf8');
+  const content = withFilePath(filePath, () => readFileSync(filePath, 'utf8'));
 
   ensurePemFormat(content, filePath, label);
 

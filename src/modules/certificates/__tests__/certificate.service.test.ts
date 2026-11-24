@@ -1,4 +1,3 @@
-// Tests primero: en rojo hasta el arreglo (ERR-4 y ERR-8).
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -208,7 +207,7 @@ describe('CertificateService', () => {
       throw new Error('debería fallar');
     }
 
-    it.fails('si es una carpeta dice que no la pudo leer, con la ruta abreviada', () => {
+    it('si es una carpeta dice que no la pudo leer, con la ruta abreviada', () => {
       const { files, other, root, service } = importedWithOther();
 
       rmSync(files.key);
@@ -224,7 +223,7 @@ describe('CertificateService', () => {
       expect(JSON.stringify(error)).not.toContain(root);
     });
 
-    it.fails('con un pedido que tampoco corresponde, dice las dos cosas', () => {
+    it('con un pedido que tampoco corresponde, dice las dos cosas', () => {
       const { files, other, service } = importedWithOther();
 
       service.generate({ environment: 'testing' });
@@ -249,7 +248,7 @@ describe('CertificateService', () => {
       });
     });
 
-    it.runIf(process.platform !== 'win32' && process.getuid?.() !== 0).fails(
+    it.runIf(process.platform !== 'win32' && process.getuid?.() !== 0)(
       'con la carpeta sin permiso, no dice que falta armar el pedido',
       () => {
         const { root, service } = setup();

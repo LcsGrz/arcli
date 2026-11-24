@@ -1,4 +1,3 @@
-// Tests primero: en rojo hasta el arreglo (ERR-4 y ERR-8).
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -345,7 +344,7 @@ describe('exportBillingPdf', () => {
     expect(toPdfFailure(new Error('boom'))).toEqual({ error: { code: 'PDF_GENERATION_ERROR', message: 'boom' } });
   });
 
-  it.fails('un error de archivo sale con la ruta abreviada y qué hacer, con el mismo código', () => {
+  it('un error de archivo sale con la ruta abreviada y qué hacer, con el mismo código', () => {
     const path = '/Users/ana/Documents/facturas';
     const error = Object.assign(new Error(`EACCES: permission denied, mkdir '${path}'`), {
       code: 'EACCES',

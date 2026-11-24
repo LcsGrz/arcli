@@ -1,7 +1,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
 import { AppError, ConfigurationError, InputValidationError } from '../../lib/errors/app-error';
-import { maskPath } from '../../lib/paths/mask-path';
+import { fileErrorReason } from '../../lib/files/file-error';
+import { maskPath, shortenPath } from '../../lib/paths/mask-path';
 import {
   type ArcaCertificateInfo,
   certificateMatchesKey,
@@ -303,8 +304,22 @@ export class CertificateService {
     const configuredKeyPath = config.key[environment];
     const configuredKey = configuredKeyPath ? readKey(configuredKeyPath) : undefined;
 
-    if (configuredKeyPath && configuredKey && certificateMatchesKey(pem, configuredKey)) {
+    if (configuredKeyPath && configuredKey?.content && certificateMatchesKey(pem, configuredKey.content)) {
       return { path: configuredKeyPath, pending: false };
+    }
+
+    // Sin permiso en la carpeta, `readIfExists` da lo mismo que si no hubiera pedido.
+    const problem =
+      configuredKey?.problem ?? (pendingKey === undefined ? readKey(files.pendingKey).problem : undefined);
+
+    if (problem) {
+      throw certificateError(
+        'CERTIFICATE_KEY_MISMATCH',
+        pendingKey
+          ? `El certificado no corresponde a la clave del último pedido, y no se pudo leer ${problem}.`
+          : `No se pudo leer ${problem}.`,
+        `Revisá que tu usuario tenga permiso para leer ese archivo y su carpeta, y volvé a importar el certificado. Si esa clave se perdió, armá otro pedido con \`arcli certificado generar --${environment}\`.`,
+      );
     }
 
     throw certificateError(
@@ -317,10 +332,15 @@ export class CertificateService {
   }
 }
 
-function readKey(path: string): string | undefined {
+/** Una clave que no se puede leer (permisos, es una carpeta) no es una que falta: `problem` dice cual y por que. */
+function readKey(path: string): { readonly content?: string; readonly problem?: string } {
   try {
-    return readFileSync(path, 'utf8');
-  } catch {
-    return undefined;
+    return { content: readFileSync(path, 'utf8') };
+  } catch (error) {
+    const { code } = error as NodeJS.ErrnoException;
+
+    return code === 'ENOENT' || code === 'ENOTDIR'
+      ? {}
+      : { problem: `la clave privada ${shortenPath(path)}: ${fileErrorReason(code) ?? code ?? 'error desconocido'}` };
   }
 }

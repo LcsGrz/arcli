@@ -2,6 +2,7 @@ import { type Command, CommanderError } from 'commander';
 import { ZodError } from 'zod';
 
 import { AppError, HELP_SUGGESTION, InputIssuesError } from '../lib/errors/app-error';
+import { describeFileError } from '../lib/files/file-error';
 import { describeZodIssues } from '../modules/billing/billing.zod-errors';
 import {
   formatAppError,
@@ -19,15 +20,25 @@ import { describeEmittedInThisRun } from './emitted-vouchers';
 import { readJsonDefault } from './global-options';
 import { isPromptCancellation } from './interactive/prompts';
 
-/** Cualquier error, como panel o JSON. Los de un esquema los describe billing: la UI no conoce sus campos. */
+/**
+ * Cualquier error, como panel o JSON. Los de un esquema los describe billing: la UI no conoce sus campos. Los de un
+ * archivo, que Node da en ingles y con la ruta completa, se traducen aca, para los comandos y el asistente.
+ */
 export function formatCliError(error: unknown, useJson: boolean): string {
   if (error instanceof InputIssuesError) {
     return formatInputIssues(error.issues, useJson, { message: error.message, suggestion: error.suggestion });
   }
 
-  return error instanceof ZodError
-    ? formatInputIssues(describeZodIssues(error), useJson)
-    : formatAppError(error, useJson);
+  if (error instanceof ZodError) {
+    return formatInputIssues(describeZodIssues(error), useJson);
+  }
+
+  const fileError = describeFileError(error);
+
+  return formatAppError(
+    fileError ? new AppError(fileError.message, { code: 'UNEXPECTED_ERROR', suggestion: fileError.suggestion }) : error,
+    useJson,
+  );
 }
 
 /**

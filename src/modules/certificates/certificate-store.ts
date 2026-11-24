@@ -1,6 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { withFilePath } from '../../lib/files/file-error';
 import { restrictFolderToOwner } from '../../lib/files/restrict-to-owner';
 import type { ArcliEnvironment } from '../config/config.schemas';
 
@@ -54,7 +55,7 @@ export function writePrivateFile(path: string, content: string): void {
 }
 
 export function readIfExists(path: string): string | undefined {
-  return existsSync(path) ? readFileSync(path, 'utf8') : undefined;
+  return existsSync(path) ? withFilePath(path, () => readFileSync(path, 'utf8')) : undefined;
 }
 
 /** Mueve `from` a `to` pisando `to`; si `from` no existe, no hace nada. */

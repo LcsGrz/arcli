@@ -1,6 +1,8 @@
 import { writeFileSync } from 'node:fs';
 import { extname } from 'node:path';
 
+import { withFilePath } from './file-error';
+
 const MAX_ATTEMPTS = 1000;
 
 function withSuffix(path: string, attempt: number): string {
@@ -22,7 +24,7 @@ export function writeNewFile(path: string, data: Uint8Array): string {
     const candidate = withSuffix(path, attempt);
 
     try {
-      writeFileSync(candidate, data, { flag: 'wx' });
+      withFilePath(candidate, () => writeFileSync(candidate, data, { flag: 'wx' }));
 
       return candidate;
     } catch (error) {

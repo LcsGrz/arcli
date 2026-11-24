@@ -163,8 +163,8 @@ describe('CUIT', () => {
     expect(await profile.runJsonError(['estado'])).toEqual({
       codigo: 'INPUT_VALIDATION_ERROR',
       detalles: [{ mensaje: 'El CUIT debe tener 11 dígitos', ruta: ['cuit'] }],
-      error: 'Hay parámetros inválidos o incompletos en la entrada.',
-      sugerencia: null,
+      error: 'La configuración guardada tiene un dato inválido. `cuit`: el CUIT debe tener 11 dígitos.',
+      sugerencia: 'Corregilo con `arcli config establecer cuit <valor>` o borralo con `arcli config eliminar cuit`.',
     });
     expect(profile.stdout).toBe('');
   });

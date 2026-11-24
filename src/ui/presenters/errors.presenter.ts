@@ -1,6 +1,7 @@
 import { AppError, HELP_SUGGESTION } from '../../lib/errors/app-error';
 import { isQueryError, VERIFY_BEFORE_RETRY } from '../../lib/errors/query-error';
 import { ISSUES_URL } from '../../lib/links';
+import { shortenPath } from '../../lib/paths/mask-path';
 import { normalizeSearchText } from '../../lib/text/search';
 import { errorPanel } from '../components/errorPanel';
 import { renderJson } from '../primitives/renderJson';
@@ -130,7 +131,10 @@ function formatErrorDetails(details: Record<string, unknown> | undefined, said: 
   // en texto se verian como "[object Object]" y ya estan en el mensaje.
   return Object.entries(details)
     .filter(([, value]) => value !== null && value !== undefined && value !== '' && typeof value !== 'object')
-    .filter(([, value]) => !alreadySaid(said, value))
+    .filter(
+      ([key, value]) =>
+        !alreadySaid(said, key === 'path' ? shortenPath(String(value)) : value) && !alreadySaid(said, value),
+    )
     .map(([key, value]) => `${bold(`${DETAIL_LABELS[key] ?? key}:`)} ${String(value)}`);
 }
 

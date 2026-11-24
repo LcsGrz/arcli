@@ -1,4 +1,3 @@
-// Tests primero: en rojo hasta el arreglo (ERR-4 y ERR-8).
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -136,7 +135,7 @@ describe('config.service', () => {
     }
   });
 
-  it.fails('fixes a config that was already broken by setting or deleting the bad key', () => {
+  it('fixes a config that was already broken by setting or deleting the bad key', () => {
     const service = createService();
 
     try {

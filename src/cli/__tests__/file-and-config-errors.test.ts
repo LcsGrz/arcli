@@ -1,9 +1,14 @@
-// Tests primero: en rojo hasta el arreglo (ERR-4 y ERR-8).
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  createSelfSignedCertificate,
+  OPENSSL_WARM_UP_TIMEOUT_MS,
+  removeSelfSignedCertificates,
+  type SelfSignedCertificate,
+} from '../../lib/security/__tests__/self-signed-certificate';
 import { stripAnsi } from '../../ui';
 import { formatCliError, reportCliError } from '../error-output';
 import { showAssistantError } from '../interactive/show-assistant-error';
@@ -14,6 +19,7 @@ import { createProgram } from '../program';
 /** Root puede con todo y Windows no tiene estos permisos. */
 const withPermissions = process.platform !== 'win32' && process.getuid?.() !== 0;
 
+let certificate: SelfSignedCertificate;
 let directory = '';
 
 interface JsonError {
@@ -57,6 +63,21 @@ function saveConfig(config: unknown): string {
   return path;
 }
 
+/** La E arma el perfil antes de leer el archivo: necesita CUIT y certificado. */
+function saveProfile(): void {
+  saveConfig({
+    cert: { testing: certificate.certPath },
+    cuit: '20123456786',
+    key: { testing: certificate.keyPath },
+  });
+}
+
+beforeAll(() => {
+  certificate = createSelfSignedCertificate(365);
+}, OPENSSL_WARM_UP_TIMEOUT_MS);
+
+afterAll(removeSelfSignedCertificates);
+
 beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), 'arcli-archivos-'));
   vi.stubEnv('ARCLI_CONFIG_DIR', directory);
@@ -81,7 +102,7 @@ const COMMANDS: ReadonlyArray<readonly [string, string[]]> = [
 
 describe('config guardada con datos inválidos (ERR-4)', () => {
   describe.each(COMMANDS)('%s', (_name, args) => {
-    it.fails.each([
+    it.each([
       [{ cuit: '123' }, 'cuit', 'el CUIT debe tener 11 dígitos.', 'El CUIT debe tener 11 dígitos', ['cuit']],
       [
         { entornoPorDefecto: 'x' },
@@ -113,7 +134,7 @@ describe('config guardada con datos inválidos (ERR-4)', () => {
       expect(text).not.toContain('PorDefecto');
     });
 
-    it.fails('varias a la vez: las nombra, y como de a una no se pueden guardar, manda al archivo', async () => {
+    it('varias a la vez: las nombra, y como de a una no se pueden guardar, manda al archivo', async () => {
       const path = saveConfig({ cuit: '123', entornoPorDefecto: 'x' });
       const { json } = await fail(...args);
 
@@ -134,7 +155,7 @@ describe('config guardada con datos inválidos (ERR-4)', () => {
     });
   });
 
-  it.fails.each([
+  it.each([
     [{ emisor: 'x' }, '`emisor`', 'arcli config establecer emisor.condicionIva <valor>'],
     [{ emisor: { logo: '' } }, '`emisor.logo`', 'arcli config eliminar emisor.logo'],
     [{ output: 3 }, '`emitir`, `json`, `bruto`', 'arcli config establecer emitir <valor>'],
@@ -152,7 +173,7 @@ describe('config guardada con datos inválidos (ERR-4)', () => {
     expect(json.sugerencia).toContain(command);
   });
 
-  it.fails('con una arreglada y otra rota en el archivo, no manda a un comando que tampoco puede guardar', async () => {
+  it('con una arreglada y otra rota en el archivo, no manda a un comando que tampoco puede guardar', async () => {
     const path = saveConfig({ cuit: '123', entornoPorDefecto: 'x' });
     const { json } = await fail('config', 'establecer', 'cuit', '20168598204');
 
@@ -208,13 +229,15 @@ describe('errores de archivos (ERR-8)', () => {
     expect(text).toContain('Sugerencia');
   }
 
-  it.fails('--cargar una carpeta, en A/B/C y en la E', async () => {
+  it('--cargar una carpeta, en A/B/C y en la E', async () => {
+    saveProfile();
+
     for (const command of ['fc', 'fe']) {
       expectFileError(await fail(command, '--cargar', directory), /^No se pudo leer \.\.\.\/.+: es una carpeta\.$/);
     }
   });
 
-  it.fails('config establecer key.testing con una carpeta', async () => {
+  it('config establecer key.testing con una carpeta', async () => {
     const folder = join(directory, 'clave');
 
     mkdirSync(folder);
@@ -224,17 +247,17 @@ describe('errores de archivos (ERR-8)', () => {
     );
   });
 
-  it.fails('config.json es una carpeta', async () => {
+  it('config.json es una carpeta', async () => {
     mkdirSync(join(directory, 'config.json'));
     expectFileError(await fail('config'), /^No se pudo leer \.\.\.\/.+\/config\.json: es una carpeta\.$/);
   });
 
-  it.runIf(withPermissions).fails('config.json sin permiso', async () => {
+  it.runIf(withPermissions)('config.json sin permiso', async () => {
     chmodSync(saveConfig({}), 0o000);
     expectFileError(await fail('config'), /^No se pudo abrir \.\.\.\/.+\/config\.json: no tenés permiso\.$/);
   });
 
-  it.runIf(withPermissions).fails('guardar con la carpeta de solo lectura', async () => {
+  it.runIf(withPermissions)('guardar con la carpeta de solo lectura', async () => {
     saveConfig({});
     chmodSync(directory, 0o500);
 
@@ -248,7 +271,7 @@ describe('errores de archivos (ERR-8)', () => {
     }
   });
 
-  it.runIf(withPermissions).fails('certificado generar y completado sin permiso de escritura', async () => {
+  it.runIf(withPermissions)('certificado generar y completado sin permiso de escritura', async () => {
     const certificates = join(directory, 'certificados');
 
     saveConfig({ cuit: '20168598204' });
@@ -274,7 +297,7 @@ describe('errores de archivos (ERR-8)', () => {
     });
   });
 
-  it.fails('el asistente muestra lo mismo', async () => {
+  it('el asistente muestra lo mismo', async () => {
     let shown = '';
 
     vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
@@ -296,7 +319,7 @@ describe('errores de archivos (ERR-8)', () => {
 });
 
 describe('--cargar con un JSON ilegible (H11)', () => {
-  it.fails.each([
+  it.each([
     ['una clave PEM', '-----BEGIN PRIVATE KEY-----\nMIIEsecreto', 'mal escrito en la línea 1, columna 2'],
     ['una coma de más', '{\n  "monto": 1,\n}', 'mal escrito en la línea 3, columna 1'],
     ['texto suelto', 'hola-secreto', 'mal escrito'],
@@ -306,6 +329,7 @@ describe('--cargar con un JSON ilegible (H11)', () => {
   ])('%s, en A/B/C y en la E', async (_name, content, reason) => {
     const path = join(directory, 'datos.json');
 
+    saveProfile();
     writeFileSync(path, content);
 
     for (const command of ['fc', 'fe']) {

@@ -1,3 +1,4 @@
+import { errorText } from '../../lib/files/file-error';
 import { isCertificateExpiringSoon, readCertificateExpiry } from '../../lib/security/certificate';
 import { readPemFile } from '../../lib/security/pem';
 import { listMissingIssuerKeys } from '../pdf/pdf-issuer';
@@ -98,7 +99,7 @@ function buildCertificateExpiryCheck(
   } catch (error) {
     return {
       category: 'warning',
-      detail: `No se pudo verificar el vencimiento del ${name}: ${error instanceof Error ? error.message : String(error)}`,
+      detail: `No se pudo verificar el vencimiento del ${name}: ${errorText(error)}`,
       label,
       section: 'certificados',
     };

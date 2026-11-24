@@ -1,3 +1,4 @@
+import { errorText } from '../../lib/files/file-error';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import {
@@ -64,7 +65,7 @@ function validateConfigValue(key: IssuerKey | 'condicionVenta', value: string): 
 
     return true;
   } catch (error) {
-    return error instanceof Error ? error.message : String(error);
+    return errorText(error);
   }
 }
 
