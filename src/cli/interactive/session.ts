@@ -28,6 +28,7 @@ import { type CliArcaRuntime, loadArcaRuntime } from '../arca-runtime';
 import { formatBillingOutputs } from '../commands/billing.command.output';
 import { formatEmissionQuestion, NOTHING_EMITTED_NOTICE } from '../emission-texts';
 import { recordEmission } from '../emitted-vouchers';
+import { withPendingSpinner } from '../pending-spinner';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
@@ -258,7 +259,9 @@ export async function previewAndEmit(
     ...rawInput,
     pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale,
   };
-  const previewed = await rejectedAsBack(() => previewBilling(session, entry, flowWarnings));
+  const previewed = await rejectedAsBack(() =>
+    withPendingSpinner('Consultando ARCA...', () => previewBilling(session, entry, flowWarnings)),
+  );
 
   if (previewed === BACK) {
     return BACK;

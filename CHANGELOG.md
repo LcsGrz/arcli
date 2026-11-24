@@ -69,6 +69,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Notas:** una nota `E` con otro cliente, país o incoterm que su asociado ya no toma su domicilio, ID impositivo, CUIT ni descripción (#282).
 - **Config:** `config establecer cbu` con otro CBU borra el `aliasCbu` del anterior, y `config eliminar cbu` también; lo avisan (#282, #284).
 - **Notas:** un flag del comprobante o del período asociado gana al otro del JSON, y una punta del período conserva la otra (#282).
+- **Salida:** A, B, C, FCE, recibos y notas muestran "Consultando ARCA..." mientras se consulta antes de la vista previa, como la `E` (#283).
 - **Fechas:** en un lote que cruza la medianoche, `hoy` y las demás fechas relativas son del mismo día en todos los comprobantes (#282).
 
 <details><summary>Detalle</summary>
@@ -91,6 +92,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 **Asociado de las notas.** Si `--ac`, `--at`, `--ar` o `--apv` apuntan a otro comprobante que el del archivo, su `fecha` y su `cuit` no van: pasá `--afecha` y `--acuit` si hacen falta. Además descartan `periodoAsociado`, y `--periodo-desde` y `--periodo-hasta` descartan `comprobanteAsociado`; antes, juntos eran un error. `--acuit` o `--afecha` solos no eligen. Con una sola punta del período en los flags, la otra sale del archivo; antes se perdía.
 
+**Consultando ARCA.** Con el padrón, la cotización, el asociado de una nota o el régimen FCE, los comandos y el asistente quedaban sin señal hasta la vista previa. Ahora giran con "Consultando ARCA..." si hay una consulta en curso. No aparece con `--json` ni sin terminal.
+
 **Moneda y actividad de exportación en la config.** La moneda lista las monedas de ARCA, que se buscan por nombre, código de ARCA o ISO (`usd`), y elegir una guarda el código de ARCA (`DOL`), como el default `PES`. La actividad lista la tabla de WSFEX, consultada como en `arcli fe`: hacen falta el CUIT y el certificado y la clave de facturación del entorno, y el de exportación se usa si está configurado; sin eso o si ARCA no responde, se escribe el código como antes. Sin valor guardado, la lista arranca en "Dejar sin configurar": Enter ya no guarda la primera opción sin elegirla, también en la condición de venta. Lo escrito se valida como `arcli config establecer`, y las claves no cambian.
 
 </details>
@@ -110,6 +113,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Facturas:** si la medianoche pasa en "¿Emitimos?", se emite lo que mostró la vista previa, con sus fechas, como en la `E` (#274).
 - **Facturas:** una respuesta sin CAE ni rechazo, o con un error interno de ARCA, sale como `EMISSION_UNCERTAIN`, y con CAE y un error, como emitido (#273).
 - **Factura E:** en texto, la `E` y sus notas muestran el CAE antes de preguntar, instalar y generar el PDF, como A, B y C (#283).
+- **PDF:** en la `E`, "Generando PDF..." ya no gira sobre la pregunta de instalar el plugin (#283).
 - **Facturas:** un evento u observación con otra forma ya no pierde el CAE; si no se sabe si lo hay, sale `EMISSION_UNCERTAIN` (#272).
 - **Consultas:** `consultar` y `ultimos` dan `ARCA_VOUCHER_QUERY_ERROR` si ARCA contesta con un error, en vez de decir que no existe (#268).
 - **Consultas:** un error pasajero o del último número ya no dice que no se emitió nada ni manda a emitir de nuevo (#273).
@@ -144,6 +148,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **Notas.** Si ARCA contesta con un error por el asociado, se mira si su punto de venta es de web service. Si no lo es (Comprobantes en línea, controlador fiscal), la nota sigue como antes, con `--afecha` y, en el asistente, las mismas preguntas, pero el texto ya no dice que ARCA no lo tiene: dice que no se pudo consultar y el motivo. Si es de web service, la nota que frenaba con "ARCA no tiene…" sigue con "No se pudo verificar en ARCA…" en `avisos`, también al emitir. Si no se puede saber (la lista de puntos de venta viene vacía, como en testing, o falla), con flags la nota sigue con ese aviso; el asistente muestra el error y vuelve a la lista, donde antes podía seguir con las preguntas. Una nota FCE sin `--afecha` sigue frenando con `INPUT_VALIDATION_ERROR`, porque no hay de dónde tomar la fecha, y el mensaje dice que no se pudo consultar. Una falla con "no existe" en el texto tampoco es ya un asociado inexistente: con flags sale como "No se pudo verificar en ARCA…" y en el asistente vuelve al menú.
 
 **Asistente.** En las listas de comprobantes A, B, C, FCE y recibos (Mis comprobantes, Repetir y notas), el error se muestra y seguís en la lista, con lo que ya estaba cargado y lo que respondiste. Si falla la primera carga, quedan "Volver a cargar" e "Ingresar el número a mano". En la `E`, lo mismo si ARCA contesta sin los datos, y al preguntar el asociado de una nota `E` se muestra el error y se vuelve a preguntar el número.
+
+**Spinner del PDF de la `E`.** Arrancaba antes de preguntar por el plugin; ahora, después de instalarlo y cargarlo, como en A, B y C, en los comandos y en el asistente.
 
 **CAE de la `E` antes del PDF.** `arcli fe`, `nce`, `nde` y `factura`, `nota-credito` y `nota-debito` con la letra `e` mostraban el resultado recién después de preguntar, instalar el plugin y generar el PDF: si se cortaba ahí, o si fallaba la pregunta, la `E` quedaba emitida sin mostrar su CAE. Ahora en texto se muestra primero y después va el PDF. Con `--json` no cambia: es un solo documento, con el PDF adentro.
 

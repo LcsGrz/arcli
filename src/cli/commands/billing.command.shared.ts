@@ -20,6 +20,7 @@ import { systemClock } from '../../services/time/system-clock';
 import { certificateWarnings, type CliArcaRuntime, resolveArcaRuntime } from '../arca-runtime';
 import { recordEmission } from '../emitted-vouchers';
 import { getGlobalOptions, registerGlobalOptions } from '../global-options';
+import { withPendingSpinner } from '../pending-spinner';
 import { startSpinner } from '../spinner';
 
 import { runInteractiveBillingPreview } from './billing.command.interactive-preview';
@@ -162,13 +163,15 @@ export async function executeBillingCommand(
     const plan = parseBillingCommandPlan(command, shortcut, billingDefaultsFromConfig(runtime.config));
     const gateways = dependencies.createGateways(runtime);
     const useRaw = typeof globalOptions.bruto === 'boolean' ? globalOptions.bruto : runtime.outputRaw;
-    const items = await previewBilling({
-      clock: systemClock,
-      extraWarnings: [...certificateWarnings(runtime), ...(options.extraWarnings ?? [])],
-      gateways,
-      plan,
-      runtime,
-    });
+    const items = await withPendingSpinner(runtime.outputJson ? null : 'Consultando ARCA...', () =>
+      previewBilling({
+        clock: systemClock,
+        extraWarnings: [...certificateWarnings(runtime), ...(options.extraWarnings ?? [])],
+        gateways,
+        plan,
+        runtime,
+      }),
+    );
 
     const preview = await runInteractiveBillingPreview({
       items,

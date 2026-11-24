@@ -2,7 +2,6 @@ import type { ArcliConfig } from '../../modules/config/config.schemas';
 import type { ExportExecutionResult, ExportVoucherInput } from '../../modules/export/export.types';
 import { decidePdfs } from '../../modules/pdf/pdf-decision';
 import { generatePdfs } from '../../modules/pdf/pdf-generation';
-import { startSpinner } from '../spinner';
 
 import {
   confirmPdfs,
@@ -46,17 +45,11 @@ export async function attachExportPdf(
   }
 
   const config = options.completeConfig ? await options.completeConfig(options.config) : options.config;
-  const spinner = startSpinner('Generando PDF...');
+  const [pdf] = await generatePdfs({
+    config,
+    loadExporter: () => loadPdfExporter(config, options.interactive, deps),
+    vouchers: [{ family: 'export', result }],
+  });
 
-  try {
-    const [pdf] = await generatePdfs({
-      config,
-      loadExporter: () => loadPdfExporter(config, options.interactive, deps),
-      vouchers: [{ family: 'export', result }],
-    });
-
-    return { ...result, pdf };
-  } finally {
-    spinner?.stop();
-  }
+  return { ...result, pdf };
 }

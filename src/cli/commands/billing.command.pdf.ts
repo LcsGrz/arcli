@@ -186,17 +186,6 @@ async function loadPdfRenderer(
   return plugin.load();
 }
 
-/** El plugin cargado, con la carpeta de la config: el exportador que usa `generatePdfs`. */
-export async function loadPdfExporter(
-  config: ArcliConfig,
-  interactive: boolean,
-  deps: PdfStepDependencies,
-): Promise<PdfExporter> {
-  const renderer = await loadPdfRenderer(deps.createPlugin(config), interactive, deps);
-
-  return createPdfFileExporter({ folder: deps.resolveFolder(config), renderer });
-}
-
 function withSpinner(exporter: PdfExporter): PdfExporter {
   return {
     export: async (...args) => {
@@ -209,6 +198,17 @@ function withSpinner(exporter: PdfExporter): PdfExporter {
       }
     },
   };
+}
+
+/** El plugin cargado, con la carpeta de la config: el exportador que usa `generatePdfs`, con un spinner por PDF. */
+export async function loadPdfExporter(
+  config: ArcliConfig,
+  interactive: boolean,
+  deps: PdfStepDependencies,
+): Promise<PdfExporter> {
+  const renderer = await loadPdfRenderer(deps.createPlugin(config), interactive, deps);
+
+  return withSpinner(createPdfFileExporter({ folder: deps.resolveFolder(config), renderer }));
 }
 
 /**
@@ -232,7 +232,7 @@ export async function attachPdfs(
   const targets = decisions.flatMap((decision, index) => (decision === 'generar' ? [index] : []));
   const outcomes = await generatePdfs({
     config,
-    loadExporter: async () => withSpinner(await loadPdfExporter(config, interactive, deps)),
+    loadExporter: () => loadPdfExporter(config, interactive, deps),
     vouchers: targets.map((index) => billingPdfVoucher(results[index], inputs[index], config)),
   });
 
