@@ -53,7 +53,8 @@ export function writeTerminalOutput(content: string): void {
   process.stdout.write(formatTerminalOutput(content, { target: 'stdout' }));
 }
 
-export function writeTerminalJson(value: unknown): void {
+/** Recibe el objeto y no su texto: el JSON se escribe en un solo lugar. */
+export function writeTerminalJson(value: object): void {
   process.stdout.write(formatTerminalOutput(renderJson(value), { json: true, target: 'stdout' }));
 }
 
@@ -77,6 +78,6 @@ export function writeTerminalNotice(render: () => string | null | undefined): vo
   }
 }
 
-export function writeTerminalJsonError(value: unknown): void {
+export function writeTerminalJsonError(value: object): void {
   process.stderr.write(formatTerminalOutput(renderJson(value), { json: true, target: 'stderr' }));
 }

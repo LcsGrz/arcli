@@ -31,7 +31,7 @@ function createConfigService(): ConfigService {
   return service;
 }
 
-function printConfigResult(textValue: string, jsonValue: unknown, useJson = false): void {
+function printConfigResult(textValue: string, jsonValue: object, useJson = false): void {
   if (useJson) {
     writeTerminalJson(jsonValue);
     return;

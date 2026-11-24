@@ -524,7 +524,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor (si 
 - **Severidad:** frecuente
 - **Síntoma:** `BATCH_VALIDATION_ERROR` con la lista de ítems inválidos (`#2: Falta el dato: monto.`…). No se emitió ninguno.
 - **Causa:** ARCLI valida todo el lote antes de emitir el primero, incluidas las consultas al padrón (IVA receptor desde `--cuit`) y a la cotización oficial.
-- **Solución:** corregir esos ítems en el JSON y volver a correr el lote completo. Si el motivo es una consulta a ARCA que no respondió, reintentá en unos minutos: con `--json`, cada ítem de `detalles.comprobantes` trae su `codigo` y `sugerencia`.
+- **Solución:** corregir esos ítems en el JSON y volver a correr el lote completo. Si el motivo es una consulta a ARCA que no respondió, reintentá en unos minutos: con `--json`, cada ítem de `detalles.comprobantes` trae su `codigo` y `sugerencia` y, si falló una consulta, puede traer `codigoCausa` (por ejemplo, `UNEXPECTED_ERROR` sin red).
 - **Documentación relacionada:** [Entrada y salida](input-output.md#validación-y-errores-del-lote)
 
 ### El lote se interrumpió a mitad
@@ -532,7 +532,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor (si 
 - **Severidad:** crítico
 - **Síntoma:** se ven los resultados de algunos comprobantes (con su PDF, si corresponde) y después `BATCH_EMISSION_ERROR` ("El lote se interrumpió en el comprobante #3…").
 - **Causa:** la emisión falló a mitad del lote (red, ARCA, transacción activa).
-- **Solución:** **no vuelvas a cargar los que ya se emitieron** (los procesados con CAE; un rechazado no se emitió), porque se duplicarían. Si el JSON trae `sinConfirmar`, el que falló puede haberse emitido igual: verificalo con el comando que trae el mensaje (`arcli ultimos <tipo> --pv <n> --<entorno>`) y sumalo solo si no figura. Si no lo trae, no se emitió y está en "Sin procesar" (`sinProcesar`). Armá un lote con los de `sinProcesar` (y el sin confirmar, si no figura) y reintentá. Si el que falló fue por "Transacción Activa", esperá unos segundos.
+- **Solución:** **no vuelvas a cargar los que ya se emitieron** (los procesados con CAE; un rechazado no se emitió), porque se duplicarían. Si el JSON trae `sinConfirmar`, el que falló puede haberse emitido igual: verificalo con el comando que trae el mensaje (`arcli ultimos <tipo> --pv <n> --<entorno>`) y sumalo solo si no figura. Si no lo trae, no se emitió y está en "Sin procesar" (`sinProcesar`). Armá un lote con los de `sinProcesar` (y el sin confirmar, si no figura) y reintentá. Con `--json`, `detalles.codigoCausa` dice por qué se cortó (`UNEXPECTED_ERROR`, por ejemplo, sin red). Si el que falló fue por "Transacción Activa", esperá unos segundos.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#validación-y-errores-del-lote)
 
 ## Terminal

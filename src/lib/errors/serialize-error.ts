@@ -31,10 +31,6 @@ function serializeDetails(error: unknown): SerializedError['detalles'] {
 }
 
 function errorMessage(error: unknown): string {
-  if (error instanceof AppError) {
-    return error.message;
-  }
-
   return error instanceof Error ? errorText(error) : 'Ocurrió un error inesperado.';
 }
 

@@ -141,7 +141,7 @@ export class BatchEmissionError extends AppError {
     readonly failedIndex: number;
     readonly total: number;
   }) {
-    const uncertain = options.cause instanceof EmissionUncertainError;
+    const uncertain = options.cause instanceof EmissionUncertainError ? options.cause : undefined;
     // Si el fallo fue antes de la llamada que emite (login, ultimo numero), ese comprobante tampoco se proceso.
     const firstPending = uncertain ? options.failedIndex + 1 : options.failedIndex;
     const pending = Array.from({ length: options.total - firstPending + 1 }, (_, offset) => firstPending + offset);
@@ -153,7 +153,7 @@ export class BatchEmissionError extends AppError {
         ...describePending(pending),
         ...(uncertain
           ? [
-              `El #${options.failedIndex} puede haberse emitido: verificalo con \`${(options.cause as EmissionUncertainError).verifyCommand ?? 'arcli ultimos'}\` antes de reintentarlo.`,
+              `El #${options.failedIndex} puede haberse emitido: verificalo con \`${uncertain.verifyCommand}\` antes de reintentarlo.`,
             ]
           : []),
       ].join('\n'),

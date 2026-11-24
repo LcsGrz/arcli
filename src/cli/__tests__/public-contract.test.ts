@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { ERROR_CODES } from '../../lib/errors/error-codes';
@@ -149,6 +149,15 @@ function documentedErrorCodes(): string[] {
   return [...new Set(codes.flatMap((code) => (code === 'PDF_*' ? pdfCodes : [code])))].sort();
 }
 
+/** Los fuentes de `src/`, fuera de la lista y de los tests. */
+function sourceText(): string {
+  return readdirSync(new URL('src/', root), { recursive: true, encoding: 'utf8' })
+    .map((path) => path.replaceAll('\\', '/'))
+    .filter((path) => path.endsWith('.ts') && !path.includes('__tests__/') && path !== 'lib/errors/error-codes.ts')
+    .map((path) => readFileSync(new URL(`src/${path}`, root), 'utf8'))
+    .join('\n');
+}
+
 describe('códigos de error documentados', () => {
   const documented = documentedErrorCodes();
   // El tipo `ErrorCode` impide usar un código que no esté en la lista.
@@ -157,6 +166,12 @@ describe('códigos de error documentados', () => {
   it('encuentra códigos para revisar', () => {
     expect(documented.length).toBeGreaterThan(10);
     expect(inSource.length).toBeGreaterThan(10);
+  });
+
+  it('cada código de ERROR_CODES se usa en src/', () => {
+    const source = sourceText();
+
+    expect(inSource.filter((code) => !source.includes(`'${code}'`))).toEqual([]);
   });
 
   it('cada código de la tabla de docs/input-output.md existe en src/', () => {

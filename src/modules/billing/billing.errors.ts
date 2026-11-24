@@ -46,7 +46,7 @@ export class EmissionUncertainError extends AppError {
    * Con que verificarlo: `ultimos` en A, B y C, `consultar` en la E. Lleva el entorno: sin el, `ultimos` consulta el de la config, y si se emitio con
    * `--produccion` y la config dice testing el comprobante "no figura" y se reintenta, duplicandolo.
    */
-  public readonly verifyCommand?: string;
+  public readonly verifyCommand: string;
 
   public constructor(options: { readonly cause: unknown } & (WsfeUncertainTarget | WsfexUncertainTarget)) {
     const failure = describeEmissionFailure(options.cause);

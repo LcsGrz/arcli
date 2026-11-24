@@ -1,0 +1,29 @@
+$ arcli fa --cargar <config>/lote.json --previsualizar --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "BATCH_VALIDATION_ERROR",
+  "detalles": {
+    "comprobantes": [
+      {
+        "codigo": "INPUT_VALIDATION_ERROR",
+        "error": "El monto debe ser mayor a 0.",
+        "indice": 1,
+        "sugerencia": null
+      },
+      {
+        "codigo": "INPUT_VALIDATION_ERROR",
+        "error": "Falta IVA receptor. No se pudo consultar el padrón de ARCA (connect ETIMEDOUT). Usá `--ir <tipo>` o un flag `--ir-*`, o configurá uno por defecto con `arcli config establecer ivaReceptor <tipo>`.",
+        "indice": 2,
+        "sugerencia": null,
+        "codigoCausa": "UNEXPECTED_ERROR"
+      }
+    ]
+  },
+  "error": "2 de 2 comprobantes del lote tienen errores. No se emitió ninguno.\n\n#1: El monto debe ser mayor a 0.\n#2: Falta IVA receptor. No se pudo consultar el padrón de ARCA (connect ETIMEDOUT). Usá `--ir <tipo>` o un flag `--ir-*`, o configurá uno por defecto con `arcli config establecer ivaReceptor <tipo>`.",
+  "sugerencia": null
+}
+

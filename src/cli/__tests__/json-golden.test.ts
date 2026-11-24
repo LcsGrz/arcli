@@ -3546,6 +3546,14 @@ describe('lo que suma el JSON de error (REV-49)', () => {
     ]);
   });
 
+  it('BATCH_VALIDATION_ERROR con el padrón caído: el error entero', () => {
+    sdk.padron.getTaxpayerDetails.mockRejectedValue(new Error('connect ETIMEDOUT'));
+
+    return golden('lote-padron-caido', [
+      ...['fa', '--cargar', writeInput('lote.json', [batchItem(-5), WITHOUT_IVA]), '--previsualizar', '--json'],
+    ]);
+  });
+
   it('BATCH_VALIDATION_ERROR: codigoCausa solo en los que lo tienen', async () => {
     sdk.padron.getTaxpayerDetails.mockRejectedValue(new Error('connect ETIMEDOUT'));
 
