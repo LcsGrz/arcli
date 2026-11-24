@@ -1,5 +1,5 @@
 import type { Clock } from '../../lib/time/clock';
-import { type EmissionOutcome, emitBatch, notifyEmitted } from '../billing/billing.batch-run';
+import { type EmissionOutcome, emitBatch, notifyEmitted, type OnEmitted } from '../billing/billing.batch-run';
 
 import { type ExportRuntime, ExportService } from './export.service';
 import type {
@@ -39,8 +39,8 @@ export async function previewExport(options: PreviewExportOptions): Promise<Expo
 export interface EmitExportOptions extends Pick<ExportPreview, 'resolved' | 'warnings'> {
   readonly clock: Clock;
   readonly gateway: ExportEmissionGateway;
-  /** Apenas ARCA responde. Tambien un rechazo. */
-  readonly onEmitted?: (result: ExportExecutionResult) => void;
+  /** Apenas ARCA responde. Tambien un rechazo. Ver `OnEmitted`. */
+  readonly onEmitted?: OnEmitted<ExportExecutionResult>;
   readonly runtime: ExportRuntime;
 }
 
@@ -50,8 +50,9 @@ export async function emitExport(options: EmitExportOptions): Promise<EmissionOu
   const service = new ExportService({ clock: options.clock });
 
   return emitBatch({
-    emit: async () => notifyEmitted(onEmitted, await service.execute({ gateway, resolved, runtime, warnings })),
-    inputs: [resolved],
-    plan: { inputIndexes: [1], isBatch: false, total: 1 },
+    emit: async (_item, position) =>
+      notifyEmitted(onEmitted, await service.execute({ gateway, resolved, runtime, warnings }), position),
+    items: [{ index: 1 }],
+    scope: { isBatch: false, total: 1 },
   });
 }

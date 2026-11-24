@@ -21,6 +21,7 @@ import {
 } from './billing.currency';
 import { resolveBillingDateRange } from './billing.date-range';
 import { resolveBillingDate } from './billing.dates';
+import { shouldEmit } from './billing.emit-decision';
 import { EmissionUncertainError } from './billing.errors';
 import { resolveElectronicCreditOptionals } from './billing.fce';
 import { missingIvaReceiverMessage, validateIvaConditionForVoucher } from './billing.iva-receptor';
@@ -190,8 +191,15 @@ export class BillingService {
     };
   }
 
-  /** Emite siempre, diga lo que diga la entrada: si corresponde lo decide quien llama (`shouldEmit`). */
+  /**
+   * Emite siempre: si corresponde lo decide antes quien llama. Una entrada que no pide emitir es un error de programacion
+   * de quien llama, no de quien factura: se frena aca, antes de pedir el numero.
+   */
   public async emit(options: BillingEmitOptions): Promise<BillingExecutionResult> {
+    if (!shouldEmit(options.input)) {
+      throw new Error('BillingService.emit recibió una entrada que no pide emitir.');
+    }
+
     const voucherKind = this.requireVoucherKind(options.input.shortcut);
     const payload = options.preview?.payload ?? this.buildVoucherPayload(options.input, options.runtime, voucherKind);
 

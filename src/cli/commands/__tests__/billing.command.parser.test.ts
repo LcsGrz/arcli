@@ -29,7 +29,7 @@ function parseSingleInput(
 function prepareFileBatch(command: Command): Promise<BillingCommandInput[]> {
   const plan = parseBillingCommandPlan(command, 'fc');
 
-  return prepareBatch({ inputs: plan.inputs, plan, resolve: async (input) => input, validate: () => {} });
+  return prepareBatch({ inputs: plan.inputs, plan, resolve: async (input) => input });
 }
 
 function createCommand(args: string[]): Command {

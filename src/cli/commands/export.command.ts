@@ -140,7 +140,9 @@ export async function executeExportCommand(
     const outcome = await emitExport({
       clock: systemClock,
       gateway,
-      onEmitted: recordExportEmission,
+      onEmitted: (result) => {
+        recordExportEmission(result);
+      },
       resolved,
       runtime,
       warnings,

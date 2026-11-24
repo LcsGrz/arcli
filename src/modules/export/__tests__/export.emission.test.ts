@@ -130,7 +130,18 @@ describe('emitExport', () => {
     expect(gateway.authorize).toHaveBeenCalledExactlyOnceWith(resolved.payload);
     expect(gateway.getLastVoucherNumber).not.toHaveBeenCalled();
     expect(outcome).toEqual({ results: [expect.objectContaining({ dryRun: false, warnings: ['aviso'] })] });
-    expect(onEmitted).toHaveBeenCalledExactlyOnceWith(outcome.results[0]);
+    expect(onEmitted).toHaveBeenCalledExactlyOnceWith(outcome.results[0], 0);
+  });
+
+  it('con el día del reloj que se pasa', async () => {
+    const { resolved } = await previewExport({
+      clock: { now: () => new Date('2026-12-03T15:00:00.000Z') },
+      gateway: readsOnly(gatewayWith('A')),
+      input: INVOICE,
+      runtime,
+    });
+
+    expect(resolved.payload.Fecha_cbte).toBe('20261203');
   });
 
   it('un rechazo es un resultado, no un error', async () => {

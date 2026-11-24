@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AppError } from '../../../lib/errors/app-error';
 import { POINT_OF_SALE_GUIDE_URL } from '../../../lib/links';
 import { systemClock } from '../../../services/time/system-clock';
 import { billingAnswer } from '../../../testing/arca-answers';
@@ -7,7 +8,7 @@ import { emitBilling, planBillingEmission } from '../billing.emission';
 import { EmissionUncertainError } from '../billing.errors';
 import { type BillingCommandInput, billingCommandSchema } from '../billing.schemas';
 import { type BillingEmissionGateway, BillingService } from '../billing.service';
-import type { BillingExecutionResult, BillingRuntime } from '../billing.types.internal';
+import type { BillingRuntime } from '../billing.types.internal';
 import { mapBillingResponse } from '../billing-response';
 
 import { emitWithBillingAnswer } from './billing-answer.fixture';
@@ -1548,20 +1549,16 @@ describe('billing.service', () => {
   });
 
   /** Lo que hace quien llama con una entrada: decide con `planBillingEmission` y emite lo que corresponde. */
-  const emitInput = (
-    gateway: BillingEmissionGateway,
-    input: BillingCommandInput,
-    confirmed?: readonly BillingExecutionResult[],
-  ) => {
+  const emitInput = (gateway: BillingEmissionGateway, input: BillingCommandInput, confirmed?: boolean) => {
     const runtime = createRuntime();
-    const previews = [new BillingService({ clock: systemClock }).preview({ input, runtime })];
+    const preview = new BillingService({ clock: systemClock }).preview({ input, runtime });
 
     return emitBilling({
       clock: systemClock,
       gateway,
-      items: planBillingEmission({ confirmed, inputs: [input], previews, warnings: [[]] }),
-      plan: { inputIndexes: [1], isBatch: false, total: 1 },
+      items: planBillingEmission([{ confirmed, index: 1, input, preview, warnings: [] }]),
       runtime,
+      scope: { isBatch: false, total: 1 },
     });
   };
 
@@ -1598,6 +1595,25 @@ describe('billing.service', () => {
       expect(parsed.emit).toBe(false);
       expect(parsed.dryRun).toBe(false);
     });
+  });
+
+  it.each([
+    { dryRun: true, emit: false },
+    { dryRun: true, emit: true },
+    { dryRun: false, emit: false },
+  ])('emit con dryRun $dryRun y emit $emit: error interno, sin pedir el número', async (mode) => {
+    const gateway = { createVoucher: vi.fn(), getNextVoucherNumber: vi.fn() };
+    const service = new BillingService({ clock: systemClock });
+    const input = createBillingInput({ documentNumber: 0, ...mode });
+    const preview = service.preview({ input, runtime: createRuntime() });
+    const error = await service
+      .emit({ gateway, input, preview, runtime: createRuntime() })
+      .catch((cause: unknown) => cause);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(AppError);
+    expect(gateway.getNextVoucherNumber).not.toHaveBeenCalled();
+    expect(gateway.createVoucher).not.toHaveBeenCalled();
   });
 
   it('flags a failed createVoucher call as uncertain, because the voucher may have been issued', async () => {
@@ -1700,12 +1716,10 @@ describe('billing.service', () => {
     });
 
     it('sin pedir emitir, no emite', async () => {
-      const service = new BillingService({ clock: systemClock });
       const input = createBillingInput({ documentNumber: 0 });
-      const preview = service.preview({ input, runtime: createRuntime() });
       const emission = gateway();
 
-      await expect(emitInput(emission, input, [preview])).resolves.toMatchObject({ results: [{ dryRun: true }] });
+      await expect(emitInput(emission, input, true)).resolves.toMatchObject({ results: [{ dryRun: true }] });
       expect(emission.createVoucher).not.toHaveBeenCalled();
     });
 

@@ -4,7 +4,7 @@ import { InputValidationError } from '../../../lib/errors/app-error';
 import { billingAnswer } from '../../../testing/arca-answers';
 import { fakeBillingGateway } from '../../../testing/arca-gateways';
 import { BatchEmissionError, BatchValidationError } from '../billing.batch';
-import type { BatchPlan } from '../billing.batch-run';
+import type { BatchPlan, OnEmitted } from '../billing.batch-run';
 import { type BillingEmissionItem, emitBilling, planBillingEmission } from '../billing.emission';
 import { EmissionUncertainError } from '../billing.errors';
 import { type BillingPreviewGateways, previewBilling, type PreviewBillingOptions } from '../billing.preview';
@@ -132,17 +132,22 @@ function emitter(calls: string[], failure?: { readonly at: number; readonly step
 async function emit(
   inputs: readonly BillingCommandInput[],
   options: {
-    readonly confirmed?: boolean;
     readonly gateway: BillingGateway;
-    readonly onEmitted?: (result: BillingExecutionResult) => void;
+    readonly onEmitted?: OnEmitted<BillingExecutionResult>;
     readonly plan?: Partial<BatchPlan>;
   },
 ) {
   const plan = planOf(inputs, options.plan);
-  const previewed = await preview(plan, { runtime: { ...runtime, config: { verificarFce: false } } });
-  const items = planBillingEmission({ ...previewed, confirmed: options.confirmed ? previewed.previews : undefined });
+  const items = await preview(plan, { runtime: { ...runtime, config: { verificarFce: false } } });
 
-  return emitBilling({ clock, gateway: options.gateway, items, onEmitted: options.onEmitted, plan, runtime });
+  return emitBilling({
+    clock,
+    gateway: options.gateway,
+    items: planBillingEmission(items),
+    onEmitted: options.onEmitted,
+    runtime,
+    scope: plan,
+  });
 }
 
 describe('previewBilling', () => {
@@ -163,29 +168,29 @@ describe('previewBilling', () => {
       shortcut: 'fa',
       totalAmount: 5_000_000,
     });
-    const result = await preview(planOf([entry]), {
+    const [result] = await preview(planOf([entry]), {
       extraWarnings: ['el certificado vence'],
       gateways: previewGateways(calls),
     });
 
     expect(calls).toEqual(['getQuotation', 'getObligation']);
-    expect(result.inputs).toEqual([expect.objectContaining({ exchangeRate: 1000, exchangeRateSource: 'arca' })]);
+    expect(result.input).toMatchObject({ exchangeRate: 1000, exchangeRateSource: 'arca' });
     expect(result.warnings).toEqual([
-      ['el certificado vence', expect.stringContaining('cotización oficial'), expect.stringContaining('FCE')],
+      'el certificado vence',
+      expect.stringContaining('cotización oficial'),
+      expect.stringContaining('FCE'),
     ]);
     // Aunque la entrada pida emitir, es una vista previa.
-    expect(result.previews).toEqual([
-      expect.objectContaining({
-        dryRun: true,
-        payload: expect.objectContaining({ CbteFch: '20261118', MonCotiz: 1000 }),
-        warnings: result.warnings[0],
-      }),
-    ]);
+    expect(result.preview).toMatchObject({
+      dryRun: true,
+      payload: { CbteFch: '20261118', MonCotiz: 1000 },
+      warnings: result.warnings,
+    });
   });
 
   it('una nota FCE de anulación consulta el asociado, completa su fecha y avisa el estado', async () => {
     const calls: string[] = [];
-    const { inputs, previews, warnings } = await preview(
+    const [item] = await preview(
       planOf([
         input({
           associatedVoucher: { numero: 12, puntoVenta: 3, shortcut: 'fcea' },
@@ -200,9 +205,9 @@ describe('previewBilling', () => {
     );
 
     expect(calls).toEqual(['getVoucher', 'getVoucherState']);
-    expect(previews[0]?.payload.CbtesAsoc).toEqual([expect.objectContaining({ CbteFch: '20261105' })]);
-    expect(inputs[0]?.associatedVoucher).toMatchObject({ fecha: expect.any(String) });
-    expect(warnings[0]).toEqual([expect.stringContaining('10154')]);
+    expect(item.preview.payload.CbtesAsoc).toEqual([expect.objectContaining({ CbteFch: '20261105' })]);
+    expect(item.input.associatedVoucher).toMatchObject({ fecha: expect.any(String) });
+    expect(item.warnings).toEqual([expect.stringContaining('10154')]);
   });
 
   it('en un lote junta los que no se leyeron y los que no valen, con su índice, y no consulta el régimen FCE', async () => {
@@ -219,6 +224,31 @@ describe('previewBilling', () => {
     expect(calls).toEqual([]);
   });
 
+  it('si pasa la medianoche con el lote ya validado, la vista previa es la que se validó', async () => {
+    let now = new Date('2026-11-18T15:00:00.000Z');
+    const gateways = previewGateways();
+    const entry = {
+      billingDate: '13/11/2026',
+      concept: 'productos' as const,
+      documentNumber: CLIENT_CUIT,
+      documentType: 'cuit' as const,
+      ivaCondition: 'responsable-inscripto' as const,
+      shortcut: 'fa' as const,
+      totalAmount: 5_000_000,
+    };
+
+    // Entre validar y emitir el día 13 deja de ser válido.
+    vi.mocked(gateways.fce.getObligation).mockImplementation(async () => {
+      now = new Date('2026-11-19T15:00:00.000Z');
+
+      return { minimumAmount: 1, obligated: false };
+    });
+
+    const result = await preview(planOf([input(entry), input(entry)]), { clock: { now: () => now }, gateways });
+
+    expect(JSON.stringify(result)).toContain('"CbteFch":"20261113"');
+  });
+
   it('uno suelto falla con su propio error', async () => {
     await expect(preview(planOf([input({ billingDate: '01/01/2026' })]))).rejects.toBeInstanceOf(InputValidationError);
   });
@@ -230,20 +260,18 @@ describe('planBillingEmission', () => {
     { dryRun: true, emit: true },
     { dryRun: true, emit: false },
   ])('dryRun $dryRun y emit $emit: queda la vista previa, sin la entrada con que emitirla', async (mode) => {
-    const previewed = await preview(planOf([input()]));
-    const items = planBillingEmission({ ...previewed, inputs: [{ ...input(), ...mode }] });
+    const [item] = await preview(planOf([input()]));
+    const items = planBillingEmission([{ ...item, confirmed: true, input: { ...item.input, ...mode } }]);
 
-    expect(items).toEqual([{ kind: 'preview', result: previewed.previews[0] }]);
+    expect(items).toEqual([{ index: 1, kind: 'preview', result: item.preview }]);
   });
 
   it('lo que se emite lleva sus avisos, y la vista previa solo si se confirmó', async () => {
-    const previewed = await preview(planOf([toEmit()]), { extraWarnings: ['aviso'] });
-    const base = { input: previewed.inputs[0], kind: 'emission', warnings: ['aviso'] };
+    const [item] = await preview(planOf([toEmit()], { inputIndexes: [4] }), { extraWarnings: ['aviso'] });
+    const base = { index: 4, input: item.input, kind: 'emission', warnings: ['aviso'] };
 
-    expect(planBillingEmission(previewed)).toEqual([{ ...base, preview: undefined }]);
-    expect(planBillingEmission({ ...previewed, confirmed: previewed.previews })).toEqual([
-      { ...base, preview: previewed.previews[0] },
-    ]);
+    expect(planBillingEmission([item])).toEqual([{ ...base, preview: undefined }]);
+    expect(planBillingEmission([{ ...item, confirmed: true }])).toEqual([{ ...base, preview: item.preview }]);
   });
 });
 
@@ -252,20 +280,23 @@ describe('emitBilling', () => {
     const calls: string[] = [];
     const outcome = await emit([toEmit(), toEmit({ totalAmount: 2000 })], {
       gateway: emitter(calls),
-      onEmitted: ({ voucherNumber }) => calls.push(`avisado ${voucherNumber}`),
+      onEmitted: async ({ voucherNumber }, position) => {
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        calls.push(`avisado ${voucherNumber} en ${position}`);
+      },
     });
 
-    expect(calls).toEqual(['numero', 'emitir 1000', 'avisado 42', 'numero', 'emitir 2000', 'avisado 43']);
+    expect(calls).toEqual(['numero', 'emitir 1000', 'avisado 42 en 0', 'numero', 'emitir 2000', 'avisado 43 en 1']);
     expect(outcome).toEqual({
       results: [expect.objectContaining({ voucherNumber: 42 }), expect.objectContaining({ voucherNumber: 43 })],
     });
   });
 
   it('lo confirmado sale con el payload de la vista previa; sin confirmar, se arma con el día de la emisión', async () => {
-    const previewed = await preview(planOf([toEmit()]));
+    const [item] = await preview(planOf([toEmit()]));
     const sent: string[] = [];
 
-    for (const confirmed of [previewed.previews, undefined]) {
+    for (const confirmed of [true, false]) {
       await emitBilling({
         clock: clockAt('2026-11-19'),
         gateway: fakeBillingGateway({
@@ -275,9 +306,9 @@ describe('emitBilling', () => {
             return approved();
           },
         }),
-        items: planBillingEmission({ ...previewed, confirmed }),
-        plan: planOf([]),
+        items: planBillingEmission([{ ...item, confirmed }]),
         runtime,
+        scope: { isBatch: false, total: 1 },
       });
     }
 
@@ -294,7 +325,7 @@ describe('emitBilling', () => {
 
     expect(results.map(({ dryRun }) => dryRun)).toEqual([false, true, false]);
     expect(calls).toEqual(['numero', 'emitir 1000', 'numero', 'emitir 3000']);
-    expect(onEmitted).toHaveBeenCalledTimes(2);
+    expect(onEmitted.mock.calls.map(([, position]) => position)).toEqual([0, 2]);
   });
 
   it('un rechazo también se avisa y no corta', async () => {
@@ -334,13 +365,61 @@ describe('emitBilling', () => {
     expect(before).toEqual({ error: new Error('LoginFault'), results: [] });
   });
 
-  it('si el aviso falla, lo emitido no se ve como un error y el lote sigue', async () => {
-    const outcome = await emit([toEmit(), toEmit()], {
+  it('cada comprobante lleva sus avisos, en la vista previa y emitido', async () => {
+    const entries = [
+      toEmit(),
+      toEmit({ currencyCode: 'USD', exchangeRate: undefined }),
+      toEmit({ associatedVoucher: undefined, dueDay: 25 }),
+    ];
+    const items = await preview(planOf(entries), { extraWarnings: ['de afuera'] });
+    const { results } = await emitBilling({
+      clock,
       gateway: emitter([]),
-      onEmitted: () => {
+      items: planBillingEmission(items),
+      runtime,
+      scope: { isBatch: true, total: 3 },
+    });
+    const expected = [
+      ['de afuera'],
+      ['de afuera', expect.stringContaining('cotización oficial')],
+      ['de afuera', expect.stringContaining('--dia')],
+    ];
+
+    expect(items.map(({ warnings }) => warnings)).toEqual(expected);
+    expect(results.map(({ warnings }) => warnings)).toEqual(expected);
+  });
+
+  it('los avisos del régimen FCE van con su comprobante', async () => {
+    const gateways = previewGateways();
+    const big = (documentNumber: number) =>
+      input({
+        documentNumber,
+        documentType: 'cuit',
+        ivaCondition: 'responsable-inscripto',
+        shortcut: 'fa',
+        totalAmount: 5_000_000,
+      });
+
+    vi.mocked(gateways.fce.getObligation).mockImplementation(async (cuit) => ({
+      minimumAmount: 1,
+      obligated: cuit === CLIENT_CUIT,
+    }));
+
+    const items = await preview(planOf([big(33693450239), big(CLIENT_CUIT)]), { gateways });
+
+    expect(items.map(({ preview: { warnings } }) => warnings)).toEqual([[], [expect.stringContaining('FCE')]]);
+  });
+
+  it.each([
+    [
+      'al llamarlo',
+      () => {
         throw new Error('disco lleno');
       },
-    });
+    ],
+    ['después', () => Promise.reject(new Error('disco lleno'))],
+  ])('si el aviso falla %s, lo emitido no se ve como un error y el lote sigue', async (_name, onEmitted) => {
+    const outcome = await emit([toEmit(), toEmit()], { gateway: emitter([]), onEmitted });
 
     expect(outcome).not.toHaveProperty('error');
     expect(outcome.results.map(({ voucherNumber }) => voucherNumber)).toEqual([42, 43]);

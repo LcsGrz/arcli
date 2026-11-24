@@ -509,7 +509,7 @@ describe('billing por --cargar (propiedades)', () => {
 
           // Como el comando antes de emitir: un lote con errores sale como `BatchValidationError`, que es de entrada.
           try {
-            await prepareBatch({ inputs: plan.inputs, plan, resolve: async (input) => input, validate: () => {} });
+            await prepareBatch({ inputs: plan.inputs, plan, resolve: async (input) => input });
           } catch (error) {
             expect(isControlledInputError(error)).toBe(true);
           }

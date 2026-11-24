@@ -35,12 +35,14 @@ export interface PreviewBillingOptions {
   readonly runtime: BillingRuntime & { readonly config: Pick<ArcliConfig, 'verificarFce'> };
 }
 
-/** Los tres, alineados por comprobante. */
-export interface BillingPreview {
-  /** Las entradas completadas con lo que dijo ARCA: son las que se emiten. */
-  readonly inputs: BillingCommandInput[];
-  readonly previews: BillingExecutionResult[];
-  readonly warnings: ReadonlyArray<readonly string[]>;
+/** Un comprobante listo para mostrar y, si corresponde, emitir. */
+export interface BillingPreviewItem {
+  /** Su lugar en el lote, desde 1. */
+  readonly index: number;
+  /** La entrada completada con lo que dijo ARCA: es la que se emite. */
+  readonly input: BillingCommandInput;
+  readonly preview: BillingExecutionResult;
+  readonly warnings: readonly string[];
 }
 
 /**
@@ -48,7 +50,7 @@ export interface BillingPreview {
  * notas y, con el lote ya validado, el regimen FCE. Nunca emite. En un lote junta todos los errores en un
  * `BatchValidationError`; uno suelto falla con el suyo.
  */
-export async function previewBilling(options: PreviewBillingOptions): Promise<BillingPreview> {
+export async function previewBilling(options: PreviewBillingOptions): Promise<BillingPreviewItem[]> {
   const { clock, extraWarnings = [], gateways, plan, runtime } = options;
   const service = new BillingService({ clock });
   // En un lote, un fallo del padron o de la cotizacion sale con su indice, junto a los de validacion.
@@ -57,7 +59,7 @@ export async function previewBilling(options: PreviewBillingOptions): Promise<Bi
     plan,
     // El asociado de una nota se consulta aca, una vez: la vista previa ya muestra su fecha y el tope de la NC, y la
     // emision usa la entrada completada sin volver a consultar.
-    resolve: async (input) => {
+    resolve: async (input, index) => {
       const entry = await prepareBillingInput(service, input, gateways, runtime);
       const checked = await checkAssociatedInArca({
         gateway: gateways.history,
@@ -72,24 +74,23 @@ export async function previewBilling(options: PreviewBillingOptions): Promise<Bi
         runtime,
         service,
       });
+      const warnings = [...extraWarnings, ...entry.warnings, ...checked.warnings, ...registryWarnings];
 
-      return { input: checked.input, warnings: [...entry.warnings, ...checked.warnings, ...registryWarnings] };
-    },
-    validate: ({ input }) => {
-      service.buildVoucherPayload(input, runtime);
+      // Armarla es validarla: una sola vez, con el mismo dia y con el indice del lote si falla.
+      return { index, input: checked.input, preview: service.preview({ input: checked.input, runtime, warnings }) };
     },
   });
-  const inputs = prepared.map(({ input }) => input);
-  const fceWarnings = runtime.config.verificarFce ? await resolveFceWarningsInOrder(service, inputs, gateways.fce) : [];
-  const warnings = prepared.map((entry, position) => [
-    ...extraWarnings,
-    ...entry.warnings,
-    ...(fceWarnings[position] ?? []),
-  ]);
+  const fceWarnings = runtime.config.verificarFce
+    ? await resolveFceWarningsInOrder(
+        service,
+        prepared.map(({ input }) => input),
+        gateways.fce,
+      )
+    : [];
 
-  return {
-    inputs,
-    previews: inputs.map((input, position) => service.preview({ input, runtime, warnings: warnings[position] })),
-    warnings,
-  };
+  return prepared.map(({ preview, ...item }, position) => {
+    const warnings = [...(preview.warnings ?? []), ...(fceWarnings[position] ?? [])];
+
+    return { ...item, preview: { ...preview, warnings }, warnings };
+  });
 }

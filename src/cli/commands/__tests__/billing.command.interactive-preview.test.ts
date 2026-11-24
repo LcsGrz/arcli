@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { BillingPreviewItem } from '../../../modules/billing/billing.preview';
 import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import { systemClock } from '../../../services/time/system-clock';
@@ -77,10 +78,15 @@ function createInput(overrides: Partial<BillingCommandInput> = {}): BillingComma
   };
 }
 
-function previewsOf(inputs: readonly BillingCommandInput[]) {
+function itemsOf(inputs: readonly BillingCommandInput[]): BillingPreviewItem[] {
   const service = new BillingService({ clock: systemClock });
 
-  return inputs.map((input) => service.preview({ input, runtime: createRuntime() }));
+  return inputs.map((input, position) => ({
+    index: position + 1,
+    input,
+    preview: service.preview({ input, runtime: createRuntime() }),
+    warnings: [],
+  }));
 }
 
 const originalStdinIsTty = process.stdin.isTTY;
@@ -105,17 +111,16 @@ describe('runInteractiveBillingPreview', () => {
     setTty(true);
 
     const outcome = await runInteractiveBillingPreview({
-      inputs: [createInput()],
       modeSource: 'file',
       runtime: createRuntime(),
-      previews: previewsOf([createInput()]),
+      items: itemsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
 
     expect(outcome).toEqual({
       confirmedInteractively: false,
-      inputs: [createInput()],
+      items: itemsOf([createInput()]),
       previewShown: false,
       proceed: true,
     });
@@ -126,10 +131,9 @@ describe('runInteractiveBillingPreview', () => {
     setTty(true);
 
     const outcome = await runInteractiveBillingPreview({
-      inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime({ outputJson: true }),
-      previews: previewsOf([createInput()]),
+      items: itemsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -143,10 +147,9 @@ describe('runInteractiveBillingPreview', () => {
     setTty(true);
 
     const outcome = await runInteractiveBillingPreview({
-      inputs: [createInput({ dryRun: false, emit: true })],
       modeSource: 'default',
       runtime: createRuntime(),
-      previews: previewsOf([createInput({ dryRun: false, emit: true })]),
+      items: itemsOf([createInput({ dryRun: false, emit: true })]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -160,10 +163,9 @@ describe('runInteractiveBillingPreview', () => {
     setTty(false);
 
     const outcome = await runInteractiveBillingPreview({
-      inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      previews: previewsOf([createInput()]),
+      items: itemsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -178,10 +180,9 @@ describe('runInteractiveBillingPreview', () => {
     vi.mocked(select).mockResolvedValue('emitir');
 
     const outcome = await runInteractiveBillingPreview({
-      inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      previews: previewsOf([createInput()]),
+      items: itemsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -189,10 +190,15 @@ describe('runInteractiveBillingPreview', () => {
     expect(writeTerminalOutput).toHaveBeenCalledTimes(1);
     expect(outcome).toEqual({
       confirmedInteractively: true,
-      // "Sí, emitir ahora" también decide el PDF: después de emitir no se pregunta.
-      inputs: [createInput({ dryRun: false, emit: true, pdf: false })],
-      // Lo que se mostró, para emitirlo sin armarlo de nuevo (ARQ-21).
-      previews: [expect.objectContaining({ dryRun: true, payload: expect.objectContaining({ CbteTipo: 6 }) })],
+      items: [
+        expect.objectContaining({
+          // Lo que se mostró, para emitirlo sin armarlo de nuevo (ARQ-21).
+          confirmed: true,
+          // "Sí, emitir ahora" también decide el PDF: después de emitir no se pregunta.
+          input: createInput({ dryRun: false, emit: true, pdf: false }),
+          preview: expect.objectContaining({ dryRun: true, payload: expect.objectContaining({ CbteTipo: 6 }) }),
+        }),
+      ],
       previewShown: true,
       proceed: true,
     });
@@ -203,10 +209,9 @@ describe('runInteractiveBillingPreview', () => {
     vi.mocked(select).mockResolvedValue('emitir-con-pdf');
 
     const outcome = await runInteractiveBillingPreview({
-      inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime({ config: { ...createRuntime().config, pdf: 'nunca' } }),
-      previews: previewsOf([createInput()]),
+      items: itemsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -219,7 +224,7 @@ describe('runInteractiveBillingPreview', () => {
       ],
       default: 'emitir',
     });
-    expect(outcome.inputs).toEqual([createInput({ dryRun: false, emit: true, pdf: true })]);
+    expect(outcome.items.map(({ input }) => input)).toEqual([createInput({ dryRun: false, emit: true, pdf: true })]);
   });
 
   it('starts on the PDF option with `pdf siempre`', async () => {
@@ -227,16 +232,15 @@ describe('runInteractiveBillingPreview', () => {
     vi.mocked(select).mockResolvedValue('emitir');
 
     const outcome = await runInteractiveBillingPreview({
-      inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime({ config: { ...createRuntime().config, pdf: 'siempre' } }),
-      previews: previewsOf([createInput()]),
+      items: itemsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
 
     expect(vi.mocked(select).mock.lastCall?.[0]).toMatchObject({ default: 'emitir-con-pdf' });
-    expect(outcome.inputs[0]?.pdf).toBe(false);
+    expect(outcome.items[0]?.input.pdf).toBe(false);
   });
 
   it('only asks to emit when a flag already decided the PDF, and keeps the flag', async () => {
@@ -244,10 +248,9 @@ describe('runInteractiveBillingPreview', () => {
     vi.mocked(select).mockResolvedValue('emitir');
 
     const outcome = await runInteractiveBillingPreview({
-      inputs: [createInput({ pdf: true })],
       modeSource: 'default',
       runtime: createRuntime({ config: { ...createRuntime().config, pdf: 'nunca' } }),
-      previews: previewsOf([createInput({ pdf: true })]),
+      items: itemsOf([createInput({ pdf: true })]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -258,7 +261,7 @@ describe('runInteractiveBillingPreview', () => {
         { name: 'No, dejar sin emitir', value: false },
       ],
     });
-    expect(outcome.inputs[0]?.pdf).toBe(true);
+    expect(outcome.items[0]?.input.pdf).toBe(true);
   });
 
   it('keeps the original inputs and stops the flow when the user declines', async () => {
@@ -266,17 +269,16 @@ describe('runInteractiveBillingPreview', () => {
     vi.mocked(select).mockResolvedValue(false);
 
     const outcome = await runInteractiveBillingPreview({
-      inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      previews: previewsOf([createInput()]),
+      items: itemsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
 
     expect(outcome).toEqual({
       confirmedInteractively: false,
-      inputs: [createInput()],
+      items: itemsOf([createInput()]),
       previewShown: true,
       proceed: false,
     });
@@ -288,18 +290,16 @@ describe('runInteractiveBillingPreview', () => {
     vi.mocked(select).mockResolvedValue('emitir');
 
     await runInteractiveBillingPreview({
-      inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime({ environment: 'produccion' }),
-      previews: previewsOf([createInput()]),
+      items: itemsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'la factura A',
     });
     await runInteractiveBillingPreview({
-      inputs: [createInput(), createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      previews: previewsOf([createInput(), createInput()]),
+      items: itemsOf([createInput(), createInput()]),
       useRaw: false,
       voucherLabel: 'este comprobante',
     });
@@ -318,10 +318,9 @@ describe('runInteractiveBillingPreview', () => {
     vi.mocked(select).mockResolvedValue(false);
 
     await runInteractiveBillingPreview({
-      inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      previews: previewsOf([createInput()]),
+      items: itemsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -341,10 +340,9 @@ describe('runInteractiveBillingPreview', () => {
     );
 
     const run = runInteractiveBillingPreview({
-      inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      previews: previewsOf([createInput()]),
+      items: itemsOf([createInput()]),
       useRaw: false,
       voucherLabel: 'Factura A',
     });

@@ -24,7 +24,6 @@ describe('prepareBatch', () => {
         resolve: async () => {
           throw original;
         },
-        validate: vi.fn(),
       }),
     ).rejects.toBe(original);
   });
@@ -41,15 +40,14 @@ describe('prepareBatch', () => {
         throw new Error('ARCA no devolvió la cotización de DOL.');
       }
 
-      return `${input}-resuelto`;
-    });
-    const validate = (input: string) => {
-      if (input === 'invalido-resuelto') {
+      if (input === 'invalido') {
         throw new InputValidationError('La factura A no admite IVA receptor "consumidor-final".');
       }
-    };
 
-    const run = prepareBatch({ inputs: ['ok', 'sin-cotizacion', 'invalido', 'ok'], plan, resolve, validate });
+      return `${input}-resuelto`;
+    });
+
+    const run = prepareBatch({ inputs: ['ok', 'sin-cotizacion', 'invalido', 'ok'], plan, resolve });
 
     await expect(run).rejects.toThrow(BatchValidationError);
     await run.catch((error: BatchValidationError) => {
@@ -72,18 +70,13 @@ describe('prepareBatch', () => {
   });
 
   it('devuelve lo resuelto, en orden, si todo es valido', async () => {
-    const validate = vi.fn();
-
     await expect(
       prepareBatch({
         inputs: ['a', 'b'],
         plan: batch(2),
-        resolve: async (input: string) => input.toUpperCase(),
-        validate,
+        resolve: async (input: string, index) => `${index} ${input}`,
       }),
-    ).resolves.toEqual(['A', 'B']);
-    expect(validate).toHaveBeenCalledWith('A');
-    expect(validate).toHaveBeenCalledWith('B');
+    ).resolves.toEqual(['1 a', '2 b']);
   });
   it('en un lote de un solo comprobante informa el fallo con su indice', async () => {
     const run = prepareBatch({
@@ -92,7 +85,6 @@ describe('prepareBatch', () => {
       resolve: async () => {
         throw new Error('El padrón no responde');
       },
-      validate: vi.fn(),
     });
 
     await expect(run).rejects.toThrow(BatchValidationError);
@@ -103,6 +95,13 @@ describe('prepareBatch', () => {
     });
   });
 });
+
+interface Item {
+  readonly index: number;
+  readonly input: string;
+}
+
+const items = (inputs: readonly string[]): Item[] => inputs.map((input, position) => ({ index: position + 1, input }));
 
 /** El error de un lote cortado, que tiene que ser el del lote. */
 function batchError(outcome: EmissionOutcome<string>): BatchEmissionError {
@@ -118,23 +117,23 @@ function batchError(outcome: EmissionOutcome<string>): BatchEmissionError {
 describe('emitBatch', () => {
   it('emite todo en orden', async () => {
     const outcome = await emitBatch({
-      emit: async (input: string) => `CAE-${input}`,
-      inputs: ['a', 'b'],
-      plan: batch(2),
+      emit: async ({ input }: Item) => `CAE-${input}`,
+      items: items(['a', 'b']),
+      scope: batch(2),
     });
 
     expect(outcome).toEqual({ results: ['CAE-a', 'CAE-b'] });
   });
 
   it('si falla a mitad antes de emitir, entrega lo ya procesado y deja el que fallo para reintentar', async () => {
-    const emit = vi.fn(async (input: string) => {
+    const emit = vi.fn(async ({ input }: Item) => {
       if (input === 'c') {
         throw new Error('Transacción Activa');
       }
 
       return `CAE-${input}`;
     });
-    const outcome = await emitBatch({ emit, inputs: ['a', 'b', 'c', 'd'], plan: batch(4) });
+    const outcome = await emitBatch({ emit, items: items(['a', 'b', 'c', 'd']), scope: batch(4) });
     const error = batchError(outcome);
 
     expect(error.message).toContain('El lote se interrumpió en el comprobante #3: Transacción Activa');
@@ -155,8 +154,8 @@ describe('emitBatch', () => {
       emit: async (): Promise<string> => {
         throw new Error('boom');
       },
-      inputs: ['a'],
-      plan: { inputIndexes: [3], isBatch: true, total: 4 },
+      items: [{ index: 3, input: 'a' }],
+      scope: { isBatch: true, total: 4 },
     });
 
     expect(batchError(outcome).details).toMatchObject({ fallo: 3, procesados: 0, sinProcesar: [3, 4] });
@@ -171,15 +170,15 @@ describe('emitBatch', () => {
       shortcut: 'fc',
     });
     const outcome = await emitBatch({
-      emit: async (input: string) => {
+      emit: async ({ input }: Item) => {
         if (input === 'b') {
           throw cause;
         }
 
         return `CAE-${input}`;
       },
-      inputs: ['a', 'b', 'c'],
-      plan: batch(3),
+      items: items(['a', 'b', 'c']),
+      scope: batch(3),
     });
     const error = batchError(outcome);
 
@@ -193,8 +192,8 @@ describe('emitBatch', () => {
       emit: async (): Promise<string> => {
         throw new Error('boom');
       },
-      inputs: ['a'],
-      plan: oneItemBatch,
+      items: items(['a']),
+      scope: oneItemBatch,
     });
 
     expect(batchError(outcome)).toBeInstanceOf(BatchEmissionError);
@@ -208,8 +207,8 @@ describe('emitBatch', () => {
         emit: async () => {
           throw original;
         },
-        inputs: ['a'],
-        plan: batch(1),
+        items: items(['a']),
+        scope: batch(1),
       }),
     ).resolves.toEqual({ error: original, results: [] });
   });

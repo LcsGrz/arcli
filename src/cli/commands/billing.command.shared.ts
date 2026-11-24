@@ -80,6 +80,15 @@ export async function writeResultsWithPdfs(
   writePdfOutcomes(results, await attachPdfs(pdfOptions));
 }
 
+/** Si tampoco se puede escribir el aviso, lo que importa es el error de emision. */
+function warnPartialResultsFailure(results: readonly BillingExecutionResult[]): void {
+  try {
+    writePartialResultsFailure(results);
+  } catch {
+    // El error de emision sale igual.
+  }
+}
+
 /**
  * Lo ya procesado de un lote cortado, antes de su error: si no se mostrara, alguien volveria a correr el lote y
  * duplicaria comprobantes. Se espera a que termine (puede generar los PDFs), y si falla no tapa el error de emision.
@@ -97,7 +106,7 @@ async function writeInterruptedResults(
   } catch {
     // Con --json no hay donde avisarlo sin cambiar la salida: `detalles.procesados` dice cuantos son.
     if (!options.output.outputJson) {
-      writePartialResultsFailure(results);
+      warnPartialResultsFailure(results);
     }
   }
 }
@@ -153,7 +162,7 @@ export async function executeBillingCommand(
     const plan = parseBillingCommandPlan(command, shortcut, billingDefaultsFromConfig(runtime.config));
     const gateways = dependencies.createGateways(runtime);
     const useRaw = typeof globalOptions.bruto === 'boolean' ? globalOptions.bruto : runtime.outputRaw;
-    const previewed = await previewBilling({
+    const items = await previewBilling({
       clock: systemClock,
       extraWarnings: [...certificateWarnings(runtime), ...(options.extraWarnings ?? [])],
       gateways,
@@ -162,9 +171,8 @@ export async function executeBillingCommand(
     });
 
     const preview = await runInteractiveBillingPreview({
-      inputs: previewed.inputs,
+      items,
       modeSource: plan.modeSource,
-      previews: previewed.previews,
       runtime,
       useRaw,
       voucherLabel: voucherKind ? formatVoucherWithArticle(voucherKind) : 'este comprobante',
@@ -174,7 +182,8 @@ export async function executeBillingCommand(
       return;
     }
 
-    const { inputs, previewShown } = preview;
+    const { previewShown } = preview;
+    const inputs = preview.items.map(({ input }) => input);
 
     const emitting = inputs.some((input) => input.emit);
     const emittedVouchers =
@@ -203,10 +212,12 @@ export async function executeBillingCommand(
     const outcome = await emitBilling({
       clock: systemClock,
       gateway: gateways.billing,
-      items: planBillingEmission({ ...previewed, confirmed: preview.previews, inputs }),
-      onEmitted: recordEmission,
-      plan,
+      items: planBillingEmission(preview.items),
+      onEmitted: (result) => {
+        recordEmission(result);
+      },
       runtime,
+      scope: plan,
     });
     const { results } = outcome;
 

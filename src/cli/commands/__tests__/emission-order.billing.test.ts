@@ -114,6 +114,27 @@ describe('un comprobante', () => {
     ]);
   });
 
+  it.each([
+    ['stdin', [false, true]],
+    ['stdout', [true, false]],
+  ] as const)('--emitir, sin %s en una terminal: no hay a quién preguntar el PDF', async (_name, tty) => {
+    expect((await runBilling([...FC, '--emitir'], { config: ASK, tty })).events).toEqual([
+      ...FIRST,
+      'salida: CAE',
+      'fin: exit 0',
+    ]);
+  });
+
+  it.each([
+    ['--bruto', ['--bruto'], false, true],
+    ['bruto en la config', [], true, true],
+    ['sin ninguno', [], false, false],
+  ])('%s: la respuesta de ARCA en el JSON', async (_name, args, raw, shown) => {
+    const { stdout } = await runBilling([...FC, '--emitir', ...args], { json: true, raw });
+
+    expect('respuesta' in (JSON.parse(stdout) as object)).toBe(shown);
+  });
+
   it('sin PDF, el aviso de los datos que solo van ahí sale después del CAE', async () => {
     const { events } = await runBilling([...FC, '--emitir', '--descripcion', 'Clase', '--sin-pdf']);
 

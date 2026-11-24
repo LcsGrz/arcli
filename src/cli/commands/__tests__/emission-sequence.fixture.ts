@@ -81,6 +81,8 @@ export interface RunOptions {
   readonly json?: boolean;
   readonly pdfFailure?: PdfFailure;
   readonly pluginInstalled?: boolean;
+  /** `bruto` en la config. */
+  readonly raw?: boolean;
   /** Si stdin y stdout son una terminal; con un par, cada una por separado. */
   readonly tty?: boolean | readonly [stdin: boolean, stdout: boolean];
 }
@@ -359,7 +361,7 @@ export function emissionRuntime(options: RunOptions): CliArcaRuntime {
     cuit: 20111111112,
     environment: 'testing',
     outputJson: options.json ?? false,
-    outputRaw: false,
+    outputRaw: options.raw ?? false,
     pointOfSale: 3,
   } as unknown as CliArcaRuntime;
 }
