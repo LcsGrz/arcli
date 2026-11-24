@@ -1219,6 +1219,8 @@ En un lote, el mismo caso corta el lote sin reintentar y sale como `BATCH_EMISSI
 
 ### Errores del PDF
 
+Con `--json` el PDF se genera antes de escribir la salida, para ir en el mismo documento. Si el comando se corta en ese momento no hay JSON, pero el comprobante ya está emitido: verificalo con `arcli ultimos` o `arcli consultar` antes de reintentar.
+
 Un error del PDF **no** es un error del comando: el comprobante ya se emitió, así que el error va dentro del resultado, en `pdf.error`, y el código de salida no cambia. Los códigos son `PDF_PLUGIN_MISSING`, `PDF_PLUGIN_INSTALL_ERROR`, `PDF_ISSUER_INCOMPLETE` y `PDF_GENERATION_ERROR`. Ver [PDF de comprobantes](pdf.md#salida).
 
 `arcli pdf instalar` sí falla como un comando, con `sugerencia`:

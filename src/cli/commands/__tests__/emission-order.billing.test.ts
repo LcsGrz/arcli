@@ -181,7 +181,6 @@ describe('un comprobante', () => {
     ]);
   });
 
-  // Lo mismo en la E no muestra el CAE: ver emission-order.export.test.ts.
   it('si la pregunta del PDF falla (no es una cancelación), el CAE ya se mostró', async () => {
     const { events } = await runBilling([...FC, '--emitir'], {
       answers: [new Error('falló la pregunta')],

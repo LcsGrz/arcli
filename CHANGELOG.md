@@ -88,6 +88,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 - **Facturas:** si la medianoche pasa en "¿Emitimos?", se emite lo que mostró la vista previa, con sus fechas, como en la `E` (#274).
 - **Facturas:** una respuesta sin CAE ni rechazo, o con un error interno de ARCA, sale como `EMISSION_UNCERTAIN`, y con CAE y un error, como emitido (#273).
+- **Factura E:** en texto, la `E` y sus notas muestran el CAE antes de preguntar, instalar y generar el PDF, como A, B y C (#283).
 - **Facturas:** un evento u observación con otra forma ya no pierde el CAE; si no se sabe si lo hay, sale `EMISSION_UNCERTAIN` (#272).
 - **Consultas:** `consultar` y `ultimos` dan `ARCA_VOUCHER_QUERY_ERROR` si ARCA contesta con un error, en vez de decir que no existe (#268).
 - **Consultas:** un error pasajero o del último número ya no dice que no se emitió nada ni manda a emitir de nuevo (#273).
@@ -122,6 +123,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **Notas.** Si ARCA contesta con un error por el asociado, se mira si su punto de venta es de web service. Si no lo es (Comprobantes en línea, controlador fiscal), la nota sigue como antes, con `--afecha` y, en el asistente, las mismas preguntas, pero el texto ya no dice que ARCA no lo tiene: dice que no se pudo consultar y el motivo. Si es de web service, la nota que frenaba con "ARCA no tiene…" sigue con "No se pudo verificar en ARCA…" en `avisos`, también al emitir. Si no se puede saber (la lista de puntos de venta viene vacía, como en testing, o falla), con flags la nota sigue con ese aviso; el asistente muestra el error y vuelve a la lista, donde antes podía seguir con las preguntas. Una nota FCE sin `--afecha` sigue frenando con `INPUT_VALIDATION_ERROR`, porque no hay de dónde tomar la fecha, y el mensaje dice que no se pudo consultar. Una falla con "no existe" en el texto tampoco es ya un asociado inexistente: con flags sale como "No se pudo verificar en ARCA…" y en el asistente vuelve al menú.
 
 **Asistente.** En las listas de comprobantes A, B, C, FCE y recibos (Mis comprobantes, Repetir y notas), el error se muestra y seguís en la lista, con lo que ya estaba cargado y lo que respondiste. Si falla la primera carga, quedan "Volver a cargar" e "Ingresar el número a mano". En la `E`, lo mismo si ARCA contesta sin los datos, y al preguntar el asociado de una nota `E` se muestra el error y se vuelve a preguntar el número.
+
+**CAE de la `E` antes del PDF.** `arcli fe`, `nce`, `nde` y `factura`, `nota-credito` y `nota-debito` con la letra `e` mostraban el resultado recién después de preguntar, instalar el plugin y generar el PDF: si se cortaba ahí, o si fallaba la pregunta, la `E` quedaba emitida sin mostrar su CAE. Ahora en texto se muestra primero y después va el PDF. Con `--json` no cambia: es un solo documento, con el PDF adentro.
 
 **Ctrl+C en una pregunta.** Cortar "¿Emitimos?" en A, B, C, FCE, recibos, notas, la `E` o un lote mostraba `User force closed the prompt` como error inesperado. Ahora dice "Cancelado. No se emitió nada." y sale con 1, como antes. En la `E`, cortar la pregunta de instalar el componente de PDF, con el comprobante ya emitido, también mostraba ese texto: ahora cuenta como "No", igual que en A, B y C, y sale con 0.
 

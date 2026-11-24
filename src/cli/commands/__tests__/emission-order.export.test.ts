@@ -122,6 +122,15 @@ describe('una factura E', () => {
     ]);
   });
 
+  it('rechazada: el exit 2 queda fijado aunque falle la salida', async () => {
+    vi.mocked(process.stdout.write).mockImplementationOnce(() => {
+      throw new Error('disco lleno');
+    });
+    await runExport([...FE, '--emitir'], { arca: ['R'] });
+
+    expect(process.exitCode).toBe(2);
+  });
+
   it.each(['incierta', 'ilegible'] as const)('respuesta %s: solo el error, sin reintentar', async (step) => {
     expect((await runExport([...FE, '--emitir'], { arca: [step], config: ALWAYS })).events).toEqual([
       ...FE_READS,
@@ -166,45 +175,39 @@ it.each([
   expect(JSON.parse(JSON.stringify(sent))).toEqual([JSON.parse(preview.stdout).solicitud]);
 });
 
-/** Cada caso: las respuestas y, después de anotar lo emitido, lo que pasa hoy y lo que se aprobó. */
+/** Cada caso: las respuestas y, después de anotar lo emitido, lo que pasa. */
 interface PdfOrderCase {
-  readonly approved: readonly string[];
+  readonly expected: readonly string[];
   readonly args?: readonly string[];
   readonly name: string;
   readonly options: RunOptions;
-  readonly today: readonly string[];
 }
 
 const PDF_ORDER: readonly PdfOrderCase[] = [
   {
-    approved: ['salida: CAE', PDF_QUESTION, INSTALL_QUESTION, 'PDF instalar', ...MAKE, 'salida: PDF guardado'],
+    expected: ['salida: CAE', PDF_QUESTION, INSTALL_QUESTION, 'PDF instalar', ...MAKE, 'salida: PDF guardado'],
     name: 'preguntar, instalar y generar',
     options: { answers: [MAKE_PDF, INSTALL], config: ASK, pluginInstalled: false, tty: true },
-    today: [PDF_QUESTION, INSTALL_QUESTION, 'PDF instalar', ...MAKE, 'salida: CAE, PDF guardado'],
   },
   {
-    approved: ['salida: CAE', ...MAKE, 'salida: PDF guardado'],
+    expected: ['salida: CAE', ...MAKE, 'salida: PDF guardado'],
     name: 'sin terminal, con `pdf siempre`',
     options: { config: ALWAYS },
-    today: [...MAKE, 'salida: CAE, PDF guardado'],
   },
   {
-    approved: ['salida: CAE', ...MAKE, 'salida: PDF no generado'],
+    expected: ['salida: CAE', ...MAKE, 'salida: PDF no generado'],
     name: 'un PDF que falla',
     options: { config: ALWAYS, pdfFailure: 'generar' },
-    today: [...MAKE, 'salida: CAE, PDF no generado'],
   },
   {
-    approved: ['salida: CAE', PDF_QUESTION],
+    expected: ['salida: CAE', PDF_QUESTION],
     name: 'Ctrl+C en la pregunta del PDF',
     options: { answers: ['Ctrl+C'], config: ASK, tty: true },
-    today: [PDF_QUESTION, 'salida: CAE'],
   },
   {
-    approved: ['salida: CAE', INSTALL_QUESTION, 'salida: PDF no generado'],
+    expected: ['salida: CAE', INSTALL_QUESTION, 'salida: PDF no generado'],
     name: 'no instalar el componente',
     options: { answers: ['No'], config: ALWAYS, pluginInstalled: false, tty: true },
-    today: [INSTALL_QUESTION, 'salida: CAE, PDF no generado'],
   },
 ];
 
@@ -213,31 +216,6 @@ function afterEmission({ events }: Run): readonly string[] {
   return events.slice(events.findIndex((text) => text.startsWith('anotado: ')) + 1);
 }
 
-// Cambia en la tanda 5 de REV-50, con los `it` de abajo.
-describe('E en texto con PDF, hoy: el CAE recién después del PDF', () => {
-  it.each(PDF_ORDER)('$name', async ({ options, today }) => {
-    expect(afterEmission(await runExport([...FE, '--emitir'], options))).toEqual([...today, 'fin: exit 0']);
-  });
-
-  it('confirmada con PDF', async () => {
-    expect(afterEmission(await runExport(FE, { answers: [EMIT_WITH_PDF], tty: true }))).toEqual([
-      ...MAKE,
-      'salida: CAE, PDF guardado',
-      'fin: exit 0',
-    ]);
-  });
-
-  it('si la pregunta del PDF falla (no es una cancelación), el CAE no se muestra', async () => {
-    const run = await runExport([...FE, '--emitir'], {
-      answers: [new Error('falló la pregunta')],
-      config: ASK,
-      tty: true,
-    });
-
-    expect(afterEmission(run)).toEqual([PDF_QUESTION, 'error: falló la pregunta', 'fin: exit 1']);
-  });
-});
-
 /** `arcli <argv>` entero, con el perfil y el WSFEX falsos. */
 async function runProgram(argv: readonly string[], options: RunOptions): Promise<Run> {
   program.runtime = emissionRuntime(options);
@@ -245,15 +223,13 @@ async function runProgram(argv: readonly string[], options: RunOptions): Promise
   return runSequence(() => createProgram().parseAsync(['node', 'arcli', ...argv]), options);
 }
 
-// La E, como las demás: el CAE antes de preguntar, instalar y generar el PDF (diferencia 1 de REV-50, aprobada).
-describe('E en texto con PDF, aprobado: primero el CAE', () => {
-  // Tests primero (REV-50, tanda 5): pasa a it() al implementarlo.
-  it.fails.each(PDF_ORDER)('$name', async ({ approved, options }) => {
-    expect(afterEmission(await runExport([...FE, '--emitir'], options))).toEqual([...approved, 'fin: exit 0']);
+// La E, como las demás: el CAE antes de preguntar, instalar y generar el PDF.
+describe('E en texto con PDF, primero el CAE', () => {
+  it.each(PDF_ORDER)('$name', async ({ expected, options }) => {
+    expect(afterEmission(await runExport([...FE, '--emitir'], options))).toEqual([...expected, 'fin: exit 0']);
   });
 
-  // Tests primero (REV-50, tanda 5): pasa a it() al implementarlo.
-  it.fails('confirmada con PDF', async () => {
+  it('confirmada con PDF', async () => {
     expect(afterEmission(await runExport(FE, { answers: [EMIT_WITH_PDF], tty: true }))).toEqual([
       'salida: CAE',
       ...MAKE,
@@ -262,8 +238,7 @@ describe('E en texto con PDF, aprobado: primero el CAE', () => {
     ]);
   });
 
-  // Tests primero (REV-50, tanda 5): pasa a it() al implementarlo.
-  it.fails('si la pregunta del PDF falla (no es una cancelación), el CAE ya se mostró, como en A, B y C', async () => {
+  it('si la pregunta del PDF falla (no es una cancelación), el CAE ya se mostró, como en A, B y C', async () => {
     const run = await runExport([...FE, '--emitir'], {
       answers: [new Error('falló la pregunta')],
       config: ASK,
@@ -273,8 +248,7 @@ describe('E en texto con PDF, aprobado: primero el CAE', () => {
     expect(afterEmission(run)).toEqual(['salida: CAE', PDF_QUESTION, 'error: falló la pregunta', 'fin: exit 1']);
   });
 
-  // Tests primero (REV-50, tanda 5): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['fe', ['fe', ...FE]],
     ['nce', ['nce', ...E_NOTE]],
     ['nde', ['nde', ...E_NOTE]],
@@ -307,7 +281,7 @@ describe('E en texto con PDF, aprobado: primero el CAE', () => {
     ['factura e', ['factura', 'e', ...FE]],
     ['nota-credito e', ['nota-credito', 'e', ...E_NOTE]],
     ['nota-debito e', ['nota-debito', 'e', ...E_NOTE]],
-  ])('`arcli %s --json`: el PDF antes del único JSON, igual que hoy', async (_name, argv) => {
+  ])('`arcli %s --json`: el PDF antes del único JSON', async (_name, argv) => {
     const run = await runProgram([...argv, '--emitir', '--json'], { config: ALWAYS, json: true });
 
     expect(afterEmission(run)).toEqual([...MAKE, 'salida: JSON aprobado 42 con PDF', 'fin: exit 0']);

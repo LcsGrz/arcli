@@ -156,25 +156,32 @@ export async function executeExportCommand(
     spinner?.stop();
     spinner = null;
 
-    const result = await attachExportPdf(outcome.results[0], {
-      config: runtime.config,
-      input,
-      interactive,
-    });
-
-    writeExportResult(result, {
+    const [result] = outcome.results;
+    const pdfOptions = { config: runtime.config, input, interactive };
+    const outputOptions = {
       environment: runtime.environment,
       outputJson: runtime.outputJson,
       previewShown,
       raw: useRaw,
-    });
+    };
 
     if (result.response.status === 'rechazado') {
       process.exitCode = REJECTED_EXIT_CODE;
     }
 
-    if (result.pdf && !runtime.outputJson) {
-      writeTerminalOutput(formatPdfOutcomeAsText(result.pdf));
+    // Como en A, B y C: en JSON el PDF va dentro del mismo resultado; en texto primero se ve el CAE.
+    if (runtime.outputJson) {
+      writeExportResult(await attachExportPdf(result, pdfOptions), outputOptions);
+
+      return;
+    }
+
+    writeExportResult(result, outputOptions);
+
+    const { pdf } = await attachExportPdf(result, pdfOptions);
+
+    if (pdf) {
+      writeTerminalOutput(formatPdfOutcomeAsText(pdf));
     }
   } catch (error) {
     spinner?.stop();

@@ -112,7 +112,9 @@ En un lote (`--cargar` con un array) se genera un PDF por comprobante. La respue
 
 ## Si el PDF falla, el comprobante ya está emitido
 
-El PDF se arma **después** de emitir. Si algo falla (falta el plugin, faltan datos del emisor, el navegador no arranca), el comprobante igual queda emitido: se muestra con su CAE, seguido de un aviso con el error y cómo resolverlo. No lo vuelvas a emitir para obtener el PDF: quedaría duplicado en ARCA. El código de salida no cambia. En JSON, el error va en `pdf.error`.
+El PDF se arma **después** de emitir. En texto, en todos los comprobantes, primero se ve el resultado con su CAE y después va el PDF: la pregunta, la instalación del plugin y el archivo. Con `--json` la salida es un solo documento que incluye el PDF, así que sale recién cuando el PDF termina; si el comando se corta antes (Ctrl+C, la terminal que se cierra), el comprobante ya está emitido aunque no haya JSON: verificalo con `arcli ultimos` o `arcli consultar` antes de reintentar.
+
+Si algo falla (falta el plugin, faltan datos del emisor, el navegador no arranca), el comprobante igual queda emitido: se muestra con su CAE, seguido de un aviso con el error y cómo resolverlo. No lo vuelvas a emitir para obtener el PDF: quedaría duplicado en ARCA. El código de salida no cambia. En JSON, el error va en `pdf.error`.
 
 ## Datos que ARCA no guarda
 
