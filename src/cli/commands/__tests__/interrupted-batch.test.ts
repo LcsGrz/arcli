@@ -35,7 +35,7 @@ function plain(text: string): string {
   return stripAnsi(text).replace(/[│┃║╏\s]+/g, ' ');
 }
 
-type Step = 'A' | 'R' | 'ilegible' | 'incierta' | 'login' | 'sin-autorizar';
+type Step = 'A' | 'R' | 'ilegible' | 'incierta' | 'login' | 'sin-autorizar' | 'transitorio';
 
 /** Corre un lote en el que cada comprobante termina como dice `steps`, y reporta el error como `index.ts`. */
 async function runBatch(
@@ -111,6 +111,10 @@ async function runBatch(
             getNextVoucherNumber: async () => {
               if (steps[position] === 'sin-autorizar') {
                 return rethrowIfWsfeNotAuthorized(new Error('ns1:coe.notAuthorized'));
+              }
+
+              if (steps[position] === 'transitorio') {
+                throw new Error('(502) Transacción Activa');
               }
 
               if (steps[position] === 'login') {
@@ -316,5 +320,122 @@ describe('si falla la entrega de los ya procesados (ERR-14)', () => {
 
     expect(plain(stderr)).toContain('El certificado no está autorizado para facturar');
     expect(plain(stderr)).not.toContain('No se emitió nada');
+  });
+});
+
+describe('el lote cortado dice qué hacer, igual en el panel y en el JSON (REV-49)', () => {
+  const EMITTED = 'Los procesados con CAE ya se emitieron: recordá no volver a cargarlos.';
+  const SAFE = `${EMITTED} El resto no se emitió: reintentá únicamente los que quedaron sin procesar.`;
+  const NONE = 'No se emitió ninguno: podés reintentar los que quedaron sin procesar.';
+  const THEN = 'Después reintentá únicamente los que quedaron sin procesar.';
+  const verify = (index: number) => `Verificá el #${index} antes de reintentarlo.`;
+  const UNCERTAIN = 'No se pudo confirmar la emisión: socket hang up';
+  const failed = (index: number, reason: string) => `El lote se interrumpió en el comprobante #${index}: ${reason}`;
+  const unconfirmed = (index: number) =>
+    `El #${index} puede haberse emitido: verificalo con \`arcli ultimos fc --pv 3 --testing\` antes de reintentarlo.`;
+  const many = (count: number): Step[] => Array.from({ length: count }, (): Step => 'A');
+
+  async function jsonError(steps: readonly Step[]): Promise<Record<string, unknown>> {
+    expect(await runBatch(steps, { json: true })).toBe(1);
+
+    return JSON.parse(stderr) as Record<string, unknown>;
+  }
+
+  const SUGGESTIONS: ReadonlyArray<[string, Step[], string]> = [
+    ['con procesados y un fallo seguro', ['A', 'login', 'A'], SAFE],
+    ['con procesados que ARCA rechazó y un fallo seguro', ['R', 'login'], SAFE],
+    ['sin procesados y un fallo seguro', ['login', 'A'], NONE],
+    ['la causa tiene su sugerencia: no se copia', ['A', 'sin-autorizar'], SAFE],
+    ['sin confirmar, con procesados y pendientes', ['A', 'incierta', 'A'], `${EMITTED} ${verify(2)} ${THEN}`],
+    ['sin confirmar, con procesados y sin pendientes', ['A', 'incierta'], `${EMITTED} ${verify(2)}`],
+    ['sin confirmar, sin procesados y con pendientes', ['incierta', 'A'], `${verify(1)} ${THEN}`],
+    ['sin confirmar el único', ['incierta'], verify(1)],
+  ];
+
+  // Tests primero (REV-49): pasa a it() al implementarlo.
+  it.fails.each(SUGGESTIONS)('sugerencia del JSON, %s', async (_name, steps, suggestion) => {
+    expect((await jsonError(steps)).sugerencia).toBe(suggestion);
+  });
+
+  // Tests primero (REV-49): pasa a it() al implementarlo.
+  it.fails.each(SUGGESTIONS)('sugerencia del panel, %s', async (_name, steps, suggestion) => {
+    await runBatch(steps);
+
+    // Entera: lo que sigue al título de la sugerencia hasta el borde de abajo.
+    expect(plain(stderr).match(/Sugerencia (.*?) ?[╰└╚]/)?.[1]).toBe(suggestion);
+  });
+
+  const PENDING: ReadonlyArray<[string, Step[], string[]]> = [
+    ['uno', ['A', 'login'], [failed(2, 'LoginFault'), 'Procesados: 1 de 2.', 'Sin procesar: #2.']],
+    ['dos', ['A', 'login', 'A'], [failed(2, 'LoginFault'), 'Procesados: 1 de 3.', 'Sin procesar: #2, #3.']],
+    [
+      'tres, el rango y la cantidad',
+      ['A', 'login', 'A', 'A'],
+      [failed(2, 'LoginFault'), 'Procesados: 1 de 4.', 'Sin procesar: #2 a #4 (3).'],
+    ],
+    [
+      'ninguno procesado',
+      ['login', 'A', 'A'],
+      [failed(1, 'LoginFault'), 'Procesados: 0 de 3.', 'Sin procesar: #1 a #3 (3).'],
+    ],
+    [
+      'noventa y ocho, con uno sin confirmar',
+      ['A', 'incierta', ...many(98)],
+      [failed(2, UNCERTAIN), 'Procesados: 1 de 100.', 'Sin procesar: #3 a #100 (98).', unconfirmed(2)],
+    ],
+  ];
+
+  // Tests primero (REV-49): pasa a it() al implementarlo.
+  it.fails.each(PENDING)('sin procesar, %s: en su línea del error', async (_name, steps, lines) => {
+    expect((await jsonError(steps)).error).toBe(lines.join('\n'));
+  });
+
+  // Tests primero (REV-49): pasa a it() al implementarlo.
+  it.fails.each(PENDING)('sin procesar, %s: en su línea del panel', async (_name, steps, [, , pending]) => {
+    await runBatch(steps);
+
+    const lines = stripAnsi(stderr)
+      .split('\n')
+      .map((line) => line.replace(/[│┃║╏]/g, '').trim());
+
+    expect(lines).toContain(pending);
+  });
+
+  it('sin pendientes, el error no dice "Sin procesar"', async () => {
+    expect((await jsonError(['A', 'incierta'])).error).toBe(
+      [failed(2, UNCERTAIN), 'Procesados: 1 de 2.', unconfirmed(2)].join('\n'),
+    );
+  });
+
+  it('detalles.sinProcesar sigue con la lista completa', async () => {
+    const { detalles } = await jsonError(['A', 'incierta', ...many(98)]);
+
+    expect((detalles as { sinProcesar: number[] }).sinProcesar).toEqual(
+      Array.from({ length: 98 }, (_, index) => index + 3),
+    );
+  });
+
+  const CAUSES: ReadonlyArray<[string, Step, Record<string, unknown>]> = [
+    ['inesperada', 'login', { codigoCausa: 'UNEXPECTED_ERROR' }],
+    ['transitoria', 'transitorio', { codigoCausa: 'TRANSIENT_ERROR' }],
+    ['sin autorizar', 'sin-autorizar', { codigoCausa: 'WSFE_SERVICE_NOT_AUTHORIZED' }],
+    ['sin confirmar', 'incierta', { codigoCausa: 'EMISSION_UNCERTAIN', sinConfirmar: 2, sinProcesar: [] }],
+  ];
+
+  // Tests primero (REV-49): pasa a it() al implementarlo.
+  it.fails.each(CAUSES)('detalles.codigoCausa, %s', async (_name, step, expected) => {
+    expect((await jsonError(['A', step])).detalles).toEqual({
+      fallo: 2,
+      procesados: 1,
+      sinProcesar: [2],
+      total: 2,
+      ...expected,
+    });
+  });
+
+  it('el panel no muestra codigoCausa', async () => {
+    await runBatch(['A', 'transitorio']);
+
+    expect(stderr).not.toMatch(/codigoCausa|TRANSIENT_ERROR/);
   });
 });

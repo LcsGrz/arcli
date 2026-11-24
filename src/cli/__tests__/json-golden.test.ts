@@ -3438,3 +3438,130 @@ describe('el panel de EMISSION_UNCERTAIN no cambia con los datos del JSON (REV-4
     return golden(`panel-sin-confirmar-${name}`, [...args, '--emitir']);
   });
 });
+
+describe('lo que suma el JSON de error (REV-49)', () => {
+  async function jsonError(args: readonly string[], setup: Setup = {}): Promise<Record<string, unknown>> {
+    prepareConfig(setup);
+
+    const result = await runCli([...args, '--json'], setup);
+
+    expect(result.code).toBe(1);
+
+    return JSON.parse(result.stderr) as Record<string, unknown>;
+  }
+
+  const NDE = ['nde', ...NCE.slice(1)];
+  const RC = ['rc', '-m', '1000', '--cs', '--cfinal'];
+  const UNCERTAIN: ReadonlyArray<[string, string[], Record<string, unknown>]> = [
+    ['fa', FA, { puntoVenta: 3, tipoArca: 1 }],
+    ['fb', FB, { puntoVenta: 3, tipoArca: 6 }],
+    ['fc', FC, { puntoVenta: 3, tipoArca: 11 }],
+    ['fc en otro punto de venta', [...FC, '--pv', '7'], { puntoVenta: 7, tipoArca: 11 }],
+    ['rc', RC, { puntoVenta: 3, tipoArca: 15 }],
+    ['ncc', NCC, { puntoVenta: 3, tipoArca: 13 }],
+    ['fcea', FCEA, { puntoVenta: 3, tipoArca: 201 }],
+    ['fe', [...FE, '--pv', '4'], { idSolicitud: 42, numero: 8, puntoVenta: 4, tipoArca: 19 }],
+    ['nde', NDE, { idSolicitud: 42, numero: 8, puntoVenta: 4, tipoArca: 20 }],
+    ['nce', NCE, { idSolicitud: 42, numero: 8, puntoVenta: 4, tipoArca: 21 }],
+  ];
+
+  // Tests primero (REV-49): pasa a it() al implementarlo.
+  it.fails.each(UNCERTAIN)('EMISSION_UNCERTAIN, %s: entorno, puntoVenta y tipoArca', async (_name, args, details) => {
+    sdk.wsfe.createVoucher.mockRejectedValue(new Error('socket hang up'));
+    sdk.wsfex.authorize.mockRejectedValue(new Error('socket hang up'));
+
+    expect((await jsonError([...args, '--emitir'])).detalles).toEqual({
+      causa: 'socket hang up',
+      entorno: 'testing',
+      ...details,
+    });
+  });
+
+  // Tests primero (REV-49): pasa a it() al implementarlo.
+  it.fails.each<[string, string[], Record<string, unknown>]>([
+    ['fc', FC, { puntoVenta: 3, tipoArca: 11 }],
+    ['fe', FE, { idSolicitud: 42, numero: 8, puntoVenta: 3, tipoArca: 19 }],
+  ])('EMISSION_UNCERTAIN, %s en producción: entorno produccion', async (_name, args, details) => {
+    // Con el SDK falso, como todo el archivo.
+    sdk.wsfe.createVoucher.mockRejectedValue(new Error('socket hang up'));
+    sdk.wsfex.authorize.mockRejectedValue(new Error('socket hang up'));
+
+    const config = {
+      cert: { produccion: join(configDir, 'testing.crt') },
+      key: { produccion: join(configDir, 'testing.key') },
+    };
+
+    expect((await jsonError([...args, '--produccion', '--emitir'], { config })).detalles).toEqual({
+      causa: 'socket hang up',
+      entorno: 'produccion',
+      ...details,
+    });
+  });
+
+  const WITHOUT_IVA = {
+    concepto: 'servicios',
+    montoTotal: 1000,
+    numeroDocumento: CLIENT_CUIT,
+    tipoDocumento: 'cuit',
+  };
+
+  // Tests primero (REV-49): pasa a it() al implementarlo.
+  it.fails.each([
+    ['la red caída', 'connect ETIMEDOUT', 'UNEXPECTED_ERROR'],
+    ['un error pasajero', 'ns1:coe.alreadyAuthenticated: ya posee un TA', 'TRANSIENT_ERROR'],
+    ['sin autorizar', 'ns1:cms.cert.notAuthorized', 'PADRON_SERVICE_NOT_AUTHORIZED'],
+  ])('BATCH_VALIDATION_ERROR, padrón con %s: codigoCausa, el mismo que solo', async (_name, message, codigoCausa) => {
+    sdk.padron.getTaxpayerDetails.mockRejectedValue(new Error(message));
+
+    const alone = await jsonError(['fa', '--cargar', writeInput('solo.json', WITHOUT_IVA), '--previsualizar']);
+    const batch = await jsonError(['fa', '--cargar', writeInput('lote.json', [WITHOUT_IVA]), '--previsualizar']);
+
+    expect((batch.detalles as { comprobantes: unknown[] }).comprobantes).toEqual([
+      {
+        codigo: alone.codigo,
+        error: alone.error,
+        indice: 1,
+        sugerencia: alone.sugerencia,
+        ...(alone.detalles as Record<string, unknown>),
+        codigoCausa,
+      },
+    ]);
+  });
+
+  // Tests primero (REV-49): pasa a it() al implementarlo.
+  it.fails('BATCH_VALIDATION_ERROR: codigoCausa solo en los que lo tienen', async () => {
+    sdk.padron.getTaxpayerDetails.mockRejectedValue(new Error('connect ETIMEDOUT'));
+
+    const { detalles } = await jsonError([
+      ...['fa', '--cargar', writeInput('lote.json', [batchItem(-5), WITHOUT_IVA, { montoTotal: 10 }])],
+      '--previsualizar',
+    ]);
+    const items = (detalles as { comprobantes: Array<Record<string, unknown>> }).comprobantes;
+
+    expect(items.map((item) => ['codigoCausa' in item, item.codigoCausa])).toEqual([
+      [false, undefined],
+      [true, 'UNEXPECTED_ERROR'],
+      [false, undefined],
+    ]);
+  });
+
+  // Tests primero (REV-49): pasa a it() al implementarlo.
+  it.fails('lote cortado si además falló stdout: su sugerencia y, al final, la de la salida', async () => {
+    sdk.wsfe.createVoucher.mockImplementationOnce(wsfeAnswer('A')).mockRejectedValueOnce(new Error('socket hang up'));
+
+    const { sugerencia } = await jsonError(
+      ['fc', '--cargar', writeInput('lote.json', [batchItem(1000), batchItem(2000), batchItem(3000)]), '--emitir'],
+      { lostStdout: true },
+    );
+
+    expect(sugerencia).toBe(
+      [
+        'Los procesados con CAE ya se emitieron: recordá no volver a cargarlos.',
+        'Verificá el #2 antes de reintentarlo.',
+        'Después reintentá únicamente los que quedaron sin procesar.',
+        'No se pudo escribir toda la salida: no queda espacio en el disco.',
+        'Se emitió: fc del punto de venta 3, 42. Verificalo con `arcli ultimos fc --pv 3 --cantidad 2 --testing`.',
+      ].join(' '),
+    );
+  });
+});
