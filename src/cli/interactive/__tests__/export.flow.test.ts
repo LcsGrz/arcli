@@ -6,8 +6,11 @@ import { BACK } from '../../../modules/interactive/wizard';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
+import { outputState } from '../../closed-output';
 import { attachExportPdf } from '../../commands/export.command.pdf';
+import { describeEmittedInThisRun, resetEmittedInThisRun } from '../../emitted-vouchers';
 import { runExportFlow } from '../export.flow';
+import { withOutputGuard } from '../output-guard';
 import type { InteractiveSession } from '../session';
 
 import { createScript, editing, onlyChoices, rejecting, type ScriptedAnswer, singleExportItem } from './script';
@@ -131,8 +134,42 @@ describe('runExportFlow', () => {
   });
 
   afterEach(() => {
+    resetEmittedInThisRun();
     vi.restoreAllMocks();
     expect(script.remaining()).toBe(0);
+  });
+
+  it('con stdout roto en "¿Emitimos?" no emite (ERR-18)', async () => {
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, 'estados unidos'],
+      [/ID impositivo/, '12-3456789'],
+      [/Qué exportás/, 'Servicios'],
+      [/moneda/, 'Dólares'],
+      [/Te pagan en dólares/, 'Sí'],
+      ...singleExportItem('1.500', 'Consultoría de software'),
+      [/Forma de pago/, 'Transferencia Internacional'],
+      [/Actividad de WSFEX/, '620100'],
+      [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos la factura de exportación E en testing/, 'Sí, emitir ahora'],
+    ]);
+
+    vi.mocked(process.stdout.write).mockImplementation((chunk) => {
+      if (String(chunk).includes('Esto equivale a')) {
+        outputState.failures.set('stdout', new Error('write'));
+      }
+
+      return true;
+    });
+
+    try {
+      await expect(withOutputGuard(async () => void (await runExportFlow(createSession())))).rejects.toThrow();
+      expect(gateway.authorize).not.toHaveBeenCalled();
+    } finally {
+      outputState.failures.clear();
+    }
   });
 
   it('emite una E de servicios en dólares y ofrece guardar la actividad escrita a mano', async () => {
@@ -170,6 +207,8 @@ describe('runExportFlow', () => {
         Tipo_expo: 2,
       }),
     );
+    // Si despues no se puede escribir la salida, el aviso dice que se emitio (ERR-18).
+    expect(describeEmittedInThisRun()).toEqual([expect.stringContaining('fe del punto de venta 4, 7.')]);
     expect(printed()).toContain(
       "arcli fe -m 1500 --cliente 'ACME LLC' --domicilio-cliente '123 Main St' --pais-destino 'ESTADOS UNIDOS' --id-impositivo 12-3456789 --actividad 620100 --descripcion 'Consultoría de software' --moneda DOL --misma-moneda --testing --emitir",
     );
@@ -939,6 +978,38 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
     expect(gateway.authorize).toHaveBeenCalledOnce();
     expect(printed()).toContain('El comprobante ya quedó emitido; no se generó el PDF.');
     expect(printed()).not.toContain('No se emitió nada');
+  });
+
+  const cancelled = Object.assign(new Error('x'), { name: 'ExitPromptError' });
+
+  it.each([
+    ['cortado por la salida rota', true, cancelled, 1],
+    ['cancelado con Ctrl+C', false, cancelled, 0],
+    ['que falló', false, { error: { code: 'PDF_PLUGIN_MISSING', message: 'x' } }, 1],
+    ['generado', false, { path: '/x.pdf' }, 0],
+  ])('un PDF %s: lo que dice el aviso de la salida (ERR-18)', async (_name, lost, outcome, missing) => {
+    vi.mocked(attachExportPdf).mockImplementationOnce(async (result) => {
+      if (outcome instanceof Error) {
+        throw outcome;
+      }
+
+      return { ...result, pdf: outcome } as never;
+    });
+    script = servicesUntilConfirmation('Sí, emitir ahora');
+
+    if (lost) {
+      outputState.failures.set('stdout', new Error('write'));
+    }
+
+    try {
+      await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+      expect(describeEmittedInThisRun().filter((line) => line.startsWith('No se generó el PDF: fe'))).toHaveLength(
+        missing,
+      );
+    } finally {
+      outputState.failures.clear();
+      resetEmittedInThisRun();
+    }
   });
 
   it('otro error del PDF despues de emitir no se tapa', async () => {

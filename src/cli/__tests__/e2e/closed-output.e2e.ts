@@ -1,9 +1,20 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { stripVTControlCharacters } from 'node:util';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -145,7 +156,10 @@ function fakeArca({ failsAt = 0, result = 'A' }: { failsAt?: number; result?: 'A
      ArcaBillingGateway.prototype.createVoucher = async () => {
        await setTimeout(50);
        number += 1;
-       if (number === ${failsAt}) throw new Error('ARCA no respondió');
+       if (number === ${failsAt}) {
+         appendFileSync(${JSON.stringify(file('enviado.txt'))}, number + '\\n');
+         throw new Error('ARCA no respondió');
+       }
        appendFileSync(${JSON.stringify(file('emitidos.txt'))}, number + '\\n');
        return {
          cae: ${JSON.stringify(result === 'A' ? '75123456789012' : '')},
@@ -190,6 +204,10 @@ function configure(options: { readonly days?: number; readonly pdf?: 'nunca' | '
   );
 }
 
+function readConfig(): Record<string, unknown> {
+  return JSON.parse(readFileSync(file('config.json'), 'utf8')) as Record<string, unknown>;
+}
+
 function writeBatch(): void {
   const item = {
     concepto: 'servicios',
@@ -211,7 +229,108 @@ function pdfs(): string[] {
   return existsSync(folder) ? readdirSync(folder) : [];
 }
 
+interface OutputFailureOptions {
+  readonly code?: string;
+  /** Cuanto tarda en llegar el error; 0, el turno siguiente. */
+  readonly delayMs?: number;
+  /** Falla recien cuando esto da verdadero: codigo que corre en el proceso, con `existsSync` y `seen`. */
+  readonly when?: string;
+}
+
+/** ERR-18: escribir en esas salidas falla como un disco lleno, recien despues de que `write` volvio. */
+function failOutput(names: readonly OutputName[], options: OutputFailureOptions = {}): string {
+  const { code = 'ENOSPC', delayMs = 0, when = 'true' } = options;
+
+  return writePreload(
+    'salida.mjs',
+    `import { existsSync } from 'node:fs';
+     let seen = '';
+     for (const name of ${JSON.stringify(names)}) {
+       const stream = process[name];
+       const write = stream._write.bind(stream);
+       stream._writev = null;
+       stream._write = (chunk, encoding, done) => {
+         seen += chunk;
+         if (!(${when})) { write(chunk, encoding, done); return; }
+         const error = Object.assign(new Error('write ${code}'), { code: '${code}', syscall: 'write' });
+         if (${delayMs} > 0) setTimeout(done, ${delayMs}, error); else process.nextTick(done, error);
+       };
+     }`,
+  );
+}
+
+/**
+ * El asistente sin terminal: cada tecla se manda cuando aparece su pregunta, se haya podido escribir o no, como alguien
+ * que sigue tecleando. El estado de ARCA (la barra) no se consulta. Va despues de `failOutput`.
+ */
+function driveAssistant(answers: ReadonlyArray<readonly [question: string, keys: string]>): string {
+  const gateway = pathToFileURL(resolve('dist/services/arca/arca-parameters.gateway.js')).href;
+
+  return writePreload(
+    'asistente.mjs',
+    `import { PassThrough } from 'node:stream';
+     import { stripVTControlCharacters } from 'node:util';
+     import { ArcaParametersGateway } from ${JSON.stringify(gateway)};
+     for (const name of Object.getOwnPropertyNames(ArcaParametersGateway.prototype)) {
+       if (name !== 'constructor') ArcaParametersGateway.prototype[name] = async () => { throw new Error('sin ARCA'); };
+     }
+     const stdin = Object.assign(new PassThrough(), { isTTY: true, setRawMode: () => stdin, ref() {}, unref() {} });
+     Object.defineProperty(process, 'stdin', { value: stdin });
+     Object.assign(process.stdout, { columns: 120, isTTY: true, rows: 60 });
+     const answers = ${JSON.stringify(answers)};
+     let text = '';
+     const write = process.stdout.write.bind(process.stdout);
+     process.stdout.write = (chunk, ...rest) => {
+       text += stripVTControlCharacters(String(chunk));
+       if (answers.length > 0 && text.includes(answers[0][0])) {
+         const [, keys] = answers.shift();
+         text = '';
+         setTimeout(() => stdin.write(keys), 100);
+       }
+       return write(chunk, ...rest);
+     };
+     // Como una terminal: mientras se lee, el proceso sigue. Una pregunta que nadie contesta en 10 s sale con 71.
+     const waiting = setTimeout(() => process.exit(71), 10000).unref();
+     stdin.on('resume', () => waiting.refresh().ref()).on('pause', () => waiting.unref());`,
+  );
+}
+
+/** WSFEX entero, y el numero autorizado en `emitidos.txt`. */
+function fakeWsfex(): string {
+  const gateway = pathToFileURL(resolve('dist/services/arca/arca-export.gateway.js')).href;
+
+  return writePreload(
+    'wsfex.mjs',
+    `import { appendFileSync } from 'node:fs';
+     import { ArcaExportGateway } from ${JSON.stringify(gateway)};
+     const answers = {
+       getActivities: [{ id: 620100, name: 'SERVICIOS' }],
+       getCurrencies: [{ code: 'DOL', name: 'Dolar' }],
+       getDestinationCountries: [{ code: 212, name: 'ESTADOS UNIDOS' }],
+       getDestinationCountryCuits: [{ countryName: 'ESTADOS UNIDOS - Persona Juridica', cuit: 55000002126 }],
+       getIncoterms: [], getLanguages: [{ id: 1, name: 'Espanol' }], getLastRequestId: 7, getLastVoucherNumber: 8,
+       getQuotations: [], getUnits: [{ id: 7, name: 'unidades' }],
+     };
+     for (const [name, answer] of Object.entries(answers)) ArcaExportGateway.prototype[name] = async () => answer;
+     ArcaExportGateway.prototype.authorize = async (payload) => {
+       appendFileSync(${JSON.stringify(file('emitidos.txt'))}, payload.Cbte_nro + '\\n');
+       return { FEXAuthorizeResult: { FEXErr: { ErrCode: 0, ErrMsg: '' }, FEXEvents: { EventCode: 0, EventMsg: '' },
+         FEXResultAuth: { Cae: '75123456789012', Cbte_nro: payload.Cbte_nro, Fch_venc_Cae: '20991231', Id: payload.Id,
+           Motivos_Obs: '', Punto_vta: payload.Punto_vta, Reproceso: 'N', Resultado: 'A' } } };
+     };`,
+  );
+}
+
+/** El texto de los paneles, sin bordes ni cortes de linea. */
+function plain(text: string): string {
+  return text.replace(/[│┃║╏╎┊▎\s]+/g, ' ');
+}
+
 const INVOICE = ['fc', '-m', '1000', '--cs', '--cfinal', '--emitir'];
+const EXPORT_INVOICE = [
+  ...['fe', '-m', '1500', '--cm', '1000', '--cliente', 'ACME LLC', '--domicilio-cliente', '123 Main St'],
+  ...['--pais-destino', '212', '--cuit-pais', '55000002126', '--emitir'],
+];
 
 beforeAll(() => {
   if (!existsSync(CLI)) {
@@ -326,6 +445,588 @@ describe('con las dos salidas cerradas', () => {
     expect(emitted()).toEqual(['42']);
     expect(pdfs()).toHaveLength(1);
     expect(result.code).toBe(0);
+  });
+});
+
+/**
+ * ERR-18: la salida no se puede escribir (disco lleno). El trabajo termina igual y lo que se emitio se dice por la otra
+ * salida. Con las dos rotas solo queda el codigo.
+ */
+describe('con stdout que no se puede escribir', () => {
+  const UNWRITTEN = 'No se pudo escribir toda la salida: no queda espacio en el disco.';
+  const SINGLE =
+    'Se emitió: fc del punto de venta 3, 42. Verificalo con `arcli ultimos fc --pv 3 --cantidad 2 --testing`.';
+
+  /** Corre y controla lo de todos los casos: sin stack y con el motivo una sola vez. */
+  async function runFailing(args: readonly string[], preloads: readonly string[] = [], code?: string): Promise<Run> {
+    const result = await runClosing([], args, [failOutput(['stdout'], { code }), ...preloads]);
+
+    expect(result.stdout).toBe('');
+    expect(result.stderr).not.toMatch(/write E|node:|Unhandled|\bat /);
+    expect(result.stderr.match(/No se pudo escribir/g)).toHaveLength(1);
+
+    return { ...result, stderr: plain(result.stderr) };
+  }
+
+  it.each([[['ayuda']], [['fc', '--ayuda']], [['config', 'revisar']], [['completado', 'bash']]])(
+    '%j sale con 1 y dice por qué, sin hablar de emisiones',
+    async (args) => {
+      const result = await runFailing(args);
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain(UNWRITTEN);
+      expect(result.stderr).not.toMatch(/emiti[óe]/);
+    },
+  );
+
+  it('otro código sale tal cual', async () => {
+    const result = await runFailing(['ayuda'], [], 'EIO');
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('No se pudo escribir toda la salida: EIO.');
+  });
+
+  it('un comprobante: qué se emitió y con qué verlo', async () => {
+    configure();
+
+    const result = await runFailing(INVOICE, [fakeArca()]);
+
+    expect(emitted()).toEqual(['42']);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(UNWRITTEN);
+    expect(result.stderr).toContain(SINGLE);
+  });
+
+  it('el PDF, que va después de escribir, se guarda', async () => {
+    configure({ pdf: 'siempre' });
+    fakePdfPlugin();
+
+    const result = await runFailing(INVOICE, [fakeArca()]);
+
+    expect(emitted()).toEqual(['42']);
+    expect(pdfs()).toHaveLength(1);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(SINGLE);
+  });
+
+  it('un lote se emite entero, con sus PDF', async () => {
+    configure({ pdf: 'siempre' });
+    fakePdfPlugin();
+    writeBatch();
+
+    const result = await runFailing(['fc', '--cargar', file('lote.json'), '--emitir'], [fakeArca()]);
+
+    expect(emitted()).toEqual(['42', '43', '44']);
+    expect(pdfs()).toHaveLength(3);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(
+      'Se emitieron: fc del punto de venta 3, del 42 al 44. Verificalos con `arcli ultimos fc --pv 3 --cantidad 4 --testing`.',
+    );
+  });
+
+  it('un lote cortado: su error y los que ya se emitieron', async () => {
+    configure();
+    writeBatch();
+
+    const result = await runFailing(['fc', '--cargar', file('lote.json'), '--emitir'], [fakeArca({ failsAt: 44 })]);
+
+    expect(emitted()).toEqual(['42', '43']);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('El lote se interrumpió en el comprobante #3');
+    expect(result.stderr).toContain(
+      'Se emitieron: fc del punto de venta 3, 42 y 43. Verificalos con `arcli ultimos fc --pv 3 --cantidad 3 --testing`.',
+    );
+  });
+
+  it('la E', async () => {
+    configure({ pdf: 'siempre' });
+    fakePdfPlugin();
+
+    const result = await runFailing(EXPORT_INVOICE, [fakeWsfex()]);
+
+    expect(emitted()).toEqual(['9']);
+    expect(pdfs()).toHaveLength(1);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(
+      'Se emitió: fe del punto de venta 3, 9. Verificalo con `arcli ultimos fe --pv 3 --cantidad 2 --testing`.',
+    );
+  });
+
+  it('con --json, un error con la forma de siempre y lo emitido en `sugerencia`', async () => {
+    configure();
+
+    const result = await runFailing([...INVOICE, '--json'], [fakeArca()]);
+
+    expect(emitted()).toEqual(['42']);
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.stderr)).toEqual({
+      codigo: 'OUTPUT_WRITE_ERROR',
+      detalles: null,
+      error: UNWRITTEN,
+      sugerencia: SINGLE,
+    });
+  });
+
+  it('con --json y sin emitir, sin sugerencia', async () => {
+    const result = await runFailing(['config', 'revisar', '--json']);
+
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.stderr)).toEqual({
+      codigo: 'OUTPUT_WRITE_ERROR',
+      detalles: null,
+      error: UNWRITTEN,
+      sugerencia: null,
+    });
+  });
+
+  it('con --json, la ayuda (que commander corta como un error) también lo dice', async () => {
+    const result = await runFailing(['fc', '--ayuda', '--json']);
+
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.stderr)).toMatchObject({ codigo: 'OUTPUT_WRITE_ERROR', error: UNWRITTEN });
+  });
+
+  it('con --json y un lote cortado, stderr sigue siendo un solo JSON: el error del lote', async () => {
+    configure();
+    writeBatch();
+
+    const result = await runFailing(
+      ['fc', '--cargar', file('lote.json'), '--emitir', '--json'],
+      [fakeArca({ failsAt: 43 })],
+    );
+
+    expect(emitted()).toEqual(['42']);
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      codigo: 'BATCH_EMISSION_ERROR',
+      detalles: { fallo: 2, procesados: 1, sinConfirmar: 2, sinProcesar: [3], total: 3 },
+      sugerencia: `${UNWRITTEN} ${SINGLE}`,
+    });
+  });
+
+  it('con --json, un error que llega tarde entra en el mismo JSON', async () => {
+    configure();
+    writeBatch();
+
+    const result = await runClosing(
+      [],
+      ['fc', '--cargar', file('lote.json'), '--emitir', '--json'],
+      [failOutput(['stdout'], { delayMs: 300 }), fakeArca({ failsAt: 43 })],
+    );
+
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      codigo: 'BATCH_EMISSION_ERROR',
+      sugerencia: `${UNWRITTEN} ${SINGLE}`,
+    });
+  });
+
+  it('con --json, una escritura que no termina no demora el error: hay un tope', async () => {
+    configure();
+    writeBatch();
+
+    const result = await runClosing(
+      [],
+      ['fc', '--cargar', file('lote.json'), '--emitir', '--json'],
+      [failOutput(['stdout'], { delayMs: 4000 }), fakeArca({ failsAt: 43 })],
+    );
+
+    // El error del lote sale en el tope; el aviso, recien cuando se sabe, aparte.
+    expect(result.stderr.indexOf('BATCH_EMISSION_ERROR')).toBeGreaterThan(-1);
+    expect(result.stderr.indexOf('BATCH_EMISSION_ERROR')).toBeLessThan(result.stderr.indexOf('No se pudo escribir'));
+    expect(plain(result.stderr)).toContain(SINGLE);
+  });
+
+  it('con `json=true` en la config, el aviso de actualización no va con el JSON', async () => {
+    configure();
+    writeFileSync(file('config.json'), JSON.stringify({ ...readConfig(), output: { jsonPorDefecto: true } }));
+    writeFileSync(file('update-cache.json'), JSON.stringify({ lastCheckedAt: Date.now(), latestVersion: '99.0.0' }));
+
+    const terminal = writePreload(
+      'terminal.mjs',
+      `delete process.env.CI; delete process.env.NO_UPDATE_NOTIFIER; process.stderr.isTTY = true;`,
+    );
+    const healthy = await runClosing([], INVOICE, [terminal, fakeArca()]);
+    const result = await runClosing([], INVOICE, [failOutput(['stdout'], { delayMs: 100 }), terminal, fakeArca()]);
+
+    expect(healthy.stderr).toContain('99.0.0');
+    expect(JSON.parse(stripVTControlCharacters(result.stderr))).toMatchObject({ error: UNWRITTEN });
+
+    const asText = await runClosing([], ['ayuda'], [failOutput(['stdout']), terminal]);
+
+    writeFileSync(file('config.json'), JSON.stringify({ ...readConfig(), output: { jsonPorDefecto: false } }));
+
+    const inText = await runClosing([], INVOICE, [failOutput(['stdout']), terminal, fakeArca()]);
+
+    expect(asText.stderr).not.toContain('99.0.0');
+    expect(inText.stderr).toContain('99.0.0');
+    expect(plain(inText.stderr)).toContain(UNWRITTEN);
+  });
+
+  it('un rechazo sale con 2 y no dice que se emitió', async () => {
+    configure();
+
+    const result = await runFailing(INVOICE, [fakeArca({ result: 'R' })]);
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain(UNWRITTEN);
+    expect(result.stderr).not.toMatch(/emiti[óe]/);
+  });
+
+  it('una vista previa no dice que se emitió', async () => {
+    configure();
+
+    const result = await runFailing(['fc', '-m', '1000', '--cs', '--cfinal', '--previsualizar'], [fakeArca()]);
+
+    expect(emitted()).toEqual([]);
+    expect(result.code).toBe(1);
+    expect(result.stderr).not.toMatch(/emiti[óe]/);
+  });
+
+  it.skipIf(!existsSync('/dev/full'))('con el disco lleno de verdad (/dev/full)', () => {
+    const full = openSync('/dev/full', 'w');
+    const result = spawnSync(process.execPath, [CLI, 'ayuda'], {
+      encoding: 'utf8',
+      env: { ...process.env, ARCLI_CONFIG_DIR: directory, FORCE_COLOR: '0', HOME: directory, NO_UPDATE_NOTIFIER: '1' },
+      stdio: ['ignore', full, 'pipe'],
+    });
+
+    closeSync(full);
+
+    expect(result.status).toBe(1);
+    expect(plain(result.stderr)).toContain(UNWRITTEN);
+    expect(result.stderr).not.toMatch(/write E|node:/);
+  });
+});
+
+describe('con stderr que no se puede escribir', () => {
+  const UNWRITTEN = 'No se pudieron escribir todos los avisos y errores: no queda espacio en el disco.';
+
+  it('un comprobante: sale entero y, después, el aviso con lo emitido', async () => {
+    configure({ days: EXPIRING_DAYS, pdf: 'siempre' });
+    fakePdfPlugin();
+
+    const result = await runClosing([], INVOICE, [failOutput(['stderr']), fakeArca()]);
+    const stdout = plain(result.stdout);
+
+    expect(emitted()).toEqual(['42']);
+    expect(pdfs()).toHaveLength(1);
+    expect(result.code).toBe(1);
+    expect(stdout).toContain('75123456789012');
+    expect(stdout).toContain(UNWRITTEN);
+    expect(stdout).toContain('Se emitió: fc del punto de venta 3, 42.');
+  });
+
+  it('un lote completo: salen los tres y el aviso', async () => {
+    configure({ days: EXPIRING_DAYS, pdf: 'siempre' });
+    fakePdfPlugin();
+    writeBatch();
+
+    const result = await runClosing(
+      [],
+      ['fc', '--cargar', file('lote.json'), '--emitir'],
+      [failOutput(['stderr']), fakeArca()],
+    );
+
+    expect(emitted()).toEqual(['42', '43', '44']);
+    expect(pdfs()).toHaveLength(3);
+    expect(result.code).toBe(1);
+    expect(plain(result.stdout)).toContain('Lote 3/3');
+    expect(plain(result.stdout)).toContain('Se emitieron: fc del punto de venta 3, del 42 al 44.');
+  });
+
+  it('la E', async () => {
+    configure({ days: EXPIRING_DAYS, pdf: 'siempre' });
+    fakePdfPlugin();
+
+    const result = await runClosing([], EXPORT_INVOICE, [failOutput(['stderr']), fakeWsfex()]);
+
+    expect(emitted()).toEqual(['9']);
+    expect(pdfs()).toHaveLength(1);
+    expect(result.code).toBe(1);
+    expect(plain(result.stdout)).toContain('Se emitió: fe del punto de venta 3, 9.');
+  });
+
+  it('una vista previa no dice que se emitió', async () => {
+    configure({ days: EXPIRING_DAYS });
+
+    const result = await runClosing(
+      [],
+      ['fc', '-m', '1000', '--cs', '--cfinal', '--previsualizar'],
+      [failOutput(['stderr']), fakeArca()],
+    );
+
+    expect(emitted()).toEqual([]);
+    expect(result.code).toBe(1);
+    expect(plain(result.stdout)).toContain(UNWRITTEN);
+    expect(plain(result.stdout)).not.toMatch(/Se emiti/);
+  });
+
+  it('un lote cortado: los emitidos y el error del lote, que no se pudo escribir', async () => {
+    configure();
+    writeBatch();
+
+    const result = await runClosing(
+      [],
+      ['fc', '--cargar', file('lote.json'), '--emitir'],
+      [failOutput(['stderr']), fakeArca({ failsAt: 43 })],
+    );
+    const stdout = plain(result.stdout);
+
+    expect(emitted()).toEqual(['42']);
+    expect(result.code).toBe(1);
+    expect(stdout).toContain(UNWRITTEN);
+    expect(stdout).toContain('Se emitió: fc del punto de venta 3, 42.');
+    expect(stdout).toContain('El lote se interrumpió en el comprobante #2');
+    expect(stdout).toContain('arcli ultimos fc --pv 3 --testing');
+  });
+
+  it('una emisión sin confirmar no se pierde', async () => {
+    configure();
+
+    const result = await runClosing([], INVOICE, [failOutput(['stderr']), fakeArca({ failsAt: 42 })]);
+
+    expect(result.code).toBe(1);
+    expect(plain(result.stdout)).toContain('No se pudo confirmar la emisión');
+    expect(plain(result.stdout)).not.toContain('Se emitió:');
+  });
+
+  it('con --json stdout sigue siendo solo el JSON del resultado', async () => {
+    configure({ days: EXPIRING_DAYS });
+
+    const result = await runClosing([], [...INVOICE, '--json'], [failOutput(['stderr']), fakeArca()]);
+
+    expect(emitted()).toEqual(['42']);
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({ cae: '75123456789012' });
+  });
+
+  it('un rechazo sigue saliendo con 2', async () => {
+    configure({ days: EXPIRING_DAYS });
+
+    const result = await runClosing([], [...INVOICE, '--json'], [failOutput(['stderr']), fakeArca({ result: 'R' })]);
+
+    expect(result.code).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({ estado: 'rechazado' });
+  });
+
+  it('sin nada que escribir en stderr, no cambia nada', async () => {
+    const result = await runClosing([], ['ayuda'], [failOutput(['stderr'])]);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).not.toContain('No se pud');
+  });
+});
+
+describe('con las dos salidas que no se pueden escribir', () => {
+  it('se emite lo mismo y sale con 1', async () => {
+    configure({ days: EXPIRING_DAYS, pdf: 'siempre' });
+    fakePdfPlugin();
+
+    const result = await runClosing([], INVOICE, [failOutput(['stdout', 'stderr']), fakeArca()]);
+
+    expect(emitted()).toEqual(['42']);
+    expect(pdfs()).toHaveLength(1);
+    expect(result).toEqual({ code: 1, stderr: '', stdout: '' });
+  });
+
+  it('si recién falla el aviso, también', async () => {
+    const result = await runClosing([], ['ayuda'], [failOutput(['stdout', 'stderr'])]);
+
+    expect(result).toEqual({ code: 1, stderr: '', stdout: '' });
+  });
+
+  it('una rota y la otra cortada: el aviso se pierde y sale con 1', async () => {
+    configure();
+
+    const result = await runClosing(['stderr'], INVOICE, [failOutput(['stdout']), fakeArca()]);
+
+    expect(emitted()).toEqual(['42']);
+    expect(result.code).toBe(1);
+  });
+});
+
+const ENTER = '\r';
+/** Factura C, $ 1.000, servicios, consumidor final: hasta "¿Emitimos?". */
+const ASSISTANT_INVOICE: ReadonlyArray<readonly [string, string]> = [
+  ['¿Qué querés hacer?', ENTER],
+  ['¿Qué comprobante querés emitir?', `factura c${ENTER}`],
+  ['¿A quién le facturás?', `consumidor${ENTER}`],
+  ['¿Qué estás facturando?', `servicios${ENTER}`],
+  ['Monto total:', `1000${ENTER}`],
+  ['opcional', ENTER],
+  ['Emitimos', ENTER],
+];
+
+describe('el asistente', () => {
+  it('con stdout roto desde el principio no pregunta: termina con 1', async () => {
+    configure();
+
+    const result = await runClosing(
+      [],
+      ['interactivo'],
+      [failOutput(['stdout']), driveAssistant(ASSISTANT_INVOICE), fakeArca()],
+    );
+
+    expect(emitted()).toEqual([]);
+    expect(result.code).toBe(1);
+    expect(plain(result.stderr)).toContain('No se pudo escribir toda la salida: no queda espacio en el disco.');
+  });
+
+  it('con stdout cortado (EPIPE), lo mismo', async () => {
+    configure();
+
+    const result = await runClosing(
+      [],
+      ['interactivo'],
+      [failOutput(['stdout'], { code: 'EPIPE' }), driveAssistant(ASSISTANT_INVOICE), fakeArca()],
+    );
+
+    expect(result.code).toBe(1);
+    expect(plain(result.stderr)).toContain('No se pudo escribir toda la salida: EPIPE.');
+  });
+
+  it('si stdout se rompe al mostrar "¿Emitimos?", no emite', async () => {
+    configure();
+
+    const result = await runClosing(
+      [],
+      ['interactivo'],
+      [failOutput(['stdout'], { when: "seen.includes('Emitimos')" }), driveAssistant(ASSISTANT_INVOICE), fakeArca()],
+    );
+
+    expect(result.stdout).toContain('SIN EMITIR');
+    expect(emitted()).toEqual([]);
+    expect(result.code).toBe(1);
+    expect(plain(result.stderr)).not.toContain('Se emitió');
+  });
+
+  it('si se rompe después de emitir, dice qué se emitió y no sigue preguntando', async () => {
+    configure();
+
+    const result = await runClosing(
+      [],
+      ['interactivo'],
+      [
+        failOutput(['stdout'], { when: `existsSync(${JSON.stringify(file('emitidos.txt'))})` }),
+        driveAssistant([...ASSISTANT_INVOICE, ...ASSISTANT_INVOICE]),
+        fakeArca(),
+      ],
+    );
+
+    expect(emitted()).toEqual(['42']);
+    expect(result.code).toBe(1);
+    expect(plain(result.stderr)).toContain('Se emitió: fc del punto de venta 3, 42.');
+  });
+
+  it.each([0, 200])(
+    'con stderr roto (el error llega a los %i ms), una emisión sin confirmar se ve en stdout antes de volver al menú',
+    async (delayMs) => {
+      configure();
+
+      const result = await runClosing(
+        [],
+        ['interactivo'],
+        [
+          // Es el primer error de stderr: nadie supo antes que estaba rota.
+          failOutput(['stderr'], { delayMs, when: "seen.includes('No se pudo confirmar')" }),
+          driveAssistant([...ASSISTANT_INVOICE, ['¿Qué querés hacer?', '\x1b']]),
+          fakeArca({ failsAt: 42 }),
+        ],
+      );
+      const stdout = plain(result.stdout);
+
+      expect(result.code).toBe(1);
+      expect(stdout.match(/No se pudo confirmar la emisión/g)).toHaveLength(1);
+      expect(stdout.indexOf('No se pudo confirmar')).toBeLessThan(stdout.lastIndexOf('¿Qué querés hacer?'));
+    },
+  );
+});
+
+describe('el asistente con `json=true` en la config: no tiene salida JSON', () => {
+  function configureJson(): void {
+    configure();
+    writeFileSync(file('config.json'), JSON.stringify({ ...readConfig(), output: { jsonPorDefecto: true } }));
+  }
+
+  it('con stderr roto, el aviso va en texto por stdout', async () => {
+    configureJson();
+
+    const result = await runClosing(
+      [],
+      ['interactivo'],
+      [
+        failOutput(['stderr'], { when: "seen.includes('No se pudo confirmar')" }),
+        driveAssistant([...ASSISTANT_INVOICE, ['¿Qué querés hacer?', '\x1b']]),
+        fakeArca({ failsAt: 42 }),
+      ],
+    );
+
+    expect(result.code).toBe(1);
+    expect(plain(result.stdout)).toContain('No se pudo confirmar la emisión');
+    expect(plain(result.stdout)).toContain('No se pudieron escribir todos los avisos y errores: no queda espacio');
+  });
+
+  it('con stdout roto y una emisión sin confirmar, el error y el aviso van en texto por stderr', async () => {
+    configureJson();
+
+    const result = await runClosing(
+      [],
+      ['interactivo'],
+      [
+        failOutput(['stdout'], { when: `existsSync(${JSON.stringify(file('enviado.txt'))})` }),
+        driveAssistant(ASSISTANT_INVOICE),
+        fakeArca({ failsAt: 42 }),
+      ],
+    );
+
+    expect(result.code).toBe(1);
+    expect(plain(result.stderr)).toContain('No se pudo confirmar la emisión');
+    expect(plain(result.stderr)).toContain('No se pudo escribir toda la salida: no queda espacio en el disco.');
+    expect(result.stderr).not.toContain('"codigo"');
+  });
+
+  it('con --json explícito, el aviso va en JSON, como los errores de hoy', async () => {
+    configure();
+
+    const result = await runClosing(
+      [],
+      ['interactivo', '--json'],
+      [failOutput(['stdout']), driveAssistant(ASSISTANT_INVOICE), fakeArca()],
+    );
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('"codigo": "OUTPUT_WRITE_ERROR"');
+  });
+
+  it('sin terminal no se abre: ese error sigue en JSON', async () => {
+    configureJson();
+
+    const result = await runClosing([], ['interactivo']);
+
+    expect(JSON.parse(result.stderr)).toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR' });
+  });
+});
+
+describe('el asistente con el PDF elegido, si stdout se rompe después de emitir', () => {
+  it('no lo genera sin preguntar los datos y el aviso lo dice', async () => {
+    configure({ pdf: 'siempre' });
+    fakePdfPlugin();
+
+    const result = await runClosing(
+      [],
+      ['interactivo'],
+      [
+        failOutput(['stdout'], { when: `existsSync(${JSON.stringify(file('emitidos.txt'))})` }),
+        driveAssistant(ASSISTANT_INVOICE),
+        fakeArca(),
+      ],
+    );
+
+    expect(emitted()).toEqual(['42']);
+    expect(pdfs()).toEqual([]);
+    expect(result.code).toBe(1);
+    expect(plain(result.stderr)).toContain('Se emitió: fc del punto de venta 3, 42.');
+    expect(plain(result.stderr)).toContain('No se generó el PDF: fc del punto de venta 3, 42.');
   });
 });
 

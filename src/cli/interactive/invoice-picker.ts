@@ -13,8 +13,7 @@ import { fetchVouchersBackwards, type IssuedVoucher, VoucherQueryError } from '.
 import { formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
-import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
-import { formatCliError } from '../error-output';
+import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
 import { PinnedSeparator } from './list-select';
@@ -29,6 +28,7 @@ import {
   type LoadingResult,
 } from './prompts';
 import type { InteractiveSession } from './session';
+import { showAssistantError } from './show-assistant-error';
 
 /** Comprobante elegido y el punto de venta donde se emitio (a mano puede ser otro que el configurado). */
 export interface PickedVoucher<T> {
@@ -138,7 +138,7 @@ async function orShowQueryError<T>(search: () => Promise<T>): Promise<T | undefi
       throw error;
     }
 
-    writeTerminalError(() => formatCliError(error, false));
+    await showAssistantError(error);
 
     return undefined;
   }
