@@ -53,6 +53,26 @@ Todas las de esta sección son **propias**: formato de los datos y combinaciones
   - `--consumidor-final`
   - `--cfinal`
 
+### Datos del JSON que un flag descarta
+
+Un flag gana al mismo dato del JSON de `--cargar`. Si además cambia a quién, qué comprobante o qué moneda, descarta del archivo los datos que dependían del valor anterior. El mismo valor, o uno que el archivo no trae, no descarta nada. Lo que escribís en otro flag va siempre.
+
+| Flag                                                                        | Descarta del archivo                                                                                                                                                                                   |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--cuit`, `--cuil`, `--dni`, `--cfinal` con otro tipo o número de documento | `ivaReceptor`, `receptorNombre` y `receptorDomicilio`. El IVA sale del padrón o de la config, o hay que pasarlo                                                                                        |
+| `--moneda` con otra moneda (`USD` y `DOL` son la misma)                     | `cotizacionMoneda`: va la oficial de ARCA, aunque la config tenga `cotizacion`. Sin `codigoMoneda`, el archivo está en la moneda extranjera de la config (en la `E`, `DOL`); si no hay, no se descarta |
+| `--cbu` con otro CBU                                                        | `aliasCbu`. El `aliasCbu` de la config también va solo con su `cbu`                                                                                                                                    |
+| `--ac`, `--at`, `--ar`, `--apv`                                             | `periodoAsociado`. Con otro tipo, número o punto de venta, también `cuit` y `fecha` del asociado (en la `E`, `cuit`)                                                                                   |
+| `--ac`, `--at`                                                              | `atajo` y `tipo` del asociado                                                                                                                                                                          |
+| `--periodo-desde`, `--periodo-hasta`                                        | `comprobanteAsociado`. Con uno solo, la otra punta sale del archivo                                                                                                                                    |
+| `--vencimiento` / `--dia`                                                   | `dia` / `vencimientoPago`                                                                                                                                                                              |
+| `--cm` / `--misma-moneda`                                                   | `mismaMoneda` / `cotizacionMoneda`                                                                                                                                                                     |
+| `E`: `--cliente` con otro cliente                                           | `domicilioCliente` e `idImpositivo`. El país se conserva                                                                                                                                               |
+| `E`: `--pais-destino` con otro país                                         | `cuitPais`. Un código y un nombre se toman por distintos                                                                                                                                               |
+| `E`: `--incoterm` con otro código                                           | `descripcionIncoterm`                                                                                                                                                                                  |
+
+`--acuit` y `--afecha` solos no descartan nada, y dos datos opuestos en el mismo lugar (los dos en flags, o los dos en el archivo sin un flag que elija) siguen siendo un error.
+
 ### Tipos y formatos
 
 - `--monto` debe ser un número positivo
@@ -103,7 +123,7 @@ En los flags de fecha de la facturación y de `fce-obligado`, y en las claves de
 - "Hoy" es la fecha argentina, como en las fechas escritas a mano. El 1/1/2027, `ayer` es el 31/12/2026 y `mes-pasado` va del 1/12/2026 al 31/12/2026; el 31/3/2028, `mes-pasado` va del 1/2/2028 al 29/2/2028.
 - Una palabra de mes en una fecha de un día (`--fecha`, `--vto`, `--afecha`, `--fecha-pago`, `fechaComprobante`…) es `INPUT_VALIDATION_ERROR`.
 - `+N` y `-N` van hasta 999 días; `+`, `+abc` o cualquier otra palabra (`mañana`, `semana-pasada`) son `INPUT_VALIDATION_ERROR`.
-- ARCLI resuelve la palabra antes de todo lo demás: las reglas de fechas (ventana de la fecha del comprobante, período, vencimiento) se aplican a la fecha resuelta, y la vista previa y el `--json` muestran la fecha, nunca la palabra.
+- ARCLI resuelve la palabra antes de todo lo demás: las reglas de fechas (ventana de la fecha del comprobante, período, vencimiento) se aplican a la fecha resuelta, y la vista previa y el `--json` muestran la fecha, nunca la palabra. Se resuelve una vez por comando: en un lote, `hoy` es el mismo día para todos.
 
 #### Qué día es "hoy" al emitir
 
@@ -279,7 +299,7 @@ Los avisos aparecen en la salida de texto (panel "Avisos") y en el campo `avisos
 
 El CBU se valida igual en `--cbu`, la clave `cbu` del JSON de `--cargar`, `config establecer cbu` (y la config ya guardada) y el modo interactivo. Además del largo, ARCLI controla los dos dígitos verificadores, una regla propia y no de ARCA, para frenar un CBU mal escrito antes de ir a ARCA. El CBU tiene dos bloques: banco y sucursal (los primeros 8 dígitos; los 7 primeros con pesos 7 1 3 9 7 1 3) y cuenta (los últimos 14; los 13 primeros con pesos 3 9 7 1 3 9 7 1 3 9 7 1 3). El último dígito de cada bloque es `(10 − suma % 10) % 10`. Si no coincide, es un `INPUT_VALIDATION_ERROR` que dice qué bloque está mal. No se controla que el código de banco exista.
 
-`config.cbu` y `config.aliasCbu` solo se aplican a facturas FCE. ARCA además exige que el CBU esté registrado a nombre del emisor (10174), cosa que no se puede validar localmente.
+`config.cbu` y `config.aliasCbu` solo se aplican a facturas FCE, y el alias guardado va solo si el CBU del comprobante es `config.cbu`: con otro CBU sería el alias de otra cuenta, así que, si lo tiene, pasalo con `--alias`. ARCA además exige que el CBU esté registrado a nombre del emisor (10174), cosa que no se puede validar localmente.
 
 ### Moneda y cotización
 

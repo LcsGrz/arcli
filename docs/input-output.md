@@ -81,7 +81,7 @@ Con un solo comprobante, `detalles.campos` lista cada problema con su ruta en el
 
 ### Flags y claves del JSON
 
-Los nombres de las claves no siempre coinciden con los flags. Si pasás las dos cosas, gana el flag.
+Los nombres de las claves no siempre coinciden con los flags. Si pasás las dos cosas, gana el flag, que además puede descartar otros datos del archivo: ver [Datos del JSON que un flag descarta](validation-rules.md#datos-del-json-que-un-flag-descarta).
 
 | Flag                                                          | Clave del JSON                      |
 | ------------------------------------------------------------- | ----------------------------------- |

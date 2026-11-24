@@ -28,6 +28,7 @@ arcli fc --cargar ./voucher.json
   - JSON
   - config
   - defaults internos
+- Un flag que cambia a quién, qué comprobante o qué moneda descarta del JSON los datos que dependían del valor anterior: en un lote, solo en los comprobantes donde cambia. Por ejemplo, con `--cuit` de otro cliente no van el nombre, el domicilio ni el IVA del archivo. La lista está en [Datos del JSON que un flag descarta](validation-rules.md#datos-del-json-que-un-flag-descarta).
 
 ### Errores comunes
 

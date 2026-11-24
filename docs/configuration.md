@@ -78,7 +78,7 @@ Solo si emitís Factura de Crédito Electrónica.
 | Clave          | Tipo    | Valor por defecto | Descripción                                                                                                                          |
 | -------------- | ------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `cbu`          | string  | ninguno           | CBU del emisor (solo facturas FCE). Se validan los 22 dígitos y sus [dos verificadores](validation-rules.md#crédito-electrónico-fce) |
-| `aliasCbu`     | string  | ninguno           | Alias del CBU (solo facturas FCE)                                                                                                    |
+| `aliasCbu`     | string  | ninguno           | Alias del CBU (solo facturas FCE). Se informa solo si el CBU del comprobante es el de `cbu`                                          |
 | `verificarFce` | boolean | `false`           | Consultar el régimen FCE del receptor al facturar                                                                                    |
 
 ### Exportación
@@ -190,6 +190,8 @@ Ejemplo:
 - si no pasás `--moneda` pero el JSON trae `codigoMoneda`, gana el JSON
 - si no hay JSON, usa `moneda` de config
 - si tampoco hay config, cae en el default interno
+
+Un flag que cambia a quién, qué comprobante o qué moneda descarta del JSON los datos que dependían del valor anterior: ver [Datos del JSON que un flag descarta](validation-rules.md#datos-del-json-que-un-flag-descarta).
 
 En `arcli fe` la moneda no sale de `moneda`: sin `--moneda` la exportación va en dólares (`DOL`).
 
