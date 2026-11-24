@@ -21,6 +21,7 @@ const withPermissions = process.platform !== 'win32' && process.getuid?.() !== 0
 
 let certificate: SelfSignedCertificate;
 let directory = '';
+let root = '';
 
 interface JsonError {
   readonly codigo: string;
@@ -79,7 +80,10 @@ beforeAll(() => {
 afterAll(removeSelfSignedCertificates);
 
 beforeEach(() => {
-  directory = mkdtempSync(join(tmpdir(), 'arcli-archivos-'));
+  root = mkdtempSync(join(tmpdir(), 'arcli-archivos-'));
+  // Varias carpetas adentro: en Linux, /tmp/x entera es tan corta como la abreviada.
+  directory = join(root, 'uno', 'dos');
+  mkdirSync(directory, { recursive: true });
   vi.stubEnv('ARCLI_CONFIG_DIR', directory);
   vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
 });
@@ -88,7 +92,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   process.exitCode = undefined;
-  rmSync(directory, { force: true, recursive: true });
+  rmSync(root, { force: true, recursive: true });
 });
 
 const COMMANDS: ReadonlyArray<readonly [string, string[]]> = [
