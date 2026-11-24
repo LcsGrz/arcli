@@ -1,4 +1,5 @@
 import { AppError } from '../../lib/errors/app-error';
+import type { ErrorCode } from '../../lib/errors/error-codes';
 import { BILLING_IVA_RATES, documentTypeFromCode, ivaRateFactor } from '../billing/arca-codes';
 import type { BillingDocumentType, BillingIvaRate } from '../billing/billing.schemas';
 
@@ -68,17 +69,32 @@ export interface IssuedVoucher {
 
 /** ARCA contesto la consulta de un comprobante y no se sabe si existe. `reason` es el motivo solo, para otra frase. */
 export class VoucherQueryError extends AppError {
+  declare public readonly details: Record<string, unknown>;
+  declare public readonly suggestion: string;
+  /** Existe (tiene numero y CAE), pero no se entiende: una lista lo saltea en vez de fallar entera. */
+  public readonly exists: boolean;
+
   public constructor(
     message: string,
     details: Record<string, unknown>,
     suggestion: string,
     public readonly reason: string,
-    /** Existe (tiene numero y CAE), pero no se entiende: una lista lo saltea en vez de fallar entera. */
-    public readonly exists = false,
+    options: {
+      readonly cause?: unknown;
+      /** La `E` sale con `ARCA_EXPORT_ERROR` si ARCA contesta con un error: el codigo es contrato (ARQ-22). */
+      readonly code?: ErrorCode;
+      readonly exists?: boolean;
+    } = {},
   ) {
-    super(message, { code: 'ARCA_VOUCHER_QUERY_ERROR', details, suggestion });
+    super(message, { cause: options.cause, code: options.code ?? 'ARCA_VOUCHER_QUERY_ERROR', details, suggestion });
     this.name = 'VoucherQueryError';
+    this.exists = options.exists ?? false;
   }
+}
+
+/** ARCA contesto con un error. `voucher`, como va en la frase: `el comprobante 00003-00000012`. */
+export function voucherQueryErrorMessage(voucher: string, reason: string): string {
+  return `ARCA devolvió un error al consultar ${voucher} y no se sabe si existe: ${reason}`;
 }
 
 export interface VoucherHistoryGateway {

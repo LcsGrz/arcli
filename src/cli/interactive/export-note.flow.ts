@@ -4,7 +4,7 @@ import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { creditNoteOverTotalHint, isCreditNoteOverTotal } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
-import { assertExportNoteMatchesAssociated } from '../../modules/export/export.notes';
+import { assertExportNoteMatchesAssociated, fetchExportAssociatedVoucher } from '../../modules/export/export.notes';
 import {
   BILLS_EXPORT_TYPE,
   EXPORT_CREDIT_NOTE_KIND,
@@ -155,7 +155,11 @@ export function exportNoteSteps(
           const invoice = await orShowQueryError(() =>
             withSpinner(`Buscando ${name} en ARCA...`, () =>
               asQuery(() =>
-                gateway.getVoucher({ arcaType: associatedKind.arcaType, number, pointOfSale: invoicePointOfSale }),
+                fetchExportAssociatedVoucher(gateway, {
+                  arcaType: associatedKind.arcaType,
+                  number,
+                  pointOfSale: invoicePointOfSale,
+                }),
               ),
             ),
           );

@@ -11,9 +11,9 @@ export class AppError extends Error {
 
   public constructor(
     message: string,
-    options: { code: ErrorCode; details?: Record<string, unknown>; suggestion?: string },
+    options: { cause?: unknown; code: ErrorCode; details?: Record<string, unknown>; suggestion?: string },
   ) {
-    super(message);
+    super(message, options.cause === undefined ? undefined : { cause: options.cause });
     this.name = 'AppError';
     this.code = options.code;
     this.details = options.details;

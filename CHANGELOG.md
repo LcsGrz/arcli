@@ -127,6 +127,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Consultas:** `consultar` y `ultimos` dan `ARCA_VOUCHER_QUERY_ERROR` si ARCA contesta con un error, en vez de decir que no existe (#268).
 - **Consultas:** un error pasajero o del último número ya no dice que no se emitió nada ni manda a emitir de nuevo (#273).
 - **Factura E:** si ARCA devuelve una `E` sin sus datos, `consultar`, `ultimos`, las notas y el asistente ya no dicen que no existe (#273).
+- **Factura E:** un error de ARCA al consultarla avisa que no se sabe si existe, y el asistente sigue sin perder lo cargado (#285).
+- **Errores:** en la `E`, los de moneda, incoterm y punto de venta ya no mandan a `arcli parametros`: dicen qué usar (#285).
 - **Notas:** si ARCA contesta con un error por el asociado, A, B, C y FCE ya no dicen que no existe (#268).
 - **Asistente:** si ARCA contesta con un error al listar A, B, C, FCE o recibos, lo muestra y podés reintentar o buscar a mano (#268).
 - **Facturas:** Ctrl+C en "¿Emitimos?" dice que se canceló y que no se emitió nada, en vez de "Error inesperado" (#270).
@@ -205,6 +207,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **Qué falló al consultar a ARCA.** Al facturar a un CUIT sin IVA receptor con el padrón caído, y en una nota FCE sin `--afecha` si falla la consulta del asociado, el error es `INPUT_VALIDATION_ERROR` y no decía si era la red, ARCA o el certificado. Ahora `detalles`, antes `null`, es `{ "codigoCausa": "…" }` con el código de la falla, por ejemplo `UNEXPECTED_ERROR` o `WSFE_SERVICE_NOT_AUTHORIZED`. `codigo`, `error`, `sugerencia` y el panel no cambian, y si ARCA contestó que no figura o no lo tiene, `detalles` sigue en `null`.
 
 **`--cargar` de la `E`.** Un tipo equivocado dice qué llegó y, si es un número entre comillas, "Escribilo sin comillas."; una clave mal escrita sugiere la parecida o la del flag, también dentro de `items` y `comprobanteAsociado`; y un archivo con `"x"`, `5` o `null` dice qué tiene que ser, en vez de `"" tiene que ser un objeto`. Los elementos de una lista se nombran `items[0].cantidad`, como en A, B y C. Vale para `fe`, `nce` y `nde`; `codigo` y `detalles: null` no cambian.
+
+**Un error de ARCA al consultar una `E`.** `consultar` y `ultimos` con `fe`, `nce` o `nde` decían "al consultar el comprobante asociado" y no avisaban que podía existir. Ahora `error` nombra el comprobante, dice que no se sabe si existe y trae el código de ARCA, y `sugerencia` (antes `null`) pide no reintentar una emisión hasta saberlo, como en A, B y C. En las notas `E` sigue diciendo que es el asociado, con su número. En el asistente ese error salía al menú y se perdía lo cargado: ahora se muestra y se sigue en la lista, en la pregunta o, desde la vista previa, en la última respuesta. Un error al pedir el último número de una `E` también trae `sugerencia`: la de consultar en `ultimos`, la de emitir al facturar. `codigo` sigue en `ARCA_EXPORT_ERROR` y `detalles` no cambia.
+
+**Qué usar en la `E`.** `arcli parametros` tiene las tablas de A, B y C, no las de WSFEX. Un incoterm o un idioma que no existe ahora lista los válidos en `sugerencia`; una moneda o una unidad, los más comunes de la tabla de WSFEX; el país, los parecidos, y el CUIT del país, el del destino. Un rechazo por el punto de venta aclara que en producción la `E` usa uno propio, y por el del asociado, `--apv`. El `error` del incoterm ya no trae la indicación, que pasó a `sugerencia`.
 
 </details>
 

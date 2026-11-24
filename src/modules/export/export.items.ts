@@ -159,6 +159,18 @@ function findUnitByName(units: readonly ExportUnit[], normalized: string): Expor
   return matches.length === 1 ? matches[0] : undefined;
 }
 
+/** Kilogramos, metros, metros cuadrados, metros cubicos, litros y unidades (`FEXGetPARAM_UMed`). */
+const COMMON_UNIT_CODES: readonly number[] = [1, 2, 3, 4, 5, DEFAULT_EXPORT_UNIT_CODE];
+
+/** Las mas comunes, con el nombre de la tabla: no hay un comando que la liste. */
+function commonUnitsHint(units: readonly ExportUnit[]): string | undefined {
+  const common = units.filter(({ id }) => COMMON_UNIT_CODES.includes(id));
+
+  return common.length > 0
+    ? `Las más comunes: ${common.map(({ id, name }) => `${id} (${name.trim()})`).join(', ')}.`
+    : undefined;
+}
+
 /**
  * Codigo de ARCA de la unidad: si viene un nombre se busca en la tabla de WSFEX. Un nombre desconocido
  * es un error, no un default silencioso.
@@ -170,7 +182,11 @@ export function resolveUnitCode(unit: string | number | undefined, units: readon
     const known = units.find((entry) => entry.id === unit);
 
     if (units.length > 0 && !known) {
-      throw new InputValidationError(`La unidad ${unit} no existe en la tabla de ARCA.`);
+      throw new InputValidationError(
+        `La unidad ${unit} no existe en la tabla de ARCA.`,
+        undefined,
+        commonUnitsHint(units),
+      );
     }
 
     return unit;
@@ -185,6 +201,8 @@ export function resolveUnitCode(unit: string | number | undefined, units: readon
 
     throw new InputValidationError(
       `La unidad "${unit}" no existe en la tabla de ARCA. Usá el nombre tal como lo informa ARCA o el código numérico.`,
+      undefined,
+      commonUnitsHint(units),
     );
   }
 

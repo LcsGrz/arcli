@@ -96,7 +96,7 @@ arcli config establecer puntoVenta 2
 ```
 
 > [!WARNING]
-> **El de Factura en línea no sirve.** Cada sistema usa sus propios puntos de venta: con uno de Comprobantes en línea, ARCA rechaza con el error `10005`. La Factura E necesita además uno del sistema WSFEX.
+> **El de Factura en línea no sirve.** Cada sistema usa sus propios puntos de venta: con uno de Comprobantes en línea, ARCA rechaza con el error `10005`. La Factura E necesita además uno del sistema WSFEX, que se crea igual; `arcli parametros puntos-venta` no sirve para revisarlo: consulta los de A, B y C.
 
 ## Revisar que quedó bien
 

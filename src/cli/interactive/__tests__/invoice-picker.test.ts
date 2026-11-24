@@ -448,7 +448,10 @@ describe('pickExportVoucher', () => {
   });
 
   /** Tres E; la `failing` viene sin datos, la primera vez o siempre. */
-  function exportGateway(failing: number, { broken = {}, once = false }: { broken?: object; once?: boolean } = {}) {
+  function exportGateway(
+    failing: number,
+    { broken = {}, error, once = false }: { broken?: object; error?: object; once?: boolean } = {},
+  ) {
     let failed = false;
 
     return new ArcaExportGateway(
@@ -458,7 +461,7 @@ describe('pickExportVoucher', () => {
             if (number === failing && !(once && failed)) {
               failed = true;
 
-              return { FEXGetCMPResult: { FEXResultGet: broken } };
+              return { FEXGetCMPResult: error ? { FEXErr: error } : { FEXResultGet: broken } };
             }
 
             return { FEXGetCMPResult: { FEXResultGet: row(number) } };
@@ -497,6 +500,35 @@ describe('pickExportVoucher', () => {
     });
     expect(shownErrors()).toContain('00003-00000099 y no se sabe si existe');
     expect(stripAnsi(output)).not.toContain('No existe');
+  });
+
+  // ARQ-22: con un error de ARCA salia al menu y se perdia lo cargado.
+  const ARCA_ERROR = { ErrCode: 1510, ErrMsg: 'Punto de venta' };
+
+  it('con un error de ARCA en la lista lo muestra y deja reintentar', async () => {
+    script = createScript([
+      [/Cuál/, 'Volver a cargar'],
+      [/Cuál/, '00003-00000002'],
+    ]);
+
+    expect(
+      await pickExportVoucher(createSession([]), exportGateway(2, { error: ARCA_ERROR, once: true }), exportOptions),
+    ).toMatchObject({ invoice: { number: 2 } });
+    expect(shownErrors()).toContain('00003-00000002 y no se sabe si existe');
+  });
+
+  it('con un error de ARCA al buscar a mano lo muestra y vuelve a la lista', async () => {
+    script = createScript([
+      [/Cuál/, 'Ingresar el número a mano'],
+      [/Punto de venta/, '3'],
+      [/Número/, '99'],
+      [/Cuál/, '00003-00000003'],
+    ]);
+
+    expect(
+      await pickExportVoucher(createSession([]), exportGateway(99, { error: ARCA_ERROR }), exportOptions),
+    ).toMatchObject({ invoice: { number: 3 } });
+    expect(shownErrors()).toContain('00003-00000099 y no se sabe si existe');
   });
 
   const shown = () => stripAnsi(output).replace(/[│┃╏║\s]+/g, ' ');

@@ -368,8 +368,9 @@ export async function emitExportVoucher(
   const input: ExportVoucherInput = { ...rawInput, pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale };
   const service = new ExportService({ clock: systemClock });
   // Si la vista previa rechaza la entrada, vuelve a la ultima pregunta (TUI-15).
-  const resolved = await rejectedAsBack(() =>
-    withSpinner('Consultando WSFEX...', () => service.resolve(input, gateway, runtime)),
+  const resolved = await rejectedAsBack(
+    () => withSpinner('Consultando WSFEX...', () => service.resolve(input, gateway, runtime)),
+    { queryErrors: true },
   );
 
   if (resolved === BACK) {

@@ -1,3 +1,4 @@
+import type { LastNumberPurpose } from '../../lib/errors/query-error';
 import type { AuthorizationAnswer } from '../billing/authorization-answer';
 import type { EmitDecisionSource } from '../billing/billing.emit-decision';
 import { ARCA_DOLLAR_CODE } from '../billing/currency-codes';
@@ -361,7 +362,7 @@ export interface ExportGateway {
    * `NO`), tal cual. Es una lectura: no emite nada.
    */
   checkPermit(permit: string, destinationCountry: number): Promise<string>;
-  /** Un comprobante E ya emitido (`FEXGetCMP`), o `null` solo si ARCA dice que no existe; sin sus datos, `VoucherQueryError`. */
+  /** Un comprobante E ya emitido (`FEXGetCMP`), o `null` solo si ARCA dice que no existe; si no, `VoucherQueryError`. */
   getVoucher(query: ExportVoucherQuery): Promise<ExportIssuedVoucher | null>;
   getCurrencies(): Promise<readonly ExportCurrency[]>;
   getDestinationCountries(): Promise<readonly ExportCountry[]>;
@@ -369,8 +370,11 @@ export interface ExportGateway {
   getIncoterms(): Promise<readonly ExportIncoterm[]>;
   getLanguages(): Promise<readonly ExportLanguage[]>;
   getLastRequestId(): Promise<number>;
-  /** El ultimo numero autorizado de ese tipo en el punto de venta (`FEXGetLast_CMP`); 0 si no hay ninguno. */
-  getLastVoucherNumber(arcaType: number, pointOfSale: number): Promise<number>;
+  /**
+   * El ultimo numero autorizado de ese tipo en el punto de venta (`FEXGetLast_CMP`); 0 si no hay ninguno. `purpose`
+   * (por defecto, consultar) decide la sugerencia si ARCA contesta con un error.
+   */
+  getLastVoucherNumber(arcaType: number, pointOfSale: number, purpose?: LastNumberPurpose): Promise<number>;
   /**
    * Cotizaciones de aduana que WSFEX tiene publicadas para `arcaDate` (`yyyymmdd`). Devuelve solo las monedas con
    * cotizacion y, en `date`, el dia al que corresponde: si la del dia pedido todavia no salio, es la anterior.

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AppError } from '../../../lib/errors/app-error';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import {
   EXPORT_CREDIT_NOTE_KIND,
@@ -10,6 +11,7 @@ import {
 import { buildExportNoteInput } from '../../../modules/interactive/export-note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import { VoucherQueryError } from '../../../modules/vouchers/voucher-history';
+import { voucherQueryError } from '../../../services/arca/voucher-query-error';
 import { exportAnswer } from '../../../testing/arca-answers';
 import { fakeBillingGateway } from '../../../testing/arca-gateways';
 import { stripAnsi } from '../../../ui';
@@ -323,6 +325,76 @@ describe('runExportNoteFlow', () => {
 
     expect(errors.mock.calls.join('')).toContain('No se sabe si existe');
     expect(printed()).not.toContain('ARCA no tiene');
+  });
+
+  describe('con un error de ARCA por el asociado (ARQ-22)', () => {
+    const queryError = () =>
+      voucherQueryError({
+        as: { code: 'ARCA_EXPORT_ERROR', details: {} },
+        errors: [{ code: 1510, msg: 'Punto de venta' }],
+        number: 1,
+        pointOfSale: 4,
+      });
+    const SHOWN = 'el comprobante asociado 00004-00000001 y no se sabe si existe: 1510 Punto de venta';
+    const shownIn = (errors: { readonly mock: { readonly calls: unknown[][] } }) =>
+      errors.mock.calls.join('').replace(/[│┃╏\s]+/g, ' ');
+
+    it('al buscarlo, lo muestra, sigue y se emite', async () => {
+      const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+      vi.mocked(gateway.getVoucher).mockRejectedValueOnce(queryError());
+      script = createScript([
+        [/Punto de venta de la factura E/, '4'],
+        [/Número de la factura E/, '1'],
+        [/Número de la factura E/, '1'],
+        [/En qué moneda va la nota/, 'En USD'],
+        ...noteExportItem('500', 'Descuento'),
+        [/Agregamos algún opcional/, []],
+        [/Emitimos/, 'Sí, emitir ahora'],
+      ]);
+
+      await runExportNoteFlow(createSession(), 'credito');
+
+      expect(shownIn(errors)).toContain(SHOWN);
+      expect(gateway.authorize).toHaveBeenCalledTimes(1);
+    });
+
+    it('en la vista previa, vuelve a la última pregunta sin perder lo cargado y se emite', async () => {
+      const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+      vi.mocked(gateway.getVoucher).mockResolvedValueOnce(INVOICE).mockRejectedValueOnce(queryError());
+      script = createScript([
+        [/Punto de venta de la factura E/, '4'],
+        [/Número de la factura E/, '1'],
+        [/En qué moneda va la nota/, 'En USD'],
+        ...noteExportItem('500', 'Descuento'),
+        [/Agregamos algún opcional/, []],
+        [/Agregamos algún opcional/, []],
+        [/Emitimos/, 'Sí, emitir ahora'],
+      ]);
+
+      await runExportNoteFlow(createSession(), 'credito');
+
+      expect(shownIn(errors)).toContain(SHOWN);
+      expect(printed().replace(/[│┃╏\s]+/g, ' ')).toContain('No se emitió nada. Volvemos a la última pregunta');
+      expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Imp_total: 500 }));
+    });
+
+    it.each([
+      ['de red', new Error('ETIMEDOUT')],
+      ['de autorización', new AppError('Sin autorizar', { code: 'WSFEX_SERVICE_NOT_AUTHORIZED' })],
+    ])('sin cambios: un error %s en la vista previa sale al menú', async (_name, error) => {
+      vi.mocked(gateway.getVoucher).mockResolvedValueOnce(INVOICE).mockRejectedValueOnce(error);
+      script = createScript([
+        [/Punto de venta de la factura E/, '4'],
+        [/Número de la factura E/, '1'],
+        [/En qué moneda va la nota/, 'En USD'],
+        ...noteExportItem('500', 'Descuento'),
+        [/Agregamos algún opcional/, []],
+      ]);
+
+      await expect(runExportNoteFlow(createSession(), 'credito')).rejects.toBe(error);
+    });
   });
 
   it('sin cambios: otro error al buscar el asociado sale al menú', async () => {

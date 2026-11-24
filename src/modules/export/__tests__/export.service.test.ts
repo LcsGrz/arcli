@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import type { AppError } from '../../../lib/errors/app-error';
 import { exportAnswer } from '../../../testing/arca-answers';
 import { EmissionUncertainError } from '../../billing/billing.errors';
 import { arcliConfigSchema } from '../../config/config.schemas';
@@ -387,6 +388,95 @@ describe('ExportService.resolve', () => {
     expect(gateway.getQuotations).not.toHaveBeenCalled();
   });
 
+  // ARQ-22: `arcli parametros` es de wsfe, sus tablas no son las de la E.
+  it.each<[string, Partial<ExportVoucherInput>, RegExp]>([
+    [
+      'moneda',
+      { currencyCode: 'XYZ' },
+      /: va el código de ARCA o su ISO\. Las más comunes de la E: `PES` \(ARS\), `DOL` \(USD\)\.$/,
+    ],
+    ['incoterm', { incoterm: 'XXX' }, /^Los válidos: `/],
+    ['idioma', { language: 99 }, /^Los válidos: \d+ \(/],
+    ['país', { destinationCountry: 'Narnia' }, /`arcli` > "Emitir factura" > "Factura de exportación E"/],
+    ['CUIT de país', { clientCountryCuit: 1 }, /^Para "Brasil" la tabla de ARCA trae \d+: pasalo con `--cuit-pais`\.$/],
+    [
+      'unidad',
+      { items: [{ description: 'x', quantity: 1, unit: 'xx', unitPrice: INPUT.amount as number }] },
+      /^Las más comunes: \d/,
+    ],
+  ])('%s inválido: la sugerencia dice los válidos y no manda a `parametros`', async (_name, override, hint) => {
+    const note = { associatedVoucher: { number: 12 }, incoterm: undefined, voucherKind: EXPORT_CREDIT_NOTE_KIND };
+
+    for (const input of [INPUT, { ...INPUT, ...note }]) {
+      const gateway = createGateway({ getVoucher: vi.fn(async () => ASSOCIATED_INVOICE) });
+      const error = (await service
+        .resolve({ ...input, ...override }, gateway, RUNTIME)
+        .catch((reason: unknown) => reason)) as AppError;
+
+      expect(error).toMatchObject({ code: 'INPUT_VALIDATION_ERROR', suggestion: expect.stringMatching(hint) });
+      expect(`${error.message} ${error.suggestion}`).not.toContain('parametros');
+    }
+  });
+
+  it('el CUIT de país heredado que la tabla no trae: la sugerencia no promete el del destino (ARQ-22)', async () => {
+    const gateway = createGateway({
+      getVoucher: vi.fn(async () => ({ ...ASSOCIATED_INVOICE, clientCountryCuit: 1 })),
+    });
+
+    await expect(
+      service.resolve(
+        {
+          amount: 100,
+          emit: false,
+          associatedVoucher: { number: 12 },
+          voucherKind: EXPORT_CREDIT_NOTE_KIND,
+        },
+        gateway,
+        RUNTIME,
+      ),
+    ).rejects.toMatchObject({
+      message: 'El CUIT de país 1 no existe en la tabla de ARCA.',
+      suggestion: expect.stringMatching(/pasalo con `--cuit-pais`\.$/),
+    });
+  });
+
+  it.each<[string, string, Array<{ code: number; name: string }>, string | undefined]>([
+    [
+      'parecidos, sin tildes',
+      'unidos',
+      [{ code: 212, name: 'ESTADOS UNIDOS' }],
+      'Parecidos: ESTADOS UNIDOS (212). Están todos en el asistente: `arcli` > "Emitir factura" > "Factura de exportación E".',
+    ],
+    [
+      'sin Argentina',
+      'argen',
+      [{ code: 200, name: 'ARGENTINA' }],
+      'Están todos en el asistente: `arcli` > "Emitir factura" > "Factura de exportación E".',
+    ],
+    [
+      'un código',
+      '999',
+      [{ code: 212, name: 'ESTADOS UNIDOS' }],
+      'Están todos en el asistente: `arcli` > "Emitir factura" > "Factura de exportación E".',
+    ],
+    ['sin tabla', 'unidos', [], undefined],
+  ])('país inexistente, %s', async (_name, destinationCountry, countries, suggestion) => {
+    const gateway = createGateway({ getDestinationCountries: vi.fn(async () => countries) });
+
+    await expect(service.resolve({ ...INPUT, destinationCountry }, gateway, RUNTIME)).rejects.toMatchObject({
+      message: `El país de destino "${destinationCountry}" no existe en la tabla de ARCA. Usá el código o el nombre que informa ARCA.`,
+      suggestion,
+    });
+  });
+
+  it('la moneda sugerida no nombra una que la tabla no trae (ARQ-22)', async () => {
+    const gateway = createGateway({ getCurrencies: vi.fn(async () => [{ code: '012', name: 'Real' }]) });
+
+    await expect(service.resolve({ ...INPUT, currencyCode: 'XYZ' }, gateway, RUNTIME)).rejects.toMatchObject({
+      suggestion: expect.not.stringMatching(/DOL|USD|EUR|060/),
+    });
+  });
+
   it('sin cotizacion para la moneda (el gateway descarta las de 0) es ARCA_QUOTATION_ERROR', async () => {
     const gateway = createGateway({ getQuotations: vi.fn(async () => []) });
 
@@ -496,7 +586,7 @@ describe('ExportService.resolve', () => {
     const gateway = createGateway();
     const resolved = await service.resolve({ ...INPUT, voucherNumber: undefined }, gateway, RUNTIME);
 
-    expect(gateway.getLastVoucherNumber).toHaveBeenCalledWith(19, 3);
+    expect(gateway.getLastVoucherNumber).toHaveBeenCalledWith(19, 3, 'emitir');
     expect(resolved.payload.Cbte_nro).toBe(42);
   });
 
