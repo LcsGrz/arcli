@@ -128,6 +128,7 @@ describe('titulos y sugerencias por codigo', () => {
     const output = formatAppError(new AppError('Algo pasó.', { code }), false).replace(/\s+/g, ' ');
 
     expect(output).toContain(title);
+    expect(output).not.toContain('undefined');
 
     if (hint) {
       expect(output).toContain(hint);

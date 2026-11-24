@@ -1145,6 +1145,13 @@ describe('un dato local inválido corta antes de ARCA (ERR-11)', () => {
     });
   });
 
+  it('el CUIT del receptor, que es el del emisor (10069)', async () => {
+    expect(await localError(['fb', ...receiver(String(CUIT))])).toMatchObject({
+      codigo: 'INPUT_VALIDATION_ERROR',
+      error: expect.stringContaining('error 10069'),
+    });
+  });
+
   it('el CUIT del receptor, por --cargar', async () => {
     const item = { concepto: 'servicios', montoTotal: 1000, numeroDocumento: Number(BAD_CUIT), tipoDocumento: 'cuit' };
 
