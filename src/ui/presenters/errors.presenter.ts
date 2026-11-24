@@ -32,7 +32,7 @@ function formatErrorTitle(code: string): string {
 
 /**
  * Que hacer con un lote cortado. Los procesados pueden incluir rechazados, que no se emitieron: manda el CAE. Con uno
- * sin confirmar, el mensaje ya trae el comando para verificarlo.
+ * sin confirmar, el mensaje ya trae el comando para verificarlo; sin eso, fallo antes de la llamada que emite (ERR-16).
  */
 function formatInterruptedBatchHint(details: Record<string, unknown> = {}): string | null {
   const { fallo, procesados, sinConfirmar, sinProcesar } = details;
@@ -40,12 +40,8 @@ function formatInterruptedBatchHint(details: Record<string, unknown> = {}): stri
   const pending = Array.isArray(sinProcesar) && sinProcesar.length > 0;
   const steps = [
     ...(procesados ? ['Los procesados con CAE ya se emitieron: no los vuelvas a cargar.'] : []),
-    ...(uncertain
-      ? []
-      : [
-          `Antes de reintentar el #${String(fallo)}, fijate que no figure emitido con \`arcli ultimos <tipo> --pv <n>\`, en el mismo entorno.`,
-        ]),
-    ...(pending ? ['Después reintentá los que quedaron sin procesar.'] : []),
+    ...(!uncertain && fallo !== undefined ? [`El #${String(fallo)} no se emitió.`] : []),
+    ...(pending ? [`${uncertain ? 'Después reintentá' : 'Reintentá'} los que quedaron sin procesar.`] : []),
   ];
 
   return steps.length > 0 ? steps.join(' ') : null;

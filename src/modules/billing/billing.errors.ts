@@ -1,5 +1,18 @@
 import { AppError } from '../../lib/errors/app-error';
 
+/**
+ * Lee la respuesta de la llamada que emite, A, B, C o E. Si no se puede, ARCA pudo haber autorizado el comprobante: va
+ * adentro del mismo `try` que la llamada, asi sale como `EmissionUncertainError` y no como un error inesperado que invita
+ * a reintentar (ERR-16). El error original queda en `cause`.
+ */
+export function readEmissionResponse<T>(read: () => T): T {
+  try {
+    return read();
+  } catch (error) {
+    throw new Error('ARCA contestó algo que ARCLI no pudo leer', { cause: error });
+  }
+}
+
 /** A, B y C: el numero lo pone ARCA, asi que se verifica con `arcli ultimos`. */
 interface WsfeUncertainTarget {
   readonly environment: 'produccion' | 'testing';
@@ -21,8 +34,8 @@ interface WsfexUncertainTarget {
 }
 
 /**
- * Fallo la llamada que emite en ARCA (red, timeout, ARCA). No se sabe si el comprobante quedo autorizado:
- * pudo emitirse y perderse la respuesta. Reintentar sin verificar puede duplicarlo.
+ * Fallo la llamada que emite en ARCA (red, timeout, ARCA) o no se pudo leer su respuesta. No se sabe si el comprobante
+ * quedo autorizado: pudo emitirse y perderse la respuesta. Reintentar sin verificar puede duplicarlo.
  */
 export class EmissionUncertainError extends AppError {
   /**

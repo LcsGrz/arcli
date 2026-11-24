@@ -9,7 +9,7 @@ import { AMOUNT_DECIMALS, formatExchangeRate, hasAtMostDecimals } from '../../li
 import { assertRules } from '../../lib/rules/rules';
 import type { Clock } from '../../lib/time/clock';
 import { assertCurrencyInTable } from '../billing/billing.currency';
-import { EmissionUncertainError } from '../billing/billing.errors';
+import { EmissionUncertainError, readEmissionResponse } from '../billing/billing.errors';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import type { ArcliConfig } from '../config/config.schemas';
 
@@ -60,6 +60,7 @@ import {
   type ExportGateway,
   type ExportIssuedVoucher,
   type ExportQuotation,
+  type ExportResponseSummary,
   type ExportType,
   type ExportVoucherInput,
   type ExportVoucherKind,
@@ -501,10 +502,12 @@ export class ExportService {
     readonly warnings?: readonly string[];
   }): Promise<ExportExecutionResult> {
     const { payload } = options.resolved;
-    let raw: Awaited<ReturnType<ExportGateway['authorize']>>;
+    let response: ExportResponseSummary;
 
     try {
-      raw = await options.gateway.authorize(payload);
+      const raw = await options.gateway.authorize(payload);
+
+      response = readEmissionResponse(() => mapExportResponse(raw));
     } catch (error) {
       throw new EmissionUncertainError({
         cause: error,
@@ -521,7 +524,7 @@ export class ExportService {
       dryRun: false,
       environment: options.runtime.environment,
       payload: options.resolved.payload,
-      response: mapExportResponse(raw),
+      response,
       voucherKind: options.resolved.voucherKind,
       warnings: options.warnings,
     };

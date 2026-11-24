@@ -15,6 +15,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - En el mismo caso, `ultimos` sale con `ARCA_VOUCHER_QUERY_ERROR` y exit code `1`, antes `0` con la lista vacía o incompleta.
 > - En el mismo caso, una nota A, B, C o FCE que frenaba con "ARCA no tiene…" sigue con un aviso y, con `--emitir`, se emite. Si el punto de venta es de otro sistema ya seguía: cambia el texto del aviso.
 > - Una falla con "no existe" en el texto (`El dominio no existe`) ya no es `VOUCHER_NOT_FOUND`: sale con su error, por ejemplo `UNEXPECTED_ERROR`. Por el asociado de una nota es un aviso, y en FCE sin `--afecha` frena.
+> - Si ARCLI no puede leer lo que ARCA contestó al emitir, sale `EMISSION_UNCERTAIN`, antes `UNEXPECTED_ERROR`; en un lote, `detalles.sinConfirmar`, y ese comprobante ya no está en `sinProcesar`.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
 
@@ -42,6 +43,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### 🐛 Corregido
 
+- **Facturas:** si ARCLI no puede leer lo que ARCA contestó al emitir, avisa que puede haberse emitido y cómo verificarlo (#272).
 - **Consultas:** `consultar` y `ultimos` dan `ARCA_VOUCHER_QUERY_ERROR` si ARCA contesta con un error, en vez de decir que no existe (#268).
 - **Notas:** si ARCA contesta con un error por el asociado, A, B, C y FCE ya no dicen que no existe (#268).
 - **Asistente:** si ARCA contesta con un error al listar A, B, C, FCE o recibos, lo muestra y podés reintentar o buscar a mano (#268).
@@ -63,6 +65,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **Ctrl+C en una pregunta.** Cortar "¿Emitimos?" en A, B, C, FCE, recibos, notas, la `E` o un lote mostraba `User force closed the prompt` como error inesperado. Ahora dice "Cancelado. No se emitió nada." y sale con 1, como antes. En la `E`, cortar la pregunta de instalar el componente de PDF, con el comprobante ya emitido, también mostraba ese texto: ahora cuenta como "No", igual que en A, B y C, y sale con 0.
 
 **Lote cortado.** La sugerencia decía siempre que "los comprobantes de arriba ya se emitieron", aunque no hubiera ninguno o alguno fuera un rechazo, y repetía la verificación de una emisión sin confirmar sin el punto de venta. Ahora depende de lo que pasó. Si falla la entrega de los ya procesados, por ejemplo la pregunta del PDF, un aviso dice los números que se emitieron y con qué comando verlos, y después sale el error del lote. Con `--json` no hay aviso.
+
+**Respuesta que no se puede leer.** Si ARCA contestaba a la emisión algo con otra forma (vacío, o un dato suelto donde va una lista), salía `UNEXPECTED_ERROR` con el texto interno de JavaScript, aunque el comprobante podía estar emitido. Ahora es `EMISSION_UNCERTAIN`, con el comando para verificarlo, en A, B, C, FCE, recibos, notas, la `E` y el asistente; un lote se corta ahí, con `sinConfirmar`. Con eso, sin `sinConfirmar` el que falló no se emitió, y la sugerencia lo dice en vez de mandar a revisar `arcli ultimos`. Un rechazo sigue siendo un rechazo, con exit code `2`, y un error del login o del último número sale como antes.
 
 **Textos de los errores.** El panel no repite en "Detalles" lo que ya dijo, y un error de red manda a revisar la conexión. `--pv 0` dice que el punto de venta no es válido, igual al facturar y al consultar, y sin autorización a `wsfe` el error ya no dice "No se emitió nada", que en un lote podía ser falso. La falta del punto de venta o del IVA receptor dice lo mismo en todos los comandos. A una nota con el asociado incompleto se le dice qué dato falta y con qué flag (`--apv`, `--ar`, `--ac`), y a quien le falta la ruta del certificado o la clave, el comando para configurarla. Los importes van en formato argentino, las claves entre backticks y `producción` con tilde. En el asistente, si falla el acceso directo se ve la sugerencia y seguís en el menú. En `--json` cambian textos, no claves ni formas: `error`, `detalles[].mensaje`, `detalles.comprobantes[].error` de un lote, `detalle` de `config revisar` y `avisos`. `codigo`, `sugerencia` y el código de salida no cambian.
 

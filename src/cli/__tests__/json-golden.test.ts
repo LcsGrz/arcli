@@ -769,7 +769,6 @@ describe('lotes', () => {
 });
 
 describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () => {
-  // Tests primero: los `it.fails` pasan a `it` con el arreglo.
   const RC = ['rc', '-m', '1000', '--cs', '--cfinal'];
   const NCEA = [
     ...['ncea', '-m', '1000000', '--cs', '--cuit', String(CLIENT_CUIT), '--ir-ri'],
@@ -811,7 +810,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     return JSON.parse(result.stderr) as Record<string, unknown>;
   }
 
-  it.fails.each(UNREADABLE)('fc, %s: EMISSION_UNCERTAIN con el comando para verificar', async (_name, answer) => {
+  it.each(UNREADABLE)('fc, %s: EMISSION_UNCERTAIN con el comando para verificar', async (_name, answer) => {
     sdk.wsfe.createVoucher.mockImplementation(answer);
 
     expect(await uncertain(FC)).toEqual({
@@ -823,7 +822,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     expect(sdk.wsfe.createVoucher).toHaveBeenCalledTimes(1);
   });
 
-  it.fails.each(UNREADABLE)('fc en la terminal, %s: el mismo error', async (_name, answer) => {
+  it.each(UNREADABLE)('fc en la terminal, %s: el mismo error', async (_name, answer) => {
     sdk.wsfe.createVoucher.mockImplementation(answer);
     prepareConfig({});
 
@@ -834,7 +833,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     expect(result.stderr.replace(/[│┃\s]+/g, ' ')).toContain('arcli ultimos fc --pv 3 --testing');
   });
 
-  it.fails.each<[string, string[]]>([
+  it.each<[string, string[]]>([
     ['fa', FA],
     ['fb', FB],
     ['fcea', FCEA],
@@ -854,7 +853,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     });
   });
 
-  it.fails.each<[string, unknown]>([
+  it.each<[string, unknown]>([
     ['sin respuesta', undefined],
     ['null', null],
     ['Motivos_Obs no es texto', { FEXAuthorizeResult: { FEXResultAuth: { Motivos_Obs: ['x'], Resultado: 'A' } } }],
@@ -873,7 +872,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     expect(sdk.wsfex.authorize).toHaveBeenCalledTimes(1);
   });
 
-  it.fails.each(['nce', 'nde'])('%s', async (shortcut) => {
+  it.each(['nce', 'nde'])('%s', async (shortcut) => {
     sdk.wsfex.authorize.mockResolvedValue(undefined);
 
     expect(await uncertain([shortcut, ...NCE.slice(1)])).toMatchObject({
@@ -881,6 +880,28 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
       detalles: { causa: CAUSE, idSolicitud: 42, numero: 8 },
       sugerencia: expect.stringContaining(`\`arcli consultar ${shortcut} 8 --pv 4 --testing\``),
     });
+  });
+
+  it('en un lote: sinConfirmar, corta y no reintenta', async () => {
+    sdk.wsfe.createVoucher.mockImplementationOnce(wsfeAnswer('A')).mockResolvedValueOnce(undefined);
+
+    await golden('lote-emision-ilegible', [
+      ...['fc', '--cargar', writeInput('lote.json', [batchItem(1000), batchItem(2000), batchItem(3000)])],
+      ...['--emitir', '--json'],
+    ]);
+    expect(sdk.wsfe.createVoucher).toHaveBeenCalledTimes(2);
+  });
+
+  it('fc: el error entero', () => {
+    sdk.wsfe.createVoucher.mockResolvedValue(undefined);
+
+    return golden('error-emision-ilegible', [...FC, '--emitir', '--json']);
+  });
+
+  it('fe: el error entero', () => {
+    sdk.wsfex.authorize.mockResolvedValue(undefined);
+
+    return golden('error-fe-emision-ilegible', [...FE_APPROVABLE, '--emitir', '--json']);
   });
 
   // Antes de la llamada que emite no es incierto: sale su error y, en un lote, sin `sinConfirmar`.

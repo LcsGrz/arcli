@@ -359,22 +359,19 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
     expect(offerPdf).not.toHaveBeenCalled();
   });
 
-  it.fails(
-    'si ARCA contesta algo que no se puede leer, el menú recibe "sin confirmar" y no se ofrece el PDF (ERR-16)',
-    async () => {
-      const session = createSession('testing');
+  it('si ARCA contesta algo que no se puede leer, el menú recibe "sin confirmar" y no se ofrece el PDF (ERR-16)', async () => {
+    const session = createSession('testing');
 
-      session.createVoucher.mockResolvedValueOnce(undefined);
-      chooseOneMock.mockResolvedValueOnce('emitir');
+    session.createVoucher.mockResolvedValueOnce(undefined);
+    chooseOneMock.mockResolvedValueOnce('emitir');
 
-      await expect(previewAndEmit(session, input)).rejects.toMatchObject({
-        code: 'EMISSION_UNCERTAIN',
-        verifyCommand: 'arcli ultimos fc --pv 3 --testing',
-      });
-      expect(session.createVoucher).toHaveBeenCalledTimes(1);
-      expect(offerPdf).not.toHaveBeenCalled();
-    },
-  );
+    await expect(previewAndEmit(session, input)).rejects.toMatchObject({
+      code: 'EMISSION_UNCERTAIN',
+      verifyCommand: 'arcli ultimos fc --pv 3 --testing',
+    });
+    expect(session.createVoucher).toHaveBeenCalledTimes(1);
+    expect(offerPdf).not.toHaveBeenCalled();
+  });
 
   it('si ARCA falla al pedir la cotización oficial para la vista previa, no pregunta nada', async () => {
     const session = createSession('testing');

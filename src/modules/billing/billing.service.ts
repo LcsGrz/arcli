@@ -21,7 +21,7 @@ import {
 } from './billing.currency';
 import { resolveBillingDateRange } from './billing.date-range';
 import { resolveBillingDate } from './billing.dates';
-import { EmissionUncertainError } from './billing.errors';
+import { EmissionUncertainError, readEmissionResponse } from './billing.errors';
 import { resolveElectronicCreditOptionals } from './billing.fce';
 import { missingIvaReceiverMessage, validateIvaConditionForVoucher } from './billing.iva-receptor';
 import {
@@ -35,7 +35,12 @@ import { type PadronResolution, resolveIvaConditionFromPadron } from './billing.
 import { CONSUMER_IDENTIFICATION_THRESHOLD_RULE } from './billing.rules';
 import { type BillingCommandInput, describePointOfSaleOutOfRange, MAX_WSFE_POINT_OF_SALE } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
-import type { BillingExecutionResult, BillingGateway, BillingRuntime } from './billing.types.internal';
+import type {
+  BillingExecutionResult,
+  BillingGateway,
+  BillingResponseSummary,
+  BillingRuntime,
+} from './billing.types.internal';
 import { validateDocumentIdentity, validateUncategorizedReceiver } from './billing.validation';
 import { createDryRunResponse, mapBillingResponse } from './billing-response';
 import { findArcaCurrency } from './currency-codes';
@@ -197,14 +202,16 @@ export class BillingService {
     // Fuera del try: si falla la autenticacion o el pedido del ultimo numero, no se envio nada a ARCA
     // y el error sale tal cual (certificado, ARCA no disponible), sin sugerir que pudo emitirse.
     const voucherNumber = await options.gateway.getNextVoucherNumber(payload.PtoVta, payload.CbteTipo);
-    let response: Awaited<ReturnType<BillingGateway['createVoucher']>>;
+    let response: BillingResponseSummary;
 
     try {
-      response = await options.gateway.createVoucher({
+      const raw = await options.gateway.createVoucher({
         ...payload,
         CbteDesde: voucherNumber,
         CbteHasta: voucherNumber,
       });
+
+      response = readEmissionResponse(() => mapBillingResponse(raw));
     } catch (error) {
       throw new EmissionUncertainError({
         cause: error,
@@ -219,7 +226,7 @@ export class BillingService {
       environment: options.runtime.environment,
       payload,
       receiver,
-      response: mapBillingResponse(response),
+      response,
       voucherNumber,
       voucherKind,
       warnings: options.warnings ?? [],

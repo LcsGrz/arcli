@@ -856,21 +856,18 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
     expect(attachExportPdf).not.toHaveBeenCalled();
   });
 
-  it.fails(
-    'si ARCA contesta algo que no se puede leer, el menu recibe "sin confirmar" y no hay PDF ni se ofrece guardar (ERR-16)',
-    async () => {
-      vi.mocked(gateway.authorize).mockResolvedValueOnce(undefined as never);
+  it('si ARCA contesta algo que no se puede leer, el menu recibe "sin confirmar" y no hay PDF ni se ofrece guardar (ERR-16)', async () => {
+    vi.mocked(gateway.authorize).mockResolvedValueOnce(undefined as never);
 
-      script = servicesUntilConfirmation('Sí, emitir ahora');
+    script = servicesUntilConfirmation('Sí, emitir ahora');
 
-      await expect(runExportFlow(createSession({ exportacion: { actividad: 620100 } }))).rejects.toMatchObject({
-        code: 'EMISSION_UNCERTAIN',
-        verifyCommand: 'arcli consultar fe 7 --pv 4 --testing',
-      });
-      expect(attachExportPdf).not.toHaveBeenCalled();
-      expect(savedConfig).not.toHaveBeenCalled();
-    },
-  );
+    await expect(runExportFlow(createSession({ exportacion: { actividad: 620100 } }))).rejects.toMatchObject({
+      code: 'EMISSION_UNCERTAIN',
+      verifyCommand: 'arcli consultar fe 7 --pv 4 --testing',
+    });
+    expect(attachExportPdf).not.toHaveBeenCalled();
+    expect(savedConfig).not.toHaveBeenCalled();
+  });
 
   it('si ARCA rechaza la E, lo muestra y no hay PDF', async () => {
     vi.mocked(gateway.authorize).mockResolvedValueOnce({

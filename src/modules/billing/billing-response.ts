@@ -21,7 +21,8 @@ export function createDryRunResponse(): BillingResponseSummary {
 
 export function mapBillingResponse(response: CreateVoucherResultDto): BillingResponseSummary {
   const detail = response.response?.FeDetResp?.FECAEDetResponse?.[0];
-  const events = response.response?.Events?.Evt ?? [];
+  // Copiado: si no es una lista falla aca, donde es una emision sin confirmar, y no al mostrar el resultado (ERR-16).
+  const events = [...(response.response?.Events?.Evt ?? [])];
   const errors = response.response?.Errors?.Err ?? [];
   const observaciones =
     detail?.Observaciones?.Obs?.map((item) => item.Msg).filter((msg): msg is string => Boolean(msg)) ?? [];
