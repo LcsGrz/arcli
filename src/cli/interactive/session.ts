@@ -1,14 +1,10 @@
 import { InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
 import { checkFceCancellationInRegistry } from '../../modules/billing/billing.associated-lookup';
-import {
-  formatEmissionQuestion,
-  formatVoucherWithArticle,
-  NOTHING_EMITTED_NOTICE,
-} from '../../modules/billing/billing.mappers';
 import { prepareBillingInput, resolveFceWarningsInOrder } from '../../modules/billing/billing.prepare';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
+import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import { buildEquivalentCommand } from '../../modules/interactive/equivalent-command';
 import { isAuthorized } from '../../modules/interactive/steps/config-offer';
 import { validatePointOfSale } from '../../modules/interactive/validators';
@@ -31,6 +27,7 @@ import { systemClock } from '../../services/time/system-clock';
 import { colorize, noticePanel, renderPanel, uiSymbol, writeTerminalOutput } from '../../ui';
 import { type CliArcaRuntime, loadArcaRuntime } from '../arca-runtime';
 import { formatBillingOutputs } from '../commands/billing.command.output';
+import { formatEmissionQuestion, NOTHING_EMITTED_NOTICE } from '../emission-texts';
 import { recordEmission } from '../emitted-vouchers';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';

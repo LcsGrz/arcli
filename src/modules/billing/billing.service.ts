@@ -8,7 +8,7 @@ import { MISSING_POINT_OF_SALE_MESSAGE } from '../config/config.schemas';
 import { evaluateFceObligation, type FceObligationGateway, shouldCheckFceObligation } from '../fce/fce-obligation';
 import type { PadronGateway } from '../padron/padron';
 
-import { CONSUMER_DOCUMENT_NUMBER } from './arca-codes';
+import { conceptCode, CONSUMER_DOCUMENT_NUMBER, documentTypeCode, ivaConditionCode } from './arca-codes';
 import { resolveTaxAmounts, sumTaxAmounts } from './billing.amounts';
 import { resolveAssociatedPeriod } from './billing.associated-period';
 import { resolveAssociatedVouchers } from './billing.associated-vouchers';
@@ -25,13 +25,6 @@ import { resolveBillingDate } from './billing.dates';
 import { EmissionUncertainError } from './billing.errors';
 import { resolveElectronicCreditOptionals } from './billing.fce';
 import { missingIvaReceiverMessage, validateIvaConditionForVoucher } from './billing.iva-receptor';
-import {
-  formatVoucherSubject,
-  resolveBillingConceptCode,
-  resolveBillingCurrencyCode,
-  resolveBillingDocumentTypeCode,
-  resolveBillingIvaConditionCode,
-} from './billing.mappers';
 import { type PadronResolution, resolveIvaConditionFromPadron } from './billing.padron';
 import { CONSUMER_IDENTIFICATION_THRESHOLD_RULE } from './billing.rules';
 import { type BillingCommandInput, describePointOfSaleOutOfRange, MAX_WSFE_POINT_OF_SALE } from './billing.schemas';
@@ -44,8 +37,9 @@ import type {
 } from './billing.types.internal';
 import { validateDocumentIdentity, validateUncategorizedReceiver } from './billing.validation';
 import { createDryRunResponse, mapBillingResponse } from './billing-response';
-import { findArcaCurrency } from './currency-codes';
+import { findArcaCurrency, resolveBillingCurrencyCode } from './currency-codes';
 import { getVoucherKindByShortcut } from './voucher-kind-map';
+import { formatVoucherSubject } from './voucher-names';
 
 export interface BillingExecutionOptions {
   readonly gateway: BillingGateway;
@@ -291,9 +285,9 @@ export class BillingService {
     const pointOfSale = this.requirePointOfSale(input, runtime);
     const today = this.today();
     const dateRange = resolveBillingDateRange(input, voucherKind, today);
-    const concept = resolveBillingConceptCode(input.concept);
-    const documentType = resolveBillingDocumentTypeCode(input.documentType);
-    const ivaCondition = resolveBillingIvaConditionCode(input.ivaCondition);
+    const concept = conceptCode(input.concept);
+    const documentType = documentTypeCode(input.documentType);
+    const ivaCondition = ivaConditionCode(input.ivaCondition);
     const associatedVouchers = resolveAssociatedVouchers({
       billingDate: dateRange.billingDate,
       emitterCuit: runtime.cuit,

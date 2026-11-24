@@ -1,8 +1,8 @@
 import type { Command } from 'commander';
 import { expect } from 'vitest';
 
-import { resolveBillingCurrencyCode } from '../../../modules/billing/billing.mappers';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
+import { resolveBillingCurrencyCode } from '../../../modules/billing/currency-codes';
 import { DEFAULT_EXPORT_PAYMENT_TERMS } from '../../../modules/export/export.mappers';
 import {
   DEFAULT_EXPORT_TYPE,

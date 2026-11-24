@@ -2,7 +2,6 @@ import { Separator } from '@inquirer/core';
 
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { DOCS_SITE_URL } from '../../lib/links';
-import { CANCELLED_NOTICE } from '../../modules/billing/billing.mappers';
 import {
   CertificateExpiredError,
   type CertificateExpiryNotice,
@@ -27,6 +26,7 @@ import {
   writeTerminalRaw,
 } from '../../ui';
 import { renderCertificateNotices } from '../arca-runtime';
+import { CANCELLED_NOTICE } from '../emission-texts';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 import { CLI_VERSION } from '../version';

@@ -6,7 +6,7 @@ interface BillingSerializeOptions {
   readonly raw?: boolean;
 }
 
-function formatRawResponse(
+export function formatRawResponse(
   result: BillingExecutionResult,
 ): Record<string, string> | NonNullable<BillingExecutionResult['response']['raw']> {
   if (result.response.raw) {
@@ -100,10 +100,4 @@ export function serializeBillingBatch(
     comprobante: result.voucherKind.displayName,
     ...serializeBillingResult(result, options),
   }));
-}
-
-export function formatRawBillingResponse(
-  result: BillingExecutionResult,
-): Record<string, string> | NonNullable<BillingExecutionResult['response']['raw']> {
-  return formatRawResponse(result);
 }

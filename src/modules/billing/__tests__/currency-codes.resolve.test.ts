@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveBillingCurrencyCode } from '../billing.mappers';
+import { resolveBillingCurrencyCode } from '../currency-codes';
 
 describe('resolveBillingCurrencyCode', () => {
   it.each([

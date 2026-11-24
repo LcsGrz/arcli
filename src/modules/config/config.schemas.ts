@@ -106,7 +106,6 @@ export const arcliConfigSchema = z.object({
 export type ArcliConfig = z.infer<typeof arcliConfigSchema>;
 export type ArcliEnvironment = z.infer<typeof arcliEnvironmentSchema>;
 
-/** El entorno como se lee en un texto; el valor (`produccion`) sigue igual en flags, claves y JSON. */
 /** El padrón se consulta salvo que se haya apagado con `consultarPadron false`. */
 export function isPadronLookupEnabled(config: Pick<ArcliConfig, 'consultarPadron'>): boolean {
   return config.consultarPadron ?? true;
@@ -119,6 +118,7 @@ export const MISSING_POINT_OF_SALE_MESSAGE =
 /** El error de un entorno sin CUIT: `config revisar` lo reconoce para no mostrarlo dos veces. */
 export const MISSING_CUIT_MESSAGE = 'Falta el CUIT. Configuralo con `arcli config establecer cuit <valor>`.';
 
+/** El entorno como se lee en un texto; el valor (`produccion`) sigue igual en flags, claves y JSON. */
 export function formatEnvironmentLabel(environment: ArcliEnvironment): string {
   return environment === 'produccion' ? 'producción' : environment;
 }

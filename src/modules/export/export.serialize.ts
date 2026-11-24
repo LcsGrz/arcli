@@ -21,7 +21,7 @@ function formatPdfOutcome(result: ExportExecutionResult): Record<string, unknown
   return { pdf: { error: { codigo: code, mensaje: message, sugerencia: suggestion ?? null } } };
 }
 
-function formatRawResponse(result: ExportExecutionResult): unknown {
+export function formatRawResponse(result: ExportExecutionResult): unknown {
   return result.response.raw ?? { mensaje: 'Sin emisión real. Usá `--emitir` para obtener una respuesta de ARCA.' };
 }
 
@@ -117,8 +117,4 @@ export function serializeExportResult(
 
 export function formatExportResultAsJson(result: ExportExecutionResult, options: ExportSerializeOptions = {}): string {
   return JSON.stringify(serializeExportResult(result, options), null, 2);
-}
-
-export function formatRawExportResponse(result: ExportExecutionResult): unknown {
-  return formatRawResponse(result);
 }

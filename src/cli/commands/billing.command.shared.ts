@@ -2,13 +2,13 @@ import type { Command } from 'commander';
 
 import { checkAssociatedInArca, checkFceCancellationInRegistry } from '../../modules/billing/billing.associated-lookup';
 import { DEFAULT_EXCHANGE_RATE } from '../../modules/billing/billing.constants';
-import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { prepareBillingInput, resolveFceWarningsInOrder } from '../../modules/billing/billing.prepare';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
 import type { BillingExecutionResult, BillingGateway } from '../../modules/billing/billing.types.internal';
 import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map';
+import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { isPadronLookupEnabled } from '../../modules/config/config.schemas';
 import type { FceObligationGateway } from '../../modules/fce/fce-obligation';

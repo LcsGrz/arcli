@@ -2,8 +2,8 @@ import { Separator } from '@inquirer/core';
 
 import { asQuery } from '../../lib/errors/query-error';
 import { classifyAssociatedPointOfSale, describeQueryFailure } from '../../modules/billing/billing.associated-lookup';
-import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
+import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import { resolveRowsPerList } from '../../modules/config/config.schemas';
 import { formatExportVoucherPickerRows } from '../../modules/export/export.history.presenter';
 import type { ExportGateway, ExportIssuedVoucher, ExportVoucherKind } from '../../modules/export/export.types';

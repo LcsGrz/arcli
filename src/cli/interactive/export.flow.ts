@@ -1,5 +1,5 @@
-import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { ARCA_DOLLAR_CODE, ARCA_LOCAL_CURRENCY_CODE } from '../../modules/billing/currency-codes';
+import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import { EXPORT_PAYMENT_TERMS_SUGGESTIONS } from '../../modules/export/export.mappers';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
 import { ExportService } from '../../modules/export/export.service';
@@ -33,6 +33,7 @@ import { systemClock } from '../../services/time/system-clock';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { isOutputLost } from '../closed-output';
 import { attachExportPdf } from '../commands/export.command.pdf';
+import { formatEmissionQuestion } from '../emission-texts';
 import { recordExportEmission, recordMissingExportPdf } from '../emitted-vouchers';
 import { withSpinner } from '../spinner';
 

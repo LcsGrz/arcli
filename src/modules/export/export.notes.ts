@@ -3,8 +3,8 @@ import { InputValidationError } from '../../lib/errors/app-error';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { assertRules } from '../../lib/rules/rules';
 import { creditNoteOverTotalError } from '../billing/billing.associated-lookup';
-import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/billing.mappers';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
+import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/voucher-names';
 import { formatVoucherNumber } from '../vouchers/voucher-number';
 
 import { assertExportPointOfSaleRange, resolveExportRuleDate } from './export.mappers';
