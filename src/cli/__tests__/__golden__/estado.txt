@@ -1,0 +1,30 @@
+$ arcli estado --json
+exit: 0
+--- stdout ---
+
+{
+  "deprecado": [
+    "`puntoVenta` pasa a ser un número en la 3.0.0: para el detalle usá `puntoVentaDetalle`."
+  ],
+  "entorno": "testing",
+  "latenciaMs": 0,
+  "listo": true,
+  "puntoVenta": {
+    "estado": "habilitado",
+    "numero": 3,
+    "tipoEmision": "CAE - RECE"
+  },
+  "puntoVentaDetalle": {
+    "estado": "habilitado",
+    "numero": 3,
+    "tipoEmision": "CAE - RECE"
+  },
+  "servidores": {
+    "aplicacion": "OK",
+    "autenticacion": "OK",
+    "baseDeDatos": "OK"
+  }
+}
+
+
+--- stderr ---

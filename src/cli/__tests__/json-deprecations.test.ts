@@ -6,9 +6,9 @@ import { exportJsonInputWarnings, readExportJsonInput } from '../../modules/expo
 import { serializeExportResult } from '../../modules/export/export.serialize';
 import type { ExportExecutionResult } from '../../modules/export/export.types';
 import { EXPORT_VOUCHER_KIND } from '../../modules/export/export.types';
-import { formatFceObligationAsJson } from '../../modules/fce/fce-obligation.presenter';
-import { formatPadronAsJson } from '../../modules/padron/padron.presenter';
-import { formatStatusAsJson } from '../../modules/parameters/parameters.presenter';
+import { serializeFceObligation } from '../../modules/fce/fce-obligation.presenter';
+import { serializePadron } from '../../modules/padron/padron.presenter';
+import { serializeStatus } from '../../modules/parameters/parameters.presenter';
 import { toDetailErrors, withDeprecatedErrors } from '../../services/arca/arca-error-details';
 
 function billingResult(errors: unknown[] = [], events: unknown[] = []): BillingExecutionResult {
@@ -64,15 +64,13 @@ describe('emisiones en JSON', () => {
 
 describe('consultas en JSON', () => {
   it('estado suma puntoVentaDetalle y mantiene puntoVenta como objeto', () => {
-    const json = JSON.parse(
-      formatStatusAsJson({
-        environment: 'testing',
-        latencyMs: 1,
-        pointOfSale: { kind: 'sin-configurar' },
-        ready: false,
-        servers: { app: 'OK', auth: 'OK', db: 'OK' },
-      } as never),
-    );
+    const json = serializeStatus({
+      environment: 'testing',
+      latencyMs: 1,
+      pointOfSale: { kind: 'sin-configurar' },
+      ready: false,
+      servers: { app: 'OK', auth: 'OK', db: 'OK' },
+    } as never);
     const detail = { estado: 'sin-configurar', numero: null, tipoEmision: null };
 
     expect(json.puntoVenta).toEqual(detail);
@@ -81,25 +79,21 @@ describe('consultas en JSON', () => {
   });
 
   it('padron y fce-obligado mantienen cuit como numero y avisan', () => {
-    const padron = JSON.parse(
-      formatPadronAsJson({
-        environment: 'testing',
-        taxpayer: { activities: [], cuit: 20201797064, notices: [], taxes: [] },
-      } as never),
-    );
-    const fce = JSON.parse(
-      formatFceObligationAsJson({
-        cuit: 30546689979,
-        environment: 'testing',
-        issueDate: '20261019',
-        obligation: { minimumAmount: 1, obligated: true },
-      }),
-    );
+    const padron = serializePadron({
+      environment: 'testing',
+      taxpayer: { activities: [], cuit: 20201797064, notices: [], taxes: [] },
+    } as never);
+    const fce = serializeFceObligation({
+      cuit: 30546689979,
+      environment: 'testing',
+      issueDate: '20261019',
+      obligation: { minimumAmount: 1, obligated: true },
+    });
 
     for (const [json, cuit] of [
       [padron, 20201797064],
       [fce, 30546689979],
-    ]) {
+    ] as const) {
       expect(json.cuit).toBe(cuit);
       expect(json.deprecado).toEqual([expect.stringContaining('`cuit` pasa a ser texto')]);
     }

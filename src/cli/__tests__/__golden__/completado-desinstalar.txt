@@ -1,0 +1,13 @@
+$ arcli completado desinstalar zsh --json
+exit: 0
+--- stdout ---
+
+{
+  "cambio": false,
+  "instalado": false,
+  "ruta": "<config>/.zshrc",
+  "shell": "zsh"
+}
+
+
+--- stderr ---

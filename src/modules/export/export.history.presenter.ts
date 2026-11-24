@@ -178,28 +178,20 @@ function serializeVoucher(voucher: ExportIssuedVoucher): Record<string, unknown>
   };
 }
 
-export function formatExportVoucherListAsJson(report: ExportVoucherListReport): string {
-  return JSON.stringify(
-    {
-      ...serializeKind(report.voucherKind),
-      comprobantes: report.vouchers.map(serializeVoucher),
-      entorno: report.environment,
-      puntoVenta: report.pointOfSale,
-    },
-    null,
-    2,
-  );
+export function serializeExportVoucherList(report: ExportVoucherListReport) {
+  return {
+    ...serializeKind(report.voucherKind),
+    comprobantes: report.vouchers.map(serializeVoucher),
+    entorno: report.environment,
+    puntoVenta: report.pointOfSale,
+  };
 }
 
-export function formatExportVoucherDetailAsJson(report: ExportVoucherDetailReport): string {
-  return JSON.stringify(
-    {
-      ...serializeKind(report.voucherKind),
-      ...serializeVoucher(report.voucher),
-      entorno: report.environment,
-      puntoVenta: report.pointOfSale,
-    },
-    null,
-    2,
-  );
+export function serializeExportVoucherDetail(report: ExportVoucherDetailReport): Record<string, unknown> {
+  return {
+    ...serializeKind(report.voucherKind),
+    ...serializeVoucher(report.voucher),
+    entorno: report.environment,
+    puntoVenta: report.pointOfSale,
+  };
 }

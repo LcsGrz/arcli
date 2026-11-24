@@ -1,5 +1,5 @@
 import { isTrustedHyperlink } from '../primitives/hyperlink';
-import { highlightJsonValues } from '../primitives/renderJson';
+import { highlightJsonValues, renderJson } from '../primitives/renderJson';
 import { renderForTarget, shouldUseColor } from '../primitives/text';
 
 interface TerminalStreamOptions {
@@ -53,8 +53,9 @@ export function writeTerminalOutput(content: string): void {
   process.stdout.write(formatTerminalOutput(content, { target: 'stdout' }));
 }
 
-export function writeTerminalJson(content: string): void {
-  process.stdout.write(formatTerminalOutput(content, { json: true, target: 'stdout' }));
+/** Recibe el objeto y no su texto: el JSON se escribe en un solo lugar. */
+export function writeTerminalJson(value: object): void {
+  process.stdout.write(formatTerminalOutput(renderJson(value), { json: true, target: 'stdout' }));
 }
 
 /**
@@ -77,6 +78,6 @@ export function writeTerminalNotice(render: () => string | null | undefined): vo
   }
 }
 
-export function writeTerminalJsonError(content: string): void {
-  process.stderr.write(formatTerminalOutput(content, { json: true, target: 'stderr' }));
+export function writeTerminalJsonError(value: object): void {
+  process.stderr.write(formatTerminalOutput(renderJson(value), { json: true, target: 'stderr' }));
 }

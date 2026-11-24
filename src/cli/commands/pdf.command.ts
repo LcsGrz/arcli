@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { join } from 'node:path';
 
 import { ConfigService } from '../../modules/config/config.service';
-import { formatPdfPluginStatusAsJson, formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
+import { formatPdfPluginStatusAsText, serializePdfPluginStatus } from '../../modules/pdf/pdf.presenter';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import { noticePanel, writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { registerJsonOption, resolveOutputJson } from '../global-options';
@@ -33,7 +33,7 @@ function printStatus({ json, plugin }: PdfContext, title?: string): void {
   const status = plugin.getStatus();
 
   if (json) {
-    writeTerminalJson(formatPdfPluginStatusAsJson(status));
+    writeTerminalJson(serializePdfPluginStatus(status));
 
     return;
   }
@@ -85,7 +85,7 @@ export function registerPdfCommand(program: Command): void {
     plugin.uninstall();
 
     if (json) {
-      writeTerminalJson(JSON.stringify({ desinstalado: true, ruta: plugin.getStatus().path }, null, 2));
+      writeTerminalJson({ desinstalado: true, ruta: plugin.getStatus().path });
 
       return;
     }

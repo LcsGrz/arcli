@@ -2,12 +2,19 @@ import { Command, InvalidArgumentError, Option } from 'commander';
 import { describe, expect, it, vi } from 'vitest';
 import { z, type ZodError } from 'zod';
 
-import { InputIssuesError } from '../../lib/errors/app-error';
+import { AppError, InputIssuesError } from '../../lib/errors/app-error';
 import { billingCommandSchema } from '../../modules/billing/billing.schemas';
 import { parseZodInput } from '../../modules/billing/billing.zod-errors';
 import { type CanonicalConfigKey, parseConfigValue } from '../../modules/config/config-value-parser';
 import { stripAnsi } from '../../ui';
-import { configureUsageErrors, formatCliError, reportCliError, shouldPrintErrorAsJson } from '../error-output';
+import { EmissionCancelledError } from '../emission-cancelled';
+import {
+  configureUsageErrors,
+  formatCliError,
+  reportCliError,
+  serializeCliError,
+  shouldPrintErrorAsJson,
+} from '../error-output';
 
 describe('shouldPrintErrorAsJson', () => {
   it('uses JSON with --json without reading the config', () => {
@@ -50,7 +57,7 @@ describe('formatCliError con errores de zod', () => {
       totalAmount: 100,
     });
 
-    expect(formatCliError(error, false)).toContain('Falta el dato: shortcut.');
+    expect(formatCliError(error)).toContain('Falta el dato: shortcut.');
   });
 
   it('usa un mensaje especifico para montos invalidos', () => {
@@ -61,7 +68,7 @@ describe('formatCliError con errores de zod', () => {
       totalAmount: -5,
     });
 
-    expect(formatCliError(error, false)).toContain('El monto debe ser mayor a 0.');
+    expect(formatCliError(error)).toContain('El monto debe ser mayor a 0.');
   });
 
   it('marca valores no soportados con la etiqueta legible en español', () => {
@@ -73,8 +80,8 @@ describe('formatCliError con errores de zod', () => {
       totalAmount: 100,
     });
 
-    expect(formatCliError(error, false)).toContain('Tipo de documento tiene un valor no soportado.');
-    expect(stripAnsi(formatCliError(error, false)).replace(/[│┃\s]+/g, ' ')).toContain(
+    expect(formatCliError(error)).toContain('Tipo de documento tiene un valor no soportado.');
+    expect(stripAnsi(formatCliError(error)).replace(/[│┃\s]+/g, ' ')).toContain(
       'Valores válidos: consumidor-final, cuil, cuit, dni.',
     );
   });
@@ -86,7 +93,7 @@ describe('formatCliError con errores de zod', () => {
       totalAmount: 100,
     });
 
-    const parsed = JSON.parse(formatCliError(error, true)) as {
+    const parsed = serializeCliError(error) as unknown as {
       codigo: string;
       detalles: Array<{ mensaje: string; ruta: string[] }>;
       error: string;
@@ -105,7 +112,7 @@ describe('formatCliError con errores de zod', () => {
       totalAmount: 100,
     });
 
-    expect(formatCliError(error, false)).toContain('El punto de venta tiene que ser un número entero positivo.');
+    expect(formatCliError(error)).toContain('El punto de venta tiene que ser un número entero positivo.');
   });
 
   it('traduce a la clave del JSON tambien los campos que solo usa el PDF', () => {
@@ -117,7 +124,7 @@ describe('formatCliError con errores de zod', () => {
       totalAmount: 100,
     });
 
-    const parsed = JSON.parse(formatCliError(error, true)) as { detalles: Array<{ ruta: string[] }> };
+    const parsed = serializeCliError(error) as unknown as { detalles: Array<{ ruta: string[] }> };
 
     expect(parsed.detalles).toContainEqual(expect.objectContaining({ ruta: ['descripcion'] }));
   });
@@ -126,7 +133,7 @@ describe('formatCliError con errores de zod', () => {
 describe('formatCliError', () => {
   it('siempre incluye sugerencia en el JSON de un error de zod, null porque no hay', () => {
     const error = z.object({ monto: z.number() }).safeParse({}).error as ZodError;
-    const json = JSON.parse(formatCliError(error, true)) as Record<string, unknown>;
+    const json = serializeCliError(error) as Record<string, unknown>;
 
     expect(Object.keys(json).sort()).toEqual(['codigo', 'detalles', 'error', 'sugerencia']);
     expect(json.sugerencia).toBeNull();
@@ -204,7 +211,7 @@ describe('formatCliError: errores de config establecer', () => {
     try {
       parseConfigValue(key, value, displayKey);
     } catch (error) {
-      return JSON.parse(formatCliError(error, true)) as Record<string, unknown>;
+      return serializeCliError(error) as Record<string, unknown>;
     }
 
     throw new Error('debería fallar');
@@ -224,7 +231,7 @@ describe('formatCliError: errores de config establecer', () => {
 
   it('en texto muestra el mensaje y la sugerencia, sin la lista de zod', () => {
     const error = new InputIssuesError('`pdf` no acepta "a".', [{ label: 'x', mensaje: 'zod', ruta: [] }], 'Mirá');
-    const panel = stripAnsi(formatCliError(error, false));
+    const panel = stripAnsi(formatCliError(error));
 
     expect(panel).toContain('`pdf` no acepta "a".');
     expect(panel).toContain('Mirá');
@@ -269,5 +276,67 @@ describe('Ctrl+C en una pregunta que nadie atrapó', () => {
       error: 'User force closed the prompt with SIGINT',
       sugerencia: null,
     });
+  });
+});
+
+describe('el JSON de error, byte a byte (REV-49)', () => {
+  const app = (details?: Record<string, unknown>, suggestion?: string) =>
+    new AppError('Falló.', { code: 'CONFIGURATION_ERROR', details, suggestion });
+  const json = (codigo: string, detalles: string, error: string, sugerencia: string) =>
+    `\n{\n  "codigo": "${codigo}",\n  "detalles": ${detalles},\n  "error": ${error},\n  "sugerencia": ${sugerencia}\n}\n\n`;
+  const config = (detalles: string, sugerencia = 'null') =>
+    json('CONFIGURATION_ERROR', detalles, '"Falló."', sugerencia);
+
+  it.each<[string, unknown, string]>([
+    ['sin detalles', app(), config('null')],
+    ['detalles vacíos', app({}), config('{}')],
+    ['todos los detalles vacíos', app({ a: null, b: undefined, c: '' }), config('{}')],
+    [
+      'cero, false y listas vacías quedan, en su orden',
+      app({ z: 0, a: false, m: [] }),
+      config('{\n    "z": 0,\n    "a": false,\n    "m": []\n  }'),
+    ],
+    [
+      'path es ruta en su lugar, y solo en el primer nivel',
+      app({ a: 1, path: '/x.json', z: { path: null, vacio: '' } }),
+      config('{\n    "a": 1,\n    "ruta": "/x.json",\n    "z": {\n      "path": null,\n      "vacio": ""\n    }\n  }'),
+    ],
+    ['una sugerencia vacía', app(undefined, ''), config('null', '""')],
+    [
+      'InputIssuesError sin problemas',
+      new InputIssuesError('Mal.', []),
+      json('INPUT_VALIDATION_ERROR', '[]', '"Mal."', 'null'),
+    ],
+    [
+      'un problema no muestra su etiqueta',
+      new InputIssuesError('Mal.', [{ label: 'Monto', mensaje: 'Falta', ruta: ['items', 0] as never }], 'Mirá.'),
+      json(
+        'INPUT_VALIDATION_ERROR',
+        '[\n    {\n      "mensaje": "Falta",\n      "ruta": [\n        "items",\n        0\n      ]\n    }\n  ]',
+        '"Mal."',
+        '"Mirá."',
+      ),
+    ],
+    ['algo que no es un Error', 'texto', json('UNEXPECTED_ERROR', 'null', '"Ocurrió un error inesperado."', 'null')],
+    ['sin mensaje', new Error(''), json('UNEXPECTED_ERROR', 'null', '""', 'null')],
+    [
+      'cancelado',
+      new EmissionCancelledError(),
+      json('UNEXPECTED_ERROR', 'null', JSON.stringify(new EmissionCancelledError().message), 'null'),
+    ],
+  ])('%s', (_name, error, expected) => {
+    let stderr = '';
+    const write = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => ((stderr += String(chunk)), true));
+
+    vi.stubEnv('NO_COLOR', '1');
+
+    try {
+      expect(reportCliError(error, true)).toBe(1);
+    } finally {
+      write.mockRestore();
+      vi.stubEnv('NO_COLOR', undefined);
+    }
+
+    expect(stderr).toBe(expected);
   });
 });

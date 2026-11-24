@@ -1,0 +1,45 @@
+$ arcli config --json
+exit: 0
+--- stdout ---
+
+{
+  "comprobantesPorLista": 20,
+  "cert": {
+    "testing": ".../config/testing.crt"
+  },
+  "cotizacion": 1,
+  "cuit": "20111111112",
+  "emisor": {
+    "domicilio": "Calle 123",
+    "inicioActividades": "20200301",
+    "razonSocial": "Ana Gomez"
+  },
+  "emitir": false,
+  "entorno": "testing",
+  "exportacion": {
+    "actividad": 620100,
+    "cert": {},
+    "key": {}
+  },
+  "filasPorLista": 20,
+  "json": false,
+  "key": {
+    "testing": ".../config/testing.key"
+  },
+  "moneda": "PES",
+  "monotributo": {
+    "tope": 1000000
+  },
+  "pdf": "nunca",
+  "pdfCarpeta": ".../config/pdfs",
+  "puntoVenta": 3,
+  "bruto": false,
+  "ticketPath": ".../config/tickets",
+  "consultarPadron": true,
+  "deprecado": [
+    "`comprobantesPorLista` se saca en la 3.0.0: usá `filasPorLista`, que trae el mismo valor."
+  ]
+}
+
+
+--- stderr ---

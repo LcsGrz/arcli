@@ -31,6 +31,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - Si no se puede escribir stdout, con `--json` sale el código nuevo `OUTPUT_WRITE_ERROR`, que puede traer comprobantes ya emitidos en `sugerencia`: no los reemitas. Un rechazo con el disco lleno sale con `2`, antes `1`.
 > - Con otra clave inválida en el `config.json`, `config establecer` y `config eliminar` guardan el cambio y salen con `0`, sin las claves rotas en el JSON y con `avisos`; antes, `INPUT_VALIDATION_ERROR` y `1` sin guardar.
 > - Sin permiso para leer el pedido pendiente, `certificado generar` sin `--reemplazar` sale con `UNEXPECTED_ERROR` y `1`; antes lo pisaba y salía con `0`.
+> - En `BATCH_EMISSION_ERROR`, `sugerencia` es siempre un texto, antes `null`, y en `error` "Sin procesar" va en su propia línea, como rango desde tres (`#3 a #100 (98)`). La lista completa sigue en `detalles.sinProcesar`.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
 
@@ -67,7 +68,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Notas:** si ARCA contesta con un error por el asociado, A, B, C y FCE ya no dicen que no existe (#268).
 - **Asistente:** si ARCA contesta con un error al listar A, B, C, FCE o recibos, lo muestra y podés reintentar o buscar a mano (#268).
 - **Facturas:** Ctrl+C en "¿Emitimos?" dice que se canceló y que no se emitió nada, en vez de "Error inesperado" (#270).
-- **Facturas:** la sugerencia de un lote cortado dice lo que pasó y no repite la verificación de una emisión sin confirmar (#270).
+- **Facturas:** un lote cortado dice qué pasó y qué reintentar, igual en el panel y en `sugerencia`, y trae `detalles.codigoCausa` (#270, #280).
 - **Errores:** una sugerencia propia para los errores de red, detalles que no se repiten y el mismo texto para la misma regla (#270).
 - **Facturas:** un CUIT mal escrito o un punto de venta inválido da error antes de consultar a ARCA (#272).
 - **Consultas:** con el certificado sin autorizar, `parametros` y `ultimos` de una `E` dicen qué autorizar (#272).
@@ -84,6 +85,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Facturas:** en un lote inválido, cada comprobante de `detalles.comprobantes` trae su `codigo` y su `sugerencia` (#275).
 - **Errores:** si falta un dato porque falló una consulta a ARCA, `detalles.codigoCausa` dice cuál fue la falla (#275).
 - **Factura E:** los errores de `--cargar` dicen qué llegó y sugieren la clave parecida, como en A, B y C (#275).
+- **Facturas:** `EMISSION_UNCERTAIN` trae `entorno`, `puntoVenta` y `tipoArca` en `detalles`, para conciliar sin leer la sugerencia (#280).
 - **Errores:** en `--cargar`, una clave `constructor` ya no sugiere un texto interno de JavaScript (#275).
 
 <details><summary>Detalle</summary>
@@ -96,7 +98,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 **Ctrl+C en una pregunta.** Cortar "¿Emitimos?" en A, B, C, FCE, recibos, notas, la `E` o un lote mostraba `User force closed the prompt` como error inesperado. Ahora dice "Cancelado. No se emitió nada." y sale con 1, como antes. En la `E`, cortar la pregunta de instalar el componente de PDF, con el comprobante ya emitido, también mostraba ese texto: ahora cuenta como "No", igual que en A, B y C, y sale con 0.
 
-**Lote cortado.** La sugerencia decía siempre que "los comprobantes de arriba ya se emitieron", aunque no hubiera ninguno o alguno fuera un rechazo, y repetía la verificación de una emisión sin confirmar sin el punto de venta. Ahora depende de lo que pasó. Si falla la entrega de los ya procesados, por ejemplo la pregunta del PDF, un aviso dice los números que se emitieron y con qué comando verlos, y después sale el error del lote. Con `--json` no hay aviso.
+**Lote cortado.** La sugerencia del panel decía siempre que "los comprobantes de arriba ya se emitieron", aunque no hubiera ninguno o alguno fuera un rechazo, y en el JSON `sugerencia` era `null`. Ahora las dos dicen lo mismo, según haya procesados, pendientes o uno sin confirmar, que manda a verificar por su número; el comando para verificarlo está en `error`. `detalles` suma `codigoCausa` (el `codigo` del que falló; `UNEXPECTED_ERROR`, por ejemplo, sin red). "Sin procesar" pasa a su propia línea, en `error` y en el panel, y desde tres comprobantes es un rango con la cantidad; `detalles.sinProcesar` sigue con la lista completa. Si falla la entrega de los ya procesados, por ejemplo la pregunta del PDF, un aviso dice los números que se emitieron y con qué comando verlos, y después sale el error del lote. Con `--json` no hay aviso.
 
 **Respuesta con otra forma.** Si en la respuesta a la emisión venía un dato suelto donde va una lista (un evento, una observación), uno nulo o de otro tipo, o el vencimiento del CAE no era una fecha, el comando terminaba en `UNEXPECTED_ERROR` con un texto interno de JavaScript y sin mostrar el CAE, o lo mostraba mal. Ahora el comprobante se muestra con su CAE, en texto, `--json`, lote y asistente, en A, B, C, FCE, recibos, notas y la `E`; en A, B y C también si el detalle viene suelto, donde antes salía sin CAE. Un texto suelto en `errores` o `eventos` sale como `{codigo: null, mensaje}`. Un error suelto junto con un CAE se ve igual que una lista con un error, con el CAE a la vista. Sin el vencimiento no hay PDF, y `pdf.error` lo dice. Solo si no se puede saber si hay CAE sale `EMISSION_UNCERTAIN`, con el comando para verificarlo, y un lote se corta ahí, con `sinConfirmar`. Un rechazo sigue siendo un rechazo, con exit code `2`; un error del login o del último número, y los de red al emitir, salen como antes. En un lote cortado sin `sinConfirmar`, el que falló no se emitió, y la sugerencia lo dice en vez de mandar a revisar `arcli ultimos`.
 
@@ -130,7 +132,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 **Salida cortada.** Si quien lee la salida la cerraba antes de tiempo (`| head`, o `less` y `q`), ARCLI mostraba `Error: write EPIPE` con el detalle interno de Node y salía con 1. Ahora el comando termina sin ese error y, con la salida cortada, el código de salida pasa de 1 al del comando (0, 1 o 2), también si lo que se cerró es stderr: un 0 no garantiza que alguien haya leído la salida, así que si se cortó al emitir conviene buscar el comprobante antes de reintentar. Una emisión, su PDF o un lote se completan igual que con la salida abierta: antes podían cortarse ahí, por ejemplo con el comprobante ya autorizado y sin PDF. La salida y el `--json` no cambian.
 
-**Lote: código y sugerencia de cada comprobante.** En `BATCH_VALIDATION_ERROR`, cada elemento de `detalles.comprobantes` traía solo `error` e `indice`. Ahora suma `codigo` y `sugerencia` (texto o `null`), con los valores que daría ese comprobante solo. `error`, `indice` y el texto del panel no cambian. El ítem no trae `codigoCausa`: si un `INPUT_VALIDATION_ERROR` sale de una consulta a ARCA que falló, lo sigue diciendo `error`.
+**Lote: código y sugerencia de cada comprobante.** En `BATCH_VALIDATION_ERROR`, cada elemento de `detalles.comprobantes` traía solo `error` e `indice`. Ahora suma `codigo` y `sugerencia` (texto o `null`), con los valores que daría ese comprobante solo. `error`, `indice` y el texto del panel no cambian. Si el error de ese comprobante trae `detalles.codigoCausa`, el ítem suma `codigoCausa` con el mismo valor (#280).
+
+**Emisión sin confirmar.** En A, B, C, FCE, recibos, la `E` y sus notas, `detalles` suma `entorno`, `puntoVenta` y `tipoArca`. `codigo`, `error`, `sugerencia` y el panel no cambian.
 
 **Qué falló al consultar a ARCA.** Al facturar a un CUIT sin IVA receptor con el padrón caído, y en una nota FCE sin `--afecha` si falla la consulta del asociado, el error es `INPUT_VALIDATION_ERROR` y no decía si era la red, ARCA o el certificado. Ahora `detalles`, antes `null`, es `{ "codigoCausa": "…" }` con el código de la falla, por ejemplo `UNEXPECTED_ERROR` o `WSFE_SERVICE_NOT_AUTHORIZED`. `codigo`, `error`, `sugerencia` y el panel no cambian, y si ARCA contestó que no figura o no lo tiene, `detalles` sigue en `null`.
 

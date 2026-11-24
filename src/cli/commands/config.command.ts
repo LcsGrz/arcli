@@ -3,12 +3,12 @@ import { join } from 'node:path';
 
 import { errorText } from '../../lib/files/file-error';
 import {
-  formatConfig,
   formatConfigAsText,
-  formatConfigDoctor,
   formatConfigDoctorAsText,
-  formatConfigPathAsJson,
   formatPendingConfigWarnings,
+  serializeConfig,
+  serializeConfigDoctor,
+  serializeConfigPath,
 } from '../../modules/config/config.presenter';
 import {
   type ArcliConfig,
@@ -31,7 +31,7 @@ function createConfigService(): ConfigService {
   return service;
 }
 
-function printConfigResult(textValue: string, jsonValue: string, useJson = false): void {
+function printConfigResult(textValue: string, jsonValue: object, useJson = false): void {
   if (useJson) {
     writeTerminalJson(jsonValue);
     return;
@@ -45,7 +45,7 @@ function printConfigChange(service: ConfigService, { config, pending }: ConfigCh
   const paths = service.resolvePaths(config);
   const useJson = resolveOutputJson(command, config);
 
-  printConfigResult(formatConfigAsText(config, paths, pending), formatConfig(config, paths, pending), useJson);
+  printConfigResult(formatConfigAsText(config, paths, pending), serializeConfig(config, paths, pending), useJson);
 
   if (!useJson) {
     writeTerminalNotice(() => formatPendingConfigWarnings(pending));
@@ -97,7 +97,7 @@ export function registerConfigCommand(program: Command): void {
       const paths = service.resolvePaths(config);
       printConfigResult(
         formatConfigAsText(config, paths),
-        formatConfig(config, paths),
+        serializeConfig(config, paths),
         resolveOutputJson(command, config),
       );
     } finally {
@@ -124,7 +124,7 @@ export function registerConfigCommand(program: Command): void {
         }).getStatus();
         const report = buildConfigDoctorReport(config, new Date(), buildRuntimeChecks(config), pdfPlugin);
         spinner?.stop();
-        printConfigResult(formatConfigDoctorAsText(report), formatConfigDoctor(report), useJson);
+        printConfigResult(formatConfigDoctorAsText(report), serializeConfigDoctor(report), useJson);
       } catch (error) {
         spinner?.stop();
         throw error;
@@ -143,7 +143,7 @@ export function registerConfigCommand(program: Command): void {
     try {
       const path = service.getPath();
 
-      printConfigResult(path, formatConfigPathAsJson(path), resolveOutputJson(command, service.getConfig()));
+      printConfigResult(path, serializeConfigPath(path), resolveOutputJson(command, service.getConfig()));
     } finally {
       service.close();
     }

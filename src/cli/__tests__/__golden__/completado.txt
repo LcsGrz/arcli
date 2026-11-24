@@ -1,0 +1,12 @@
+$ arcli completado --json
+exit: 0
+--- stdout ---
+
+{
+  "instalado": false,
+  "ruta": "<config>/.zshrc",
+  "shell": "zsh"
+}
+
+
+--- stderr ---

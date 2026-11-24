@@ -1,0 +1,20 @@
+$ arcli fe --cliente ACME LLC --domicilio-cliente 123 Main St --pais-destino 212 -m 1500 --item 001|Servicios de consultoría|1|1500|unidad --emitir --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "EMISSION_UNCERTAIN",
+  "detalles": {
+    "causa": "socket hang up",
+    "idSolicitud": 42,
+    "numero": 8,
+    "entorno": "testing",
+    "puntoVenta": 3,
+    "tipoArca": 19
+  },
+  "error": "No se pudo confirmar la emisión: socket hang up",
+  "sugerencia": "Puede haberse emitido igual. Verificalo con `arcli consultar fe 8 --pv 3 --testing`: si figura, ya está emitido. Si reintentás, usá el mismo número y la misma solicitud (`--numero 8 --id-solicitud 42 --pv 3 --testing`): si ya se había emitido, ARCA no lo autoriza dos veces. No se pudo escribir toda la salida: no queda espacio en el disco."
+}
+

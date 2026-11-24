@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
 import { AppError, ConfigurationError, InputValidationError } from '../../lib/errors/app-error';
+import type { ErrorCode } from '../../lib/errors/error-codes';
 import { fileErrorReason } from '../../lib/files/file-error';
 import { maskPath, shortenPath } from '../../lib/paths/mask-path';
 import {
@@ -87,7 +88,7 @@ export interface CertificateStatus {
 
 export const DEFAULT_CERTIFICATE_ALIAS = 'arcli';
 
-function certificateError(code: string, message: string, suggestion?: string): AppError {
+function certificateError(code: ErrorCode, message: string, suggestion?: string): AppError {
   return new AppError(message, { code, suggestion });
 }
 

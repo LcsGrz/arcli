@@ -1,0 +1,72 @@
+$ arcli config revisar --json
+exit: 0
+--- stdout ---
+
+{
+  "chequeos": [
+    {
+      "categoria": "ok",
+      "detalle": "CUIT listo para emitir comprobantes.",
+      "etiqueta": "CUIT"
+    },
+    {
+      "categoria": "ok",
+      "detalle": "Punto de venta por defecto: 3.",
+      "etiqueta": "Punto de venta"
+    },
+    {
+      "categoria": "warning",
+      "detalle": "Podés fijar un concepto por defecto con `arcli config establecer concepto servicios`.",
+      "etiqueta": "Concepto"
+    },
+    {
+      "categoria": "warning",
+      "detalle": "Podés fijar un IVA receptor por defecto con `arcli config establecer ivaReceptor consumidor-final`.",
+      "etiqueta": "IVA receptor"
+    },
+    {
+      "categoria": "ok",
+      "detalle": "Certificado y clave de testing configurados.",
+      "etiqueta": "Credenciales testing"
+    },
+    {
+      "categoria": "warning",
+      "detalle": "Todavía no hay certificado de producción: sacalo con `arcli certificado generar --produccion`, o configurá `cert.produccion` y `key.produccion`.",
+      "etiqueta": "Credenciales producción"
+    },
+    {
+      "categoria": "ok",
+      "detalle": "El certificado de testing vence el 17/11/2027.",
+      "etiqueta": "Vencimiento cert. testing"
+    },
+    {
+      "categoria": "ok",
+      "detalle": "Entorno por defecto: testing.",
+      "etiqueta": "Entorno"
+    },
+    {
+      "categoria": "ok",
+      "detalle": "Emitir por defecto: no.",
+      "etiqueta": "Emisión"
+    },
+    {
+      "categoria": "ok",
+      "detalle": "Salida JSON por defecto: no.",
+      "etiqueta": "JSON"
+    },
+    {
+      "categoria": "ok",
+      "detalle": "Respuesta bruta por defecto: no.",
+      "etiqueta": "Bruto"
+    },
+    {
+      "categoria": "ok",
+      "detalle": "Configuración válida para testing.",
+      "etiqueta": "Validación testing"
+    }
+  ],
+  "ok": false
+}
+
+
+--- stderr ---

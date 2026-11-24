@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { parseDateInputAsArcaDate } from '../../lib/dates/relative-date';
-import { formatFceObligationAsJson, formatFceObligationAsText } from '../../modules/fce/fce-obligation.presenter';
+import { formatFceObligationAsText, serializeFceObligation } from '../../modules/fce/fce-obligation.presenter';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { createArcaQuery, withQuerySpinner, writeQueryOutput } from '../arca-query';
 import { registerQueryOptions } from '../global-options';
@@ -33,7 +33,7 @@ export function registerFceObligationCommand(program: Command): void {
     const report = { cuit, environment: runtime.environment, issueDate, obligation };
 
     writeQueryOutput(runtime, {
-      json: () => formatFceObligationAsJson(report),
+      json: () => serializeFceObligation(report),
       text: () => formatFceObligationAsText(report),
     });
   });

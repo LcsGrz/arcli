@@ -1,6 +1,7 @@
-import { type output, type ZodError, ZodRealError, type ZodType } from 'zod';
+import { type output, ZodError, ZodRealError, type ZodType } from 'zod';
 
-import type { InputIssue } from '../../lib/errors/input-issue';
+import { InputIssuesError } from '../../lib/errors/app-error';
+import { INPUT_ISSUES_MESSAGE, type InputIssue } from '../../lib/errors/input-issue';
 import { describeExpected } from '../../lib/json/json-input-issues';
 
 import { BILLING_JSON_KEY_BY_INTERNAL_KEY, BILLING_JSON_NESTED_KEY_BY_INTERNAL_KEY } from './billing.json-input';
@@ -160,6 +161,11 @@ export function describeZodIssues(error: ZodError): InputIssue[] {
 
     return { label, mensaje: humanizeZodIssue(issue, label), ruta: formatPublicIssuePath(issue.path) };
   });
+}
+
+/** Un error de un esquema, descripto para `serializeError`; cualquier otro queda igual. */
+export function describeSchemaError(error: unknown): unknown {
+  return error instanceof ZodError ? new InputIssuesError(INPUT_ISSUES_MESSAGE, describeZodIssues(error)) : error;
 }
 
 /** Resumen de una linea, para listar errores por item (por ejemplo, en un lote). */

@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 
 import { taxpayerNotFoundError } from '../../modules/padron/padron';
-import { formatPadronAsJson, formatPadronAsText } from '../../modules/padron/padron.presenter';
+import { formatPadronAsText, serializePadron } from '../../modules/padron/padron.presenter';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { createArcaQuery, withQuerySpinner, writeQueryOutput } from '../arca-query';
 import { registerQueryOptions } from '../global-options';
@@ -30,6 +30,6 @@ export function registerPadronCommand(program: Command): void {
 
     const report = { environment: runtime.environment, taxpayer };
 
-    writeQueryOutput(runtime, { json: () => formatPadronAsJson(report), text: () => formatPadronAsText(report) });
+    writeQueryOutput(runtime, { json: () => serializePadron(report), text: () => formatPadronAsText(report) });
   });
 }

@@ -1,5 +1,5 @@
-import { formatBillingResultAsJson, formatBillingResultAsText } from '../../modules/billing/billing.presenter';
-import { serializeBillingBatch } from '../../modules/billing/billing.serialize';
+import { formatBillingResultAsText } from '../../modules/billing/billing.presenter';
+import { serializeBillingOutput } from '../../modules/billing/billing.serialize';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { noticePanel, writeTerminalError, writeTerminalJson, writeTerminalOutput } from '../../ui';
@@ -44,13 +44,7 @@ export function writeBillingCommandResults(
   },
 ): void {
   if (options.outputJson) {
-    if (results.length === 1 && !options.batch) {
-      writeTerminalJson(formatBillingResultAsJson(results[0], { raw: options.raw }));
-
-      return;
-    }
-
-    writeTerminalJson(JSON.stringify(serializeBillingBatch(results, { raw: options.raw }), null, 2));
+    writeTerminalJson(serializeBillingOutput(results, { batch: options.batch, raw: options.raw }));
 
     return;
   }

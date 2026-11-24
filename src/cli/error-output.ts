@@ -2,12 +2,12 @@ import { type Command, CommanderError } from 'commander';
 import { ZodError } from 'zod';
 
 import { AppError, HELP_SUGGESTION, InputIssuesError } from '../lib/errors/app-error';
-import { describeZodIssues } from '../modules/billing/billing.zod-errors';
+import { type SerializedError, serializeError } from '../lib/errors/serialize-error';
+import { describeSchemaError, describeZodIssues } from '../modules/billing/billing.zod-errors';
 import {
   formatAppError,
   formatInputIssues,
   noticePanel,
-  renderJson,
   writeTerminalError,
   writeTerminalJsonError,
   writeTerminalOutput,
@@ -19,15 +19,22 @@ import { describeEmittedInThisRun } from './emitted-vouchers';
 import { readJsonDefault } from './global-options';
 import { isPromptCancellation } from './interactive/prompts';
 
-/** Cualquier error, como panel o JSON. Los de un esquema los describe billing: la UI no conoce sus campos. */
-export function formatCliError(error: unknown, useJson: boolean): string {
+/** Cualquier error, como panel. Los de un esquema los describe billing: la UI no conoce sus campos. */
+export function formatCliError(error: unknown): string {
   if (error instanceof InputIssuesError) {
-    return formatInputIssues(error.issues, useJson, { message: error.message, suggestion: error.suggestion });
+    return formatInputIssues(error.issues, { message: error.message, suggestion: error.suggestion });
   }
 
-  return error instanceof ZodError
-    ? formatInputIssues(describeZodIssues(error), useJson)
-    : formatAppError(error, useJson);
+  return error instanceof ZodError ? formatInputIssues(describeZodIssues(error)) : formatAppError(error);
+}
+
+/**
+ * Cualquier error, como el objeto del `--json`.
+ *
+ * @internal Exportado para los tests.
+ */
+export function serializeCliError(error: unknown): SerializedError {
+  return serializeError(describeSchemaError(error));
 }
 
 /**
@@ -125,7 +132,7 @@ export function configureUsageErrors(program: Command): void {
 /** Un error, como lo muestra el panel. */
 function formatErrorPanel(error: unknown): string {
   if (isCommanderUsageError(error)) {
-    return formatCliError(toUsageError(error), false);
+    return formatCliError(toUsageError(error));
   }
 
   if (error instanceof EmissionCancelledError) {
@@ -133,7 +140,7 @@ function formatErrorPanel(error: unknown): string {
   }
 
   // Ctrl+C en una pregunta que el comando no atrapo: aca no se sabe si ya se emitio algo, asi que no se dice.
-  return isPromptCancellation(error) ? noticePanel('Cancelado.', 'muted') : formatCliError(error, false);
+  return isPromptCancellation(error) ? noticePanel('Cancelado.', 'muted') : formatCliError(error);
 }
 
 /**
@@ -155,7 +162,7 @@ export function reportCliError(
 
   if (errorsAsJson) {
     writeTerminalJsonError(
-      addSuggestion(formatCliError(usageError ? toUsageError(error) : error, true), outputFailures),
+      addOutputFailure(serializeCliError(usageError ? toUsageError(error) : error), outputFailures),
     );
   } else {
     writeTerminalError(() => formatErrorPanel(error));
@@ -164,17 +171,16 @@ export function reportCliError(
   return usageError ? error.exitCode : 1;
 }
 
-function addSuggestion(json: string, outputFailures: OutputFailures): string {
+function addOutputFailure(report: SerializedError, outputFailures: OutputFailures): SerializedError {
   const failure = outputFailures.get('stdout');
 
   if (!failure) {
-    return json;
+    return report;
   }
 
-  const report = JSON.parse(json) as { readonly sugerencia: string | null };
   const notes = [describeOutputFailure('stdout', failure), ...describeEmittedInThisRun()];
 
-  return renderJson({ ...report, sugerencia: [report.sugerencia, ...notes].filter(Boolean).join(' ') });
+  return { ...report, sugerencia: [report.sugerencia, ...notes].filter(Boolean).join(' ') };
 }
 
 /**
@@ -202,7 +208,7 @@ export function reportOutputFailure(
     if (options.json) {
       const suggestion = emitted.join(' ') || undefined;
 
-      writeTerminalJsonError(formatAppError(new AppError(message, { code: 'OUTPUT_WRITE_ERROR', suggestion }), true));
+      writeTerminalJsonError(serializeError(new AppError(message, { code: 'OUTPUT_WRITE_ERROR', suggestion })));
     } else {
       writeTerminalError(formatNotice);
     }

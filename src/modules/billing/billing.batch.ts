@@ -1,15 +1,18 @@
 import { ZodError } from 'zod';
 
 import { AppError } from '../../lib/errors/app-error';
-import { summarizeError } from '../../lib/errors/error-summary';
+import type { ErrorCode } from '../../lib/errors/error-codes';
+import { causeCodeOf, causeDetails, summarizeError } from '../../lib/errors/error-summary';
 import { errorText } from '../../lib/files/file-error';
 
 import { EmissionUncertainError } from './billing.errors';
 import { summarizeZodError } from './billing.zod-errors';
 
 export interface BatchItemError {
+  /** El `detalles.codigoCausa` que daria ese comprobante solo, si lo trae. */
+  readonly causeCode?: ErrorCode;
   /** El `codigo` que daria ese comprobante solo. */
-  readonly code: string;
+  readonly code: ErrorCode;
   /** Posicion en el lote, empezando en 1. */
   readonly index: number;
   readonly message: string;
@@ -25,11 +28,26 @@ function describeBatchItemError(error: unknown): string {
 export function toBatchItemError(index: number, error: unknown): BatchItemError {
   const { code, suggestion } = summarizeError(error);
 
-  return { code, index, message: describeBatchItemError(error), suggestion };
+  const causeCode = causeCodeOf(error);
+
+  return { ...(causeCode && { causeCode }), code, index, message: describeBatchItemError(error), suggestion };
 }
+
+/** Las claves de `detalles` del `--json`: son contrato. */
+type BatchValidationDetails = {
+  readonly comprobantes: ReadonlyArray<{
+    readonly codigo: ErrorCode;
+    readonly error: string;
+    readonly indice: number;
+    readonly sugerencia: string | null;
+    readonly codigoCausa?: ErrorCode;
+  }>;
+};
 
 /** Uno o mas comprobantes del lote no pasan la validacion. Se detecta antes de emitir: no se emitio ninguno. */
 export class BatchValidationError extends AppError {
+  declare public readonly details: BatchValidationDetails;
+
   public constructor(errors: readonly BatchItemError[], total: number) {
     const lines = errors.map((item) => `#${item.index}: ${item.message}`);
 
@@ -49,12 +67,65 @@ export class BatchValidationError extends AppError {
             error: item.message,
             indice: item.index,
             sugerencia: item.suggestion,
+            ...(item.causeCode && { codigoCausa: item.causeCode }),
           })),
-        },
+        } satisfies BatchValidationDetails,
       },
     );
     this.name = 'BatchValidationError';
   }
+}
+
+/** Las claves de `detalles` del `--json`: son contrato. */
+type BatchEmissionDetails = {
+  readonly procesados: number;
+  readonly fallo: number;
+  readonly sinProcesar: readonly number[];
+  /** Solo si el que fallo puede haberse emitido. */
+  readonly sinConfirmar?: number;
+  readonly total: number;
+  /** El `codigo` que daria solo el comprobante que fallo. */
+  readonly codigoCausa: ErrorCode;
+};
+
+/** Los que quedaron sin procesar, que son siempre los ultimos: de tres en adelante, el rango y la cantidad. */
+function describePending(pending: readonly number[]): string[] {
+  const [first] = pending;
+
+  if (first === undefined) {
+    return [];
+  }
+
+  return [
+    pending.length < 3
+      ? `Sin procesar: ${pending.map((index) => `#${index}`).join(', ')}.`
+      : `Sin procesar: #${first} a #${first + pending.length - 1} (${pending.length}).`,
+  ];
+}
+
+/**
+ * Que hacer con un lote cortado. Los procesados pueden incluir rechazados, que no se emitieron: manda el CAE. Sin uno
+ * sin confirmar, fallo antes de la llamada que emite (ERR-16): la sugerencia de la causa no se copia, porque habla de
+ * un comprobante solo.
+ */
+function describeNextSteps(batch: {
+  readonly emitted: number;
+  readonly pending: readonly number[];
+  readonly uncertainIndex?: number;
+}): string {
+  const emitted = 'Los procesados con CAE ya se emitieron: recordá no volver a cargarlos.';
+
+  if (batch.uncertainIndex !== undefined) {
+    return [
+      ...(batch.emitted > 0 ? [emitted] : []),
+      `Verificá el #${batch.uncertainIndex} antes de reintentarlo.`,
+      ...(batch.pending.length > 0 ? ['Después reintentá únicamente los que quedaron sin procesar.'] : []),
+    ].join(' ');
+  }
+
+  return batch.emitted > 0
+    ? `${emitted} El resto no se emitió: reintentá únicamente los que quedaron sin procesar.`
+    : 'No se emitió ninguno: podés reintentar los que quedaron sin procesar.';
 }
 
 /**
@@ -62,13 +133,15 @@ export class BatchValidationError extends AppError {
  * error, para que nadie los vuelva a cargar y los duplique.
  */
 export class BatchEmissionError extends AppError {
+  declare public readonly details: BatchEmissionDetails;
+
   public constructor(options: {
     readonly cause: unknown;
     readonly emitted: number;
     readonly failedIndex: number;
     readonly total: number;
   }) {
-    const uncertain = options.cause instanceof EmissionUncertainError;
+    const uncertain = options.cause instanceof EmissionUncertainError ? options.cause : undefined;
     // Si el fallo fue antes de la llamada que emite (login, ultimo numero), ese comprobante tampoco se proceso.
     const firstPending = uncertain ? options.failedIndex + 1 : options.failedIndex;
     const pending = Array.from({ length: options.total - firstPending + 1 }, (_, offset) => firstPending + offset);
@@ -76,10 +149,11 @@ export class BatchEmissionError extends AppError {
     super(
       [
         `El lote se interrumpió en el comprobante #${options.failedIndex}: ${describeBatchItemError(options.cause)}`,
-        `Procesados: ${options.emitted} de ${options.total}.${pending.length > 0 ? ` Sin procesar: ${pending.map((index) => `#${index}`).join(', ')}.` : ''}`,
+        `Procesados: ${options.emitted} de ${options.total}.`,
+        ...describePending(pending),
         ...(uncertain
           ? [
-              `El #${options.failedIndex} puede haberse emitido: verificalo con \`${(options.cause as EmissionUncertainError).verifyCommand ?? 'arcli ultimos'}\` antes de reintentarlo.`,
+              `El #${options.failedIndex} puede haberse emitido: verificalo con \`${uncertain.verifyCommand}\` antes de reintentarlo.`,
             ]
           : []),
       ].join('\n'),
@@ -91,7 +165,13 @@ export class BatchEmissionError extends AppError {
           sinProcesar: pending,
           ...(uncertain ? { sinConfirmar: options.failedIndex } : {}),
           total: options.total,
-        },
+          ...causeDetails(options.cause),
+        } satisfies BatchEmissionDetails,
+        suggestion: describeNextSteps({
+          emitted: options.emitted,
+          pending,
+          uncertainIndex: uncertain ? options.failedIndex : undefined,
+        }),
       },
     );
     this.name = 'BatchEmissionError';

@@ -7,7 +7,10 @@ exit: 1
 {
   "codigo": "EMISSION_UNCERTAIN",
   "detalles": {
-    "causa": "ARCA contestó sin CAE, sin resultado y con errores: 501 Error interno de base de datos"
+    "causa": "ARCA contestó sin CAE, sin resultado y con errores: 501 Error interno de base de datos",
+    "entorno": "testing",
+    "puntoVenta": 3,
+    "tipoArca": 11
   },
   "error": "No se pudo confirmar la emisión: ARCA contestó sin CAE, sin resultado y con errores: 501 Error interno de base de datos",
   "sugerencia": "Puede haberse emitido igual. Antes de reintentar, verificá con `arcli ultimos fc --pv 3 --testing`: si figura, ya está emitido y no hay que repetirlo."

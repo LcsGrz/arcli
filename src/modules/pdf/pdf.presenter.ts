@@ -37,19 +37,15 @@ const BROWSER_SOURCE_LABELS: Record<NonNullable<PdfPluginStatusView['browserSour
   sistema: 'instalado en el sistema',
 };
 
-export function formatPdfPluginStatusAsJson(status: PdfPluginStatusView): string {
-  return JSON.stringify(
-    {
-      instalado: status.installed,
-      navegador: status.browser ?? null,
-      origenNavegador: status.browserSource ?? null,
-      ruta: status.path,
-      version: status.version,
-      versionInstalada: status.installedVersion ?? null,
-    },
-    null,
-    2,
-  );
+export function serializePdfPluginStatus(status: PdfPluginStatusView) {
+  return {
+    instalado: status.installed,
+    navegador: status.browser ?? null,
+    origenNavegador: status.browserSource ?? null,
+    ruta: status.path,
+    version: status.version,
+    versionInstalada: status.installedVersion ?? null,
+  };
 }
 
 export function formatPdfPluginStatusAsText(status: PdfPluginStatusView, title = 'Plugin de PDF'): string {

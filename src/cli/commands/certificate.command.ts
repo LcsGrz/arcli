@@ -4,10 +4,10 @@ import { readFileSync } from 'node:fs';
 import { AppError, ConfigurationError, InputValidationError } from '../../lib/errors/app-error';
 import { maskPath } from '../../lib/paths/mask-path';
 import {
-  formatGeneratedRequestAsJson,
   formatGeneratedRequestAsText,
-  formatImportedCertificateAsJson,
   formatImportedCertificateAsText,
+  serializeGeneratedRequest,
+  serializeImportedCertificate,
 } from '../../modules/certificates/certificate.presenter';
 import { CertificateService, type ImportedCertificate } from '../../modules/certificates/certificate.service';
 import { explicitEnvironment } from '../../modules/config/arca-profile';
@@ -110,7 +110,7 @@ export function registerCertificateCommand(program: Command): void {
         });
 
         if (json) {
-          writeTerminalJson(formatGeneratedRequestAsJson(request));
+          writeTerminalJson(serializeGeneratedRequest(request));
 
           return;
         }
@@ -148,7 +148,7 @@ export function registerCertificateCommand(program: Command): void {
         );
 
         if (json) {
-          writeTerminalJson(formatImportedCertificateAsJson(imported));
+          writeTerminalJson(serializeImportedCertificate(imported));
 
           return;
         }

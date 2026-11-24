@@ -9,7 +9,10 @@ exit: 1
   "detalles": {
     "causa": "hubo un error inesperado al emitir (Cannot read properties of undefined (reading 'FeDetResp'))",
     "idSolicitud": 42,
-    "numero": 8
+    "numero": 8,
+    "entorno": "testing",
+    "puntoVenta": 4,
+    "tipoArca": 19
   },
   "error": "No se pudo confirmar la emisión: hubo un error inesperado al emitir (Cannot read properties of undefined (reading 'FeDetResp'))",
   "sugerencia": "Puede haberse emitido igual. Verificalo con `arcli consultar fe 8 --pv 4 --testing`: si figura, ya está emitido. Si reintentás, usá el mismo número y la misma solicitud (`--numero 8 --id-solicitud 42 --pv 4 --testing`): si ya se había emitido, ARCA no lo autoriza dos veces."

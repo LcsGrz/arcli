@@ -123,21 +123,17 @@ export function formatGeneratedRequestAsText(request: GeneratedCertificateReques
   return `${panel}\n${guideLine()}\n${request.csrPem.trim()}\n`;
 }
 
-export function formatGeneratedRequestAsJson(request: GeneratedCertificateRequest): string {
-  return JSON.stringify(
-    {
-      alias: request.alias,
-      csr: request.csrPem,
-      cuit: request.cuit,
-      entorno: request.environment,
-      guia: CERTIFICATE_GUIDE_URL,
-      pasos: certificateSteps(request),
-      rutaClave: request.keyPath,
-      rutaCsr: request.requestPath,
-    },
-    null,
-    2,
-  );
+export function serializeGeneratedRequest(request: GeneratedCertificateRequest) {
+  return {
+    alias: request.alias,
+    csr: request.csrPem,
+    cuit: request.cuit,
+    entorno: request.environment,
+    guia: CERTIFICATE_GUIDE_URL,
+    pasos: certificateSteps(request),
+    rutaClave: request.keyPath,
+    rutaCsr: request.requestPath,
+  };
 }
 
 export function formatImportedCertificateAsText(imported: ImportedCertificate): string {
@@ -178,20 +174,16 @@ export function formatImportedCertificateAsText(imported: ImportedCertificate): 
   return `${panel}\n${guideLine()}`;
 }
 
-export function formatImportedCertificateAsJson(imported: ImportedCertificate): string {
-  return JSON.stringify(
-    {
-      alias: imported.alias ?? null,
-      cuit: imported.cuit,
-      entorno: imported.environment,
-      reemplazado: imported.replaced,
-      rutaCertificado: imported.certificatePath,
-      rutaClave: imported.keyPath,
-      vence: imported.expiresAt.toISOString(),
-    },
-    null,
-    2,
-  );
+export function serializeImportedCertificate(imported: ImportedCertificate) {
+  return {
+    alias: imported.alias ?? null,
+    cuit: imported.cuit,
+    entorno: imported.environment,
+    reemplazado: imported.replaced,
+    rutaCertificado: imported.certificatePath,
+    rutaClave: imported.keyPath,
+    vence: imported.expiresAt.toISOString(),
+  };
 }
 
 const EXPIRY_WARNING_DAYS = 30;

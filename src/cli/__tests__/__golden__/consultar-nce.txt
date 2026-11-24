@@ -1,0 +1,39 @@
+$ arcli consultar nce 1 --pv 4 --json
+exit: 0
+--- stdout ---
+
+{
+  "atajo": "nce",
+  "comprobante": "Nota de crédito de exportación E",
+  "tipoArca": 21,
+  "actividad": [
+    620100
+  ],
+  "cae": "76463926585300",
+  "caeVencimiento": "20261110",
+  "cliente": "ACME LLC",
+  "comprobanteAsociado": {
+    "atajo": "fe",
+    "numero": 1,
+    "puntoVenta": 4,
+    "tipoArca": 19
+  },
+  "cotizacion": 1000,
+  "cuitPaisCliente": 55000002126,
+  "destino": {
+    "codigo": 212
+  },
+  "domicilioCliente": "123 Main St",
+  "fecha": "20261030",
+  "idImpositivo": null,
+  "moneda": "DOL",
+  "numero": 1,
+  "resultado": "A",
+  "tipoExpo": 2,
+  "total": 1500,
+  "entorno": "testing",
+  "puntoVenta": 4
+}
+
+
+--- stderr ---

@@ -2,6 +2,7 @@ import type { Command } from 'commander';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
+import { ERROR_CODES } from '../../lib/errors/error-codes';
 import { configPublicKeySchema } from '../../modules/config/config.schemas';
 import { DEPRECATED_CONFIG_KEYS } from '../../modules/config/config-keys';
 import { createProgram } from '../program';
@@ -122,7 +123,7 @@ describe('contrato público', () => {
 
 /**
  * Los códigos de error son contrato del JSON (`codigo`): cada uno de la tabla de docs/input-output.md tiene que
- * existir en `src/` y cada uno de `src/`, estar en la tabla. La fila `PDF_*` cubre los códigos que lista la sección
+ * estar en `ERROR_CODES` y cada uno de `ERROR_CODES`, en la tabla. La fila `PDF_*` cubre los códigos que lista la sección
  * "Errores del PDF".
  */
 const root = new URL('../../../', import.meta.url);
@@ -148,45 +149,29 @@ function documentedErrorCodes(): string[] {
   return [...new Set(codes.flatMap((code) => (code === 'PDF_*' ? pdfCodes : [code])))].sort();
 }
 
-function sourceFiles(dir: URL): URL[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.isDirectory()) return entry.name === '__tests__' ? [] : sourceFiles(new URL(`${entry.name}/`, dir));
-    return entry.name.endsWith('.ts') ? [new URL(entry.name, dir)] : [];
-  });
-}
-
-/**
- * No hay una lista única de códigos: cada error pasa el suyo a `AppError`. Se toman los literales de donde se asigna
- * un código: `code: '…'` y `codigo: … '…'` (`AppError`, el JSON de errores), el primer argumento de una función o
- * clase `…Error(…)` (`PdfError`, `certificateError`) y las uniones `type …ErrorCode`. Una comparación
- * (`error.code === '…'`) o cualquier otra constante en MAYUSCULAS no cuenta.
- */
-const ERROR_CODE_SITES = [
-  /\b(?:code|codigo):[^\n]*/g,
-  /\w*Error\(\s*'[A-Z][A-Z0-9_]*'/g,
-  /\btype \w*ErrorCode\s*=[^;]*;/g,
-];
-
-function sourceErrorCodes(): string[] {
-  const codes = sourceFiles(new URL('src/', root)).flatMap((file) => {
-    const source = readFileSync(file, 'utf8');
-    return ERROR_CODE_SITES.flatMap((site) =>
-      [...source.matchAll(site)].flatMap((siteMatch) =>
-        [...siteMatch[0].matchAll(/'([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)'/g)].map((match) => match[1] ?? ''),
-      ),
-    );
-  });
-
-  return [...new Set(codes)].sort();
+/** Los fuentes de `src/`, fuera de la lista y de los tests. */
+function sourceText(): string {
+  return readdirSync(new URL('src/', root), { recursive: true, encoding: 'utf8' })
+    .map((path) => path.replaceAll('\\', '/'))
+    .filter((path) => path.endsWith('.ts') && !path.includes('__tests__/') && path !== 'lib/errors/error-codes.ts')
+    .map((path) => readFileSync(new URL(`src/${path}`, root), 'utf8'))
+    .join('\n');
 }
 
 describe('códigos de error documentados', () => {
   const documented = documentedErrorCodes();
-  const inSource = sourceErrorCodes();
+  // El tipo `ErrorCode` impide usar un código que no esté en la lista.
+  const inSource: string[] = [...ERROR_CODES].sort();
 
   it('encuentra códigos para revisar', () => {
     expect(documented.length).toBeGreaterThan(10);
     expect(inSource.length).toBeGreaterThan(10);
+  });
+
+  it('cada código de ERROR_CODES se usa en src/', () => {
+    const source = sourceText();
+
+    expect(inSource.filter((code) => !source.includes(`'${code}'`))).toEqual([]);
   });
 
   it('cada código de la tabla de docs/input-output.md existe en src/', () => {

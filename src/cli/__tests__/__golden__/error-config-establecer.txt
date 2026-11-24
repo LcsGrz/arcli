@@ -1,0 +1,18 @@
+$ arcli config establecer entorno demo --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "INPUT_VALIDATION_ERROR",
+  "detalles": [
+    {
+      "mensaje": "El valor no está entre los soportados. Valores válidos: testing, produccion.",
+      "ruta": []
+    }
+  ],
+  "error": "`entorno` no acepta \"demo\". Valores válidos: testing, produccion.",
+  "sugerencia": "Mirá cada clave con sus valores válidos en `arcli config establecer --ayuda`, y la config actual con `arcli config`."
+}
+

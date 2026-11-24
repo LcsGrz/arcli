@@ -1,0 +1,20 @@
+$ arcli estado --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "INPUT_VALIDATION_ERROR",
+  "detalles": [
+    {
+      "mensaje": "El CUIT debe tener 11 dígitos",
+      "ruta": [
+        "cuit"
+      ]
+    }
+  ],
+  "error": "La configuración guardada tiene un dato inválido. `cuit`: el CUIT debe tener 11 dígitos.",
+  "sugerencia": "Corregilo con `arcli config establecer cuit <valor>` o borralo con `arcli config eliminar cuit`. No se pudo escribir toda la salida: no queda espacio en el disco."
+}
+

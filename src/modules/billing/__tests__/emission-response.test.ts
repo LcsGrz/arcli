@@ -61,15 +61,22 @@ describe('lo que ARCA contesta a la emisión (ERR-16)', () => {
     ['socket hang up', 'socket hang up'],
     [new TypeError(`a\n  b${'x'.repeat(300)}`), `hubo un error inesperado al emitir (a b${'x'.repeat(197)})`],
   ])('la causa %j se lee', (cause, causa) => {
-    const error = new EmissionUncertainError({ cause, environment: 'testing', pointOfSale: 3, shortcut: 'fc' });
+    const error = new EmissionUncertainError({
+      arcaType: 11,
+      cause,
+      environment: 'testing',
+      pointOfSale: 3,
+      shortcut: 'fc',
+    });
 
-    expect(error.details).toEqual({ causa });
+    expect(error.details).toEqual({ causa, entorno: 'testing', puntoVenta: 3, tipoArca: 11 });
     expect((error.cause as Error).cause).toBe(cause);
   });
 
   it('el error interno queda en cause', () => {
     const original = new TypeError("Cannot read properties of undefined (reading 'x')");
     const error = new EmissionUncertainError({
+      arcaType: 11,
       cause: original,
       environment: 'testing',
       pointOfSale: 3,

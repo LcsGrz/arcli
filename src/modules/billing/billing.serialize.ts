@@ -1,4 +1,5 @@
 import { DEPRECATED_BILLING_RESPONSE_KEYS } from '../../lib/json/deprecations';
+import { serializePdfOutcome } from '../pdf/pdf.serialize';
 
 import type { BillingExecutionResult } from './billing.types.internal';
 
@@ -16,21 +17,6 @@ export function formatRawResponse(
   return {
     mensaje: 'Sin emisión real. Usá `--emitir` para obtener una respuesta de ARCA.',
   };
-}
-
-// Aditivo: la clave `pdf` solo aparece si se intento generar el PDF.
-function formatPdfOutcome(result: BillingExecutionResult): Record<string, unknown> {
-  if (!result.pdf) {
-    return {};
-  }
-
-  if ('path' in result.pdf) {
-    return { pdf: { ruta: result.pdf.path } };
-  }
-
-  const { code, message, suggestion } = result.pdf.error;
-
-  return { pdf: { error: { codigo: code, mensaje: message, sugerencia: suggestion ?? null } } };
 }
 
 /** ARCA informa `Code` y `Msg`: se suman `codigo` y `mensaje`, como en el resto del JSON. */
@@ -63,7 +49,7 @@ function formatVoucherSummary(result: BillingExecutionResult): Record<string, un
     observacion: result.response.observacion,
     numero: result.voucherNumber ?? null,
     puntoVenta: result.payload.PtoVta,
-    ...formatPdfOutcome(result),
+    ...serializePdfOutcome(result.pdf),
     // Lo que se envio a ARCA, con el numero que le toco.
     solicitud:
       result.voucherNumber === undefined
@@ -90,6 +76,7 @@ export function serializeBillingResult(
   return { ...summary, respuesta: formatRawResponse(result) };
 }
 
+/** @internal Exportado para los tests. */
 export function serializeBillingBatch(
   results: BillingExecutionResult[],
   options: BillingSerializeOptions = {},
@@ -100,4 +87,19 @@ export function serializeBillingBatch(
     comprobante: result.voucherKind.displayName,
     ...serializeBillingResult(result, options),
   }));
+}
+
+/**
+ * La salida `--json` de una facturacion. `batch`: entro un array en `--cargar`, y sale como array aunque tenga un solo
+ * resultado.
+ */
+export function serializeBillingOutput(
+  results: BillingExecutionResult[],
+  { batch, raw }: BillingSerializeOptions & { readonly batch?: boolean },
+): Record<string, unknown> | Array<Record<string, unknown>> {
+  const [result] = results;
+
+  return result && results.length === 1 && !batch
+    ? serializeBillingResult(result, { raw })
+    : serializeBillingBatch(results, { raw });
 }

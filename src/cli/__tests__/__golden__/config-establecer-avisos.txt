@@ -1,0 +1,36 @@
+$ arcli config establecer puntoVenta 5 --json
+exit: 0
+--- stdout ---
+
+{
+  "cert": {
+    "testing": ".../config/testing.crt"
+  },
+  "cotizacion": 1,
+  "emisor": {},
+  "emitir": false,
+  "entorno": "testing",
+  "exportacion": {
+    "actividad": 620100,
+    "cert": {},
+    "key": {}
+  },
+  "json": false,
+  "key": {
+    "testing": ".../config/testing.key"
+  },
+  "moneda": "PES",
+  "pdf": "nunca",
+  "pdfCarpeta": ".../config/pdfs",
+  "puntoVenta": 5,
+  "bruto": false,
+  "ticketPath": ".../config/tickets",
+  "consultarPadron": true,
+  "avisos": [
+    "Sigue habiendo un dato inválido en la configuración guardada. `cuit`: el CUIT debe tener 11 dígitos. Corregilo con `arcli config establecer cuit <valor>` o borralo con `arcli config eliminar cuit`.",
+    "Sigue habiendo un dato inválido en la configuración guardada. `filasPorLista`: tiene que ser un número. Corregilo con `arcli config establecer filasPorLista <valor>` o borralo con `arcli config eliminar filasPorLista`."
+  ]
+}
+
+
+--- stderr ---

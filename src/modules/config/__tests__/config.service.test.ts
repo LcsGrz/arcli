@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfigurationError } from '../../../lib/errors/app-error';
-import { formatConfig } from '../config.presenter';
+import { serializeConfig } from '../config.presenter';
 import { resolveRowsPerList, ROWS_PER_LIST_DEPRECATION_WARNING } from '../config.schemas';
 import { ConfigService, deprecatedConfigKeyWarning, resolveConfigDirectory } from '../config.service';
 
@@ -482,7 +482,7 @@ describe('config escrita por una versión anterior', () => {
 
     try {
       const config = service.getConfig();
-      const snapshot = JSON.parse(formatConfig(config, service.resolvePaths(config))) as Record<string, unknown>;
+      const snapshot = serializeConfig(config, service.resolvePaths(config)) as Record<string, unknown>;
 
       expect(snapshot).toMatchObject({
         alicuota: '21',

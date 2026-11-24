@@ -454,6 +454,8 @@ describe('con las dos salidas cerradas', () => {
  */
 describe('con stdout que no se puede escribir', () => {
   const UNWRITTEN = 'No se pudo escribir toda la salida: no queda espacio en el disco.';
+  const UNCONFIRMED =
+    'Los procesados con CAE ya se emitieron: recordá no volver a cargarlos. Verificá el #2 antes de reintentarlo. Después reintentá únicamente los que quedaron sin procesar.';
   const SINGLE =
     'Se emitió: fc del punto de venta 3, 42. Verificalo con `arcli ultimos fc --pv 3 --cantidad 2 --testing`.';
 
@@ -600,7 +602,7 @@ describe('con stdout que no se puede escribir', () => {
     expect(JSON.parse(result.stderr)).toMatchObject({
       codigo: 'BATCH_EMISSION_ERROR',
       detalles: { fallo: 2, procesados: 1, sinConfirmar: 2, sinProcesar: [3], total: 3 },
-      sugerencia: `${UNWRITTEN} ${SINGLE}`,
+      sugerencia: `${UNCONFIRMED} ${UNWRITTEN} ${SINGLE}`,
     });
   });
 
@@ -616,7 +618,7 @@ describe('con stdout que no se puede escribir', () => {
 
     expect(JSON.parse(result.stderr)).toMatchObject({
       codigo: 'BATCH_EMISSION_ERROR',
-      sugerencia: `${UNWRITTEN} ${SINGLE}`,
+      sugerencia: `${UNCONFIRMED} ${UNWRITTEN} ${SINGLE}`,
     });
   });
 

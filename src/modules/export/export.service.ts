@@ -513,6 +513,7 @@ export class ExportService {
       response = mapExportResponse(raw);
     } catch (error) {
       throw new EmissionUncertainError({
+        arcaType: options.resolved.voucherKind.arcaType,
         cause: error,
         environment: options.runtime.environment,
         pointOfSale: payload.Punto_vta,

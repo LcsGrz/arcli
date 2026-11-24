@@ -35,7 +35,7 @@ function plain(text: string): string {
   return stripAnsi(text).replace(/[│┃║╏\s]+/g, ' ');
 }
 
-type Step = 'A' | 'R' | 'ilegible' | 'incierta' | 'login' | 'sin-autorizar';
+type Step = 'A' | 'R' | 'ilegible' | 'incierta' | 'login' | 'sin-autorizar' | 'transitorio';
 
 /** Corre un lote en el que cada comprobante termina como dice `steps`, y reporta el error como `index.ts`. */
 async function runBatch(
@@ -113,6 +113,10 @@ async function runBatch(
                 return rethrowIfWsfeNotAuthorized(new Error('ns1:coe.notAuthorized'));
               }
 
+              if (steps[position] === 'transitorio') {
+                throw new Error('(502) Transacción Activa');
+              }
+
               if (steps[position] === 'login') {
                 throw new Error('LoginFault');
               }
@@ -165,15 +169,15 @@ describe('la sugerencia del lote cortado, según lo que pasó (ERR-3)', () => {
   it('sin ninguno procesado no habla de ya emitidos ni contradice el mensaje', async () => {
     expect(await runBatch(['login', 'A'])).toBe(1);
     expect(plain(stderr)).toContain('Procesados: 0 de 2');
-    expect(plain(stderr)).toContain('El #1 no se emitió. Reintentá los que quedaron sin procesar.');
+    expect(plain(stderr)).toContain('No se emitió ninguno: podés reintentar los que quedaron sin procesar.');
     expect(plain(stderr)).not.toMatch(/ya se emitieron|de arriba|No se procesó/);
   });
 
   it('con procesados, solo los que tienen CAE están emitidos', async () => {
     await runBatch(['A', 'R', 'login', 'A']);
 
-    expect(plain(stderr)).toContain('Los procesados con CAE ya se emitieron: no los vuelvas a cargar.');
-    expect(plain(stderr)).toContain('El #3 no se emitió. Reintentá los que quedaron sin procesar.');
+    expect(plain(stderr)).toContain('Los procesados con CAE ya se emitieron: recordá no volver a cargarlos.');
+    expect(plain(stderr)).toContain('El resto no se emitió: reintentá únicamente los que quedaron sin procesar.');
   });
 
   it('con una emisión sin confirmar no repite la verificación del mensaje', async () => {
@@ -182,7 +186,7 @@ describe('la sugerencia del lote cortado, según lo que pasó (ERR-3)', () => {
     expect(plain(stderr)).toContain('arcli ultimos fc --pv 3 --testing');
     expect(plain(stderr).match(/arcli ultimos/g)).toHaveLength(1);
     expect(plain(stderr)).toContain('Los procesados con CAE ya se emitieron');
-    expect(plain(stderr)).toContain('Después reintentá los que quedaron sin procesar');
+    expect(plain(stderr)).toContain('Después reintentá únicamente los que quedaron sin procesar');
     expect(plain(stderr)).not.toContain('no se emitió');
   });
 
@@ -199,11 +203,12 @@ describe('la sugerencia del lote cortado, según lo que pasó (ERR-3)', () => {
     expect(plain(stderr)).not.toContain('sin procesar');
   });
 
-  it('sin confirmar el único: el mensaje ya dice todo, sin sugerencia', async () => {
+  it('sin confirmar el único: solo manda a verificarlo', async () => {
     await runBatch(['incierta']);
 
     expect(plain(stderr)).toContain('El #1 puede haberse emitido');
-    expect(plain(stderr)).not.toContain('Sugerencia');
+    expect(plain(stderr)).toContain('Verificá el #1 antes de reintentarlo.');
+    expect(plain(stderr)).not.toMatch(/ya se emitieron|sin procesar/);
   });
 
   it('no repite en "Detalles" lo que ya dice el mensaje (H21)', async () => {
@@ -212,16 +217,24 @@ describe('la sugerencia del lote cortado, según lo que pasó (ERR-3)', () => {
     expect(plain(stderr)).not.toMatch(/Detalles|procesados:|sinConfirmar|fallo:|total:/);
   });
 
-  it('en JSON no cambian código, detalles ni sugerencia', async () => {
+  it('en JSON, el código, los detalles y la misma sugerencia que el panel', async () => {
     expect(await runBatch(['A', 'incierta', 'A'], { json: true })).toBe(1);
 
     const error = JSON.parse(stderr) as Record<string, unknown>;
 
     expect({ ...error, error: undefined }).toEqual({
       codigo: 'BATCH_EMISSION_ERROR',
-      detalles: { fallo: 2, procesados: 1, sinConfirmar: 2, sinProcesar: [3], total: 3 },
+      detalles: {
+        codigoCausa: 'EMISSION_UNCERTAIN',
+        fallo: 2,
+        procesados: 1,
+        sinConfirmar: 2,
+        sinProcesar: [3],
+        total: 3,
+      },
       error: undefined,
-      sugerencia: null,
+      sugerencia:
+        'Los procesados con CAE ya se emitieron: recordá no volver a cargarlos. Verificá el #2 antes de reintentarlo. Después reintentá únicamente los que quedaron sin procesar.',
     });
   });
 });
@@ -308,7 +321,11 @@ describe('si falla la entrega de los ya procesados (ERR-14)', () => {
     await runBatch(['A', 'login'], { json: true });
 
     expect(stdout).toBe('');
-    expect(JSON.parse(stderr)).toMatchObject({ codigo: 'BATCH_EMISSION_ERROR', sugerencia: null });
+    expect(JSON.parse(stderr)).toMatchObject({
+      codigo: 'BATCH_EMISSION_ERROR',
+      sugerencia:
+        'Los procesados con CAE ya se emitieron: recordá no volver a cargarlos. El resto no se emitió: reintentá únicamente los que quedaron sin procesar.',
+    });
   });
 
   it('un certificado sin autorizar a mitad del lote no dice que no se emitió nada', async () => {
@@ -316,5 +333,117 @@ describe('si falla la entrega de los ya procesados (ERR-14)', () => {
 
     expect(plain(stderr)).toContain('El certificado no está autorizado para facturar');
     expect(plain(stderr)).not.toContain('No se emitió nada');
+  });
+});
+
+describe('el lote cortado dice qué hacer, igual en el panel y en el JSON (REV-49)', () => {
+  const EMITTED = 'Los procesados con CAE ya se emitieron: recordá no volver a cargarlos.';
+  const SAFE = `${EMITTED} El resto no se emitió: reintentá únicamente los que quedaron sin procesar.`;
+  const NONE = 'No se emitió ninguno: podés reintentar los que quedaron sin procesar.';
+  const THEN = 'Después reintentá únicamente los que quedaron sin procesar.';
+  const verify = (index: number) => `Verificá el #${index} antes de reintentarlo.`;
+  const UNCERTAIN = 'No se pudo confirmar la emisión: socket hang up';
+  const failed = (index: number, reason: string) => `El lote se interrumpió en el comprobante #${index}: ${reason}`;
+  const unconfirmed = (index: number) =>
+    `El #${index} puede haberse emitido: verificalo con \`arcli ultimos fc --pv 3 --testing\` antes de reintentarlo.`;
+  const many = (count: number): Step[] => Array.from({ length: count }, (): Step => 'A');
+
+  async function jsonError(steps: readonly Step[]): Promise<Record<string, unknown>> {
+    expect(await runBatch(steps, { json: true })).toBe(1);
+
+    return JSON.parse(stderr) as Record<string, unknown>;
+  }
+
+  const SUGGESTIONS: ReadonlyArray<[string, Step[], string]> = [
+    ['con procesados y un fallo seguro', ['A', 'login', 'A'], SAFE],
+    ['con procesados que ARCA rechazó y un fallo seguro', ['R', 'login'], SAFE],
+    ['sin procesados y un fallo seguro', ['login', 'A'], NONE],
+    ['la causa tiene su sugerencia: no se copia', ['A', 'sin-autorizar'], SAFE],
+    ['sin confirmar, con procesados y pendientes', ['A', 'incierta', 'A'], `${EMITTED} ${verify(2)} ${THEN}`],
+    ['sin confirmar, con procesados y sin pendientes', ['A', 'incierta'], `${EMITTED} ${verify(2)}`],
+    ['sin confirmar, sin procesados y con pendientes', ['incierta', 'A'], `${verify(1)} ${THEN}`],
+    ['sin confirmar el único', ['incierta'], verify(1)],
+  ];
+
+  it.each(SUGGESTIONS)('sugerencia del JSON, %s', async (_name, steps, suggestion) => {
+    expect((await jsonError(steps)).sugerencia).toBe(suggestion);
+  });
+
+  it.each(SUGGESTIONS)('sugerencia del panel, %s', async (_name, steps, suggestion) => {
+    await runBatch(steps);
+
+    // Entera: lo que sigue al título de la sugerencia hasta el borde de abajo.
+    expect(plain(stderr).match(/Sugerencia (.*?) ?[╰└╚]/)?.[1]).toBe(suggestion);
+  });
+
+  const PENDING: ReadonlyArray<[string, Step[], string[]]> = [
+    ['uno', ['A', 'login'], [failed(2, 'LoginFault'), 'Procesados: 1 de 2.', 'Sin procesar: #2.']],
+    ['dos', ['A', 'login', 'A'], [failed(2, 'LoginFault'), 'Procesados: 1 de 3.', 'Sin procesar: #2, #3.']],
+    [
+      'tres, el rango y la cantidad',
+      ['A', 'login', 'A', 'A'],
+      [failed(2, 'LoginFault'), 'Procesados: 1 de 4.', 'Sin procesar: #2 a #4 (3).'],
+    ],
+    [
+      'ninguno procesado',
+      ['login', 'A', 'A'],
+      [failed(1, 'LoginFault'), 'Procesados: 0 de 3.', 'Sin procesar: #1 a #3 (3).'],
+    ],
+    [
+      'noventa y ocho, con uno sin confirmar',
+      ['A', 'incierta', ...many(98)],
+      [failed(2, UNCERTAIN), 'Procesados: 1 de 100.', 'Sin procesar: #3 a #100 (98).', unconfirmed(2)],
+    ],
+  ];
+
+  it.each(PENDING)('sin procesar, %s: en su línea del error', async (_name, steps, lines) => {
+    expect((await jsonError(steps)).error).toBe(lines.join('\n'));
+  });
+
+  it.each(PENDING)('sin procesar, %s: en su línea del panel', async (_name, steps, [, , pending]) => {
+    await runBatch(steps);
+
+    const lines = stripAnsi(stderr)
+      .split('\n')
+      .map((line) => line.replace(/[│┃║╏]/g, '').trim());
+
+    expect(lines).toContain(pending);
+  });
+
+  it('sin pendientes, el error no dice "Sin procesar"', async () => {
+    expect((await jsonError(['A', 'incierta'])).error).toBe(
+      [failed(2, UNCERTAIN), 'Procesados: 1 de 2.', unconfirmed(2)].join('\n'),
+    );
+  });
+
+  it('detalles.sinProcesar sigue con la lista completa', async () => {
+    const { detalles } = await jsonError(['A', 'incierta', ...many(98)]);
+
+    expect((detalles as { sinProcesar: number[] }).sinProcesar).toEqual(
+      Array.from({ length: 98 }, (_, index) => index + 3),
+    );
+  });
+
+  const CAUSES: ReadonlyArray<[string, Step, Record<string, unknown>]> = [
+    ['inesperada', 'login', { codigoCausa: 'UNEXPECTED_ERROR' }],
+    ['transitoria', 'transitorio', { codigoCausa: 'TRANSIENT_ERROR' }],
+    ['sin autorizar', 'sin-autorizar', { codigoCausa: 'WSFE_SERVICE_NOT_AUTHORIZED' }],
+    ['sin confirmar', 'incierta', { codigoCausa: 'EMISSION_UNCERTAIN', sinConfirmar: 2, sinProcesar: [] }],
+  ];
+
+  it.each(CAUSES)('detalles.codigoCausa, %s', async (_name, step, expected) => {
+    expect((await jsonError(['A', step])).detalles).toEqual({
+      fallo: 2,
+      procesados: 1,
+      sinProcesar: [2],
+      total: 2,
+      ...expected,
+    });
+  });
+
+  it('el panel no muestra codigoCausa', async () => {
+    await runBatch(['A', 'transitorio']);
+
+    expect(stderr).not.toMatch(/codigoCausa|TRANSIENT_ERROR/);
   });
 });

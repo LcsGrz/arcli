@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { stripAnsi } from '../../../ui/primitives';
-import { formatConfig, formatConfigAsText, formatConfigDoctor, formatConfigDoctorAsText } from '../config.presenter';
+import { renderJson, stripAnsi } from '../../../ui/primitives';
+import {
+  formatConfigAsText,
+  formatConfigDoctorAsText,
+  serializeConfig,
+  serializeConfigDoctor,
+} from '../config.presenter';
 import { MISSING_CUIT_MESSAGE } from '../config.schemas';
 import { buildConfigDoctorReport } from '../config-doctor';
 
@@ -26,23 +31,25 @@ describe('config.presenter', () => {
       { pdfFolder: '/Users/ana/arcli/comprobantes', ticketPath: '/Users/ana/secretos/tickets' },
     );
 
-    const json = formatConfig(
-      {
-        cert: {
-          testing: '/Users/ana/secretos/cert.pem',
+    const json = renderJson(
+      serializeConfig(
+        {
+          cert: {
+            testing: '/Users/ana/secretos/cert.pem',
+          },
+          emisor: {},
+          entornoPorDefecto: 'testing',
+          key: {
+            testing: '/Users/ana/secretos/key.pem',
+          },
+          output: {
+            emitirPorDefecto: false,
+            brutoPorDefecto: false,
+            jsonPorDefecto: false,
+          },
         },
-        emisor: {},
-        entornoPorDefecto: 'testing',
-        key: {
-          testing: '/Users/ana/secretos/key.pem',
-        },
-        output: {
-          emitirPorDefecto: false,
-          brutoPorDefecto: false,
-          jsonPorDefecto: false,
-        },
-      },
-      { pdfFolder: '/Users/ana/arcli/comprobantes', ticketPath: '/Users/ana/secretos/tickets' },
+        { pdfFolder: '/Users/ana/arcli/comprobantes', ticketPath: '/Users/ana/secretos/tickets' },
+      ),
     );
 
     expect(text).toContain('.../secretos/cert.pem');
@@ -93,23 +100,23 @@ describe('config.presenter', () => {
       output: { brutoPorDefecto: false, emitirPorDefecto: false, jsonPorDefecto: false },
     };
     const paths = { pdfFolder: '/pdfs', ticketPath: '/tickets' };
-    const parse = (value: string): Record<string, unknown> => JSON.parse(value) as Record<string, unknown>;
+    const parse = (value: unknown): Record<string, unknown> => JSON.parse(renderJson(value)) as Record<string, unknown>;
 
     it('trae filasPorLista y, con el mismo valor, comprobantesPorLista deprecada', () => {
-      const json = parse(formatConfig({ ...base, comprobantesPorLista: 8 }, paths));
+      const json = parse(serializeConfig({ ...base, comprobantesPorLista: 8 }, paths));
 
       expect(json).toMatchObject({ comprobantesPorLista: 8, filasPorLista: 8 });
       expect(json.deprecado).toEqual([expect.stringContaining('`filasPorLista`')]);
     });
 
     it('con las dos, gana filasPorLista', () => {
-      const json = parse(formatConfig({ ...base, comprobantesPorLista: 8, filasPorLista: 20 }, paths));
+      const json = parse(serializeConfig({ ...base, comprobantesPorLista: 8, filasPorLista: 20 }, paths));
 
       expect(json).toMatchObject({ comprobantesPorLista: 20, filasPorLista: 20 });
     });
 
     it('sin valor no trae ninguna ni deprecado', () => {
-      const json = parse(formatConfig(base, paths));
+      const json = parse(serializeConfig(base, paths));
 
       expect(json).not.toHaveProperty('filasPorLista');
       expect(json).not.toHaveProperty('comprobantesPorLista');
@@ -117,8 +124,8 @@ describe('config.presenter', () => {
     });
 
     it('monotributo sale solo con monotributo.tope, y el texto lo muestra en su sección', () => {
-      expect(parse(formatConfig(base, paths))).not.toHaveProperty('monotributo');
-      expect(parse(formatConfig({ ...base, monotributo: { tope: 30_000_000 } }, paths))).toMatchObject({
+      expect(parse(serializeConfig(base, paths))).not.toHaveProperty('monotributo');
+      expect(parse(serializeConfig({ ...base, monotributo: { tope: 30_000_000 } }, paths))).toMatchObject({
         monotributo: { tope: 30_000_000 },
       });
       expect(stripAnsi(formatConfigAsText(base, paths))).toMatch(
@@ -159,7 +166,7 @@ describe('config.presenter', () => {
       [{ environment: 'testing', error: 'Falta el punto de venta.' }],
     );
 
-    expect(formatConfigDoctor(report)).toContain('"etiqueta": "Validación testing"');
+    expect(renderJson(serializeConfigDoctor(report))).toContain('"etiqueta": "Validación testing"');
     expect(formatConfigDoctorAsText(report)).toContain('REVISIÓN DE CONFIGURACIÓN');
     expect(formatConfigDoctorAsText(report)).toContain('Falta el punto de venta');
   });
@@ -194,7 +201,7 @@ describe('config.presenter', () => {
     });
 
     it('el JSON sigue trayendo todos los chequeos, sin claves nuevas', () => {
-      const { chequeos } = JSON.parse(formatConfigDoctor(report)) as {
+      const { chequeos } = serializeConfigDoctor(report) as {
         chequeos: Array<Record<string, string>>;
       };
 

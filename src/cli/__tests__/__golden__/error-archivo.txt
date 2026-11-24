@@ -1,0 +1,13 @@
+$ arcli fc --cargar <config>/carpeta --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "UNEXPECTED_ERROR",
+  "detalles": null,
+  "error": "No se pudo leer .../config/carpeta: es una carpeta.",
+  "sugerencia": "Tiene que ser un archivo: revisá la ruta o, si esa carpeta no va ahí, renombrala."
+}
+

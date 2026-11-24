@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatBillingResultAsJson, formatBillingResultAsText } from '../billing.presenter';
-import { serializeBillingBatch } from '../billing.serialize';
+import { renderJson } from '../../../ui/primitives';
+import { formatBillingResultAsText } from '../billing.presenter';
+import { serializeBillingBatch, serializeBillingResult } from '../billing.serialize';
 import type { BillingExecutionResult } from '../billing.types.internal';
 
 function stripAnsi(value: string): string {
@@ -66,16 +67,16 @@ function createDryRunResult(): BillingExecutionResult {
 describe('billing.presenter', () => {
   it('shows the emitted number in json and text, and leaves it null in a preview', () => {
     const emitted = { ...createResult(), voucherNumber: 125 };
-    const json = JSON.parse(formatBillingResultAsJson(emitted)) as Record<string, unknown>;
+    const json = serializeBillingResult(emitted);
 
     expect(json.numero).toBe(125);
     expect(json.solicitud).toMatchObject({ CbteDesde: 125, CbteHasta: 125, PtoVta: 3 });
     expect(stripAnsi(formatBillingResultAsText(emitted))).toContain('00003-00000125');
-    expect((JSON.parse(formatBillingResultAsJson(createDryRunResult())) as Record<string, unknown>).numero).toBeNull();
+    expect(serializeBillingResult(createDryRunResult()).numero).toBeNull();
   });
 
   it('renders a pretty summary by default in json', () => {
-    const output = formatBillingResultAsJson(createResult());
+    const output = renderJson(serializeBillingResult(createResult()));
 
     expect(output).toContain('"comprobante": "Factura A"');
     expect(output).toContain('"estado": "aprobado"');
@@ -84,7 +85,7 @@ describe('billing.presenter', () => {
   });
 
   it('renders the raw response when requested in json', () => {
-    const output = formatBillingResultAsJson(createResult(), { raw: true });
+    const output = renderJson(serializeBillingResult(createResult(), { raw: true }));
 
     expect(output).toContain('"respuesta"');
     expect(output).toContain('"cae": "12345678901234"');
@@ -92,8 +93,8 @@ describe('billing.presenter', () => {
   });
 
   it('keeps the summary fields and adds the raw response with --bruto in json', () => {
-    const summary = JSON.parse(formatBillingResultAsJson(createResult())) as Record<string, unknown>;
-    const withRaw = JSON.parse(formatBillingResultAsJson(createResult(), { raw: true })) as Record<string, unknown>;
+    const summary = serializeBillingResult(createResult());
+    const withRaw = serializeBillingResult(createResult(), { raw: true });
 
     expect(withRaw).toMatchObject({
       cae: '12345678901234',
@@ -114,7 +115,7 @@ describe('billing.presenter', () => {
   });
 
   it('shows a friendly raw message when there was no real emission', () => {
-    const output = formatBillingResultAsJson(createDryRunResult(), { raw: true });
+    const output = renderJson(serializeBillingResult(createDryRunResult(), { raw: true }));
 
     expect(output).toContain('Sin emisión real');
     expect(output).not.toContain('"respuesta": null');
@@ -319,7 +320,7 @@ describe('billing.presenter', () => {
 
     expect(stripAnsi(formatBillingResultAsText(result))).toContain('AVISOS');
     expect(stripAnsi(formatBillingResultAsText(result))).toContain('Corresponde emitir fcea en lugar de fa.');
-    expect(JSON.parse(formatBillingResultAsJson(result)).avisos).toEqual(['Corresponde emitir fcea en lugar de fa.']);
-    expect(JSON.parse(formatBillingResultAsJson(createResult())).avisos).toEqual([]);
+    expect(serializeBillingResult(result).avisos).toEqual(['Corresponde emitir fcea en lugar de fa.']);
+    expect(serializeBillingResult(createResult()).avisos).toEqual([]);
   });
 });

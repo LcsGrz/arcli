@@ -60,9 +60,10 @@ exit: 1
       3
     ],
     "sinConfirmar": 2,
-    "total": 3
+    "total": 3,
+    "codigoCausa": "EMISSION_UNCERTAIN"
   },
-  "error": "El lote se interrumpió en el comprobante #2: No se pudo confirmar la emisión: socket hang up\nProcesados: 1 de 3. Sin procesar: #3.\nEl #2 puede haberse emitido: verificalo con `arcli ultimos fc --pv 3 --testing` antes de reintentarlo.",
-  "sugerencia": null
+  "error": "El lote se interrumpió en el comprobante #2: No se pudo confirmar la emisión: socket hang up\nProcesados: 1 de 3.\nSin procesar: #3.\nEl #2 puede haberse emitido: verificalo con `arcli ultimos fc --pv 3 --testing` antes de reintentarlo.",
+  "sugerencia": "Los procesados con CAE ya se emitieron: recordá no volver a cargarlos. Verificá el #2 antes de reintentarlo. Después reintentá únicamente los que quedaron sin procesar."
 }
 

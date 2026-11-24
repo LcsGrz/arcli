@@ -13,7 +13,7 @@ import { VoucherQueryError } from '../../../modules/vouchers/voucher-history';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
-import { formatCliError } from '../../error-output';
+import { serializeCliError } from '../../error-output';
 import { exportNoteSteps, runExportNoteFlow } from '../export-note.flow';
 import type { InteractiveSession } from '../session';
 
@@ -325,7 +325,7 @@ describe('runExportNoteFlow', () => {
     const error: unknown = await runExportNoteFlow(createSession(), 'credito').catch((reason: unknown) => reason);
 
     expect(error).toMatchObject({ message: 'ETIMEDOUT: Transacción Activa' });
-    expect(formatCliError(error, true)).toContain('repetí la consulta');
+    expect(JSON.stringify(serializeCliError(error))).toContain('repetí la consulta');
   });
 
   it('ajusta otra nota E con --ac y suma los opcionales, sin ofrecer la cotización en servicios', async () => {

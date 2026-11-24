@@ -52,24 +52,20 @@ const OWN_LABEL = 'tu categoría';
 // ---------------------------------------------------------------------------------------------------------------
 
 /** `--json`: con `letter`, `categorias` trae solo esa. */
-export function formatMonotributoAsJson(report: MonotributoReport, letter?: MonotributoCategoryLetter): string {
+export function serializeMonotributo(report: MonotributoReport, letter?: MonotributoCategoryLetter) {
   const categories = letter
     ? report.table.categories.filter((category) => category.letter === letter)
     : report.table.categories;
 
-  return JSON.stringify(
-    {
-      vigenteDesde: report.table.validFrom,
-      fuente: report.source,
-      consultadaEl: report.consultedOn,
-      url: MONOTRIBUTO_CATEGORIES_URL,
-      tuCategoria: report.ownCategory,
-      categorias: categories.map(serializeMonotributoCategory),
-      avisos: report.notices,
-    },
-    null,
-    2,
-  );
+  return {
+    vigenteDesde: report.table.validFrom,
+    fuente: report.source,
+    consultadaEl: report.consultedOn,
+    url: MONOTRIBUTO_CATEGORIES_URL,
+    tuCategoria: report.ownCategory,
+    categorias: categories.map(serializeMonotributoCategory),
+    avisos: report.notices,
+  };
 }
 
 // ---------------------------------------------------------------------------------------------------------------

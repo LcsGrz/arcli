@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppError, ConfigurationError, InputValidationError } from '../../lib/errors/app-error';
 import { stripAnsi } from '../../ui';
-import { formatCliError, reportCliError } from '../error-output';
+import { formatCliError, reportCliError, serializeCliError } from '../error-output';
 import { createProgram } from '../program';
 
 /** Los textos de ERR-12, por el comando real y con lo que se ve en la terminal o en `--json`. Sin red. */
@@ -97,8 +97,8 @@ describe('la sugerencia del panel', () => {
     [new InputValidationError('Sacá `--acuit` o usá ese CUIT.'), 'arcli ayuda'],
     [new ConfigurationError('Falta el CUIT.'), 'arcli config revisar'],
   ])('entrada y config suman la de siempre', (error, hint) => {
-    expect(plain(formatCliError(error, false))).toContain(hint);
-    expect(JSON.parse(formatCliError(error, true))).toMatchObject({ sugerencia: null });
+    expect(plain(formatCliError(error))).toContain(hint);
+    expect(serializeCliError(error)).toMatchObject({ sugerencia: null });
   });
 
   it.each([
@@ -119,11 +119,11 @@ describe('la sugerencia del panel', () => {
     'connect ECONNREFUSED 10.0.0.1:443',
     'socket hang up',
   ])('un error de red (%s) manda a revisar la conexión', (message) => {
-    const text = plain(formatCliError(new Error(message), false));
+    const text = plain(formatCliError(new Error(message)));
 
     expect(text).toContain('Revisá tu conexión a internet');
     expect(text).not.toContain('más contexto');
-    expect(JSON.parse(formatCliError(new Error(message), true))).toEqual({
+    expect(serializeCliError(new Error(message))).toEqual({
       codigo: 'UNEXPECTED_ERROR',
       detalles: null,
       error: message,
@@ -132,7 +132,7 @@ describe('la sugerencia del panel', () => {
   });
 
   it('cualquier otro error inesperado no pide "más contexto"', () => {
-    const text = plain(formatCliError(new Error('cms.cert.untrusted'), false));
+    const text = plain(formatCliError(new Error('cms.cert.untrusted')));
 
     expect(text).toContain('arcli config revisar');
     expect(text).not.toContain('más contexto');
@@ -147,8 +147,8 @@ describe('los detalles del panel no repiten el mensaje (H21)', () => {
       path: '/tmp/x.json',
     });
 
-    expect(plain(formatCliError(error, false))).not.toContain('Detalles');
-    expect(JSON.parse(formatCliError(error, true))).toMatchObject({
+    expect(plain(formatCliError(error))).not.toContain('Detalles');
+    expect(serializeCliError(error)).toMatchObject({
       detalles: { cause: 'JSON inválido', ruta: '/tmp/x.json' },
     });
   });
@@ -160,7 +160,7 @@ describe('los detalles del panel no repiten el mensaje (H21)', () => {
       suggestion: 'Renovalo.',
     });
 
-    expect(plain(formatCliError(error, false))).not.toContain('Detalles');
+    expect(plain(formatCliError(error))).not.toContain('Detalles');
   });
 
   it('lo que suma se ve con un nombre que se lee, y un número adentro de otro no cuenta como dicho', () => {
@@ -168,7 +168,7 @@ describe('los detalles del panel no repiten el mensaje (H21)', () => {
       code: 'EMISSION_UNCERTAIN',
       details: { causa: 'timeout a los 17 s', idSolicitud: 42, numero: 7 },
     });
-    const text = plain(formatCliError(error, false));
+    const text = plain(formatCliError(error));
 
     expect(text).toContain('Solicitud: 42');
     expect(text).toContain('Número: 7');

@@ -354,8 +354,8 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
 
 **Antes de emitir el primer comprobante, ARCLI valida todos los del lote**: la forma del JSON, las consultas a ARCA que se hacen antes de emitir (IVA receptor desde el padrón, cotización oficial) y las reglas de negocio (IVA receptor por letra, fechas, FCE, montos…).
 
-- Si alguno es inválido o falla su consulta, **no se emite ninguno** y el error `BATCH_VALIDATION_ERROR` lista **todos** los ítems con problemas, con su índice (desde 1), el motivo y los mismos `codigo` y `sugerencia` que daría ese comprobante solo. Con `TRANSIENT_ERROR` no hay nada que corregir en el archivo: esperá y reintentá. Con `UNEXPECTED_ERROR` tampoco, y si es la red alcanza con reintentar; pero si `error` habla del certificado o del login (`cms.cert.untrusted`, `LoginFault`), no reintentes: revisá el certificado. El ítem no trae `codigoCausa` ni los demás `detalles`: con `INPUT_VALIDATION_ERROR`, si falló una consulta a ARCA lo dice `error`. Un ítem con el documento del receptor o el punto de venta inválido no consulta a ARCA; los demás sí, para listar todo junto.
-- Si la emisión se corta a mitad del lote (red, ARCA), ARCLI **muestra primero los comprobantes ya procesados**, con su PDF si corresponde (según `pdf` o `--exportar-pdf`, igual que en un lote completo; en `--json`, cada uno con su campo `pdf`), y después el error `BATCH_EMISSION_ERROR`, que indica en qué ítem falló y cuáles quedaron sin procesar. **No vuelvas a cargar los ya emitidos** (los que tienen CAE). Si viene `detalles.sinConfirmar`, el que falló puede haberse emitido igual: verificalo con el comando que trae `error` antes de reintentarlo. Si no viene, el que falló no se emitió y está en `detalles.sinProcesar`. Después reintentá los de `sinProcesar`.
+- Si alguno es inválido o falla su consulta, **no se emite ninguno** y el error `BATCH_VALIDATION_ERROR` lista **todos** los ítems con problemas, con su índice (desde 1), el motivo y los mismos `codigo` y `sugerencia` que daría ese comprobante solo. Con `TRANSIENT_ERROR` no hay nada que corregir en el archivo: esperá y reintentá. Con `UNEXPECTED_ERROR` tampoco, y si es la red alcanza con reintentar; pero si `error` habla del certificado o del login (`cms.cert.untrusted`, `LoginFault`), no reintentes: revisá el certificado. Si el error de ese comprobante solo traería `detalles.codigoCausa` (falló una consulta a ARCA), el ítem trae `codigoCausa` con el mismo valor; puede ser `UNEXPECTED_ERROR`, por ejemplo sin red. Los demás `detalles` no van. Un ítem con el documento del receptor o el punto de venta inválido no consulta a ARCA; los demás sí, para listar todo junto.
+- Si la emisión se corta a mitad del lote (red, ARCA), ARCLI **muestra primero los comprobantes ya procesados**, con su PDF si corresponde (según `pdf` o `--exportar-pdf`, igual que en un lote completo; en `--json`, cada uno con su campo `pdf`), y después el error `BATCH_EMISSION_ERROR`, que indica en qué ítem falló y cuáles quedaron sin procesar. **No vuelvas a cargar los ya emitidos** (los que tienen CAE). Si viene `detalles.sinConfirmar`, el que falló puede haberse emitido igual: verificalo con el comando que trae `error` antes de reintentarlo. Si no viene, el que falló no se emitió y está en `detalles.sinProcesar`. Después reintentá los de `sinProcesar`. `detalles.codigoCausa` es el `codigo` que daría solo el comprobante que falló, por ejemplo `EMISSION_UNCERTAIN`, `TRANSIENT_ERROR` o `UNEXPECTED_ERROR` (sin red). `sugerencia` dice qué hacer con el lote y es la misma que muestra el panel; la de la causa no se copia. En `error`, tres o más sin procesar salen como rango (`Sin procesar: #3 a #100 (98).`); `detalles.sinProcesar` trae siempre la lista completa.
 
 ```json
 {
@@ -368,10 +368,17 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
         "error": "La factura B de $ 10.000.000 o más requiere identificar al consumidor final. Usá `--dni`, `--cuit` o `--cuil`.",
         "indice": 3,
         "sugerencia": null
+      },
+      {
+        "codigo": "INPUT_VALIDATION_ERROR",
+        "error": "...",
+        "indice": 4,
+        "sugerencia": null,
+        "codigoCausa": "UNEXPECTED_ERROR"
       }
     ]
   },
-  "error": "2 de 4 comprobantes del lote tienen errores. No se emitió ninguno.\n\n#2: ...",
+  "error": "3 de 4 comprobantes del lote tienen errores. No se emitió ninguno.\n\n#2: ...",
   "sugerencia": null
 }
 ```
@@ -379,9 +386,16 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
 ```json
 {
   "codigo": "BATCH_EMISSION_ERROR",
-  "detalles": { "fallo": 3, "procesados": 2, "sinConfirmar": 3, "sinProcesar": [4], "total": 4 },
-  "error": "El lote se interrumpió en el comprobante #3: ...\nProcesados: 2 de 4. Sin procesar: #4.\nEl #3 puede haberse emitido: verificalo con `arcli ultimos fc --pv 3 --testing` antes de reintentarlo.",
-  "sugerencia": null
+  "detalles": {
+    "procesados": 2,
+    "fallo": 3,
+    "sinProcesar": [4],
+    "sinConfirmar": 3,
+    "total": 4,
+    "codigoCausa": "EMISSION_UNCERTAIN"
+  },
+  "error": "El lote se interrumpió en el comprobante #3: ...\nProcesados: 2 de 4.\nSin procesar: #4.\nEl #3 puede haberse emitido: verificalo con `arcli ultimos fc --pv 3 --testing` antes de reintentarlo.",
+  "sugerencia": "Los procesados con CAE ya se emitieron: recordá no volver a cargarlos. Verificá el #3 antes de reintentarlo. Después reintentá únicamente los que quedaron sin procesar."
 }
 ```
 
@@ -1021,8 +1035,8 @@ Si no se puede escribir la salida por otro motivo, como el disco lleno, ARCLI ta
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `INPUT_VALIDATION_ERROR`           | todos                                                                                                               | Flags, argumentos o JSON de `--cargar` inválidos o incompletos. También un dato guardado en `config.json` que no es válido (por ejemplo, un CUIT con otra cantidad de dígitos). Con `detalles.codigoCausa`, falló una consulta a ARCA                                                                                                                                                                                                    | Corregí lo que indican `error` y `detalles`; con `detalles.codigoCausa`, alcanza con pasar el dato o reintentar; no se emitió nada                                                                                                                                                                                  |
 | `CONFIGURATION_ERROR`              | todos los que usan ARCA, `config`                                                                                   | Falta un dato de la config (CUIT, certificado, clave), los archivos del certificado o la clave no se pueden usar, o `config.json` no es un JSON válido. Un dato guardado que no es válido sale como `INPUT_VALIDATION_ERROR`                                                                                                                                                                                                             | `arcli config revisar` y `arcli config establecer`                                                                                                                                                                                                                                                                  |
-| `BATCH_VALIDATION_ERROR`           | facturación con lote                                                                                                | Algún comprobante del lote es inválido; no se emitió ninguno                                                                                                                                                                                                                                                                                                                                                                             | Según el `codigo` de cada ítem de `detalles.comprobantes`: corregí el archivo, reintentá (`TRANSIENT_ERROR`, la red) o, si `error` habla del certificado o del login, revisá el certificado; después corré el lote completo ([detalle](#validación-y-errores-del-lote))                                             |
-| `BATCH_EMISSION_ERROR`             | facturación con lote                                                                                                | El lote se cortó a mitad; los procesados salen antes por stdout                                                                                                                                                                                                                                                                                                                                                                          | No reemitas los que tienen CAE. Si viene `detalles.sinConfirmar`, verificalo con el comando que trae `error`; si no, el de `detalles.fallo` no se emitió. Después reintentá `detalles.sinProcesar`                                                                                                                  |
+| `BATCH_VALIDATION_ERROR`           | facturación con lote                                                                                                | Algún comprobante del lote es inválido; no se emitió ninguno                                                                                                                                                                                                                                                                                                                                                                             | Según el `codigo` de cada ítem de `detalles.comprobantes`: corregí el archivo, reintentá (`TRANSIENT_ERROR`, la red; `codigoCausa` dice si falló una consulta) o, si `error` habla del certificado o del login, revisá el certificado; después corré el lote completo ([detalle](#validación-y-errores-del-lote))   |
+| `BATCH_EMISSION_ERROR`             | facturación con lote                                                                                                | El lote se cortó a mitad; los procesados salen antes por stdout                                                                                                                                                                                                                                                                                                                                                                          | No reemitas los que tienen CAE. Si viene `detalles.sinConfirmar`, verificalo con el comando que trae `error`; si no, el de `detalles.fallo` no se emitió. Después reintentá `detalles.sinProcesar`. `detalles.codigoCausa` dice por qué se cortó                                                                    |
 | `EMISSION_UNCERTAIN`               | facturación                                                                                                         | Falló la llamada que emite o de su respuesta no se puede saber si se emitió (por ejemplo, sin CAE ni rechazo): puede haberse emitido igual                                                                                                                                                                                                                                                                                               | Seguí la `sugerencia` antes de reintentar ([detalle](#emisión-sin-confirmar))                                                                                                                                                                                                                                       |
 | `TRANSIENT_ERROR`                  | los que usan ARCA, menos `estado`                                                                                   | WSAA o ARCA informan un estado pasajero (ticket vigente, transacción activa). No sale si otro error lo envuelve: en `estado` es `ARCA_UNAVAILABLE`, en un lote `BATCH_VALIDATION_ERROR` o `BATCH_EMISSION_ERROR`, y en la llamada que emite `EMISSION_UNCERTAIN`                                                                                                                                                                         | Esperá y reintentá sin cambiar nada: un par de minutos si es `coe.alreadyAuthenticated`, unos segundos si es una transacción activa. En una consulta, repetí la consulta y no la emisión                                                                                                                            |
 | `UNEXPECTED_ERROR`                 | todos                                                                                                               | Error sin código propio: red, login en WSAA (certificado rechazado o revocado; uno vencido corta antes con `CERTIFICATE_EXPIRED`), respuesta inesperada de ARCA o un archivo que no se pudo leer o escribir (permisos, es una carpeta, disco lleno)                                                                                                                                                                                      | Leé `error`; si es de red o de ARCA, reintentá más tarde; si es de un archivo, seguí la `sugerencia`                                                                                                                                                                                                                |
@@ -1155,12 +1169,14 @@ También sale si ARCA contesta y no dice si emitió: con un CAE que no se puede 
 
 Si el CAE se lee, no es este caso: el comprobante se muestra con su CAE aunque ARCA informe también un error (`estado: "observado"`, exit code `0`, con el error en `errores`) o aunque un evento, una observación o el vencimiento vengan con otra forma (`caeVencimiento` es `null` si no es una fecha; un texto suelto en `errores` o `eventos` sale como `{"codigo": null, "mensaje": "…"}`).
 
+`detalles` trae además `entorno`, `puntoVenta` y `tipoArca` (el código de ARCA del comprobante), para conciliarlo sin leer la `sugerencia`.
+
 Los pasos previos no cuentan: si falla el login en WSAA (por ejemplo, un certificado no autorizado; uno vencido corta antes, con [`CERTIFICATE_EXPIRED`](#certificado-vencido)) o el pedido del último número, no se envió nada: sale como `ARCA_LAST_VOUCHER_ERROR` si ARCA devolvió errores, o como `UNEXPECTED_ERROR` o `TRANSIENT_ERROR` si falló la red o WSAA.
 
 ```json
 {
   "codigo": "EMISSION_UNCERTAIN",
-  "detalles": { "causa": "socket hang up" },
+  "detalles": { "causa": "socket hang up", "entorno": "testing", "puntoVenta": 3, "tipoArca": 11 },
   "error": "No se pudo confirmar la emisión: socket hang up",
   "sugerencia": "Puede haberse emitido igual. Antes de reintentar, verificá con `arcli ultimos fc --pv 3 --testing`: si figura, ya está emitido y no hay que repetirlo."
 }
@@ -1171,7 +1187,14 @@ En la E el número ya está fijado en la solicitud, y ARCA no autoriza dos compr
 ```json
 {
   "codigo": "EMISSION_UNCERTAIN",
-  "detalles": { "causa": "socket hang up", "idSolicitud": 42, "numero": 7 },
+  "detalles": {
+    "causa": "socket hang up",
+    "idSolicitud": 42,
+    "numero": 7,
+    "entorno": "testing",
+    "puntoVenta": 3,
+    "tipoArca": 19
+  },
   "error": "No se pudo confirmar la emisión: socket hang up",
   "sugerencia": "Puede haberse emitido igual. Verificalo con `arcli consultar fe 7 --pv 3 --testing`: si figura, ya está emitido. Si reintentás, usá el mismo número y la misma solicitud (`--numero 7 --id-solicitud 42 --pv 3 --testing`): si ya se había emitido, ARCA no lo autoriza dos veces."
 }

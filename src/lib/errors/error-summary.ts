@@ -3,11 +3,12 @@ import { ZodError } from 'zod';
 import { describeFileError } from '../files/file-error';
 
 import { AppError } from './app-error';
+import type { ErrorCode } from './error-codes';
 import { isQueryError, VERIFY_BEFORE_RETRY } from './query-error';
 
 export interface ErrorSummary {
   /** El `codigo` del `--json`. */
-  readonly code: string;
+  readonly code: ErrorCode;
   /** La `sugerencia` del `--json`; `null` si no hay nada que sugerir. */
   readonly suggestion: string | null;
   /** De donde es el estado pasajero, en un `TRANSIENT_ERROR`. */
@@ -57,4 +58,16 @@ export function summarizeError(error: unknown): ErrorSummary {
   const transient = error instanceof Error ? detectTransientError(error.message, isQueryError(error)) : null;
 
   return transient ? { code: 'TRANSIENT_ERROR', ...transient } : { code: 'UNEXPECTED_ERROR', suggestion: null };
+}
+
+/** Los `detalles` de un error que paso por otro: el `codigo` de la causa. */
+type CauseDetails = { readonly codigoCausa: ErrorCode };
+
+/** El `codigoCausa` de un error que lo trae en sus `detalles`. */
+export function causeCodeOf(error: unknown): ErrorCode | undefined {
+  return error instanceof AppError ? (error.details as Partial<CauseDetails> | undefined)?.codigoCausa : undefined;
+}
+
+export function causeDetails(cause: unknown): CauseDetails {
+  return { codigoCausa: summarizeError(cause).code };
 }

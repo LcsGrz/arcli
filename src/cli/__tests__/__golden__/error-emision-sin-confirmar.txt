@@ -7,7 +7,10 @@ exit: 1
 {
   "codigo": "EMISSION_UNCERTAIN",
   "detalles": {
-    "causa": "socket hang up"
+    "causa": "socket hang up",
+    "entorno": "testing",
+    "puntoVenta": 3,
+    "tipoArca": 11
   },
   "error": "No se pudo confirmar la emisión: socket hang up",
   "sugerencia": "Puede haberse emitido igual. Antes de reintentar, verificá con `arcli ultimos fc --pv 3 --testing`: si figura, ya está emitido y no hay que repetirlo."

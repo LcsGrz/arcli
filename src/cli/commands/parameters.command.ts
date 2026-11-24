@@ -5,14 +5,14 @@ import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import { errorText } from '../../lib/files/file-error';
 import { filterCurrentEntries, resolveParameterTable, salesPointToEntry } from '../../modules/parameters/parameters';
 import {
-  formatParameterEntriesAsJson,
   formatParameterEntriesAsText,
-  formatParameterTablesAsJson,
   formatParameterTablesAsText,
-  formatQuotationAsJson,
   formatQuotationAsText,
-  formatStatusAsJson,
   formatStatusAsText,
+  serializeParameterEntries,
+  serializeParameterTables,
+  serializeQuotation,
+  serializeStatus,
 } from '../../modules/parameters/parameters.presenter';
 import { buildStatusReport } from '../../modules/parameters/status';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
@@ -41,7 +41,7 @@ export function registerParametersCommands(program: Command): void {
         // No consulta ARCA: no hace falta config ni credenciales para ver las tablas (si la config no se puede
         // leer, sale en texto salvo con --json).
         if (resolveOutputJson(self)) {
-          writeTerminalJson(formatParameterTablesAsJson());
+          writeTerminalJson(serializeParameterTables());
         } else {
           writeTerminalOutput(formatParameterTablesAsText());
         }
@@ -58,7 +58,7 @@ export function registerParametersCommands(program: Command): void {
         const quotation = await withQuerySpinner(runtime, () => gateway.getQuotation(currency));
 
         writeQueryOutput(runtime, {
-          json: () => formatQuotationAsJson(quotation, runtime.environment),
+          json: () => serializeQuotation(quotation, runtime.environment),
           text: () => formatQuotationAsText(quotation, runtime.environment),
         });
 
@@ -74,7 +74,7 @@ export function registerParametersCommands(program: Command): void {
       );
 
       writeQueryOutput(runtime, {
-        json: () => formatParameterEntriesAsJson(table, entries, runtime.environment),
+        json: () => serializeParameterEntries(table, entries, runtime.environment),
         text: () => formatParameterEntriesAsText(table, entries, runtime.environment),
       });
     },
@@ -104,6 +104,6 @@ export function registerParametersCommands(program: Command): void {
       }
     });
 
-    writeQueryOutput(runtime, { json: () => formatStatusAsJson(report), text: () => formatStatusAsText(report) });
+    writeQueryOutput(runtime, { json: () => serializeStatus(report), text: () => formatStatusAsText(report) });
   });
 }

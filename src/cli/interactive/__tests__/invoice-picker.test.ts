@@ -9,7 +9,7 @@ import type { Arca } from '../../../services/arca/arca-sdk.types';
 import { ArcaVoucherHistoryGateway } from '../../../services/arca/arca-voucher-history.gateway';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
-import { formatCliError } from '../../error-output';
+import { formatCliError, serializeCliError } from '../../error-output';
 import { missingNonWebServiceInvoiceNotice, pickExportVoucher, pickInvoice, pickNoteInvoice } from '../invoice-picker';
 import type { InteractiveSession } from '../session';
 
@@ -564,13 +564,14 @@ describe('pickExportVoucher', () => {
       (reason: unknown) => reason,
     );
 
-    expect(stripAnsi(formatCliError(error, false))).toContain('repetí la consulta');
+    expect(stripAnsi(formatCliError(error))).toContain('repetí la consulta');
 
     vi.spyOn(gateway, 'getLastVoucherNumber').mockRejectedValue(new Error('Transacción Activa'));
     expect(
-      formatCliError(
-        await pickExportVoucher(createSession([]), gateway, exportOptions).catch((reason: unknown) => reason),
-        true,
+      JSON.stringify(
+        serializeCliError(
+          await pickExportVoucher(createSession([]), gateway, exportOptions).catch((reason: unknown) => reason),
+        ),
       ),
     ).toContain('repetí la consulta');
   });
@@ -592,7 +593,7 @@ describe('pickExportVoucher', () => {
       (reason: unknown) => reason,
     );
 
-    expect(formatCliError(error, true)).toContain('repetí la consulta');
+    expect(JSON.stringify(serializeCliError(error))).toContain('repetí la consulta');
   });
 
   it('si no se entiende ninguna y no hay más, solo ofrece buscarla a mano', async () => {

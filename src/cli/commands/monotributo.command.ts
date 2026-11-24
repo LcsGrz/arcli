@@ -6,11 +6,11 @@ import { type ArcliConfig, CONFIG_DEFAULTS } from '../../modules/config/config.s
 import { ConfigService } from '../../modules/config/config.service';
 import { type MonotributoCategoryLetter, parseMonotributoLetter } from '../../modules/monotributo/monotributo';
 import {
-  formatMonotributoAsJson,
   formatMonotributoCategoryAsText,
   formatMonotributoFullAsText,
   formatMonotributoNotices,
   formatMonotributoSummaryAsText,
+  serializeMonotributo,
 } from '../../modules/monotributo/monotributo.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { writeTerminalJson, writeTerminalNotice, writeTerminalOutput } from '../../ui';
@@ -84,7 +84,7 @@ export function registerMonotributoCommand(program: Command): void {
     });
 
     if (outputJson) {
-      writeTerminalJson(formatMonotributoAsJson(report, letter));
+      writeTerminalJson(serializeMonotributo(report, letter));
 
       return;
     }

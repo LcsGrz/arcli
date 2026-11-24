@@ -1,9 +1,30 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { hyperlink } from '../../primitives/hyperlink';
-import { formatTerminalOutput, sanitizeTerminalText, writeTerminalNotice, writeTerminalRaw } from '../terminal-stream';
+import {
+  formatTerminalOutput,
+  sanitizeTerminalText,
+  writeTerminalJson,
+  writeTerminalJsonError,
+  writeTerminalNotice,
+  writeTerminalRaw,
+} from '../terminal-stream';
 
 const ESC = '\u001B';
+
+describe('writeTerminalJson y writeTerminalJsonError', () => {
+  it('reciben el objeto: su texto no compila', () => {
+    // Solo se revisan los tipos: no se llaman.
+    const calls = [
+      // @ts-expect-error: un texto ya serializado saldría como un string de JSON.
+      () => writeTerminalJson(JSON.stringify({})),
+      // @ts-expect-error: lo mismo en stderr.
+      () => writeTerminalJsonError(JSON.stringify({})),
+    ];
+
+    expect(calls).toHaveLength(2);
+  });
+});
 
 describe('formatTerminalOutput with json', () => {
   const json = JSON.stringify({ cae: '12345678901234', total: 100, ok: true, error: null }, null, 2);

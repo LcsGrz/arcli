@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { mapExportResponse } from '../export.response';
-import { formatExportResultAsJson, serializeExportResult } from '../export.serialize';
+import { serializeExportResult } from '../export.serialize';
 import {
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
@@ -231,11 +231,5 @@ describe('serializeExportResult', () => {
     expect(serializeExportResult(preview, { raw: true }).respuesta).toEqual({
       mensaje: 'Sin emisión real. Usá `--emitir` para obtener una respuesta de ARCA.',
     });
-  });
-
-  it('formatExportResultAsJson devuelve JSON con dos espacios', () => {
-    const text = formatExportResultAsJson(result());
-
-    expect(text).toBe(JSON.stringify(serializeExportResult(result()), null, 2));
   });
 });

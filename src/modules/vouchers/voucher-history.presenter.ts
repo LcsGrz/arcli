@@ -206,7 +206,7 @@ function serializeVoucher(voucher: IssuedVoucher): Record<string, unknown> {
     numeroDocumento: voucher.documentNumber,
     resultado: voucher.result ?? null,
     tipoDocumento: voucher.documentTypeCode,
-    ...serializeVoucherDetail(voucher),
+    ...serializeVoucherExtras(voucher),
   };
 }
 
@@ -214,7 +214,7 @@ function serializeVoucher(voucher: IssuedVoucher): Record<string, unknown> {
  * Lo que `getVoucherInfo` del SDK descartaba (SDK-13), con las claves de `--cargar` donde coinciden. Son campos
  * nuevos: las listas salen vacias y el resto en `null` si ARCA no los informa.
  */
-function serializeVoucherDetail(voucher: IssuedVoucher): Record<string, unknown> {
+function serializeVoucherExtras(voucher: IssuedVoucher): Record<string, unknown> {
   return {
     alicuotasIva: (voucher.ivaAliquots ?? []).map((aliquot) => ({
       baseImponible: aliquot.base,
@@ -253,30 +253,22 @@ function serializeVoucherKind(voucherKind: VoucherKindDefinition): Record<string
   return { atajo: voucherKind.shortcut, comprobante: voucherKind.displayName, tipoArca: voucherKind.arcaType };
 }
 
-export function formatVoucherListAsJson(report: VoucherListReport): string {
-  return JSON.stringify(
-    {
-      ...serializeVoucherKind(report.voucherKind),
-      comprobantes: report.vouchers.map(serializeVoucher),
-      entorno: report.environment,
-      puntoVenta: report.pointOfSale,
-    },
-    null,
-    2,
-  );
+export function serializeVoucherList(report: VoucherListReport) {
+  return {
+    ...serializeVoucherKind(report.voucherKind),
+    comprobantes: report.vouchers.map(serializeVoucher),
+    entorno: report.environment,
+    puntoVenta: report.pointOfSale,
+  };
 }
 
-export function formatVoucherDetailAsJson(report: VoucherDetailReport): string {
-  return JSON.stringify(
-    {
-      ...serializeVoucherKind(report.voucherKind),
-      ...serializeVoucher(report.voucher),
-      entorno: report.environment,
-      puntoVenta: report.pointOfSale,
-    },
-    null,
-    2,
-  );
+export function serializeVoucherDetail(report: VoucherDetailReport): Record<string, unknown> {
+  return {
+    ...serializeVoucherKind(report.voucherKind),
+    ...serializeVoucher(report.voucher),
+    entorno: report.environment,
+    puntoVenta: report.pointOfSale,
+  };
 }
 
 /** Una fila sin valor no se muestra (renderKeyValueRows). */

@@ -13,10 +13,10 @@ import {
 } from '../../modules/config/config.schemas';
 import { listRecentExportVouchers } from '../../modules/export/export.history';
 import {
-  formatExportVoucherDetailAsJson,
   formatExportVoucherDetailAsText,
-  formatExportVoucherListAsJson,
   formatExportVoucherListAsText,
+  serializeExportVoucherDetail,
+  serializeExportVoucherList,
 } from '../../modules/export/export.history.presenter';
 import {
   EXPORT_VOUCHER_KINDS,
@@ -26,10 +26,10 @@ import {
 import { listRecentVouchers, MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../../modules/vouchers/voucher-history';
 import {
   formatSkippedVouchers,
-  formatVoucherDetailAsJson,
   formatVoucherDetailAsText,
-  formatVoucherListAsJson,
   formatVoucherListAsText,
+  serializeVoucherDetail,
+  serializeVoucherList,
 } from '../../modules/vouchers/voucher-history.presenter';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
@@ -144,7 +144,7 @@ export function registerVoucherQueryCommands(program: Command): void {
       const report = { environment: runtime.environment, pointOfSale, skipped, voucherKind: query.kind, vouchers };
 
       writeQueryOutput(runtime, {
-        json: () => formatExportVoucherListAsJson(report),
+        json: () => serializeExportVoucherList(report),
         text: () => formatExportVoucherListAsText(report),
       });
 
@@ -170,7 +170,7 @@ export function registerVoucherQueryCommands(program: Command): void {
     const report = { environment: runtime.environment, pointOfSale, voucherKind, vouchers };
 
     writeQueryOutput(runtime, {
-      json: () => formatVoucherListAsJson(report),
+      json: () => serializeVoucherList(report),
       text: () => formatVoucherListAsText(report),
     });
   });
@@ -208,7 +208,7 @@ export function registerVoucherQueryCommands(program: Command): void {
       const report = { environment: runtime.environment, pointOfSale, voucher, voucherKind: query.kind };
 
       writeQueryOutput(runtime, {
-        json: () => formatExportVoucherDetailAsJson(report),
+        json: () => serializeExportVoucherDetail(report),
         text: () => formatExportVoucherDetailAsText(report),
       });
 
@@ -229,7 +229,7 @@ export function registerVoucherQueryCommands(program: Command): void {
     const report = { environment: runtime.environment, pointOfSale, voucher, voucherKind };
 
     writeQueryOutput(runtime, {
-      json: () => formatVoucherDetailAsJson(report),
+      json: () => serializeVoucherDetail(report),
       text: () => formatVoucherDetailAsText(report),
     });
   });

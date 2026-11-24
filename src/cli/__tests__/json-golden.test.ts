@@ -5,8 +5,10 @@ import { dirname, join } from 'node:path';
 import forge from 'node-forge';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { createDesktopShortcut } from '../../modules/desktop-shortcut/installer';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
-import { outputState } from '../closed-output';
+import { type OutputFailures, outputState } from '../closed-output';
+import { resetEmittedInThisRun } from '../emitted-vouchers';
 import { reportCliError, reportOutputFailure, shouldPrintErrorAsJson } from '../error-output';
 import { createProgram } from '../program';
 
@@ -19,7 +21,7 @@ import { createProgram } from '../program';
  * propósito: `yarn test src/cli/__tests__/json-golden.test.ts -u`, y revisar el diff.
  *
  * Lo no determinista sale de aca: el reloj fijo (`NOW`), el CAE y los numeros del SDK falso y la carpeta de config,
- * que en los archivos se ve como `<config>`.
+ * que en los archivos se ve como `<config>`, y el CSR, como `<csr>`.
  */
 
 // Las fechas (de hoy, de vencimiento) se calculan en hora local: se fija la de Argentina para que el archivo dorado
@@ -91,6 +93,12 @@ vi.mock('@arcasdk/core', async (importOriginal) => ({
       return sdk.wsaa.login();
     }
   },
+}));
+
+// El acceso directo cambia según el sistema (en Windows llama a PowerShell).
+vi.mock('../../modules/desktop-shortcut/installer', () => ({
+  createDesktopShortcut: vi.fn(),
+  currentDesktopShortcutEnvironment: vi.fn(),
 }));
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -411,6 +419,8 @@ interface Setup {
   readonly config?: Record<string, unknown>;
   /** El certificado de testing; por defecto, uno que vence en un año. */
   readonly cert?: string;
+  /** No se pudo escribir stdout (disco lleno), como lo reporta `index.ts`. */
+  readonly lostStdout?: boolean;
   /** Sin config.json, o con este texto tal cual. */
   readonly rawConfig?: string;
 }
@@ -447,11 +457,23 @@ function writeInput(name: string, content: unknown): string {
   return path;
 }
 
+/** Una carpeta donde va un archivo. */
+function makeFolder(): string {
+  const path = join(configDir, 'carpeta');
+
+  mkdirSync(path);
+
+  return path;
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // El comando entero, como `index.ts`.
 // ---------------------------------------------------------------------------------------------------------------
 
-async function runCli(args: readonly string[]): Promise<{ code: number; stderr: string; stdout: string }> {
+async function runCli(
+  args: readonly string[],
+  options: { readonly lostStdout?: boolean } = {},
+): Promise<{ code: number; stderr: string; stdout: string }> {
   let stdout = '';
   let stderr = '';
 
@@ -475,10 +497,15 @@ async function runCli(args: readonly string[]): Promise<{ code: number; stderr: 
   process.stderr.columns = 0;
   process.env.NO_COLOR = '1';
 
+  const failures: OutputFailures = new Map(
+    options.lostStdout ? [['stdout', Object.assign(new Error('write'), { code: 'ENOSPC' })]] : [],
+  );
+
   try {
     await createProgram().parseAsync(argv);
+    reportOutputFailure(failures, { commandError: undefined, json: options.lostStdout === true });
   } catch (error) {
-    process.exitCode = reportCliError(error, shouldPrintErrorAsJson(argv));
+    process.exitCode = reportCliError(error, shouldPrintErrorAsJson(argv), failures);
   } finally {
     [process.stdout.columns, process.stderr.columns] = columns;
     delete process.env.NO_COLOR;
@@ -502,13 +529,14 @@ function normalize(text: string): string {
 
   return forms
     .reduce((result, path) => result.split(path).join('<config>'), text)
+    .replace(/-----BEGIN CERTIFICATE REQUEST-----.*?-----END CERTIFICATE REQUEST-----/g, '<csr>')
     .replace(/<config>(?:\\{1,2}[\w.-]+)+/g, (match) => match.replace(/\\{1,2}/g, '/'));
 }
 
 async function golden(name: string, args: readonly string[], setup: Setup = {}): Promise<void> {
   prepareConfig(setup);
 
-  const result = await runCli(args);
+  const result = await runCli(args, setup);
   const text = [
     `$ arcli ${args.map((arg) => normalize(arg)).join(' ')}`,
     `exit: ${result.code}`,
@@ -530,6 +558,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(NOW);
   resetSdk();
+  resetEmittedInThisRun();
 });
 
 afterEach(() => {
@@ -860,6 +889,7 @@ describe('códigos en el lote y causa del error (ERR-5 y ERR-6)', () => {
 
     expect(entry).toEqual({
       codigo: alone.codigo,
+      codigoCausa: (alone.detalles as { codigoCausa?: string } | null)?.codigoCausa,
       error: expect.any(String),
       indice: 1,
       sugerencia: alone.sugerencia,
@@ -1089,7 +1119,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
 
     expect(await uncertain(FC)).toEqual({
       codigo: 'EMISSION_UNCERTAIN',
-      detalles: { causa },
+      detalles: { causa, entorno: 'testing', puntoVenta: 3, tipoArca: 11 },
       error: `No se pudo confirmar la emisión: ${causa}`,
       sugerencia: expect.stringContaining('`arcli ultimos fc --pv 3 --testing`'),
     });
@@ -1203,7 +1233,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
 
     expect(await uncertain(FE_APPROVABLE)).toEqual({
       codigo: 'EMISSION_UNCERTAIN',
-      detalles: { causa, idSolicitud: 42, numero: 8 },
+      detalles: { causa, entorno: 'testing', idSolicitud: 42, numero: 8, puntoVenta: 4, tipoArca: 19 },
       error: `No se pudo confirmar la emisión: ${causa}`,
       sugerencia: expect.stringContaining('`arcli consultar fe 8 --pv 4 --testing`'),
     });
@@ -1486,12 +1516,32 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
       ['con un error de texto', fex('hola'), 'ARCA contestó sin CAE, sin resultado y con errores: hola'],
     ];
 
+    const ARCA_TYPES: Record<string, number> = {
+      fa: 1,
+      fb: 6,
+      fc: 11,
+      ndc: 12,
+      ncc: 13,
+      rc: 15,
+      fe: 19,
+      nde: 20,
+      nce: 21,
+      fcea: 201,
+      ncea: 203,
+    };
+
     async function uncertainCause(args: readonly string[], causa: string, extra: Record<string, unknown> = {}) {
       const error = await uncertain(args);
 
       expect(error).toEqual({
         codigo: 'EMISSION_UNCERTAIN',
-        detalles: { causa, ...extra },
+        detalles: {
+          causa,
+          entorno: 'testing',
+          puntoVenta: 'idSolicitud' in extra ? 4 : 3,
+          tipoArca: ARCA_TYPES[args[0]!],
+          ...extra,
+        },
         error: `No se pudo confirmar la emisión: ${causa}`,
         sugerencia: expect.stringContaining('Puede haberse emitido igual.'),
       });
@@ -3085,4 +3135,457 @@ describe('certificado (CERTIFICATE_*)', () => {
       ...['certificado', 'importar', writeCertificate('nuevo.crt', certificate('2028-01-17'))],
       '--json',
     ]));
+});
+
+// Lo que faltaba fijar antes de REV-49 (el JSON como objetos): byte a byte, por el comando entero.
+
+describe('consultas y comandos sin dorado (REV-49)', () => {
+  function pdfStatus(overrides: Partial<ReturnType<PdfPlugin['getStatus']>> = {}): void {
+    vi.spyOn(PdfPlugin.prototype, 'getStatus').mockReturnValue({
+      browser: '/opt/chrome',
+      browserSource: 'sistema',
+      installed: true,
+      installedVersion: '25.0.0',
+      path: join(configDir, 'plugins', 'pdf'),
+      version: '25.0.0',
+      ...overrides,
+    });
+  }
+
+  it('parametros: la lista de tablas', () => golden('parametros', ['parametros', '--json']));
+
+  it('parametros de una tabla, con y sin detalle y vigencia', () => {
+    sdk.wsfe.getVoucherTypes.mockResolvedValue({
+      resultGet: {
+        cbteTipo: [
+          { cmp_Clase: 'A', desc: 'Factura A', fchDesde: '20100917', fchHasta: 'NULL', id: 1 },
+          { desc: 'Factura C', fchDesde: '20110330', fchHasta: '20301231', id: 11 },
+        ],
+      },
+    });
+
+    return golden('parametros-comprobantes', ['parametros', 'comprobantes', '--json']);
+  });
+
+  it('parametros cotizacion', () => golden('parametros-cotizacion', ['parametros', 'cotizacion', 'USD', '--json']));
+
+  it('parametros cotizacion sin fecha', () => {
+    sdk.wsfe.getQuotation.mockResolvedValue({ resultGet: { monCotiz: 1452.5, monId: 'DOL' } });
+
+    return golden('parametros-cotizacion-sin-fecha', ['parametros', 'cotizacion', 'USD', '--json']);
+  });
+
+  it('estado con el punto de venta habilitado', () => {
+    sdk.wsfe.getSalesPoints.mockResolvedValue({
+      resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE - RECE', fchBaja: 'NULL', nro: 3 }] },
+    });
+
+    return golden('estado', ['estado', '--json']);
+  });
+
+  it('estado sin punto de venta configurado', () => {
+    sdk.wsfe.getSalesPoints.mockResolvedValue({ resultGet: { ptoVenta: [] } });
+
+    return golden('estado-sin-punto-de-venta', ['estado', '--json'], { config: { puntoVentaPorDefecto: undefined } });
+  });
+
+  it('consultar una E', () => golden('consultar-fe', ['consultar', 'fe', '1', '--pv', '4', '--json']));
+
+  it('consultar una nota E con su asociado', () => {
+    sdk.wsfex.getCmp.mockResolvedValue({
+      FEXGetCMPResult: {
+        ...NO_FEX_ERROR,
+        FEXResultGet: {
+          ...EXPORT_INVOICE.FEXGetCMPResult.FEXResultGet,
+          Cbte_tipo: 21,
+          Cmps_asoc: { Cmp_asoc: { Cbte_cuit: CUIT, Cbte_nro: 1, Cbte_punto_vta: 4, Cbte_tipo: 19 } },
+        },
+      },
+    });
+
+    return golden('consultar-nce', ['consultar', 'nce', '1', '--pv', '4', '--json']);
+  });
+
+  it('fce-obligado', () => golden('fce-obligado', ['fce-obligado', String(CLIENT_CUIT), '--json']));
+
+  it('config', () => golden('config', ['config', '--json'], { config: { pdfCarpeta: join(configDir, 'pdfs') } }));
+
+  it('config con filasPorLista y los datos opcionales', () =>
+    golden('config-completa', ['config', '--json'], {
+      config: {
+        emisor: { domicilio: 'Calle 123', inicioActividades: '20200301', razonSocial: 'Ana Gomez' },
+        filasPorLista: 20,
+        monotributo: { tope: 1000000 },
+        pdfCarpeta: join(configDir, 'pdfs'),
+      },
+    }));
+
+  it('config ruta', () => golden('config-ruta', ['config', 'ruta', '--json']));
+
+  it('config establecer', () =>
+    golden('config-establecer', ['config', 'establecer', 'puntoVenta', '5', '--json'], {
+      config: { pdfCarpeta: join(configDir, 'pdfs') },
+    }));
+
+  it('config eliminar', () =>
+    golden('config-eliminar', ['config', 'eliminar', 'puntoVenta', '--json'], {
+      config: { pdfCarpeta: join(configDir, 'pdfs') },
+    }));
+
+  it('config establecer con otra clave rota: avisos', () =>
+    golden('config-establecer-avisos', ['config', 'establecer', 'puntoVenta', '5', '--json'], {
+      config: { cuit: '123', filasPorLista: 'x', pdfCarpeta: join(configDir, 'pdfs') },
+    }));
+
+  it('config revisar', () => {
+    pdfStatus();
+
+    return golden('config-revisar', ['config', 'revisar', '--json'], {
+      config: { pdfCarpeta: join(configDir, 'pdfs') },
+    });
+  });
+
+  it('pdf estado, instalado', () => {
+    pdfStatus();
+
+    return golden('pdf-estado', ['pdf', 'estado', '--json']);
+  });
+
+  it('pdf, sin instalar', () => {
+    pdfStatus({ browser: undefined, browserSource: undefined, installed: false, installedVersion: undefined });
+
+    return golden('pdf-sin-instalar', ['pdf', '--json']);
+  });
+
+  it('pdf desinstalar', () => {
+    pdfStatus();
+    vi.spyOn(PdfPlugin.prototype, 'uninstall').mockReturnValue(undefined);
+
+    return golden('pdf-desinstalar', ['pdf', 'desinstalar', '--json']);
+  });
+
+  it.each([
+    ['completado', ['completado']],
+    ['completado-instalar', ['completado', 'instalar', 'zsh']],
+    ['completado-desinstalar', ['completado', 'desinstalar', 'zsh']],
+  ])('%s', (name, args) => {
+    vi.stubEnv('SHELL', '/bin/zsh');
+    vi.stubEnv('ZDOTDIR', configDir);
+
+    return golden(name, [...args, '--json']);
+  });
+
+  it('acceso-directo', () => {
+    vi.mocked(createDesktopShortcut).mockReturnValue({
+      path: '/escritorio/ARCLI.app',
+      replaced: false,
+      usesInstalledArcli: true,
+    });
+
+    return golden('acceso-directo', ['acceso-directo', '--json']);
+  });
+
+  it('certificado generar', () =>
+    golden('certificado-generar', ['certificado', 'generar', '--testing', '--alias', 'prueba', '--json']));
+
+  it('certificado importar', () => {
+    const path = join(configDir, 'nuevo.crt');
+
+    writeFileSync(path, certificate('2028-01-17'));
+
+    return golden('certificado-importar', ['certificado', 'importar', path, '--reemplazar', '--json']);
+  });
+});
+
+describe('objeto o array según lo que entró por --cargar (REV-49)', () => {
+  it.each<[string, string, unknown, string[]]>([
+    ['cargar-objeto', 'objeto.json', batchItem(1000), []],
+    ['cargar-objeto-bruto', 'objeto.json', batchItem(1000), ['--bruto']],
+    ['lote-de-uno', 'lote.json', [batchItem(1000)], []],
+    ['lote-de-uno-bruto', 'lote.json', [batchItem(1000)], ['--bruto']],
+  ])('%s', (name, file, content, flags) =>
+    golden(name, ['fc', '--cargar', writeInput(file, content), '--emitir', '--json', ...flags]),
+  );
+});
+
+describe('el PDF en el resultado (REV-49)', () => {
+  const withIssuer = () => ({
+    config: {
+      emisor: {
+        condicionIva: 'responsable-inscripto',
+        domicilio: 'Calle 123',
+        inicioActividades: '20200301',
+        razonSocial: 'Ana Gomez',
+      },
+      pdfCarpeta: join(configDir, 'pdfs'),
+    },
+  });
+  const APPROVED_FE = [...FE, '--pv', '4', '--cuit-pais', '55000002126'];
+  const PDF = ['--emitir', '--exportar-pdf', '--json'];
+
+  /** El plugin, instalado: escribe un PDF o falla al generarlo. */
+  function plugin(render: () => Promise<Uint8Array>): void {
+    vi.spyOn(PdfPlugin.prototype, 'getStatus').mockReturnValue({
+      installed: true,
+      path: join(configDir, 'plugins', 'pdf'),
+      version: '25.0.0',
+    });
+    vi.spyOn(PdfPlugin.prototype, 'load').mockReturnValue({ render } as never);
+  }
+
+  const saved = () => plugin(async () => new Uint8Array([1]));
+  const broken = () =>
+    plugin(async () => {
+      throw new Error('el navegador se cerró');
+    });
+
+  it.each<[string, string[]]>([
+    ['fc-pdf', FC],
+    ['fa-pdf', FA],
+    ['fb-pdf', FB],
+    ['fe-pdf', APPROVED_FE],
+    ['nce-pdf', NCE],
+  ])('%s: pdf.ruta', (name, args) => {
+    saved();
+
+    return golden(name, [...args, ...PDF], withIssuer());
+  });
+
+  it.each<[string, string[]]>([
+    ['fc-pdf-bruto', FC],
+    ['fe-pdf-bruto', APPROVED_FE],
+  ])('%s: pdf.ruta y después la respuesta', (name, args) => {
+    saved();
+
+    return golden(name, [...args, ...PDF, '--bruto'], withIssuer());
+  });
+
+  it.each<[string, string[]]>([
+    ['fc-pdf-error-bruto', FC],
+    ['fe-pdf-error-bruto', APPROVED_FE],
+  ])('%s: pdf.error con sugerencia null', (name, args) => {
+    broken();
+
+    return golden(name, [...args, ...PDF, '--bruto'], withIssuer());
+  });
+
+  it('fe sin los datos del emisor: pdf.error con sugerencia', () =>
+    golden('fe-pdf-sin-emisor', [...APPROVED_FE, ...PDF], { config: { emisor: {} } }));
+
+  it('un lote: cada uno con su PDF', () => {
+    saved();
+
+    return golden(
+      'lote-pdf',
+      ['fc', '--cargar', writeInput('lote.json', [batchItem(1000), batchItem(2000)]), ...PDF],
+      withIssuer(),
+    );
+  });
+});
+
+describe('errores sin dorado (REV-49)', () => {
+  it('InputIssuesError sin sugerencia', () =>
+    golden('error-config-establecer', ['config', 'establecer', 'entorno', 'demo', '--json']));
+
+  it('InputIssuesError con sugerencia', () =>
+    golden('error-config-guardada', ['estado', '--json'], { config: { cuit: '123' } }));
+
+  it('un JSON ilegible: ruta y causa', () => {
+    const path = join(configDir, 'datos.json');
+
+    writeFileSync(path, '{"monto": 1');
+
+    return golden('error-cargar-ilegible', ['fc', '--cargar', path, '--json']);
+  });
+
+  it('un error de archivo, con su sugerencia', () =>
+    golden('error-archivo', ['fc', '--cargar', makeFolder(), '--json']));
+});
+
+describe('el error del comando si además falló stdout (REV-49)', () => {
+  const LOST = { lostStdout: true };
+
+  it('de zod, sin sugerencia propia', () => golden('sin-salida-zod', ['fc', '--cs', '--cfinal', '--json'], LOST));
+
+  it('InputIssuesError, con sugerencia', () =>
+    golden('sin-salida-config-guardada', ['estado', '--json'], { ...LOST, config: { cuit: '123' } }));
+
+  it('de uso', () => golden('sin-salida-uso', ['fc', '--montoo', '1', '--json'], LOST));
+
+  it('de archivo', () => golden('sin-salida-archivo', ['fc', '--cargar', makeFolder(), '--json'], LOST));
+
+  it('transitorio', () => {
+    sdk.wsfe.getLastVoucher.mockRejectedValue(new Error('(502) Transacción Activa'));
+
+    return golden('sin-salida-transitorio', [...FC, '--emitir', '--json'], LOST);
+  });
+
+  it('EMISSION_UNCERTAIN de la E', () => {
+    sdk.wsfex.authorize.mockRejectedValue(new Error('socket hang up'));
+
+    return golden('sin-salida-fe-sin-confirmar', [...FE, '--emitir', '--json'], LOST);
+  });
+
+  it('lote cortado, con los emitidos', () => {
+    sdk.wsfe.createVoucher.mockImplementationOnce(wsfeAnswer('A')).mockRejectedValueOnce(new Error('socket hang up'));
+
+    return golden(
+      'sin-salida-lote-cortado',
+      ['fc', '--cargar', writeInput('lote.json', [batchItem(1000), batchItem(2000)]), '--emitir', '--json'],
+      LOST,
+    );
+  });
+
+  it.each<[string, string[]]>([
+    ['sin-salida-fc-previsualizar', [...FC, '--previsualizar']],
+    ['sin-salida-fc-aprobada', [...FC, '--emitir']],
+    ['sin-salida-fe-aprobada', [...FE, '--emitir']],
+  ])('%s: OUTPUT_WRITE_ERROR', (name, args) => golden(name, [...args, '--json'], LOST));
+});
+
+describe('el panel de EMISSION_UNCERTAIN no cambia con los datos del JSON (REV-49)', () => {
+  it.each<[string, string[]]>([
+    ['fa', FA],
+    ['fb', FB],
+    ['fc', FC],
+    ['fcea', FCEA],
+    ['fe', FE],
+    ['nce', NCE],
+    ['nde', ['nde', ...NCE.slice(1)]],
+  ])('%s', (name, args) => {
+    sdk.wsfe.createVoucher.mockRejectedValue(new Error('socket hang up'));
+    sdk.wsfex.authorize.mockRejectedValue(new Error('socket hang up'));
+
+    return golden(`panel-sin-confirmar-${name}`, [...args, '--emitir']);
+  });
+});
+
+describe('lo que suma el JSON de error (REV-49)', () => {
+  async function jsonError(args: readonly string[], setup: Setup = {}): Promise<Record<string, unknown>> {
+    prepareConfig(setup);
+
+    const result = await runCli([...args, '--json'], setup);
+
+    expect(result.code).toBe(1);
+
+    return JSON.parse(result.stderr) as Record<string, unknown>;
+  }
+
+  const NDE = ['nde', ...NCE.slice(1)];
+  const RC = ['rc', '-m', '1000', '--cs', '--cfinal'];
+  const UNCERTAIN: ReadonlyArray<[string, string[], Record<string, unknown>]> = [
+    ['fa', FA, { puntoVenta: 3, tipoArca: 1 }],
+    ['fb', FB, { puntoVenta: 3, tipoArca: 6 }],
+    ['fc', FC, { puntoVenta: 3, tipoArca: 11 }],
+    ['fc en otro punto de venta', [...FC, '--pv', '7'], { puntoVenta: 7, tipoArca: 11 }],
+    ['rc', RC, { puntoVenta: 3, tipoArca: 15 }],
+    ['ncc', NCC, { puntoVenta: 3, tipoArca: 13 }],
+    ['fcea', FCEA, { puntoVenta: 3, tipoArca: 201 }],
+    ['fe', [...FE, '--pv', '4'], { idSolicitud: 42, numero: 8, puntoVenta: 4, tipoArca: 19 }],
+    ['nde', NDE, { idSolicitud: 42, numero: 8, puntoVenta: 4, tipoArca: 20 }],
+    ['nce', NCE, { idSolicitud: 42, numero: 8, puntoVenta: 4, tipoArca: 21 }],
+  ];
+
+  it.each(UNCERTAIN)('EMISSION_UNCERTAIN, %s: entorno, puntoVenta y tipoArca', async (_name, args, details) => {
+    sdk.wsfe.createVoucher.mockRejectedValue(new Error('socket hang up'));
+    sdk.wsfex.authorize.mockRejectedValue(new Error('socket hang up'));
+
+    expect((await jsonError([...args, '--emitir'])).detalles).toEqual({
+      causa: 'socket hang up',
+      entorno: 'testing',
+      ...details,
+    });
+  });
+
+  it.each<[string, string[], Record<string, unknown>]>([
+    ['fc', FC, { puntoVenta: 3, tipoArca: 11 }],
+    ['fe', FE, { idSolicitud: 42, numero: 8, puntoVenta: 3, tipoArca: 19 }],
+  ])('EMISSION_UNCERTAIN, %s en producción: entorno produccion', async (_name, args, details) => {
+    // Con el SDK falso, como todo el archivo.
+    sdk.wsfe.createVoucher.mockRejectedValue(new Error('socket hang up'));
+    sdk.wsfex.authorize.mockRejectedValue(new Error('socket hang up'));
+
+    const config = {
+      cert: { produccion: join(configDir, 'testing.crt') },
+      key: { produccion: join(configDir, 'testing.key') },
+    };
+
+    expect((await jsonError([...args, '--produccion', '--emitir'], { config })).detalles).toEqual({
+      causa: 'socket hang up',
+      entorno: 'produccion',
+      ...details,
+    });
+  });
+
+  const WITHOUT_IVA = {
+    concepto: 'servicios',
+    montoTotal: 1000,
+    numeroDocumento: CLIENT_CUIT,
+    tipoDocumento: 'cuit',
+  };
+
+  it.each([
+    ['la red caída', 'connect ETIMEDOUT', 'UNEXPECTED_ERROR'],
+    ['un error pasajero', 'ns1:coe.alreadyAuthenticated: ya posee un TA', 'TRANSIENT_ERROR'],
+    ['sin autorizar', 'ns1:cms.cert.notAuthorized', 'PADRON_SERVICE_NOT_AUTHORIZED'],
+  ])('BATCH_VALIDATION_ERROR, padrón con %s: codigoCausa, el mismo que solo', async (_name, message, codigoCausa) => {
+    sdk.padron.getTaxpayerDetails.mockRejectedValue(new Error(message));
+
+    const alone = await jsonError(['fa', '--cargar', writeInput('solo.json', WITHOUT_IVA), '--previsualizar']);
+    const batch = await jsonError(['fa', '--cargar', writeInput('lote.json', [WITHOUT_IVA]), '--previsualizar']);
+
+    expect((batch.detalles as { comprobantes: unknown[] }).comprobantes).toEqual([
+      {
+        codigo: alone.codigo,
+        error: alone.error,
+        indice: 1,
+        sugerencia: alone.sugerencia,
+        ...(alone.detalles as Record<string, unknown>),
+        codigoCausa,
+      },
+    ]);
+  });
+
+  it('BATCH_VALIDATION_ERROR con el padrón caído: el error entero', () => {
+    sdk.padron.getTaxpayerDetails.mockRejectedValue(new Error('connect ETIMEDOUT'));
+
+    return golden('lote-padron-caido', [
+      ...['fa', '--cargar', writeInput('lote.json', [batchItem(-5), WITHOUT_IVA]), '--previsualizar', '--json'],
+    ]);
+  });
+
+  it('BATCH_VALIDATION_ERROR: codigoCausa solo en los que lo tienen', async () => {
+    sdk.padron.getTaxpayerDetails.mockRejectedValue(new Error('connect ETIMEDOUT'));
+
+    const { detalles } = await jsonError([
+      ...['fa', '--cargar', writeInput('lote.json', [batchItem(-5), WITHOUT_IVA, { montoTotal: 10 }])],
+      '--previsualizar',
+    ]);
+    const items = (detalles as { comprobantes: Array<Record<string, unknown>> }).comprobantes;
+
+    expect(items.map((item) => ['codigoCausa' in item, item.codigoCausa])).toEqual([
+      [false, undefined],
+      [true, 'UNEXPECTED_ERROR'],
+      [false, undefined],
+    ]);
+  });
+
+  it('lote cortado si además falló stdout: su sugerencia y, al final, la de la salida', async () => {
+    sdk.wsfe.createVoucher.mockImplementationOnce(wsfeAnswer('A')).mockRejectedValueOnce(new Error('socket hang up'));
+
+    const { sugerencia } = await jsonError(
+      ['fc', '--cargar', writeInput('lote.json', [batchItem(1000), batchItem(2000), batchItem(3000)]), '--emitir'],
+      { lostStdout: true },
+    );
+
+    expect(sugerencia).toBe(
+      [
+        'Los procesados con CAE ya se emitieron: recordá no volver a cargarlos.',
+        'Verificá el #2 antes de reintentarlo.',
+        'Después reintentá únicamente los que quedaron sin procesar.',
+        'No se pudo escribir toda la salida: no queda espacio en el disco.',
+        'Se emitió: fc del punto de venta 3, 42. Verificalo con `arcli ultimos fc --pv 3 --cantidad 2 --testing`.',
+      ].join(' '),
+    );
+  });
 });

@@ -1,0 +1,25 @@
+$ arcli parametros comprobantes --json
+exit: 0
+--- stdout ---
+
+{
+  "entorno": "testing",
+  "tabla": "comprobantes",
+  "valores": [
+    {
+      "descripcion": "Factura A",
+      "detalle": "A",
+      "id": "1",
+      "vigenteHasta": null
+    },
+    {
+      "descripcion": "Factura C",
+      "detalle": null,
+      "id": "11",
+      "vigenteHasta": "20301231"
+    }
+  ]
+}
+
+
+--- stderr ---

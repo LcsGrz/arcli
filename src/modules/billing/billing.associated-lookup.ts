@@ -1,6 +1,6 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
-import { summarizeError } from '../../lib/errors/error-summary';
+import { causeDetails } from '../../lib/errors/error-summary';
 import { errorText } from '../../lib/files/file-error';
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
 import { FCE_REGISTRY_STATE_LABELS, type FceRegistryGateway, type FceRegistryState } from '../fce/fce-registry';
@@ -332,7 +332,7 @@ export async function checkAssociatedInArca(options: {
       if (needsDate) {
         throw new InputValidationError(
           `No se pudo consultar en ARCA ${label} para tomar su fecha: ${reasonOf(error)}`,
-          { codigoCausa: summarizeError(error).code },
+          causeDetails(error),
           'Probá de nuevo en un rato o pasá la fecha del asociado con `--afecha <fecha>`.',
         );
       }
@@ -358,7 +358,7 @@ export async function checkAssociatedInArca(options: {
             ? `No se encontró ${label} en ARCA`
             : `${describeQueryFailure(label, queryError.reason)} y el punto de venta ${reference.PtoVta} no es de web service`
         }, así que no se puede tomar su fecha.`,
-        queryError && { codigoCausa: summarizeError(queryError).code },
+        queryError && causeDetails(queryError),
         'Si es de Comprobantes en línea o de un controlador fiscal, pasá su fecha con `--afecha <fecha>`. Si no, revisá `--ar`, `--apv` y `--ac`.',
       );
     }

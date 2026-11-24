@@ -4,6 +4,7 @@ import { describeEmissionFailure } from './emission-response';
 
 /** A, B y C: el numero lo pone ARCA, asi que se verifica con `arcli ultimos`. */
 interface WsfeUncertainTarget {
+  readonly arcaType: number;
   readonly environment: 'produccion' | 'testing';
   readonly pointOfSale: number;
   readonly shortcut: string;
@@ -14,6 +15,7 @@ interface WsfeUncertainTarget {
  * y numero, asi que reintentar con los mismos numeros no puede duplicarla. Tambien se verifica con `arcli consultar`.
  */
 interface WsfexUncertainTarget {
+  readonly arcaType: number;
   readonly environment: 'produccion' | 'testing';
   readonly pointOfSale: number;
   readonly requestId: number;
@@ -22,16 +24,29 @@ interface WsfexUncertainTarget {
   readonly voucherNumber: number;
 }
 
+/** Las claves de `detalles` del `--json`, que son contrato. `idSolicitud` y `numero`, solo en la E. */
+type EmissionUncertainDetails = {
+  readonly causa: string;
+  readonly idSolicitud?: number;
+  readonly numero?: number;
+  /** Con estos tres y el numero se concilia sin leer la `sugerencia`. */
+  readonly entorno: 'produccion' | 'testing';
+  readonly puntoVenta: number;
+  readonly tipoArca: number;
+};
+
 /**
  * Fallo la llamada que emite en ARCA (red, timeout, ARCA) o no se pudo leer su respuesta. No se sabe si el comprobante
  * quedo autorizado: pudo emitirse y perderse la respuesta. Reintentar sin verificar puede duplicarlo.
  */
 export class EmissionUncertainError extends AppError {
+  declare public readonly details: EmissionUncertainDetails;
+
   /**
    * Con que verificarlo: `ultimos` en A, B y C, `consultar` en la E. Lleva el entorno: sin el, `ultimos` consulta el de la config, y si se emitio con
    * `--produccion` y la config dice testing el comprobante "no figura" y se reintenta, duplicandolo.
    */
-  public readonly verifyCommand?: string;
+  public readonly verifyCommand: string;
 
   public constructor(options: { readonly cause: unknown } & (WsfeUncertainTarget | WsfexUncertainTarget)) {
     const failure = describeEmissionFailure(options.cause);
@@ -43,10 +58,13 @@ export class EmissionUncertainError extends AppError {
 
     super(`No se pudo confirmar la emisión: ${reason}`, {
       code: 'EMISSION_UNCERTAIN',
-      details:
-        'voucherNumber' in options
-          ? { causa: reason, idSolicitud: options.requestId, numero: options.voucherNumber }
-          : { causa: reason },
+      details: {
+        causa: reason,
+        ...('voucherNumber' in options ? { idSolicitud: options.requestId, numero: options.voucherNumber } : {}),
+        entorno: options.environment,
+        puntoVenta: options.pointOfSale,
+        tipoArca: options.arcaType,
+      } satisfies EmissionUncertainDetails,
       suggestion:
         'voucherNumber' in options
           ? `Puede haberse emitido igual. Verificalo con \`${verifyCommand}\`: si figura, ya está emitido. Si reintentás, usá el mismo número y la misma solicitud (\`--numero ${options.voucherNumber} --id-solicitud ${options.requestId} --pv ${options.pointOfSale} --${options.environment}\`): si ya se había emitido, ARCA no lo autoriza dos veces.`

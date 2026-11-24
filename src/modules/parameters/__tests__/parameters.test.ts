@@ -12,8 +12,8 @@ import {
   formatParameterEntriesAsText,
   formatParameterRows,
   formatQuotationAsText,
-  formatStatusAsJson,
   formatStatusAsText,
+  serializeStatus,
 } from '../parameters.presenter';
 import { buildStatusReport } from '../status';
 
@@ -115,7 +115,7 @@ describe('entorno en el texto', () => {
       'COTIZACIÓN OFICIAL · PRODUCCIÓN',
     );
     expect(stripAnsi(formatStatusAsText(report))).toMatch(/Entorno\s+producción/);
-    expect(JSON.parse(formatStatusAsJson(report)).entorno).toBe('produccion');
+    expect(serializeStatus(report).entorno).toBe('produccion');
   });
 });
 
@@ -160,7 +160,7 @@ describe('buildStatusReport', () => {
     });
 
     expect(report).toMatchObject({ pointOfSale: { kind: 'habilitado' }, ready: true });
-    expect(JSON.parse(formatStatusAsJson(report))).toMatchObject({ listo: true, puntoVenta: { estado: 'habilitado' } });
+    expect(serializeStatus(report)).toMatchObject({ listo: true, puntoVenta: { estado: 'habilitado' } });
   });
 
   it('cannot verify the point of sale in testing but still is ready', async () => {

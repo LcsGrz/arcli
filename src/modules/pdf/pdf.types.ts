@@ -1,3 +1,5 @@
+import type { ErrorCode } from '../../lib/errors/error-codes';
+
 /**
  * Copia de los tipos de entrada de `@arcasdk/pdf` (0.2.x), solo con los campos que usa arcli.
  * No se importan del paquete porque es un plugin que puede no estar instalado.
@@ -115,4 +117,4 @@ export interface PdfVoucherExtras {
 /** Resultado de generar el PDF de un comprobante: la ruta del archivo o el error, que no frena la emision. */
 export type PdfOutcome =
   | { readonly path: string }
-  | { readonly error: { readonly code: string; readonly message: string; readonly suggestion?: string } };
+  | { readonly error: { readonly code: ErrorCode; readonly message: string; readonly suggestion?: string } };
