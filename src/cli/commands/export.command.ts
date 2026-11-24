@@ -1,10 +1,6 @@
 import type { Command } from 'commander';
 
-import {
-  formatEmissionQuestion,
-  formatVoucherWithArticle,
-  NOTHING_EMITTED_NOTICE,
-} from '../../modules/billing/billing.mappers';
+import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { formatExportResultAsJson, formatExportResultAsText } from '../../modules/export/export.presenter';
 import { ExportService } from '../../modules/export/export.service';
 import {
@@ -17,13 +13,13 @@ import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { systemClock } from '../../services/time/system-clock';
-import { noticePanel, writeTerminalJson, writeTerminalOutput } from '../../ui';
+import { writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { certificateWarnings, type CliArcaRuntime, resolveArcaRuntime } from '../arca-runtime';
 import { getGlobalOptions } from '../global-options';
-import { askEmission } from '../interactive/emission-prompt';
 import { startSpinner } from '../spinner';
 
 import { REJECTED_EXIT_CODE } from './billing.command.shared';
+import { confirmEmissionOrNotify } from './confirm-emission';
 import { parseExportCommandPlan } from './export.command.parser';
 import { attachExportPdf } from './export.command.pdf';
 
@@ -125,14 +121,12 @@ export async function executeExportCommand(
       writeTerminalOutput(formatExportResultAsText(result, { environment: runtime.environment, raw: useRaw }));
 
       // Esc cuenta como no, igual que en A, B y C. Si ningun flag decidio el PDF, la pregunta tambien lo decide.
-      const choice = await askEmission(
+      const choice = await confirmEmissionOrNotify(
         formatEmissionQuestion(formatVoucherWithArticle(voucherKind), runtime.environment),
         planEmissionConfirmation({ flags: [plan.input.pdf], mode: runtime.config.pdf }),
       );
 
       if (!choice) {
-        writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
-
         return;
       }
 

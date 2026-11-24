@@ -3,6 +3,7 @@ import { InputValidationError } from '../../lib/errors/app-error';
 import { assertRules } from '../../lib/rules/rules';
 import type { Clock } from '../../lib/time/clock';
 import type { ICbtesAsoc, IIva, INextVoucher } from '../../services/arca/arca-sdk.types';
+import { MISSING_POINT_OF_SALE_MESSAGE } from '../config/config.schemas';
 import { evaluateFceObligation, type FceObligationGateway, shouldCheckFceObligation } from '../fce/fce-obligation';
 import type { PadronGateway } from '../padron/padron';
 
@@ -22,7 +23,7 @@ import { resolveBillingDateRange } from './billing.date-range';
 import { resolveBillingDate } from './billing.dates';
 import { EmissionUncertainError } from './billing.errors';
 import { resolveElectronicCreditOptionals } from './billing.fce';
-import { validateIvaConditionForVoucher } from './billing.iva-receptor';
+import { missingIvaReceiverMessage, validateIvaConditionForVoucher } from './billing.iva-receptor';
 import {
   formatVoucherSubject,
   resolveBillingConceptCode,
@@ -259,15 +260,11 @@ export class BillingService {
 
     // Resguardo: un IVA receptor que esperaba al padron nunca llega a ARCA con el valor provisorio.
     if (input.ivaConditionSource === 'missing') {
-      throw new InputValidationError(
-        'Falta IVA receptor. Usá `--ir <tipo>` o un flag `--ir-*`, o configurá uno por defecto con `arcli config establecer ivaReceptor <tipo>`.',
-      );
+      throw new InputValidationError(missingIvaReceiverMessage());
     }
 
     if (!pointOfSale) {
-      throw new InputValidationError(
-        'Falta el punto de venta. Usá `--punto-venta` o `--pv`, o configuralo con `arcli config establecer puntoVenta <valor>`.',
-      );
+      throw new InputValidationError(MISSING_POINT_OF_SALE_MESSAGE);
     }
 
     // El de `--pv` lo frena la entrada; el de la config, aca.

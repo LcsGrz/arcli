@@ -112,6 +112,10 @@ export function isPadronLookupEnabled(config: Pick<ArcliConfig, 'consultarPadron
   return config.consultarPadron ?? true;
 }
 
+/** Lo mismo en facturacion, la E y las consultas. */
+export const MISSING_POINT_OF_SALE_MESSAGE =
+  'Falta el punto de venta. Usá `--pv <numero>` o configuralo con `arcli config establecer puntoVenta <numero>`.';
+
 /** El error de un entorno sin CUIT: `config revisar` lo reconoce para no mostrarlo dos veces. */
 export const MISSING_CUIT_MESSAGE = 'Falta el CUIT. Configuralo con `arcli config establecer cuit <valor>`.';
 

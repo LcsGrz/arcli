@@ -1,6 +1,6 @@
 import { ConfigurationError } from '../../lib/errors/app-error';
 
-import type { ArcliConfig, ArcliEnvironment } from './config.schemas';
+import { type ArcliConfig, type ArcliEnvironment, formatEnvironmentLabel } from './config.schemas';
 
 export interface ExportCredentials {
   readonly cert: string;
@@ -22,7 +22,7 @@ export function resolveExportCredentials(
 
   if (Boolean(dedicatedCert) !== Boolean(dedicatedKey)) {
     throw new ConfigurationError(
-      `Para WSFEX en ${environment} configurá el certificado y la clave juntos.`,
+      `Para WSFEX en ${formatEnvironmentLabel(environment)} configurá el certificado y la clave juntos.`,
       { faltan: dedicatedCert ? [`exportacion.key.${environment}`] : [`exportacion.cert.${environment}`] },
       `Cargalos con \`arcli config establecer exportacion.cert.${environment} <ruta>\` y \`arcli config establecer exportacion.key.${environment} <ruta>\`.`,
     );
@@ -33,7 +33,7 @@ export function resolveExportCredentials(
 
   if (!cert || !key) {
     throw new ConfigurationError(
-      `Falta el certificado de WSFEX para ${environment}.`,
+      `Falta el certificado de WSFEX para ${formatEnvironmentLabel(environment)}.`,
       {
         faltan: [
           ...(cert ? [] : [`exportacion.cert.${environment}`]),

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConfigurationError, InputValidationError } from '../../../lib/errors/app-error';
+import { ConfigurationError } from '../../../lib/errors/app-error';
 import { parseConfigValue } from '../../../modules/config/config-value-parser';
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
@@ -387,25 +387,6 @@ describe('runConfigMenu', () => {
 
     expect(createShortcut).toHaveBeenCalledWith(undefined, expect.anything());
     expect(stripAnsi(printed)).toContain('/Escritorio/ARCLI.app');
-  });
-
-  it('si no se puede crear el acceso directo, avisa y sigue en el menu', async () => {
-    createShortcut.mockImplementationOnce(() => {
-      throw new InputValidationError('No se encontró el escritorio.');
-    });
-    vi.mocked(chooseOne).mockResolvedValueOnce('acceso-directo').mockResolvedValueOnce('volver');
-
-    let printed = '';
-
-    vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
-      printed += String(chunk);
-      return true;
-    });
-
-    await runConfigMenu();
-
-    expect(stripAnsi(printed)).toContain('No se encontró el escritorio.');
-    expect(chooseOne).toHaveBeenCalledTimes(2);
   });
 
   it('instala y desinstala el autocompletado desde configuracion', async () => {

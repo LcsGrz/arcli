@@ -53,6 +53,22 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
   const associatedVoucherKind = resolveAssociatedVoucherKind(associatedVoucher, requireVoucherKind);
 
   if (!associatedVoucher?.numero || !associatedVoucher.puntoVenta || !associatedVoucherType) {
+    const missing = [
+      ...(associatedVoucherType ? [] : [{ flag: '`--ac <tipo>`', label: 'el tipo' }]),
+      ...(associatedVoucher?.puntoVenta ? [] : [{ flag: '`--apv <número>`', label: 'el punto de venta' }]),
+      ...(associatedVoucher?.numero ? [] : [{ flag: '`--ar <número>`', label: 'el número' }]),
+    ];
+
+    // Con alguno de los tres, decir que falta el comprobante entero confundiria.
+    if (missing.length < 3) {
+      const labels = missing.map(({ label }) => label).join(' y ');
+      const flags = missing.map(({ flag }) => flag).join(' y ');
+
+      throw new InputValidationError(
+        `${missing.length === 1 ? 'Falta' : 'Faltan'} ${labels} del comprobante asociado de ${formatVoucherWithArticle(voucherKind)}. Usá ${flags}${voucherKind.isElectronicCredit ? '' : ', o un período con `--periodo-desde` y `--periodo-hasta` en vez del comprobante'}.`,
+      );
+    }
+
     throw new InputValidationError(
       `${formatVoucherSubject(voucherKind)} requiere comprobante asociado. Usá \`--ac\` o \`--at\`, junto con \`--apv\` o \`--asociado-punto-venta\` y \`--ar\`${voucherKind.isElectronicCredit ? '' : ' (y `--acuit` si es de otro CUIT), o un período con `--periodo-desde` y `--periodo-hasta`'}.`,
     );

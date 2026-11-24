@@ -7,6 +7,7 @@ import {
   BILLING_JSON_NESTED_KEY_BY_INTERNAL_KEY,
   describeExpected,
 } from './billing.json-input';
+import { INVALID_POINT_OF_SALE_MESSAGE } from './billing.schemas';
 
 const ZOD_PATH_LABELS: Record<string, string> = {
   associatedPeriod: 'período asociado',
@@ -123,9 +124,14 @@ function humanizeZodIssue(issue: ZodInputIssue, label: string): string {
   }
 
   if (issue.code === 'too_small' && typeof issue.minimum === 'number') {
-    return formatZodIssuePath(issue.path) === 'totalAmount'
-      ? 'El monto debe ser mayor a 0.'
-      : `${describeSubject(issue)} ${describeLimit(issue, issue.minimum)}`;
+    switch (formatZodIssuePath(issue.path)) {
+      case 'pointOfSale':
+        return INVALID_POINT_OF_SALE_MESSAGE;
+      case 'totalAmount':
+        return 'El monto debe ser mayor a 0.';
+      default:
+        return `${describeSubject(issue)} ${describeLimit(issue, issue.minimum)}`;
+    }
   }
 
   // El maximo de un numero trae su mensaje en el esquema (por ejemplo, con el error de ARCA).

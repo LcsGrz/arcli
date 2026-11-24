@@ -270,7 +270,7 @@ describe('billing.service', () => {
         createRuntime(),
       ),
     ).toThrow(
-      'La nota de crédito B requiere comprobante asociado. Usá `--ac` o `--at`, junto con `--apv` o `--asociado-punto-venta` y `--ar` (y `--acuit` si es de otro CUIT), o un período con `--periodo-desde` y `--periodo-hasta`.',
+      'Falta el número del comprobante asociado de la nota de crédito B. Usá `--ar <número>`, o un período con `--periodo-desde` y `--periodo-hasta` en vez del comprobante.',
     );
   });
 

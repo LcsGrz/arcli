@@ -1,6 +1,7 @@
 import Big from 'big.js';
 
 import { InputValidationError } from '../../lib/errors/app-error';
+import { formatArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { assertRules } from '../../lib/rules/rules';
 import type { IIva } from '../../services/arca/arca-sdk.types';
 
@@ -119,15 +120,11 @@ function resolveTaxedParts(
   // Los importes tienen 2 decimales como maximo, asi que la suma tiene que dar exacta.
   if (!sum.eq(taxedTotal)) {
     throw new InputValidationError(
-      `La suma de las alícuotas (${formatPlain(sum)}) no coincide con lo gravado del monto total (${formatPlain(taxedTotal)}). Revisá \`--monto\`, \`--alicuota\`, \`--exento\` y \`--nogravado\`.`,
+      `La suma de las alícuotas (${formatArgentineAmount(roundAmount(sum))}) no coincide con lo gravado del monto total (${formatArgentineAmount(roundAmount(taxedTotal))}). Revisá \`--monto\`, \`--alicuota\`, \`--exento\` y \`--nogravado\`.`,
     );
   }
 
   return [...byRate.entries()].map(([rate, amount]) => ({ amount, rate }));
-}
-
-function formatPlain(value: Big): string {
-  return value.round(2, Big.roundHalfUp).toFixed(2);
 }
 
 export function roundAmount(value: Big): number {

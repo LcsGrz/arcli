@@ -19,9 +19,9 @@ import {
 } from '../../modules/export/export.types';
 
 import type { Arca, IFEXAuthorizeInput, IFEXAuthorizeOutput, IFEXGetLast_CMPInput } from './arca-sdk.types';
+import { isNotAuthorized, notAuthorizedMessage } from './not-authorized';
 
-const NOT_AUTHORIZED_MESSAGE =
-  'El certificado no está autorizado para el servicio wsfex (factura de exportación). Autorizalo igual que wsfe: en testing desde WSASS ("Crear autorización a servicio") y en producción desde el Administrador de Relaciones.';
+const NOT_AUTHORIZED_MESSAGE = notAuthorizedMessage('wsfex', 'factura de exportación');
 
 /** `FEXGetCMP`: "Comprobante inexistente". */
 const VOUCHER_NOT_FOUND_ERROR = 1020;
@@ -194,7 +194,7 @@ export class ArcaExportGateway implements ExportGateway {
     try {
       return await request(this.arca.wsfexService);
     } catch (error) {
-      if (error instanceof Error && error.message.includes('notAuthorized')) {
+      if (isNotAuthorized(error)) {
         throw new AppError(NOT_AUTHORIZED_MESSAGE, { code: 'WSFEX_SERVICE_NOT_AUTHORIZED' });
       }
 

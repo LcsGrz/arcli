@@ -4,6 +4,7 @@ import { AppError } from '../../lib/errors/app-error';
 import { CERTIFICATE_GUIDE_URL, POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
 
 import { toDetailErrors } from './arca-error-details';
+import { isNotAuthorized } from './not-authorized';
 
 /**
  * WSFEv1 11002: el punto de venta no esta habilitado para el web service.
@@ -13,11 +14,12 @@ const POINT_OF_SALE_ERROR_CODES = new Set([10005, 11002]);
 
 /**
  * El primer error de quien recien saca el certificado: no lo autorizo a facturar. Sin traducir llegaba como
- * "Error inesperado" con el texto de WSAA. Si pasa, no se envio nada a ARCA.
+ * "Error inesperado" con el texto de WSAA. El texto no dice "No se emitió nada": en un lote puede haber emitidos, las
+ * consultas no iban a emitir y los avisos lo citan.
  */
 export function rethrowIfWsfeNotAuthorized(error: unknown): never {
-  if (error instanceof Error && error.message.includes('notAuthorized')) {
-    throw new AppError('El certificado no está autorizado para facturar (servicio wsfe). No se emitió nada.', {
+  if (isNotAuthorized(error)) {
+    throw new AppError('El certificado no está autorizado para facturar (servicio wsfe).', {
       code: 'WSFE_SERVICE_NOT_AUTHORIZED',
       suggestion: `Autorizalo en ARCA: en testing desde WSASS ("Crear autorización a servicio"), y en producción desde el Administrador de Relaciones de Clave Fiscal. Guía: ${CERTIFICATE_GUIDE_URL}`,
     });

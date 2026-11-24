@@ -1,4 +1,6 @@
 import { AppError, HELP_SUGGESTION } from '../../lib/errors/app-error';
+import { ISSUES_URL } from '../../lib/links';
+import { normalizeSearchText } from '../../lib/text/search';
 import { errorPanel } from '../components/errorPanel';
 import { renderJson } from '../primitives/renderJson';
 import { bold } from '../primitives/text';
@@ -28,6 +30,27 @@ function formatErrorTitle(code: string): string {
   }
 }
 
+/**
+ * Que hacer con un lote cortado. Los procesados pueden incluir rechazados, que no se emitieron: manda el CAE. Con uno
+ * sin confirmar, el mensaje ya trae el comando para verificarlo.
+ */
+function formatInterruptedBatchHint(details: Record<string, unknown> = {}): string | null {
+  const { fallo, procesados, sinConfirmar, sinProcesar } = details;
+  const uncertain = sinConfirmar !== undefined;
+  const pending = Array.isArray(sinProcesar) && sinProcesar.length > 0;
+  const steps = [
+    ...(procesados ? ['Los procesados con CAE ya se emitieron: no los vuelvas a cargar.'] : []),
+    ...(uncertain
+      ? []
+      : [
+          `Antes de reintentar el #${String(fallo)}, fijate que no figure emitido con \`arcli ultimos <tipo> --pv <n>\`, en el mismo entorno.`,
+        ]),
+    ...(pending ? ['Después reintentá los que quedaron sin procesar.'] : []),
+  ];
+
+  return steps.length > 0 ? steps.join(' ') : null;
+}
+
 function formatErrorHint(error: AppError): string | null {
   if (error.suggestion) {
     return error.suggestion;
@@ -41,10 +64,20 @@ function formatErrorHint(error: AppError): string | null {
     case 'BATCH_VALIDATION_ERROR':
       return 'Corregí esos comprobantes en el archivo y volvé a correr el lote completo.';
     case 'BATCH_EMISSION_ERROR':
-      return 'Los comprobantes de arriba ya se emitieron: no los vuelvas a cargar. Antes de reintentar el que falló, verificá con `arcli ultimos` si se emitió; después reintentá los que quedaron sin procesar.';
+      return formatInterruptedBatchHint(error.details);
     default:
       return null;
   }
+}
+
+/** Lo que dicen Node y los clientes HTTP cuando no hubo conexion o se corto. */
+const NETWORK_ERROR =
+  /\b(?:EAI_AGAIN|ECONNABORTED|ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENETUNREACH|ENOTFOUND|ETIMEDOUT)\b|socket hang up|fetch failed/;
+
+function formatUnexpectedErrorHint(message: string): string {
+  return NETWORK_ERROR.test(message)
+    ? 'Revisá tu conexión a internet y probá de nuevo en unos minutos. Con `arcli estado` ves si ARCA responde.'
+    : `Si el problema persiste, revisá la configuración con \`arcli config revisar\` o avisanos en ${ISSUES_URL}.`;
 }
 
 function detectTransientError(message: string): {
@@ -70,7 +103,27 @@ function detectTransientError(message: string): {
   return null;
 }
 
-function formatErrorDetails(details: Record<string, unknown> | undefined): string[] {
+/** Como se lee cada clave de `detalles` en el panel; el JSON no cambia. */
+const DETAIL_LABELS: Readonly<Record<string, string>> = {
+  causa: 'Causa',
+  cause: 'Causa',
+  entorno: 'Entorno',
+  idSolicitud: 'Solicitud',
+  numero: 'Número',
+  path: 'Ruta',
+  salida: 'Salida',
+  vencimiento: 'Vencimiento',
+};
+
+/** Si el texto ya trae el valor, entero: un `7` no cuenta como dicho por un `17`. */
+function alreadySaid(text: string, value: unknown): boolean {
+  const target = normalizeSearchText(String(value)).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  return new RegExp(`(?<![\\p{L}\\p{N}])${target}(?![\\p{L}\\p{N}])`, 'u').test(normalizeSearchText(text));
+}
+
+/** Los detalles que el panel suma: sin repetir lo que ya dicen el mensaje o la sugerencia. */
+function formatErrorDetails(details: Record<string, unknown> | undefined, said: string): string[] {
   if (!details) {
     return [];
   }
@@ -79,11 +132,8 @@ function formatErrorDetails(details: Record<string, unknown> | undefined): strin
   // en texto se verian como "[object Object]" y ya estan en el mensaje.
   return Object.entries(details)
     .filter(([, value]) => value !== null && value !== undefined && value !== '' && typeof value !== 'object')
-    .map(([key, value]) => {
-      const label = key === 'path' ? 'Ruta' : key;
-
-      return `${bold(`${label}:`)} ${String(value)}`;
-    });
+    .filter(([, value]) => !alreadySaid(said, value))
+    .map(([key, value]) => `${bold(`${DETAIL_LABELS[key] ?? key}:`)} ${String(value)}`);
 }
 
 function formatErrorDetailsAsJson(details: Record<string, unknown> | undefined): Record<string, unknown> | null {
@@ -111,8 +161,8 @@ export function formatAppError(error: unknown, useJson: boolean): string {
       });
     }
 
-    const details = formatErrorDetails(error.details);
     const hint = formatErrorHint(error);
+    const details = formatErrorDetails(error.details, `${error.message}\n${hint ?? ''}`);
     return errorPanel(formatErrorTitle(error.code), error.message, details, hint ?? undefined);
   }
 
@@ -132,6 +182,6 @@ export function formatAppError(error: unknown, useJson: boolean): string {
     transientError?.title ?? 'Error inesperado',
     message,
     [],
-    transientError?.sugerencia ?? 'Si el problema persiste, revisá la configuración o reintentá con más contexto.',
+    transientError?.sugerencia ?? formatUnexpectedErrorHint(message),
   );
 }

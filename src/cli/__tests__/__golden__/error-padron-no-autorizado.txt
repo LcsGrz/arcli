@@ -7,7 +7,7 @@ exit: 1
 {
   "codigo": "PADRON_SERVICE_NOT_AUTHORIZED",
   "detalles": null,
-  "error": "El certificado no está autorizado para el servicio ws_sr_constancia_inscripcion (padrón). Autorizalo igual que wsfe: en testing desde WSASS (\"Crear autorizacion a servicio\") y en producción desde el Administrador de Relaciones.",
+  "error": "El certificado no está autorizado para el servicio ws_sr_constancia_inscripcion (padrón). Autorizalo igual que wsfe: en testing desde WSASS (\"Crear autorización a servicio\") y en producción desde el Administrador de Relaciones.",
   "sugerencia": null
 }
 

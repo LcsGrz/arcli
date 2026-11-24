@@ -7,7 +7,7 @@ exit: 1
 {
   "codigo": "WSFE_SERVICE_NOT_AUTHORIZED",
   "detalles": null,
-  "error": "El certificado no está autorizado para facturar (servicio wsfe). No se emitió nada.",
+  "error": "El certificado no está autorizado para facturar (servicio wsfe).",
   "sugerencia": "Autorizalo en ARCA: en testing desde WSASS (\"Crear autorización a servicio\"), y en producción desde el Administrador de Relaciones de Clave Fiscal. Guía: https://arcli.com.ar/empezar/certificado-testing/"
 }
 

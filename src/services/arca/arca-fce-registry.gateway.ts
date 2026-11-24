@@ -10,6 +10,7 @@ import {
 } from '../../modules/fce/fce-registry';
 
 import { FCE_NOT_AUTHORIZED_MESSAGE } from './arca-fce-obligation.gateway';
+import { isNotAuthorized } from './not-authorized';
 
 /** wsfecred `consultarHistorialEstadosComprobante`: "No existe el comprobante indicado". */
 const VOUCHER_NOT_FOUND = 1105;
@@ -34,7 +35,7 @@ export class ArcaFceRegistryGateway implements FceRegistryGateway {
         idComprobante: { CUITEmisor: id.cuit, codTipoCmp: id.arcaType, nroCmp: id.number, ptoVta: id.pointOfSale },
       });
     } catch (error) {
-      if (error instanceof Error && error.message.includes('notAuthorized')) {
+      if (isNotAuthorized(error)) {
         throw new AppError(FCE_NOT_AUTHORIZED_MESSAGE, { code: 'FCE_SERVICE_NOT_AUTHORIZED' });
       }
 

@@ -86,7 +86,7 @@ export async function emitBatch<T, R>(options: {
         try {
           await onPartialResults(results);
         } catch {
-          // Lo importante es el error de emision: los ya emitidos se pueden ver con "arcli ultimos".
+          // Lo importante es el error de emision: quien entrega los parciales ya aviso como verlos.
         }
       }
 

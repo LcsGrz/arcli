@@ -2,6 +2,7 @@ import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import type { PadronGateway, Taxpayer } from '../padron/padron';
 
 import { ivaConditionCode, ivaConditionLabel } from './arca-codes';
+import { missingIvaReceiverMessage } from './billing.iva-receptor';
 import type { BillingCommandInput } from './billing.schemas';
 
 export interface PadronResolution {
@@ -9,9 +10,6 @@ export interface PadronResolution {
   /** Avisos para la vista previa: el padron no respondio o no informa la condicion y se uso la config. */
   readonly warnings: string[];
 }
-
-const MISSING_IVA_HINT =
-  'Usá `--ir <tipo>` o un flag `--ir-*`, o configurá uno por defecto con `arcli config establecer ivaReceptor <tipo>`.';
 
 /**
  * Hay que consultar el padron: un CUIT sin IVA receptor explicito (vino de la config o falta).
@@ -28,7 +26,7 @@ export function needsPadronLookup(input: BillingCommandInput): boolean {
 
 function fallBack(input: BillingCommandInput, reason: string, hint?: string): PadronResolution {
   if (input.ivaConditionSource === 'missing') {
-    throw new InputValidationError(`Falta IVA receptor. ${reason}. ${MISSING_IVA_HINT}`);
+    throw new InputValidationError(missingIvaReceiverMessage(reason));
   }
 
   const warning = `${reason}. Se usa el IVA receptor de la config: ${ivaConditionLabel(ivaConditionCode(input.ivaCondition))}.`;

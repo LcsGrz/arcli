@@ -9,6 +9,7 @@ import { parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { type BatchItemError, describeBatchItemError } from '../../modules/billing/billing.batch';
 import { resolveConfigExchangeRate } from '../../modules/billing/billing.currency';
 import { type EmitDecisionSource, resolveEmitDecision } from '../../modules/billing/billing.emit-decision';
+import { missingIvaReceiverMessage } from '../../modules/billing/billing.iva-receptor';
 import {
   type BillingJsonInput,
   parseBillingJsonInput,
@@ -272,9 +273,7 @@ function parseBillingCommandInputFromSource(
   }
 
   if (!resolvedIvaCondition && !willLookupPadron) {
-    throw new InputValidationError(
-      'Falta IVA receptor. Usá `--iva-receptor <tipo>`, `--ir <tipo>`, un flag `--ir-*`, o configurá uno por defecto con `arcli config establecer ivaReceptor consumidor-final`.',
-    );
+    throw new InputValidationError(missingIvaReceiverMessage());
   }
 
   const associatedVoucherFromFile = fileInput?.comprobanteAsociado

@@ -143,7 +143,7 @@ describe('resolveTaxAmounts con varias alicuotas', () => {
         VOUCHER_KIND_MAP.fa,
         TODAY,
       ),
-    ).toThrow(/La suma de las alícuotas \(1210.00\) no coincide con lo gravado del monto total \(2000.00\)/);
+    ).toThrow(/La suma de las alícuotas \(1\.210\) no coincide con lo gravado del monto total \(2\.000\)/);
   });
 
   it('rechaza varias alicuotas en letra C', () => {

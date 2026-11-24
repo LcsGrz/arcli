@@ -1,7 +1,12 @@
 import { ConfigurationError } from '../../lib/errors/app-error';
 
 import type { CertificateExpiryNotice } from './certificate-expiry';
-import { type ArcliConfig, type ArcliEnvironment, MISSING_CUIT_MESSAGE } from './config.schemas';
+import {
+  type ArcliConfig,
+  type ArcliEnvironment,
+  formatEnvironmentLabel,
+  MISSING_CUIT_MESSAGE,
+} from './config.schemas';
 
 /**
  * Con que se habla con ARCA: el CUIT, el entorno, los PEM ya leidos y donde van los tickets de WSAA. Es lo que el
@@ -86,14 +91,16 @@ export function credentialPaths(
   const certPath = config.cert[environment];
 
   if (!certPath) {
-    throw new ConfigurationError(`Falta la ruta del certificado para ${environment}. Configurá "cert.${environment}".`);
+    throw new ConfigurationError(
+      `Falta la ruta del certificado para ${formatEnvironmentLabel(environment)}. Configurala con \`arcli config establecer cert.${environment} <ruta>\`.`,
+    );
   }
 
   const keyPath = config.key[environment];
 
   if (!keyPath) {
     throw new ConfigurationError(
-      `Falta la ruta de la clave privada para ${environment}. Configurá "key.${environment}".`,
+      `Falta la ruta de la clave privada para ${formatEnvironmentLabel(environment)}. Configurala con \`arcli config establecer key.${environment} <ruta>\`.`,
     );
   }
 

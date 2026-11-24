@@ -45,6 +45,24 @@ export const defaultPdfStepDependencies: PdfStepDependencies = {
   },
 };
 
+/** El comprobante ya se emitio: Ctrl+C en una pregunta del PDF es "No", no un error del comando. */
+export function withCancellationAsNo(deps: PdfStepDependencies): PdfStepDependencies {
+  return {
+    ...deps,
+    confirm: async (...args) => {
+      try {
+        return await deps.confirm(...args);
+      } catch (error) {
+        if (isPromptCancellation(error)) {
+          return false;
+        }
+
+        throw error;
+      }
+    },
+  };
+}
+
 export interface PdfStepOptions {
   readonly config: ArcliConfig;
   /** Alineados con `results`. */
@@ -190,21 +208,7 @@ export async function attachPdfs(
   options: PdfStepOptions,
   defaultDeps: PdfStepDependencies = defaultPdfStepDependencies,
 ): Promise<BillingExecutionResult[]> {
-  // El comprobante ya se emitio: Ctrl+C en una pregunta del PDF es "No", no un error del comando.
-  const deps: PdfStepDependencies = {
-    ...defaultDeps,
-    confirm: async (...args) => {
-      try {
-        return await defaultDeps.confirm(...args);
-      } catch (error) {
-        if (isPromptCancellation(error)) {
-          return false;
-        }
-
-        throw error;
-      }
-    },
-  };
+  const deps = withCancellationAsNo(defaultDeps);
   const decisions = await resolveDecisions(options, deps);
   const targets = decisions.flatMap((decision, index) => (decision === 'generar' ? [index] : []));
   const outcomes = new Map<number, PdfOutcome>();

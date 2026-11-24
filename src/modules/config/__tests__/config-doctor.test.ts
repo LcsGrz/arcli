@@ -280,7 +280,7 @@ describe('config revisar: huecos de Stryker (TEST-21)', () => {
       expect.objectContaining({ category: 'ok', value: 'testing' }),
       expect.objectContaining({
         category: 'warning',
-        detail: expect.stringContaining('"exportacion.cert.produccion" y "exportacion.key.produccion"'),
+        detail: expect.stringContaining('`exportacion.cert.produccion` y `exportacion.key.produccion`'),
       }),
     ]);
     expect(find(report, 'Vencimiento cert. exportación testing')).toEqual([

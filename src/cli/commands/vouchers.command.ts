@@ -3,9 +3,14 @@ import type { Command } from 'commander';
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
+import { INVALID_POINT_OF_SALE_MESSAGE } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { getVoucherKindByShortcut, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
-import { formatEnvironmentLabel, resolveRowsPerList } from '../../modules/config/config.schemas';
+import {
+  formatEnvironmentLabel,
+  MISSING_POINT_OF_SALE_MESSAGE,
+  resolveRowsPerList,
+} from '../../modules/config/config.schemas';
 import { listRecentExportVouchers } from '../../modules/export/export.history';
 import {
   formatExportVoucherDetailAsJson,
@@ -77,10 +82,12 @@ function voucherNotFound(
 function requirePointOfSale(options: PointOfSaleOptions, runtime: CliArcaRuntime): number {
   const pointOfSale = options.pv ?? options.puntoVenta ?? runtime.pointOfSale;
 
-  if (!pointOfSale || !Number.isInteger(pointOfSale) || pointOfSale <= 0) {
-    throw new InputValidationError(
-      'Falta el punto de venta. Usá `--pv <numero>` o configuralo con `arcli config establecer puntoVenta <numero>`.',
-    );
+  if (pointOfSale === undefined) {
+    throw new InputValidationError(MISSING_POINT_OF_SALE_MESSAGE);
+  }
+
+  if (!Number.isInteger(pointOfSale) || pointOfSale <= 0) {
+    throw new InputValidationError(INVALID_POINT_OF_SALE_MESSAGE);
   }
 
   return pointOfSale;

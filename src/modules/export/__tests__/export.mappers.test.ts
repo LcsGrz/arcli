@@ -220,7 +220,7 @@ describe('resolveExportQuotation', () => {
 
   it('pide la cotizacion por flag cuando ARCA no publico ninguna', () => {
     expect(() => resolveExportQuotation('DOL', [], '20270105')).toThrow(
-      /no informó la cotización de DOL para el 05\/01\/2027\. Informá la cotización con --cotizacion-moneda\./,
+      /no informó la cotización de DOL para el 05\/01\/2027\. Informá la cotización con `--cotizacion-moneda`\./,
     );
   });
 });

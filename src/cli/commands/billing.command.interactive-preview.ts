@@ -1,5 +1,5 @@
 import type { EmitDecisionSource } from '../../modules/billing/billing.emit-decision';
-import { formatEmissionQuestion, NOTHING_EMITTED_NOTICE } from '../../modules/billing/billing.mappers';
+import { formatEmissionQuestion } from '../../modules/billing/billing.mappers';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { BillingService } from '../../modules/billing/billing.service';
 import type { BillingExecutionResult, BillingGateway } from '../../modules/billing/billing.types.internal';
@@ -8,11 +8,11 @@ import {
   planEmissionConfirmation,
   resolvePdfAfterConfirmation,
 } from '../../modules/pdf/pdf-decision';
-import { noticePanel, writeTerminalOutput } from '../../ui';
+import { writeTerminalOutput } from '../../ui';
 import type { CliArcaRuntime } from '../arca-runtime';
-import { askEmission } from '../interactive/emission-prompt';
 
 import { formatBillingOutputs } from './billing.command.output';
+import { confirmEmissionOrNotify } from './confirm-emission';
 
 export interface InteractiveBillingPreviewOutcome {
   readonly confirmedInteractively: boolean;
@@ -88,14 +88,12 @@ export async function runInteractiveBillingPreview(options: {
   );
 
   const count = options.inputs.length;
-  const choice = await askEmission(
+  const choice = await confirmEmissionOrNotify(
     formatEmissionQuestion(count > 1 ? `los ${count} comprobantes` : options.voucherLabel, options.runtime.environment),
     planEmissionConfirmation({ flags: options.inputs.map((input) => input.pdf), mode: options.runtime.config.pdf }),
   );
 
   if (!choice) {
-    writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
-
     return {
       confirmedInteractively: false,
       inputs: options.inputs,

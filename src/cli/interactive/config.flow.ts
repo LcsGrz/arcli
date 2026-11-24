@@ -39,8 +39,9 @@ import { changesArcaAccess } from '../../modules/interactive/config-lists';
 import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
-import { bold, noticePanel, uiSymbol, writeTerminalOutput } from '../../ui';
+import { bold, noticePanel, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
 import { buildRuntimeChecks } from '../commands/config.command';
+import { formatCliError } from '../error-output';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
@@ -477,6 +478,11 @@ async function runCompletionMenu(): Promise<void> {
 type ConfigOption =
   'acceso-directo' | 'cambiar' | 'certificados' | 'completado' | 'guiada' | 'pdf' | 'revisar' | 'ver' | 'volver';
 
+/** El error con que Node avisa que no pudo con un archivo: `EPERM`, `EACCES`, `ENOSPC`… */
+function isFileSystemError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && 'syscall' in error && 'code' in error;
+}
+
 /** Un error aca no corta el menu: se avisa y se puede seguir (por ejemplo, si no hay escritorio). */
 function runDesktopShortcut(): void {
   try {
@@ -484,11 +490,11 @@ function runDesktopShortcut(): void {
 
     writeTerminalOutput(formatDesktopShortcutAsText(createDesktopShortcut(undefined, environment)));
   } catch (error) {
-    if (!(error instanceof AppError)) {
+    if (!(error instanceof AppError) && !isFileSystemError(error)) {
       throw error;
     }
 
-    writeTerminalOutput(noticePanel(error.message, 'warning'));
+    writeTerminalError(() => formatCliError(error, false));
   }
 }
 
