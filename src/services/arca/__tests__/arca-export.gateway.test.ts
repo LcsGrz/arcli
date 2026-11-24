@@ -398,13 +398,13 @@ describe('ArcaExportGateway', () => {
     );
   });
 
-  it('manda el Cmp de authorize tal cual y devuelve la respuesta cruda', async () => {
+  it('manda el Cmp de authorize tal cual y devuelve la respuesta cruda, la misma', async () => {
     const output = { FEXAuthorizeResult: { FEXErr: { ErrCode: 0, ErrMsg: '' }, FEXEvents: {} } };
     const authorize = vi.fn(async () => output);
     const gateway = createGateway({ authorize });
     const payload = { Cbte_Tipo: 19, Id: 1 } as never;
 
-    await expect(gateway.authorize(payload)).resolves.toBe(output);
+    expect((await gateway.authorize(payload)).raw).toBe(output);
     expect(authorize).toHaveBeenCalledWith({ Cmp: payload });
   });
 });

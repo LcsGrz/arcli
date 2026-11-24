@@ -1,7 +1,7 @@
 import { asArray } from '../../lib/arrays/as-array';
-import type { CreateVoucherResultDto } from '../../services/arca/arca-sdk.types';
 
 import { findArcaRejections, formatArcaRejection } from './arca-rejections';
+import type { BillingAuthorizationAnswer } from './authorization-answer';
 import type { BillingResponseSummary } from './billing.types.internal';
 import {
   EMITTED_WITH_ERROR_SUGGESTION,
@@ -32,34 +32,21 @@ export function createDryRunResponse(): BillingResponseSummary {
   };
 }
 
-interface RawDetail {
-  readonly CAE?: unknown;
-  readonly CAEFchVto?: unknown;
-  readonly Observaciones?: { readonly Obs?: unknown } | null;
-  readonly Resultado?: unknown;
-}
-
-/** El detalle del comprobante. El SDK solo mira el primero de una lista: con un objeto suelto pierde el CAE. */
-function readDetail(response: CreateVoucherResultDto): RawDetail | undefined {
-  return asArray<unknown>(response.response?.FeDetResp?.FECAEDetResponse)[0] as RawDetail | undefined;
-}
-
-export function mapBillingResponse(response: CreateVoucherResultDto): BillingResponseSummary {
-  const detail = readDetail(response);
+export function mapBillingResponse(answer: BillingAuthorizationAnswer): BillingResponseSummary {
   // Nada de esto puede costar el CAE: se acepta suelto, en lista, nulo o de otro tipo (ERR-16).
-  const events = asArray<unknown>(response.response?.Events?.Evt)
+  const events = asArray<unknown>(answer.events)
     .filter((item) => item !== null)
     .map(toItem);
   // Uno nulo tambien cuenta: ARCA informo un error, aunque no se lea.
-  const errors = asArray<unknown>(response.response?.Errors?.Err).map(toItem);
-  const observations = asArray<unknown>(detail?.Observaciones?.Obs);
+  const errors = asArray<unknown>(answer.errors).map(toItem);
+  const observations = asArray<unknown>(answer.observations);
   const observaciones = observations.map(readMessage).filter(Boolean);
-  const resultado = readResponseText(detail?.Resultado);
+  const resultado = readResponseText(answer.result);
   // Sin el resultado del comprobante vale el de la cabecera, que con uno solo es el mismo.
-  const rejected = (resultado ?? readResponseText(response.response?.FeCabResp?.Resultado)) === 'R';
+  const rejected = (resultado ?? readResponseText(answer.headerResult)) === 'R';
   // El SDK solo devuelve el CAE con `A`; el JSON publico promete null.
   const readAnswerCae = rejected ? readRejectedCae : readCae;
-  const cae = readAnswerCae(response.cae) ?? readAnswerCae(detail?.CAE);
+  const cae = readAnswerCae(answer.cae) ?? readAnswerCae(answer.detailCae);
   const status = resolveEmissionStatus({
     cae,
     errors: errors.map((item) => ({ code: readCode(item), message: readMessage(item) || readText(item) })),
@@ -70,13 +57,16 @@ export function mapBillingResponse(response: CreateVoucherResultDto): BillingRes
   });
 
   return {
+    get arcaNumber() {
+      return answer.voucherNumber;
+    },
     cae,
-    caeVencimiento: readCaeExpiration(response.caeFchVto || (cae === null ? undefined : detail?.CAEFchVto)),
+    caeVencimiento: readCaeExpiration(answer.caeExpiration || (cae === null ? undefined : answer.detailCaeExpiration)),
     errors,
     events,
     observaciones,
     observacion: observaciones.join(' | ') || null,
-    raw: response,
+    raw: answer.raw,
     resultado,
     suggestions: buildResponseSuggestions({ emitted: status !== 'rechazado', errors, observations }),
     status,

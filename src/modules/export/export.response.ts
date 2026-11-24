@@ -1,5 +1,5 @@
 import { asArray } from '../../lib/arrays/as-array';
-import type { IFEXAuthorizeOutput } from '../../services/arca/arca-sdk.types';
+import type { AuthorizationAnswer } from '../billing/authorization-answer';
 import {
   type EmissionStatus,
   EMITTED_WITH_ERROR_SUGGESTION,
@@ -17,6 +17,12 @@ import {
 import type { ExportResponseError, ExportResponseSummary } from './export.types';
 
 const POINT_OF_SALE_HINT = 'Revisá los puntos de venta habilitados para WSFEX con `arcli parametros puntos-venta`.';
+
+/** El codigo sale como vino: ARCA manda un numero. */
+interface RawEvent {
+  readonly EventCode?: number;
+  readonly EventMsg?: unknown;
+}
 
 /**
  * WSFEX informa los errores en `FEXErr` y los avisos en `FEXEvents`, con el codigo en 0 cuando no hay nada que
@@ -131,20 +137,18 @@ export function createDryRunExportResponse(): ExportResponseSummary {
 }
 
 /** WSFEX informa el rechazo en `Resultado` y los errores duros en `FEXErr`, sin lanzar excepcion. */
-export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSummary {
-  const result = output.FEXAuthorizeResult;
-  const authorization = asArray(result?.FEXResultAuth)[0];
+export function mapExportResponse(answer: AuthorizationAnswer): ExportResponseSummary {
   // Nada de esto puede costar el CAE: se acepta suelto, en lista, nulo o de otro tipo (ERR-16).
-  const errors = asArray<unknown>(result?.FEXErr).flatMap(toErrorEntry);
-  const events = asArray(result?.FEXEvents).flatMap((event) => [
+  const errors = asArray<unknown>(answer.errors).flatMap(toErrorEntry);
+  const events = asArray(answer.events as RawEvent | RawEvent[] | null | undefined).flatMap((event) => [
     ...toEntry(event?.EventCode, event?.EventMsg),
     ...toTextEntry(event),
   ]);
-  const observaciones = asArray<unknown>(authorization?.Motivos_Obs).flatMap(
+  const observaciones = asArray<unknown>(answer.observations).flatMap(
     (motivo) => readResponseText(motivo)?.trim() ?? [],
   );
-  const resultado = readResponseText(authorization?.Resultado)?.trim() ?? null;
-  const cae = (resultado === 'R' ? readRejectedCae : readCae)(authorization?.Cae);
+  const resultado = readResponseText(answer.result)?.trim() ?? null;
+  const cae = (resultado === 'R' ? readRejectedCae : readCae)(answer.cae);
   const status = resolveEmissionStatus({
     cae,
     errors,
@@ -157,13 +161,16 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
   const messages = [...observaciones, ...(emittedWithError ? [] : errors.map((error) => error.message))].join(' | ');
 
   return {
+    get arcaNumber() {
+      return answer.voucherNumber;
+    },
     cae,
-    caeVencimiento: cae === null ? null : readCaeExpiration(authorization?.Fch_venc_Cae),
+    caeVencimiento: cae === null ? null : readCaeExpiration(answer.caeExpiration),
     errors,
     events,
     observacion: observaciones.join(' | ') || null,
     observaciones,
-    raw: output,
+    raw: answer.raw,
     resultado,
     status,
     suggestions: buildSuggestions({ emittedWithError, messages, status }),

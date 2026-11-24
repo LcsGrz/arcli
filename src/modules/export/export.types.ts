@@ -1,4 +1,4 @@
-import type { IFEXAuthorizeOutput } from '../../services/arca/arca-sdk.types';
+import type { AuthorizationAnswer } from '../billing/authorization-answer';
 import type { EmitDecisionSource } from '../billing/billing.emit-decision';
 import { ARCA_DOLLAR_CODE } from '../billing/currency-codes';
 import type { PdfOutcome } from '../pdf/pdf.types';
@@ -353,7 +353,7 @@ interface ExportAssociatedVoucherDisplay {
 
 /** Lo que el modulo necesita de ARCA. `authorize` es la unica llamada que emite. */
 export interface ExportGateway {
-  authorize(payload: ExportVoucherPayload): Promise<IFEXAuthorizeOutput>;
+  authorize(payload: ExportVoucherPayload): Promise<AuthorizationAnswer>;
   /** Tabla de actividades de WSFEX: el `Cmp` solo acepta estos codigos, no los del padron. */
   getActivities(): Promise<readonly ExportActivity[]>;
   /**
@@ -446,13 +446,15 @@ export interface ExportResponseError {
   readonly message: string;
 }
 export interface ExportResponseSummary {
+  /** El numero que informo ARCA, si lo informo. Se lee al pedirlo: ver `AuthorizationAnswer`. */
+  readonly arcaNumber?: number;
   readonly cae: string | null;
   readonly caeVencimiento: string | null;
   readonly errors: readonly ExportResponseError[];
   readonly events: readonly ExportResponseError[];
   readonly observacion: string | null;
   readonly observaciones: readonly string[];
-  readonly raw: IFEXAuthorizeOutput | null;
+  readonly raw: unknown;
   readonly resultado: string | null;
   readonly status: 'aprobado' | 'observado' | 'previsualizacion' | 'rechazado';
   readonly suggestions: readonly string[];

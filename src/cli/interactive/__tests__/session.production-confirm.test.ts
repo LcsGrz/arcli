@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import { systemClock } from '../../../services/time/system-clock';
+import { billingAnswer } from '../../../testing/arca-answers';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { DO_NOT_EMIT_LABEL, EMIT_NOW_LABEL } from '../emission-prompt';
 import { listSelect } from '../list-select';
@@ -45,7 +46,7 @@ function pickByName(...names: string[]): string[] {
 }
 
 function createSession(environment: 'produccion' | 'testing') {
-  const createVoucher = vi.fn(async () => ({ cae: '86400940834693', response: {} }) as never);
+  const createVoucher = vi.fn(async () => billingAnswer({ cae: '86400940834693', response: {} }));
   const runtime = {
     config: { cert: {}, entornoPorDefecto: environment, key: {}, output: {}, pdf: 'nunca' },
     context: { cuit: 20333333334 },

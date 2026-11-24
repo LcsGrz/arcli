@@ -107,7 +107,7 @@ function parseArgs(args) {
 }
 
 function mutateGlobs({ paths, since }) {
-  const excluded = ['!src/**/__tests__/**', '!src/**/*.d.ts', '!src/modules/storybook/**'];
+  const excluded = ['!src/**/__tests__/**', '!src/testing/**', '!src/**/*.d.ts', '!src/modules/storybook/**'];
   if (paths.length > 0) {
     const globs = paths.map((path) => {
       const relativePath = relative(root, resolve(path));
@@ -121,7 +121,11 @@ function mutateGlobs({ paths, since }) {
     .split('\n')
     .filter(
       (file) =>
-        file && !file.includes('/__tests__/') && !file.endsWith('.d.ts') && !file.startsWith('src/modules/storybook/'),
+        file &&
+        !file.includes('/__tests__/') &&
+        !file.startsWith('src/testing/') &&
+        !file.endsWith('.d.ts') &&
+        !file.startsWith('src/modules/storybook/'),
     )
     .filter((file) => existsSync(join(root, file)));
   return files;

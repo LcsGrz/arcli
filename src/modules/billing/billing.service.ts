@@ -199,14 +199,14 @@ export class BillingService {
     let response: BillingResponseSummary;
 
     try {
-      const raw = await options.gateway.createVoucher({
+      const answer = await options.gateway.createVoucher({
         ...payload,
         CbteDesde: voucherNumber,
         CbteHasta: voucherNumber,
       });
 
       // Adentro del try: lo que no se puede leer es una emision sin confirmar (ERR-16).
-      response = mapBillingResponse(raw);
+      response = mapBillingResponse(answer);
     } catch (error) {
       throw new EmissionUncertainError({
         arcaType: voucherKind.arcaType,

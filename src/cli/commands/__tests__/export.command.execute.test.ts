@@ -9,7 +9,7 @@ import {
   type ExportIssuedVoucher,
   type ExportVoucherKind,
 } from '../../../modules/export/export.types';
-import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
+import { exportAnswer } from '../../../testing/arca-answers';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { registerGlobalOptions } from '../../global-options';
 import { chooseOne } from '../../interactive/prompts';
@@ -26,7 +26,7 @@ vi.mock('../../interactive/prompts', async (original) => ({
 }));
 
 /** Lo que devuelve FEXAuthorize, recortado a lo que lee arcli. */
-function authorization(result: 'A' | 'R'): IFEXAuthorizeOutput {
+function authorization(result: 'A' | 'R') {
   return {
     FEXAuthorizeResult: {
       FEXErr: { ErrCode: 0, ErrMsg: '' },
@@ -45,7 +45,7 @@ function authorization(result: 'A' | 'R'): IFEXAuthorizeOutput {
         Resultado: result,
       },
     },
-  } as IFEXAuthorizeOutput;
+  };
 }
 
 /** La factura que ajusta la nota de credito, como la devuelve FEXGetCMP. */
@@ -70,7 +70,7 @@ const ASSOCIATED_INVOICE: ExportIssuedVoucher = {
 
 function gateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
   return {
-    authorize: vi.fn(async () => authorization('A')),
+    authorize: vi.fn(async () => exportAnswer(authorization('A'))),
     checkPermit: vi.fn(async () => 'OK'),
     getActivities: vi.fn(async () => [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }]),
     getCurrencies: vi.fn(async () => [{ code: 'DOL', name: 'Dólar Estadounidense' }]),
@@ -395,7 +395,9 @@ describe('executeExportCommand: la decision de emitir', () => {
 
 describe('executeExportCommand: codigo de salida', () => {
   it('rechazado por ARCA: el resultado sale igual, con exit 2', async () => {
-    await run([...BASE, '--emitir'], { gateway: gateway({ authorize: vi.fn(async () => authorization('R')) }) });
+    await run([...BASE, '--emitir'], {
+      gateway: gateway({ authorize: vi.fn(async () => exportAnswer(authorization('R'))) }),
+    });
 
     expect(JSON.parse(stdout)).toMatchObject({ cae: null, estado: 'rechazado', resultado: 'R' });
     expect(process.exitCode).toBe(2);

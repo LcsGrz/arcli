@@ -1,6 +1,7 @@
 import { asArray } from '../../lib/arrays/as-array';
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
+import type { AuthorizationAnswer } from '../../modules/billing/authorization-answer';
 import { readRejectedCae } from '../../modules/billing/emission-response';
 import {
   DEFAULT_EXPORT_UNIT_CODE,
@@ -20,7 +21,8 @@ import {
   type ExportVoucherQuery,
 } from '../../modules/export/export.types';
 
-import type { Arca, IFEXAuthorizeInput, IFEXAuthorizeOutput, IFEXGetLast_CMPInput } from './arca-sdk.types';
+import type { Arca, IFEXAuthorizeInput, IFEXGetLast_CMPInput } from './arca-sdk.types';
+import { readExportAnswer } from './authorization-answer';
 import { isNotAuthorized, notAuthorizedMessage } from './not-authorized';
 import type { SdkRequest } from './sdk-request';
 import { unreadableVoucherError, voucherQueryError } from './voucher-query-error';
@@ -213,10 +215,13 @@ export class ArcaExportGateway implements ExportGateway {
    * 1720) y en los tipos de exportacion 2 y 4 pide ese campo vacio (error 1550): sin permisos el `Cmp` no trae la
    * clave y el serializador de SOAP omite los campos ausentes. El `as` es solo por esos: ver `FexRequest`.
    */
-  public async authorize(payload: SdkRequest<ExportVoucherPayload, FexCmp>): Promise<IFEXAuthorizeOutput> {
+  public async authorize(payload: SdkRequest<ExportVoucherPayload, FexCmp>): Promise<AuthorizationAnswer> {
     const request: FexRequest = { Cmp: payload };
 
-    return this.call((service) => service.authorize(request as IFEXAuthorizeInput));
+    const output = await this.call((service) => service.authorize(request as IFEXAuthorizeInput));
+
+    // Fuera de `call`: un fallo al leer no es que el certificado no este autorizado.
+    return readExportAnswer(output);
   }
 
   /**

@@ -1,7 +1,7 @@
-import type { CreateVoucherResultDto } from '../../services/arca/arca-sdk.types';
 import type { ArcliEnvironment } from '../config/config.schemas';
 import type { PdfOutcome } from '../pdf/pdf.types';
 
+import type { BillingAuthorizationAnswer } from './authorization-answer';
 import type { VoucherKindDefinition } from './billing.types';
 import type { UnnumberedVoucherRequest, VoucherRequest } from './voucher-request';
 
@@ -14,7 +14,7 @@ export interface BillingRuntime {
 
 export interface BillingGateway {
   /** Emite en ARCA. Un error aca puede haber dejado el comprobante autorizado. */
-  createVoucher(voucher: VoucherRequest): Promise<CreateVoucherResultDto>;
+  createVoucher(voucher: VoucherRequest): Promise<BillingAuthorizationAnswer>;
   /** Autentica y pide el ultimo numero autorizado. Un error aca no emitio nada. */
   getNextVoucherNumber(pointOfSale: number, voucherType: number): Promise<number>;
   /**
@@ -30,13 +30,15 @@ export interface BillingGateway {
 }
 
 export interface BillingResponseSummary {
+  /** El numero que informo ARCA, si lo informo. Se lee al pedirlo: ver `AuthorizationAnswer`. */
+  readonly arcaNumber?: number;
   readonly cae: string | null;
   readonly caeVencimiento: string | null;
   readonly errors: unknown[];
   readonly events: unknown[];
   readonly observaciones: string[];
   readonly observacion: string | null;
-  readonly raw: CreateVoucherResultDto | null;
+  readonly raw: unknown;
   readonly resultado: string | null;
   readonly suggestions: string[];
   readonly status: 'aprobado' | 'observado' | 'previsualizacion' | 'rechazado';

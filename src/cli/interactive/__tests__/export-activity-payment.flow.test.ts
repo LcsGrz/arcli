@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { ExportGateway, ExportIssuedVoucher, ExportVoucherPayload } from '../../../modules/export/export.types';
-import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
+import { exportAnswer } from '../../../testing/arca-answers';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { runExportFlow } from '../export.flow';
@@ -46,25 +46,27 @@ const SERVICES: ExportIssuedVoucher = {
 
 const gateway: ExportGateway = {
   // ARCA autoriza el número pedido.
-  authorize: vi.fn(async (payload: ExportVoucherPayload): Promise<IFEXAuthorizeOutput> => ({
-    FEXAuthorizeResult: {
-      FEXErr: { ErrCode: 0, ErrMsg: 'OK' },
-      FEXEvents: { EventCode: 0, EventMsg: '' },
-      FEXResultAuth: {
-        Cae: '76123456789012',
-        Cbte_nro: payload.Cbte_nro,
-        Cbte_tipo: 19,
-        Cuit: 20111111112,
-        Fch_cbte: '20261114',
-        Fch_venc_Cae: '20261124',
-        Id: 1,
-        Motivos_Obs: '',
-        Punto_vta: 4,
-        Reproceso: 'N',
-        Resultado: 'A',
+  authorize: vi.fn(async (payload: ExportVoucherPayload) =>
+    exportAnswer({
+      FEXAuthorizeResult: {
+        FEXErr: { ErrCode: 0, ErrMsg: 'OK' },
+        FEXEvents: { EventCode: 0, EventMsg: '' },
+        FEXResultAuth: {
+          Cae: '76123456789012',
+          Cbte_nro: payload.Cbte_nro,
+          Cbte_tipo: 19,
+          Cuit: 20111111112,
+          Fch_cbte: '20261114',
+          Fch_venc_Cae: '20261124',
+          Id: 1,
+          Motivos_Obs: '',
+          Punto_vta: 4,
+          Reproceso: 'N',
+          Resultado: 'A',
+        },
       },
-    },
-  })),
+    }),
+  ),
   checkPermit: async () => 'OK',
   getActivities: async () => [],
   getCurrencies: async () => [{ code: 'DOL', name: 'Dólar Estadounidense' }],

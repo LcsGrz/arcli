@@ -48,6 +48,7 @@ function createResult(
       ...payload,
     },
     response: {
+      arcaNumber: 125,
       cae: '76123456789012',
       caeVencimiento: '20261013',
       errors: [],
@@ -356,9 +357,12 @@ describe('mapBillingResultToPdfData', () => {
     expect(() => mapBillingResultToPdfData({ ...result, response: { ...result.response, cae: null } }, issuer)).toThrow(
       /no tiene CAE/,
     );
-    expect(() => mapBillingResultToPdfData({ ...result, response: { ...result.response, raw: null } }, issuer)).toThrow(
-      /número del comprobante/,
-    );
+    expect(() =>
+      mapBillingResultToPdfData(
+        { ...result, response: { ...result.response, arcaNumber: undefined, raw: null } },
+        issuer,
+      ),
+    ).toThrow(/número del comprobante/);
   });
 
   it('shows IVA-included amounts in a factura B', () => {

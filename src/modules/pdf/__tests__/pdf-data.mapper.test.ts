@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { billingAnswer } from '../../../testing/arca-answers';
 import type { BillingExecutionResult } from '../../billing/billing.types.internal';
 import { getVoucherKindByShortcut } from '../../billing/voucher-kind-map';
 import type { UnnumberedVoucherRequest } from '../../billing/voucher-request';
@@ -45,6 +46,7 @@ function createResult(shortcut: string, payload: Partial<UnnumberedVoucherReques
       ...payload,
     },
     response: {
+      arcaNumber: 125,
       cae: '76123456789012',
       caeVencimiento: '20261013',
       errors: [],
@@ -151,12 +153,19 @@ describe('PDF sin CAE (TEST-18)', () => {
     ).toThrow(/no informó el vencimiento del CAE.*está emitido/);
   });
 
-  it('con el detalle suelto, sin lista, el número es el que se mandó (ERR-16)', () => {
+  it('con el detalle suelto, sin lista, el número es el que se mandó (ERR-16)', async () => {
     const result = createResult('fa', FACTURA_A);
-    const raw = { cae: '', caeFchVto: '', response: { FeDetResp: { FECAEDetResponse: { CbteDesde: 1 } } } } as never;
+    const { raw, voucherNumber: arcaNumber } = await billingAnswer({
+      cae: '',
+      caeFchVto: '',
+      response: { FeDetResp: { FECAEDetResponse: { CbteDesde: 1 } } },
+    });
 
     expect(
-      mapBillingResultToPdfData({ ...result, response: { ...result.response, raw }, voucherNumber: 77 }, ISSUER),
+      mapBillingResultToPdfData(
+        { ...result, response: { ...result.response, arcaNumber, raw }, voucherNumber: 77 },
+        ISSUER,
+      ),
     ).toMatchObject({ cae: result.response.cae, cbteDesde: 77, cbteHasta: 77 });
   });
 

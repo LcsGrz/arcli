@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { POINT_OF_SALE_GUIDE_URL } from '../../../lib/links';
 import { systemClock } from '../../../services/time/system-clock';
+import { billingAnswer } from '../../../testing/arca-answers';
 import { EmissionUncertainError } from '../billing.errors';
 import { type BillingCommandInput, billingCommandSchema } from '../billing.schemas';
 import { BillingService } from '../billing.service';
@@ -1513,7 +1514,9 @@ describe('billing.service', () => {
   });
 
   it('returns the number it sent to ARCA with the emitted voucher', async () => {
-    const createVoucher = vi.fn(async () => ({ cae: '76123456789012', caeFchVto: '20261103', response: {} }));
+    const createVoucher = vi.fn(async () =>
+      billingAnswer({ cae: '76123456789012', caeFchVto: '20261103', response: {} }),
+    );
     const result = await new BillingService({ clock: systemClock }).execute({
       gateway: { createVoucher, getNextVoucherNumber: async () => 125, getQuotation: async () => 1 },
       input: createBillingInput({ documentNumber: 0, dryRun: false, emit: true }),
@@ -1561,7 +1564,9 @@ describe('billing.service', () => {
       { dryRun: false, emit: false, emits: false },
       { dryRun: false, emit: true, emits: true },
     ])('dryRun $dryRun y emit $emit → emite: $emits', async ({ dryRun, emit, emits }) => {
-      const createVoucher = vi.fn(async () => ({ cae: '76123456789012', caeFchVto: '20261103', response: {} }));
+      const createVoucher = vi.fn(async () =>
+        billingAnswer({ cae: '76123456789012', caeFchVto: '20261103', response: {} }),
+      );
       const getNextVoucherNumber = vi.fn(async () => 7);
 
       const result = await new BillingService({ clock: systemClock }).execute({
@@ -1642,7 +1647,7 @@ describe('billing.service', () => {
       response: { FeDetResp: { FECAEDetResponse: [{ CbteDesde: 42, CbteHasta: 42, Resultado: 'A' }] } },
     };
     const getNextVoucherNumber = vi.fn(async () => 42);
-    const createVoucher = vi.fn(async () => arcaResult as never);
+    const createVoucher = vi.fn(async () => billingAnswer(arcaResult));
     const input = createBillingInput({ documentNumber: 0, dryRun: false, emit: true });
     const payload = service.buildVoucherPayload(input, createRuntime());
 
@@ -1656,13 +1661,13 @@ describe('billing.service', () => {
     expect(createVoucher).toHaveBeenCalledWith({ ...payload, CbteDesde: 42, CbteHasta: 42 });
     expect(result.dryRun).toBe(false);
     expect(result.payload).toEqual(payload);
-    expect(result.response).toEqual(mapBillingResponse(arcaResult as never));
+    expect(result.response).toEqual(mapBillingResponse(await billingAnswer(arcaResult)));
   });
 
   describe('con la vista previa confirmada (ARQ-21)', () => {
     const emitted = createBillingInput({ documentNumber: 0, dryRun: false, emit: true });
     const gateway = () => ({
-      createVoucher: vi.fn(async () => ({ cae: '76123456789012', caeFchVto: '20261103', response: {} })),
+      createVoucher: vi.fn(async () => billingAnswer({ cae: '76123456789012', caeFchVto: '20261103', response: {} })),
       getNextVoucherNumber: vi.fn(async () => 42),
       getQuotation: async () => 1,
     });

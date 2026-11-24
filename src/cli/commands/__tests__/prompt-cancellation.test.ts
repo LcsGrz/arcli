@@ -12,6 +12,7 @@ import {
   type ExportGateway,
   type ExportVoucherKind,
 } from '../../../modules/export/export.types';
+import { billingAnswer, exportAnswer } from '../../../testing/arca-answers';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { reportCliError } from '../../error-output';
@@ -41,13 +42,12 @@ function cancelled(): Error {
 function billingGateways(): BillingCommandGateways {
   return {
     billing: {
-      createVoucher: vi.fn(
-        async () =>
-          ({
-            cae: '75123456789012',
-            caeFchVto: '20261130',
-            response: { FeDetResp: { FECAEDetResponse: [{ CbteDesde: 42, CbteHasta: 42, Resultado: 'A' }] } },
-          }) as never,
+      createVoucher: vi.fn(async () =>
+        billingAnswer({
+          cae: '75123456789012',
+          caeFchVto: '20261130',
+          response: { FeDetResp: { FECAEDetResponse: [{ CbteDesde: 42, CbteHasta: 42, Resultado: 'A' }] } },
+        }),
       ),
       getNextVoucherNumber: vi.fn(async () => 42),
       getQuotation: vi.fn(async () => 1000),
@@ -61,25 +61,27 @@ function billingGateways(): BillingCommandGateways {
 
 function exportGateway(): ExportGateway {
   return {
-    authorize: vi.fn(async () => ({
-      FEXAuthorizeResult: {
-        FEXErr: { ErrCode: 0, ErrMsg: '' },
-        FEXEvents: { EventCode: 0, EventMsg: '' },
-        FEXResultAuth: {
-          Cae: '75123456789012',
-          Cbte_nro: 1,
-          Cbte_tipo: 19,
-          Cuit: 20111111112,
-          Fch_cbte: '20261101',
-          Fch_venc_Cae: '20261111',
-          Id: 8,
-          Motivos_Obs: '',
-          Punto_vta: 4,
-          Reproceso: 'N',
-          Resultado: 'A',
+    authorize: vi.fn(async () =>
+      exportAnswer({
+        FEXAuthorizeResult: {
+          FEXErr: { ErrCode: 0, ErrMsg: '' },
+          FEXEvents: { EventCode: 0, EventMsg: '' },
+          FEXResultAuth: {
+            Cae: '75123456789012',
+            Cbte_nro: 1,
+            Cbte_tipo: 19,
+            Cuit: 20111111112,
+            Fch_cbte: '20261101',
+            Fch_venc_Cae: '20261111',
+            Id: 8,
+            Motivos_Obs: '',
+            Punto_vta: 4,
+            Reproceso: 'N',
+            Resultado: 'A',
+          },
         },
-      },
-    })),
+      }),
+    ),
     checkPermit: vi.fn(async () => 'OK'),
     getActivities: vi.fn(async () => [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }]),
     getCurrencies: vi.fn(async () => [{ code: 'DOL', name: 'Dólar Estadounidense' }]),

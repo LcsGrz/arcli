@@ -7,9 +7,7 @@ interface BillingSerializeOptions {
   readonly raw?: boolean;
 }
 
-export function formatRawResponse(
-  result: BillingExecutionResult,
-): Record<string, string> | NonNullable<BillingExecutionResult['response']['raw']> {
+export function formatRawResponse(result: BillingExecutionResult): unknown {
   if (result.response.raw) {
     return result.response.raw;
   }

@@ -4,7 +4,7 @@ import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { ExportGateway, ExportIssuedVoucher } from '../../../modules/export/export.types';
 import { buildExportRepeatInput } from '../../../modules/interactive/export-repeat-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
-import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
+import { exportAnswer } from '../../../testing/arca-answers';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { attachExportPdf } from '../../commands/export.command.pdf';
@@ -45,25 +45,27 @@ const INVOICE: ExportIssuedVoucher = {
 };
 
 const gateway: ExportGateway = {
-  authorize: vi.fn(async (): Promise<IFEXAuthorizeOutput> => ({
-    FEXAuthorizeResult: {
-      FEXErr: { ErrCode: 0, ErrMsg: 'OK' },
-      FEXEvents: { EventCode: 0, EventMsg: '' },
-      FEXResultAuth: {
-        Cae: '76123456789012',
-        Cbte_nro: 2,
-        Cbte_tipo: 19,
-        Cuit: 20111111112,
-        Fch_cbte: '20261114',
-        Fch_venc_Cae: '20261124',
-        Id: 1,
-        Motivos_Obs: '',
-        Punto_vta: 4,
-        Reproceso: 'N',
-        Resultado: 'A',
+  authorize: vi.fn(async () =>
+    exportAnswer({
+      FEXAuthorizeResult: {
+        FEXErr: { ErrCode: 0, ErrMsg: 'OK' },
+        FEXEvents: { EventCode: 0, EventMsg: '' },
+        FEXResultAuth: {
+          Cae: '76123456789012',
+          Cbte_nro: 2,
+          Cbte_tipo: 19,
+          Cuit: 20111111112,
+          Fch_cbte: '20261114',
+          Fch_venc_Cae: '20261124',
+          Id: 1,
+          Motivos_Obs: '',
+          Punto_vta: 4,
+          Reproceso: 'N',
+          Resultado: 'A',
+        },
       },
-    },
-  })),
+    }),
+  ),
   checkPermit: async () => 'OK',
   getActivities: async () => [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }],
   getCurrencies: async () => [{ code: 'DOL', name: 'Dólar Estadounidense' }],

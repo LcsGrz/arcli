@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
+import { exportAnswer } from '../../../testing/arca-answers';
 import { EmissionUncertainError } from '../../billing/billing.errors';
 import { arcliConfigSchema } from '../../config/config.schemas';
 import { ExportService } from '../export.service';
@@ -22,25 +22,27 @@ const RUNTIME = {
 
 function createGateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
   return {
-    authorize: vi.fn(async (): Promise<IFEXAuthorizeOutput> => ({
-      FEXAuthorizeResult: {
-        FEXErr: { ErrCode: 0, ErrMsg: '' },
-        FEXEvents: { EventCode: 0, EventMsg: '' },
-        FEXResultAuth: {
-          Cae: '75123456789012',
-          Cbte_nro: 42,
-          Cbte_tipo: 19,
-          Cuit: 20111111112,
-          Fch_cbte: '20260601',
-          Fch_venc_Cae: '20260611',
-          Id: 8,
-          Motivos_Obs: '',
-          Punto_vta: 3,
-          Reproceso: 'N',
-          Resultado: 'A',
+    authorize: vi.fn(async () =>
+      exportAnswer({
+        FEXAuthorizeResult: {
+          FEXErr: { ErrCode: 0, ErrMsg: '' },
+          FEXEvents: { EventCode: 0, EventMsg: '' },
+          FEXResultAuth: {
+            Cae: '75123456789012',
+            Cbte_nro: 42,
+            Cbte_tipo: 19,
+            Cuit: 20111111112,
+            Fch_cbte: '20260601',
+            Fch_venc_Cae: '20260611',
+            Id: 8,
+            Motivos_Obs: '',
+            Punto_vta: 3,
+            Reproceso: 'N',
+            Resultado: 'A',
+          },
         },
-      },
-    })),
+      }),
+    ),
     getDestinationCountries: vi.fn(async () => [
       { code: 203, name: 'Brasil' },
       { code: 212, name: 'Chile' },

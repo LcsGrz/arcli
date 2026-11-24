@@ -106,7 +106,7 @@ function requireCae(response: { readonly cae: string | null; readonly caeVencimi
 
 /** ARCA asigna el numero al emitir: sale de la respuesta o, si no se puede leer, es el que se le mando. */
 function resolveVoucherNumber(result: BillingExecutionResult): number {
-  const number = result.response.raw?.response?.FeDetResp?.FECAEDetResponse?.[0]?.CbteDesde ?? result.voucherNumber;
+  const number = result.response.arcaNumber ?? result.voucherNumber;
 
   if (!number) {
     throw new PdfError('PDF_GENERATION_ERROR', 'La respuesta de ARCA no trae el número del comprobante.');
@@ -181,7 +181,7 @@ export function mapBillingResultToPdfData(
 
 /** En WSFEX el numero tambien lo asigna ARCA al autorizar. */
 function resolveExportVoucherNumber(result: ExportExecutionResult): number {
-  const number = result.response.raw?.FEXAuthorizeResult?.FEXResultAuth?.Cbte_nro || result.payload.Cbte_nro;
+  const number = result.response.arcaNumber || result.payload.Cbte_nro;
 
   if (!number) {
     throw new PdfError('PDF_GENERATION_ERROR', 'La respuesta de ARCA no trae el número del comprobante.');

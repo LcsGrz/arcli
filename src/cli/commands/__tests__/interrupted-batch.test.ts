@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import { rethrowIfWsfeNotAuthorized } from '../../../services/arca/last-voucher';
+import { billingAnswer } from '../../../testing/arca-answers';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { reportCliError } from '../../error-output';
@@ -21,7 +22,7 @@ function authorization(result: 'A' | 'R') {
     cae: result === 'A' ? '75123456789012' : '',
     caeFchVto: result === 'A' ? '20261130' : '',
     response: { FeDetResp: { FECAEDetResponse: [{ CbteDesde: 42, CbteHasta: 42, Resultado: result }] } },
-  } as never;
+  };
 }
 
 let directory = '';
@@ -106,7 +107,7 @@ async function runBatch(
                 throw new TypeError("Cannot read properties of undefined (reading 'FeDetResp')");
               }
 
-              return authorization(step === 'R' ? 'R' : 'A');
+              return billingAnswer(authorization(step === 'R' ? 'R' : 'A'));
             },
             getNextVoucherNumber: async () => {
               if (steps[position] === 'sin-autorizar') {
