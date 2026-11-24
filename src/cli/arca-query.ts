@@ -7,7 +7,7 @@ import { writeTerminalJson, writeTerminalOutput } from '../ui';
 
 import { type CliArcaRuntime, resolveArcaRuntime } from './arca-runtime';
 import { getGlobalOptions } from './global-options';
-import { withSpinner } from './spinner';
+import { queryWithSpinner } from './spinner';
 
 /**
  * Lo comun de los comandos que consultan ARCA (`parametros`, `estado`, `ultimos`, `consultar`, `padron`,
@@ -33,13 +33,13 @@ export function createExportQuery(command: Command): ArcaQuery<ArcaExportGateway
   return { gateway: new ArcaClientFactory().createExportGateway(runtime), runtime };
 }
 
-/** Spinner en stderr mientras corre la consulta; con `--json` no hay. Se detiene tambien si la consulta falla. */
+/** Spinner en stderr mientras corre la consulta; con `--json` no hay. Se detiene tambien si la consulta falla, y el error queda marcado. */
 export function withQuerySpinner<T>(
   runtime: Pick<CliArcaRuntime, 'outputJson'>,
   run: () => Promise<T>,
   text = 'Consultando ARCA...',
 ): Promise<T> {
-  return withSpinner(runtime.outputJson ? null : text, run);
+  return queryWithSpinner(runtime.outputJson ? null : text, run);
 }
 
 /** Imprime el resultado en JSON o en texto; solo se arma el formato que se imprime. */

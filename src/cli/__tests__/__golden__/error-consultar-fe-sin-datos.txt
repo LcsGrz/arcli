@@ -1,0 +1,15 @@
+$ arcli consultar fe 8 --pv 4 --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "ARCA_VOUCHER_QUERY_ERROR",
+  "detalles": {
+    "errores": []
+  },
+  "error": "ARCA devolvió una respuesta inesperada al consultar el comprobante 00004-00000008 y no se sabe si existe.",
+  "sugerencia": "Volvé a consultar en unos minutos. Si se repite, no insistas. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe."
+}
+

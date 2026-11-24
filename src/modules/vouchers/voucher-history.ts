@@ -73,6 +73,8 @@ export class VoucherQueryError extends AppError {
     details: Record<string, unknown>,
     suggestion: string,
     public readonly reason: string,
+    /** Existe (tiene numero y CAE), pero no se entiende: una lista lo saltea en vez de fallar entera. */
+    public readonly exists = false,
   ) {
     super(message, { code: 'ARCA_VOUCHER_QUERY_ERROR', details, suggestion });
     this.name = 'VoucherQueryError';
@@ -119,6 +121,8 @@ export function inferIvaRate(netAmount: number, ivaAmount: number): BillingIvaRa
 export interface ListVouchersOptions {
   readonly concurrency?: number;
   readonly limit?: number;
+  /** Un comprobante que existe y no se pudo leer (`VoucherQueryError.exists`): no va en la lista. */
+  readonly onSkip?: (number: number) => void;
 }
 
 /** Ultimos comprobantes emitidos, del mas nuevo al mas viejo. */
@@ -149,7 +153,8 @@ export async function listVouchersFrom(
 }
 
 /**
- * Pide los comprobantes desde `fromNumber` hacia atras, del mas nuevo al mas viejo, y descarta los que no existen.
+ * Pide los comprobantes desde `fromNumber` hacia atras, del mas nuevo al mas viejo, y descarta los que no existen y
+ * los que existen pero no se entienden (`VoucherQueryError.exists`). Si no se sabe si uno existe, falla la lista.
  * Sirve para wsfe y para wsfex: cada uno sabe como pedir uno.
  */
 export async function fetchVouchersBackwards<T>(
@@ -161,12 +166,21 @@ export async function fetchVouchersBackwards<T>(
   const concurrency = options.concurrency ?? 4;
   const numbers = Array.from({ length: Math.max(0, Math.min(limit, fromNumber)) }, (_, index) => fromNumber - index);
   const vouchers: Array<T | null | undefined> = [];
+  const skipUnreadable =
+    (number: number) =>
+    (error: unknown): undefined => {
+      if (!(error instanceof VoucherQueryError && error.exists)) {
+        throw error;
+      }
+
+      options.onSkip?.(number);
+    };
 
   // Lotes chicos: cada consulta tarda ~0,5 s y no conviene saturar el web service.
   for (let start = 0; start < numbers.length; start += concurrency) {
     const batch = numbers.slice(start, start + concurrency);
 
-    vouchers.push(...(await Promise.all(batch.map(fetch))));
+    vouchers.push(...(await Promise.all(batch.map((number) => fetch(number).catch(skipUnreadable(number))))));
   }
 
   return vouchers.filter((voucher): voucher is T => voucher !== null && voucher !== undefined);

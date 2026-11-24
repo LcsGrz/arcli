@@ -14,13 +14,13 @@ ARCLI está pensado para que un asistente con acceso a la terminal (Claude, Chat
 - Siempre `--json` y el entorno explícito: `--testing` o `--produccion`.
 - Primero la vista previa; `--emitir` solo cuando la persona confirmó ese comprobante.
 - En producción, emitir es irreversible: nunca sin confirmación explícita.
-- Se emitió si y solo si `previsualizacion` es `false` y `cae` no es `null`.
+- Se emitió si y solo si `previsualizacion` es `false` y `cae` no es `null`, aunque haya `errores`. La excepción es el error `EMISSION_UNCERTAIN`: puede haberse emitido y hay que [verificarlo](input-output.md#emisión-sin-confirmar) antes de reintentar.
 
 ## Códigos de salida
 
 | Código | Qué significa                                                                            |
 | ------ | ---------------------------------------------------------------------------------------- |
-| `0`    | Todo bien: aprobado, observado o vista previa                                            |
+| `0`    | Todo bien: aprobado, observado (tiene CAE) o vista previa                                |
 | `1`    | Error del comando: mirar `codigo` en el JSON ([tabla](input-output.md#códigos-de-error)) |
 | `2`    | ARCA rechazó el comprobante                                                              |
 

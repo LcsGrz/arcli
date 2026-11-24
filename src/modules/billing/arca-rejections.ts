@@ -12,6 +12,8 @@ export interface ArcaRejection {
   readonly guide?: string;
   /** Para los que llegan sin codigo o con uno que varia. */
   readonly pattern?: RegExp;
+  /** Propone emitir de nuevo: con CAE no se muestra, porque duplicaria el comprobante. */
+  readonly retry?: true;
   readonly what: string;
   readonly todo: string;
 }
@@ -43,12 +45,14 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
   {
     codes: [10243],
     guide: `${TROUBLESHOOTING_URL}#el-comprobante-no-admite-el-iva-receptor`,
+    retry: true,
     todo: 'Usá un IVA receptor válido para la letra (con `--ir`) o consultá el del receptor con `arcli padron <cuit>`.',
     what: 'El IVA receptor no es válido para la letra del comprobante.',
   },
   {
     codes: [10174],
     guide: `${TROUBLESHOOTING_URL}#rechazos-de-arca-por-código`,
+    retry: true,
     todo: 'Usá un CBU propio (`--cbu` o la clave cbu de la config) que esté registrado en ARCA.',
     what: 'El CBU no está registrado a nombre del emisor.',
   },
@@ -56,6 +60,7 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
     codes: [10154],
     guide: `${TROUBLESHOOTING_URL}#arca-rechaza-la-nota-fce-de-anulación`,
     pattern: /NO rechazado por el Comprador/i,
+    retry: true,
     todo: 'Pedile al comprador que lo rechace en el Registro de Facturas de Crédito Electrónica y volvé a emitir; si es sobre una factura y no es una anulación, emitila sin `--anulacion`.',
     what: 'Una nota FCE de anulación necesita que el comprador haya rechazado antes el comprobante asociado, y no lo rechazó.',
   },
@@ -68,6 +73,7 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
   {
     codes: [10038],
     guide: `${TROUBLESHOOTING_URL}#rechazos-de-arca-por-código`,
+    retry: true,
     todo: 'Volvé a emitir con `--misma-moneda`: ARCLI consulta la oficial en ese momento.',
     what: 'Con `--misma-moneda` ARCA exige la cotización oficial exacta y la que se envió ya no coincide.',
   },
@@ -102,13 +108,15 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
     codes: [10069],
     guide: `${TROUBLESHOOTING_URL}#el-receptor-coincide-con-el-emisor`,
     pattern: /DocNro no puede ser igual al del emisor/i,
+    retry: true,
     todo: 'Usá otro CUIT como receptor.',
     what: 'El receptor es el mismo CUIT que emite.',
   },
   {
     codes: [],
     pattern: /transacci[oó]n activa|error interno de base de datos/i,
-    todo: 'Esperá unos segundos y volvé a intentar la emisión.',
+    retry: true,
+    todo: 'Verificá con `arcli ultimos` que no se haya emitido antes de reintentar.',
     what: 'ARCA devolvió un error transitorio.',
   },
   {
@@ -116,18 +124,21 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
     codes: [],
     guide: `${TROUBLESHOOTING_URL}#el-receptor-no-está-en-los-padrones-de-arca`,
     pattern: /no se encuentra registrado en los padrones/i,
+    retry: true,
     todo: 'Revisá el documento del receptor (`--cuit`, `--cuil` o `--dni`). En testing muchos CUITs no están en el padrón de facturación, aunque `arcli padron` los encuentre: usá uno de prueba o emití a consumidor final.',
     what: 'ARCA no encuentra el documento del receptor en sus padrones.',
   },
   {
     codes: [],
     pattern: /cuit receptora.*no existe/i,
+    retry: true,
     todo: 'Revisá el CUIT del receptor o, en testing, emití con uno válido del padrón de prueba.',
     what: 'ARCA no encuentra el CUIT del receptor.',
   },
   {
     codes: [],
     pattern: /objeto IVA es obligatorio/i,
+    retry: true,
     todo: 'Revisá el IVA receptor y el cálculo de IVA del comprobante antes de reintentar.',
     what: 'ARCA pide el detalle de IVA.',
   },

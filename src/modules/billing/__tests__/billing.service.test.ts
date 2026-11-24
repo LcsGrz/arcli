@@ -1669,6 +1669,7 @@ describe('billing.service', () => {
       caeFchVto: '',
       response: {
         Errors: { Err: [{ Msg: 'El punto de venta informado debe estar dado de alta y ser del tipo RECE.' }] },
+        FeDetResp: { FECAEDetResponse: [{ Resultado: 'R' }] },
       },
     } as never);
 

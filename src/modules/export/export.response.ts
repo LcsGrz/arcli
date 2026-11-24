@@ -1,6 +1,18 @@
 import { asArray } from '../../lib/arrays/as-array';
 import type { IFEXAuthorizeOutput } from '../../services/arca/arca-sdk.types';
-import { NO_DETAIL_TEXT, readCae, readCaeExpiration, readResponseText } from '../billing/emission-response';
+import {
+  type EmissionStatus,
+  EMITTED_WITH_ERROR_SUGGESTION,
+  EMITTED_WITH_OBSERVATION_SUGGESTION,
+  NO_DETAIL_TEXT,
+  readCae,
+  readCaeExpiration,
+  readErrorCode,
+  readRejectedCae,
+  readResponseText,
+  resolveEmissionStatus,
+  WSFEX_INTERNAL_ERRORS,
+} from '../billing/emission-response';
 
 import type { ExportResponseError, ExportResponseSummary } from './export.types';
 
@@ -18,6 +30,25 @@ function toEntry(code: number | undefined, message: unknown): ExportResponseErro
   return [{ code, message: readResponseText(message)?.trim() || NO_DETAIL_TEXT }];
 }
 
+/**
+ * Un error de `FEXErr`. Sin codigo (ausente, nulo o ilegible) tambien se cuenta, como en A, B y C; `ErrCode: 0` es "OK".
+ */
+function toErrorEntry(error: unknown): ExportResponseError[] {
+  if (typeof error !== 'object' || error === null) {
+    return toTextEntry(error);
+  }
+
+  const { ErrCode, ErrMsg } = error as { readonly ErrCode?: unknown; readonly ErrMsg?: unknown };
+
+  if (Number(readResponseText(ErrCode) ?? NaN) === 0) {
+    return [];
+  }
+
+  const code = readErrorCode(ErrCode);
+
+  return [{ ...(code === undefined ? {} : { code }), message: readResponseText(ErrMsg)?.trim() || NO_DETAIL_TEXT }];
+}
+
 /** Un texto donde va un bloque: se muestra, sin codigo. */
 function toTextEntry(item: unknown): ExportResponseError[] {
   const message = typeof item === 'object' ? null : readResponseText(item)?.trim();
@@ -27,7 +58,9 @@ function toTextEntry(item: unknown): ExportResponseError[] {
 
 function buildSuggestions(options: {
   readonly messages: string;
-  readonly status: 'aprobado' | 'observado' | 'previsualizacion' | 'rechazado';
+  /** Hay CAE y ademas un error: el mensaje del error no esta en `messages`. */
+  readonly emittedWithError: boolean;
+  readonly status: EmissionStatus;
 }): string[] {
   const suggestions = new Set<string>();
 
@@ -51,13 +84,17 @@ function buildSuggestions(options: {
     suggestions.add('Revisá el incoterm (`--incoterm`) contra la tabla de ARCA.');
   }
 
-  if (/actividad/i.test(options.messages)) {
+  // Proponen otra solicitud: con CAE duplicarian el comprobante.
+  const emitted = options.status !== 'rechazado';
+  const retry = /actividad|correlativ/i.test(options.messages);
+
+  if (!emitted && /actividad/i.test(options.messages)) {
     suggestions.add(
       'La actividad tiene que estar vinculada al emisor y activa para WSFEX: revisá las actividades habilitadas en ARCA o indicá otra con `--actividad`.',
     );
   }
 
-  if (/correlativ/i.test(options.messages)) {
+  if (!emitted && /correlativ/i.test(options.messages)) {
     suggestions.add(
       'Revisá el número del comprobante: tiene que ser el siguiente al último de ese tipo en el punto de venta. Sin `--numero`, ARCLI lo consulta en ARCA; mirá los últimos con `arcli ultimos fe`.',
     );
@@ -66,6 +103,12 @@ function buildSuggestions(options: {
   // Solo el rechazo, como en A/B/C (`billing-response.ts`): una E observada tiene CAE y volver a emitir la duplicaria.
   if (options.status === 'rechazado' && suggestions.size === 0) {
     suggestions.add('Revisá observaciones y errores de ARCA antes de volver a emitir.');
+  }
+
+  if (options.emittedWithError) {
+    suggestions.add(EMITTED_WITH_ERROR_SUGGESTION);
+  } else if (emitted && retry) {
+    suggestions.add(EMITTED_WITH_OBSERVATION_SUGGESTION);
   }
 
   return [...suggestions];
@@ -92,9 +135,7 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
   const result = output.FEXAuthorizeResult;
   const authorization = asArray(result?.FEXResultAuth)[0];
   // Nada de esto puede costar el CAE: se acepta suelto, en lista, nulo o de otro tipo (ERR-16).
-  const codedErrors = asArray(result?.FEXErr).flatMap((error) => toEntry(error?.ErrCode, error?.ErrMsg));
-  // Sin codigo no se sabe si es un error (`ErrCode: 0` es "OK"): se muestra, pero no rechaza.
-  const errors = [...codedErrors, ...asArray(result?.FEXErr).flatMap(toTextEntry)];
+  const errors = asArray<unknown>(result?.FEXErr).flatMap(toErrorEntry);
   const events = asArray(result?.FEXEvents).flatMap((event) => [
     ...toEntry(event?.EventCode, event?.EventMsg),
     ...toTextEntry(event),
@@ -103,20 +144,21 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
     (motivo) => readResponseText(motivo)?.trim() ?? [],
   );
   const resultado = readResponseText(authorization?.Resultado)?.trim() ?? null;
-  // En un rechazo, algo ilegible en lugar del CAE no lo vuelve incierto. Lo que se lee (el CAE, el vencimiento) sale como
-  // vino, igual que siempre.
-  const cae = resultado === 'R' ? (readResponseText(authorization?.Cae)?.trim() ?? null) : readCae(authorization?.Cae);
-  const status =
-    resultado === 'R' || codedErrors.length > 0
-      ? 'rechazado'
-      : resultado === 'A' && observaciones.length === 0
-        ? 'aprobado'
-        : 'observado';
-  const messages = [...observaciones, ...errors.map((error) => error.message)].join(' | ');
+  const cae = (resultado === 'R' ? readRejectedCae : readCae)(authorization?.Cae);
+  const status = resolveEmissionStatus({
+    cae,
+    errors,
+    hasObservations: observaciones.length > 0,
+    internalErrors: WSFEX_INTERNAL_ERRORS,
+    rejected: resultado === 'R',
+    result: resultado,
+  });
+  const emittedWithError = status !== 'rechazado' && errors.length > 0;
+  const messages = [...observaciones, ...(emittedWithError ? [] : errors.map((error) => error.message))].join(' | ');
 
   return {
     cae,
-    caeVencimiento: readCaeExpiration(authorization?.Fch_venc_Cae),
+    caeVencimiento: cae === null ? null : readCaeExpiration(authorization?.Fch_venc_Cae),
     errors,
     events,
     observacion: observaciones.join(' | ') || null,
@@ -124,6 +166,6 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
     raw: output,
     resultado,
     status,
-    suggestions: buildSuggestions({ messages, status }),
+    suggestions: buildSuggestions({ emittedWithError, messages, status }),
   };
 }

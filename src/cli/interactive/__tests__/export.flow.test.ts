@@ -908,6 +908,20 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
     expect(savedConfig).not.toHaveBeenCalled();
   });
 
+  it('si ARCA contesta vacío, el menu recibe "sin confirmar" y no hay PDF ni se ofrece guardar (ERR-20)', async () => {
+    savedConfig.mockClear();
+    vi.mocked(attachExportPdf).mockClear();
+    vi.mocked(gateway.authorize).mockResolvedValueOnce({} as never);
+    script = servicesUntilConfirmation('Sí, emitir ahora');
+
+    await expect(runExportFlow(createSession({ exportacion: { actividad: 620100 } }))).rejects.toMatchObject({
+      code: 'EMISSION_UNCERTAIN',
+      verifyCommand: 'arcli consultar fe 7 --pv 4 --testing',
+    });
+    expect(attachExportPdf).not.toHaveBeenCalled();
+    expect(savedConfig).not.toHaveBeenCalled();
+  });
+
   it('si ARCA rechaza la E, lo muestra y no hay PDF', async () => {
     vi.mocked(gateway.authorize).mockResolvedValueOnce({
       FEXAuthorizeResult: {

@@ -1,4 +1,5 @@
 import { formatArcaDateAsArgentineDate, formatDateAsArcaDate } from '../../lib/dates/arca-date';
+import { asQuery } from '../../lib/errors/query-error';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { creditNoteOverTotalHint } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
@@ -32,6 +33,7 @@ import { withSpinner } from '../spinner';
 import { askPermitsStep, emitExportVoucher } from './export.flow';
 import { exportOptionalsStep } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
+import { orShowQueryError } from './invoice-picker';
 import { askTextStep } from './prompts';
 import { emissionStep, type InteractiveSession, requirePointOfSale } from './session';
 import { exportExchangeRateStep } from './steps/export';
@@ -138,9 +140,18 @@ export function exportNoteSteps(
           }
 
           const number = parseStrictInteger(answer) as number;
-          const invoice = await withSpinner(`Buscando ${name} en ARCA...`, () =>
-            gateway.getVoucher({ arcaType: associatedKind.arcaType, number, pointOfSale: invoicePointOfSale }),
+          const invoice = await orShowQueryError(() =>
+            withSpinner(`Buscando ${name} en ARCA...`, () =>
+              asQuery(() =>
+                gateway.getVoucher({ arcaType: associatedKind.arcaType, number, pointOfSale: invoicePointOfSale }),
+              ),
+            ),
           );
+
+          // Ya se mostro el error: no se sabe si existe.
+          if (invoice === undefined) {
+            continue;
+          }
 
           if (!invoice) {
             writeTerminalOutput(

@@ -102,6 +102,14 @@ describe('mapExportResponse', () => {
     expect(summary.suggestions.join(' ')).toMatch(/--actividad/);
   });
 
+  it('un rechazo por la actividad no dice que está emitido (ERR-20)', () => {
+    const { suggestions } = mapExportResponse(
+      authorization({ Cae: '', Motivos_Obs: 'La actividad no es valida', Resultado: 'R' }),
+    );
+
+    expect(suggestions).toEqual([expect.stringContaining('--actividad')]);
+  });
+
   it('un comprobante observado conserva el CAE', () => {
     const summary = mapExportResponse(authorization({ Motivos_Obs: 'Observacion informativa' }));
 
@@ -123,7 +131,7 @@ describe('mapExportResponse', () => {
     const byResultado = mapExportResponse(authorization({ Cae: '', Motivos_Obs: 'Dato invalido', Resultado: 'R' }));
     const byFexErr = mapExportResponse({
       FEXAuthorizeResult: {
-        FEXErr: { ErrCode: 1000, ErrMsg: 'Error interno' },
+        FEXErr: { ErrCode: 1601, ErrMsg: 'Dato invalido' },
         FEXEvents: { EventCode: 0, EventMsg: '' },
       },
     } as unknown as IFEXAuthorizeOutput);
@@ -132,17 +140,22 @@ describe('mapExportResponse', () => {
     expect(byFexErr.suggestions).toEqual([generic]);
   });
 
-  it('sin Resultado ni FEXErr no sugiere volver a emitir, a proposito por paridad con A/B/C (UI-32)', () => {
-    // Queda `observado`; A/B/C solo dan la sugerencia generica con Resultado R (billing-response.ts).
-    expect(mapExportResponse(authorization({ Resultado: '', Cae: '' })).suggestions).toEqual([]);
+  it('sin Resultado, CAE ni FEXErr no se sabe si se emitio (ERR-20)', () => {
+    expect(() => mapExportResponse(authorization({ Resultado: '', Cae: '' }))).toThrow(
+      'ARCA contestó sin CAE, sin resultado y sin errores',
+    );
+  });
+
+  it('con CAE y sin Resultado no sugiere volver a emitir (UI-32)', () => {
+    expect(mapExportResponse(authorization({ Resultado: '' })).suggestions).toEqual([]);
   });
 
   it('el estado sale de Resultado y las observaciones (TEST-16)', () => {
     expect(mapExportResponse(authorization()).status).toBe('aprobado');
     expect(mapExportResponse(authorization({ Motivos_Obs: 'Obs' })).status).toBe('observado');
     expect(mapExportResponse(authorization({ Motivos_Obs: '   ' })).status).toBe('aprobado');
-    expect(mapExportResponse(authorization({ Resultado: 'R' })).status).toBe('rechazado');
-    expect(mapExportResponse(authorization({ Motivos_Obs: 'Obs', Resultado: 'R' })).status).toBe('rechazado');
+    expect(mapExportResponse(authorization({ Cae: '', Resultado: 'R' })).status).toBe('rechazado');
+    expect(mapExportResponse(authorization({ Cae: '', Motivos_Obs: 'Obs', Resultado: 'R' })).status).toBe('rechazado');
     // Sin Resultado no hay aprobacion que mostrar: no puede salir `aprobado` en el --json.
     expect(mapExportResponse(authorization({ Resultado: '' })).status).toBe('observado');
   });

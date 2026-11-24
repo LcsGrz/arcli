@@ -328,7 +328,9 @@ function buildBillingScene(): string {
         } as BillingExecutionResult['response']['raw'],
         resultado: 'R',
         status: 'rechazado',
-        suggestions: ['ARCA devolvió un error transitorio. Esperá unos segundos y volvé a intentar la emisión.'],
+        suggestions: [
+          'ARCA devolvió un error transitorio. Verificá con `arcli ultimos` que no se haya emitido antes de reintentar.',
+        ],
       },
     }),
   );

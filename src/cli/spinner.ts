@@ -1,5 +1,6 @@
 import ora, { type Ora } from 'ora';
 
+import { asQuery } from '../lib/errors/query-error';
 import { usesAsciiBorders } from '../ui';
 
 /**
@@ -25,4 +26,9 @@ export async function withSpinner<T>(text: string | null, run: () => Promise<T>)
   } finally {
     spinner?.stop();
   }
+}
+
+/** Como `withSpinner`, para una consulta: si falla, el error queda marcado y no habla de emitir (`asQuery`). */
+export function queryWithSpinner<T>(text: string | null, run: () => Promise<T>): Promise<T> {
+  return withSpinner(text, () => asQuery(run));
 }

@@ -7,7 +7,7 @@ import { formatCurrencyLabel, formatMoneyLabel, MISSING_CAE_TEXT } from '../bill
 import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/billing.mappers';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { formatEnvironmentLabel } from '../config/config.schemas';
-import { alignVoucherPickerRows } from '../vouchers/voucher-history.presenter';
+import { alignVoucherPickerRows, formatSkippedVouchers } from '../vouchers/voucher-history.presenter';
 import { formatVoucherNumber } from '../vouchers/voucher-number';
 
 import {
@@ -24,6 +24,8 @@ interface ExportReport {
 }
 
 export interface ExportVoucherListReport extends ExportReport {
+  /** Numeros que existen y no se pudieron leer: se avisan en el texto; la forma del JSON no cambia. */
+  readonly skipped?: readonly number[];
   readonly vouchers: readonly ExportIssuedVoucher[];
 }
 
@@ -76,18 +78,25 @@ export function formatExportVoucherPickerRows(
 }
 
 export function formatExportVoucherListAsText(report: ExportVoucherListReport): string {
-  const { pointOfSale, voucherKind, vouchers } = report;
+  const { pointOfSale, skipped = [], voucherKind, vouchers } = report;
+  const skippedNotice = formatSkippedVouchers(pointOfSale, skipped);
 
   if (vouchers.length === 0) {
+    if (skippedNotice) {
+      return skippedNotice;
+    }
+
     return noticePanel(`${formatNoVouchersEmitted(voucherKind)} en el punto de venta ${pointOfSale}.`, 'muted');
   }
 
   const separator = uiSymbol('separator');
 
-  return listingPanel(
+  const listing = listingPanel(
     `${formatLatestVouchersTitle(voucherKind)} ${separator} PV ${pointOfSale} ${separator} ${formatEnvironmentLabel(report.environment)}`,
     vouchers.map(formatListRow),
   );
+
+  return [listing, skippedNotice].filter(Boolean).join('\n\n');
 }
 
 /** La moneda, con la cotizacion si no es en pesos. Sin moneda, la fila no va. */

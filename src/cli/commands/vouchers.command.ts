@@ -25,6 +25,7 @@ import {
 } from '../../modules/export/export.types';
 import { listRecentVouchers, MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../../modules/vouchers/voucher-history';
 import {
+  formatSkippedVouchers,
   formatVoucherDetailAsJson,
   formatVoucherDetailAsText,
   formatVoucherListAsJson,
@@ -32,8 +33,10 @@ import {
 } from '../../modules/vouchers/voucher-history.presenter';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
+import { writeTerminalNotice } from '../../ui';
 import { type ArcaQuery, createArcaQuery, createExportQuery, withQuerySpinner, writeQueryOutput } from '../arca-query';
 import type { CliArcaRuntime } from '../arca-runtime';
+import { outputState, settleOutput } from '../closed-output';
 import { registerQueryOptions } from '../global-options';
 import { configureSpanishHelp, createVoucherQueryHelp } from '../help';
 import { integerOption } from '../option-parsers';
@@ -131,15 +134,28 @@ export function registerVoucherQueryCommands(program: Command): void {
       const { gateway, runtime } = createExportQuery(self);
       const limit = cantidad ?? resolveRowsPerList(runtime.config);
       const pointOfSale = requirePointOfSale(options, runtime);
+      const skipped: number[] = [];
       const vouchers = await withQuerySpinner(runtime, () =>
-        listRecentExportVouchers(gateway, pointOfSale, query.kind.arcaType, { limit }),
+        listRecentExportVouchers(gateway, pointOfSale, query.kind.arcaType, {
+          limit,
+          onSkip: (number) => skipped.push(number),
+        }),
       );
-      const report = { environment: runtime.environment, pointOfSale, voucherKind: query.kind, vouchers };
+      const report = { environment: runtime.environment, pointOfSale, skipped, voucherKind: query.kind, vouchers };
 
       writeQueryOutput(runtime, {
         json: () => formatExportVoucherListAsJson(report),
         text: () => formatExportVoucherListAsText(report),
       });
+
+      // El JSON no tiene donde: va a stderr, como el aviso del certificado. Si fallo stdout, ahi va el JSON que lo dice.
+      if (runtime.outputJson && skipped.length > 0) {
+        await settleOutput('stdout');
+
+        if (!outputState.failures.has('stdout')) {
+          writeTerminalNotice(() => formatSkippedVouchers(pointOfSale, skipped));
+        }
+      }
 
       return;
     }

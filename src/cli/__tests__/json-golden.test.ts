@@ -6,7 +6,8 @@ import forge from 'node-forge';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
-import { reportCliError, shouldPrintErrorAsJson } from '../error-output';
+import { outputState } from '../closed-output';
+import { reportCliError, reportOutputFailure, shouldPrintErrorAsJson } from '../error-output';
 import { createProgram } from '../program';
 
 /**
@@ -935,7 +936,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     expect(await showsCae(FC, CAE)).toMatchObject({ cae: CAE, numero: 42, ...expected });
   });
 
-  // El estado es el de una lista con un error: `rechazado`, con el CAE a la vista.
+  // Manda el CAE (ERR-20): está emitido, con el error a la vista.
   it.each<[string, unknown, unknown[]]>([
     ['un error suelto', ONE, [{ ...ONE, codigo: 1, mensaje: 'x' }]],
     ['un error nulo', [null], [{ codigo: null, mensaje: 'ARCA no informó el detalle.' }]],
@@ -943,7 +944,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
   ])('fc, %s junto con un CAE: se ve el CAE', async (_name, Err, errores) => {
     sdk.wsfe.createVoucher.mockImplementation(approvedWith({ Errors: { Err } }));
 
-    expect(await showsCae(FC, CAE, 2)).toMatchObject({ cae: CAE, errores, estado: 'rechazado', resultado: 'A' });
+    expect(await showsCae(FC, CAE)).toMatchObject({ cae: CAE, errores, estado: 'observado', resultado: 'A' });
   });
 
   it.each<[string, () => void, readonly string[]]>([
@@ -1060,19 +1061,20 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     expect(json.eventos).toEqual([HELLO]);
   });
 
-  it('fe, un error de texto junto con un CAE: se ve, sin cambiar el estado', async () => {
+  it('fe, un error de texto junto con un CAE: observado, como con código (ERR-20)', async () => {
     sdk.wsfex.authorize.mockImplementation(approvedExport({}, { FEXErr: 'hola' }));
 
     const json = await showsCae(FE_APPROVABLE, CAE_E);
 
-    expect(json).toMatchObject({ cae: CAE_E, estado: 'aprobado' });
+    expect(json).toMatchObject({ cae: CAE_E, estado: 'observado' });
+    expect(json.sugerencias).toEqual([expect.stringContaining('El comprobante está emitido')]);
     expect(json.errores).toEqual([HELLO]);
   });
 
-  it('fe, un error sin texto junto con un CAE: rechazado, como con texto, y se ve el CAE', async () => {
+  it('fe, un error sin texto junto con un CAE: observado, como con texto, y se ve el CAE (ERR-20)', async () => {
     sdk.wsfex.authorize.mockImplementation(approvedExport({}, { FEXErr: { ErrCode: 1, ErrMsg: {} } }));
 
-    expect(await showsCae(FE_APPROVABLE, CAE_E, 2)).toMatchObject({ cae: CAE_E, estado: 'rechazado' });
+    expect(await showsCae(FE_APPROVABLE, CAE_E)).toMatchObject({ cae: CAE_E, estado: 'observado' });
   });
 
   it('fe, un rechazo con algo ilegible en lugar del CAE sigue siendo un rechazo', async () => {
@@ -1155,53 +1157,636 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     expect(sdk.wsfe.createVoucher).not.toHaveBeenCalled();
   });
 
-  // Caracterización: una respuesta que se lee pero viene vacía o sin CAE sale como antes de ERR-16.
-  it.each<[string, unknown, Record<string, unknown>, number]>([
-    ['vacía', { cae: '', caeFchVto: '', response: {} }, { cae: null, estado: 'observado', resultado: null }, 0],
-    [
-      'aprobada sin CAE',
-      { cae: '', caeFchVto: '', response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] } } },
-      { cae: null, estado: 'aprobado', resultado: 'A' },
-      0,
-    ],
-    [
-      'con un error interno de ARCA y sin detalle',
-      { cae: '', caeFchVto: '', response: { Errors: { Err: [{ Code: 501, Msg: 'Error interno de base de datos' }] } } },
-      { cae: null, estado: 'rechazado', resultado: null },
-      2,
-    ],
-  ])('sin cambios, fc con la respuesta %s', async (_name, answer, expected, code) => {
-    sdk.wsfe.createVoucher.mockResolvedValue(answer);
-    prepareConfig({});
+  describe('se lee pero está incompleta (ERR-20)', () => {
+    const INTERNAL = { Code: 501, Msg: 'Error interno de base de datos' };
+    const VALIDATION = { Code: 10016, Msg: 'El número no es el próximo a autorizar' };
+    const EMPTY_CAUSE = 'ARCA contestó sin CAE, sin resultado y sin errores';
+    const INTERNAL_CAUSE = 'ARCA contestó sin CAE, sin resultado y con errores: 501 Error interno de base de datos';
+    const result = (Resultado: unknown) => `ARCA contestó sin CAE, con el resultado ${String(Resultado)} y sin errores`;
+    const empty = (response: Record<string, unknown>) => ({ cae: '', caeFchVto: '', response });
+    const withErrors = (...Err: unknown[]) => empty({ Errors: { Err } });
+    const withDetail = (detail: Record<string, unknown>, root: Record<string, unknown> = {}) =>
+      empty({ ...root, FeDetResp: { FECAEDetResponse: [detail] } });
 
-    const result = await runCli([...FC, '--emitir', '--json']);
+    const INCOMPLETE: ReadonlyArray<readonly [string, unknown, string]> = [
+      ['vacía', empty({}), EMPTY_CAUSE],
+      ['con el detalle vacío', withDetail({}), EMPTY_CAUSE],
+      ['aprobada sin CAE', withDetail({ Resultado: 'A' }), result('A')],
+      ['observada sin CAE', withDetail({ Resultado: 'O' }), result('O')],
+      ['parcial sin CAE', withDetail({ Resultado: 'P' }), result('P')],
+      [
+        'aprobada sin CAE y con un error',
+        withDetail({ Resultado: 'A' }, { Errors: { Err: [VALIDATION] } }),
+        'ARCA contestó sin CAE, con el resultado A y con errores: 10016 El número no es el próximo a autorizar',
+      ],
+      [
+        'aprobada sin CAE y con un error nulo',
+        withDetail({ Resultado: 'A' }, { Errors: { Err: [null] } }),
+        'ARCA contestó sin CAE, con el resultado A y con errores: ARCA no informó el detalle.',
+      ],
+      [
+        'aprobada sin CAE y con la cabecera en R',
+        withDetail({ Resultado: 'A' }, { FeCabResp: { Resultado: 'R' } }),
+        result('A'),
+      ],
+      [
+        'con un 500 y sin detalle',
+        withErrors({ Code: 500, Msg: 'Error interno de aplicación' }),
+        'ARCA contestó sin CAE, sin resultado y con errores: 500 Error interno de aplicación',
+      ],
+      ['con un 501 y sin detalle', withErrors(INTERNAL), INTERNAL_CAUSE],
+      [
+        'con un 502 (transacción activa)',
+        withErrors({ Code: 502, Msg: 'Transacción Activa' }),
+        'ARCA contestó sin CAE, sin resultado y con errores: 502 Transacción Activa',
+      ],
+      ['con un 501 suelto', empty({ Errors: { Err: INTERNAL } }), INTERNAL_CAUSE],
+      [
+        'con un 500 sin texto y un 501',
+        withErrors({ Code: '500' }, INTERNAL),
+        'ARCA contestó sin CAE, sin resultado y con errores: 500; 501 Error interno de base de datos',
+      ],
+    ];
 
-    expect(result.code).toBe(code);
-    expect(JSON.parse(result.stdout)).toMatchObject(expected);
-  });
+    const ZEROS = ['0', '00000000000000', ' 0 ', 0];
+    const NO_DIGITS = ['NULL', 'sin CAE', '-', 'N0'];
 
-  it.each<[string, unknown, Record<string, unknown>, number]>([
-    ['vacía', {}, { cae: null, estado: 'observado', resultado: null }, 0],
-    [
-      'aprobada sin CAE',
-      { FEXAuthorizeResult: { FEXResultAuth: { Resultado: 'A' } } },
-      { cae: null, estado: 'aprobado', resultado: 'A' },
-      0,
-    ],
-    [
-      'con un error interno de ARCA y sin detalle',
-      { FEXAuthorizeResult: { FEXErr: { ErrCode: 500, ErrMsg: 'Error interno' } } },
-      { cae: null, estado: 'rechazado', resultado: null },
-      2,
-    ],
-  ])('sin cambios, fe con la respuesta %s', async (_name, answer, expected, code) => {
-    sdk.wsfex.authorize.mockResolvedValue(answer);
-    prepareConfig({});
+    it.each(ZEROS)('un CAE %j es "sin CAE": incierta si está aprobada, rechazada si es R', async (zero) => {
+      const reject = async (args: string[]) => {
+        prepareConfig({});
+        process.exitCode = undefined;
 
-    const result = await runCli([...FE_APPROVABLE, '--emitir', '--json']);
+        const rejected = await runCli([...args, '--emitir', '--json']);
 
-    expect(result.code).toBe(code);
-    expect(JSON.parse(result.stdout)).toMatchObject(expected);
+        expect(rejected.code).toBe(2);
+        expect(JSON.parse(rejected.stdout)).toMatchObject({ cae: null, estado: 'rechazado' });
+      };
+
+      sdk.wsfe.createVoucher.mockImplementation(approvedWith({}, { CAE: zero }, { cae: zero }));
+      sdk.wsfex.authorize.mockImplementation(approvedExport({ Cae: zero }));
+      await uncertainCause(FC, result('A'));
+      await uncertainCause(FE_APPROVABLE, result('A'), { idSolicitud: 42, numero: 8 });
+
+      sdk.wsfe.createVoucher.mockImplementation(approvedWith({}, { CAE: zero, Resultado: 'R' }, { cae: zero }));
+      sdk.wsfex.authorize.mockImplementation(approvedExport({ Cae: zero, Resultado: 'R' }));
+      await reject(FC);
+      await reject(FE_APPROVABLE);
+    });
+
+    it.each(NO_DIGITS)('un CAE %j no se puede leer: incierta, y en un R, sin CAE', async (text) => {
+      const causa = 'el CAE de la respuesta no se puede leer';
+
+      sdk.wsfe.createVoucher.mockImplementation(approvedWith({}, { CAE: text }, { cae: text }));
+      sdk.wsfex.authorize.mockImplementation(approvedExport({ Cae: text }));
+      await uncertainCause(FC, causa);
+      await uncertainCause(FE_APPROVABLE, causa, { idSolicitud: 42, numero: 8 });
+
+      sdk.wsfe.createVoucher.mockImplementation(approvedWith({}, { CAE: text, Resultado: 'R' }, { cae: text }));
+      sdk.wsfex.authorize.mockImplementation(approvedExport({ Cae: text, Resultado: 'R' }));
+
+      for (const args of [FC, FE_APPROVABLE]) {
+        prepareConfig({});
+        process.exitCode = undefined;
+
+        const rejected = await runCli([...args, '--emitir', '--json']);
+
+        expect(rejected.code).toBe(2);
+        expect(JSON.parse(rejected.stdout)).toMatchObject({ cae: null, estado: 'rechazado' });
+      }
+    });
+
+    it('un R con el vencimiento y un CAE en ceros no muestra el vencimiento', async () => {
+      sdk.wsfe.createVoucher.mockResolvedValue(withDetail({ CAE: '0', CAEFchVto: '20261127', Resultado: 'R' }));
+      prepareConfig({});
+
+      expect(JSON.parse((await runCli([...FC, '--emitir', '--json'])).stdout)).toMatchObject({
+        cae: null,
+        caeVencimiento: null,
+      });
+    });
+
+    it('un CAE en ceros y un error de validación: rechazada', async () => {
+      sdk.wsfe.createVoucher.mockImplementation(
+        approvedWith({ Errors: { Err: [VALIDATION] } }, { CAE: '0', Resultado: '' }, { cae: '0' }),
+      );
+      prepareConfig({});
+
+      expect(JSON.parse((await runCli([...FC, '--emitir', '--json'])).stdout)).toMatchObject({
+        cae: null,
+        estado: 'rechazado',
+      });
+    });
+
+    const fex = (FEXErr?: unknown, FEXResultAuth?: unknown) => ({ FEXAuthorizeResult: { FEXErr, FEXResultAuth } });
+
+    const INCOMPLETE_E: ReadonlyArray<readonly [string, unknown, string]> = [
+      ['vacía', {}, EMPTY_CAUSE],
+      ['sin autorización', fex({ ErrCode: 0, ErrMsg: 'OK' }), EMPTY_CAUSE],
+      ['aprobada sin CAE', fex(undefined, { Resultado: 'A' }), result('A')],
+      ['observada sin CAE', fex(undefined, { Motivos_Obs: 'x', Resultado: 'O' }), result('O')],
+      [
+        'con un 500',
+        fex({ ErrCode: 500, ErrMsg: 'Error interno' }),
+        'ARCA contestó sin CAE, sin resultado y con errores: 500 Error interno',
+      ],
+      ['con un 502', fex({ ErrCode: 502, ErrMsg: 'x' }), 'ARCA contestó sin CAE, sin resultado y con errores: 502 x'],
+      [
+        'con un 1000',
+        fex({ ErrCode: 1000, ErrMsg: 'Error interno' }),
+        'ARCA contestó sin CAE, sin resultado y con errores: 1000 Error interno',
+      ],
+      [
+        'con un código ilegible',
+        fex({ ErrCode: {}, ErrMsg: 'x' }),
+        'ARCA contestó sin CAE, sin resultado y con errores: x',
+      ],
+      [
+        'con un 500 como texto',
+        fex({ ErrCode: '500', ErrMsg: 'Error interno' }),
+        'ARCA contestó sin CAE, sin resultado y con errores: 500 Error interno',
+      ],
+      ['con un 501', fex({ ErrCode: 501, ErrMsg: INTERNAL.Msg }, { Cae: '', Resultado: '' }), INTERNAL_CAUSE],
+      ['con un error de texto', fex('hola'), 'ARCA contestó sin CAE, sin resultado y con errores: hola'],
+    ];
+
+    async function uncertainCause(args: readonly string[], causa: string, extra: Record<string, unknown> = {}) {
+      const error = await uncertain(args);
+
+      expect(error).toEqual({
+        codigo: 'EMISSION_UNCERTAIN',
+        detalles: { causa, ...extra },
+        error: `No se pudo confirmar la emisión: ${causa}`,
+        sugerencia: expect.stringContaining('Puede haberse emitido igual.'),
+      });
+
+      return error;
+    }
+
+    it.each(INCOMPLETE)('fc, %s: EMISSION_UNCERTAIN', async (_name, answer, causa) => {
+      sdk.wsfe.createVoucher.mockResolvedValue(answer);
+
+      const error = await uncertainCause(FC, causa);
+
+      expect(error.sugerencia).toContain('`arcli ultimos fc --pv 3 --testing`');
+      expect(sdk.wsfe.createVoucher).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(INCOMPLETE_E)('fe, %s: EMISSION_UNCERTAIN', async (_name, answer, causa) => {
+      sdk.wsfex.authorize.mockResolvedValue(answer);
+
+      const error = await uncertainCause(FE_APPROVABLE, causa, { idSolicitud: 42, numero: 8 });
+
+      expect(error.sugerencia).toContain('`arcli consultar fe 8 --pv 4 --testing`');
+      expect(sdk.wsfex.authorize).toHaveBeenCalledTimes(1);
+    });
+
+    it.each<[string, string[]]>([
+      ['fa', FA],
+      ['fb', FB],
+      ['fcea', FCEA],
+      ['rc', RC],
+      ['ncc', NCC],
+      ['ndc', ['ndc', ...NCC.slice(1)]],
+      ['ncea', NCEA],
+    ])('%s', async (shortcut, args) => {
+      sdk.generic.call.mockImplementation(
+        consulting(issuedVoucher(shortcut === 'ncea' ? { DocNro: CLIENT_CUIT, DocTipo: 80, ImpTotal: 5000000 } : {})),
+      );
+      sdk.wsfe.createVoucher.mockResolvedValue(withErrors(INTERNAL));
+
+      expect((await uncertainCause(args, INTERNAL_CAUSE)).sugerencia).toContain(
+        `\`arcli ultimos ${shortcut} --pv 3 --testing\``,
+      );
+    });
+
+    it.each(['nce', 'nde'])('%s', async (shortcut) => {
+      sdk.wsfex.authorize.mockResolvedValue({});
+
+      const error = await uncertainCause([shortcut, ...NCE.slice(1)], EMPTY_CAUSE, { idSolicitud: 42, numero: 8 });
+
+      expect(error.sugerencia).toContain(`\`arcli consultar ${shortcut} 8 --pv 4 --testing\``);
+    });
+
+    it.each<[string, string[], string]>([
+      ['fc', FC, 'arcli ultimos fc --pv 3'],
+      ['fe', FE_APPROVABLE, 'arcli consultar fe 8 --pv 4'],
+    ])('%s en la terminal: el mismo error y el comando, sin la respuesta cruda', async (_name, args, command) => {
+      sdk.wsfe.createVoucher.mockResolvedValue(empty({ secreto: 'crudo' }));
+      sdk.wsfex.authorize.mockResolvedValue({ secreto: 'crudo' });
+      prepareConfig({});
+
+      const shown = await runCli([...args, '--emitir', '--bruto']);
+      const text = shown.stderr.replace(/[│┃\s]+/g, ' ');
+
+      expect(shown.code).toBe(1);
+      expect(text).toContain('EMISIÓN SIN CONFIRMAR');
+      expect(text).toContain(EMPTY_CAUSE);
+      expect(text).toContain(command);
+      expect(shown.stdout + shown.stderr).not.toContain('crudo');
+    });
+
+    it('el motivo va en una línea y se acorta', async () => {
+      sdk.wsfe.createVoucher.mockResolvedValue(withErrors({ Code: 501, Msg: `a\n  b${'x'.repeat(400)}` }));
+
+      const { causa } = (await uncertain(FC)).detalles as { causa: string };
+
+      expect(causa).toMatch(/: 501 a bx+$/);
+      expect(causa).toHaveLength(200);
+    });
+
+    it.each<[string, string[]]>([
+      ['fc', FC],
+      ['fe', FE_APPROVABLE],
+    ])('%s: no se genera el PDF', async (_name, args) => {
+      const render = vi.fn();
+
+      vi.spyOn(PdfPlugin.prototype, 'load').mockResolvedValue({ render });
+      sdk.wsfe.createVoucher.mockResolvedValue(empty({}));
+      sdk.wsfex.authorize.mockResolvedValue({});
+
+      expect(await uncertain([...args, '--exportar-pdf'])).toMatchObject({ codigo: 'EMISSION_UNCERTAIN' });
+      expect(render).not.toHaveBeenCalled();
+    });
+
+    it('fc: el error entero', () => {
+      sdk.wsfe.createVoucher.mockResolvedValue(withErrors(INTERNAL));
+
+      return golden('error-emision-incompleta', [...FC, '--emitir', '--json']);
+    });
+
+    it('fe: el error entero', () => {
+      sdk.wsfex.authorize.mockResolvedValue({});
+
+      return golden('error-fe-emision-incompleta', [...FE_APPROVABLE, '--emitir', '--json']);
+    });
+
+    it('en un lote: sinConfirmar, corta y no reintenta', async () => {
+      sdk.wsfe.createVoucher.mockImplementationOnce(wsfeAnswer('A')).mockResolvedValueOnce(empty({}));
+
+      await golden('lote-emision-incompleta', [
+        ...['fc', '--cargar', writeInput('lote.json', [batchItem(1000), batchItem(2000), batchItem(3000)])],
+        ...['--emitir', '--json'],
+      ]);
+      expect(sdk.wsfe.createVoucher).toHaveBeenCalledTimes(2);
+    });
+
+    // Manda el CAE: emitido, con el error a la vista y sin proponer repetirlo.
+    const EMITTED_ERRORS = [
+      ['una validación', VALIDATION],
+      ['un error interno', INTERNAL],
+      ['una transacción activa', { Code: 502, Msg: 'Transacción Activa' }],
+      ['uno que pide volver a emitir', { Code: 10038, Msg: 'cotización' }],
+    ] as const;
+    const EMITTED_HINT =
+      'El comprobante está emitido: ARCA dio el CAE, aunque también informó un error. No lo repitas: revisá el error.';
+
+    it.each(EMITTED_ERRORS)('fc con CAE y %s: observado, exit 0', async (_name, error) => {
+      sdk.wsfe.createVoucher.mockImplementation(approvedWith({ Errors: { Err: [error] } }));
+
+      const json = await showsCae(FC, CAE);
+
+      expect(json).toMatchObject({ cae: CAE, estado: 'observado', numero: 42, resultado: 'A' });
+      expect(json.errores).toEqual([{ ...error, codigo: error.Code, mensaje: error.Msg }]);
+      expect(json.sugerencias).toEqual([EMITTED_HINT]);
+    });
+
+    it.each(EMITTED_ERRORS)('fe con CAE y %s: observado, exit 0', async (_name, { Code, Msg }) => {
+      sdk.wsfex.authorize.mockImplementation(approvedExport({}, { FEXErr: { ErrCode: Code, ErrMsg: Msg } }));
+
+      const json = await showsCae(FE_APPROVABLE, CAE_E);
+
+      expect(json).toMatchObject({ cae: CAE_E, estado: 'observado', resultado: 'A' });
+      expect(json.errores).toMatchObject([{ codigo: Code, mensaje: Msg }]);
+      expect(json.sugerencias).toEqual([EMITTED_HINT]);
+    });
+
+    it('con CAE, un error y una observación: la sugerencia de la observación sigue', async () => {
+      const Obs = [{ Code: 10217, Msg: 'x' }];
+
+      sdk.wsfe.createVoucher.mockImplementation(
+        approvedWith({ Errors: { Err: [VALIDATION] } }, { Observaciones: { Obs } }),
+      );
+
+      expect((await showsCae(FC, CAE)).sugerencias).toEqual([expect.stringContaining('monotributista'), EMITTED_HINT]);
+    });
+
+    it('fe con CAE, un error y un motivo: la sugerencia del motivo sigue', async () => {
+      sdk.wsfex.authorize.mockImplementation(
+        approvedExport({ Motivos_Obs: 'incoterm' }, { FEXErr: { ErrCode: 1, ErrMsg: 'permiso' } }),
+      );
+
+      expect((await showsCae(FE_APPROVABLE, CAE_E)).sugerencias).toEqual([
+        expect.stringContaining('`--incoterm`'),
+        EMITTED_HINT,
+      ]);
+    });
+
+    it.each<[string, () => unknown, string[]]>([
+      ['fc', () => sdk.wsfe.createVoucher.mockImplementation(approvedWith({ Errors: { Err: [VALIDATION] } })), FC],
+      [
+        'fe',
+        () => sdk.wsfex.authorize.mockImplementation(approvedExport({}, { FEXErr: { ErrCode: 1601, ErrMsg: 'x' } })),
+        FE_APPROVABLE,
+      ],
+    ])('%s con CAE y un error: lleva PDF', async (_name, answer, args) => {
+      const render = vi.fn(async () => Buffer.from('%PDF-1.4'));
+
+      vi.spyOn(PdfPlugin.prototype, 'load').mockResolvedValue({ render } as never);
+      answer();
+      prepareConfig({
+        config: {
+          emisor: { domicilio: 'Calle 1', inicioActividades: '20200301', razonSocial: 'Yo' },
+          pdfCarpeta: configDir,
+        },
+      });
+
+      await runCli([...args, '--emitir', '--exportar-pdf', '--json']);
+
+      expect(render).toHaveBeenCalledTimes(1);
+    });
+
+    it('en un lote, uno con CAE y un error no corta: exit 0', async () => {
+      sdk.wsfe.createVoucher.mockImplementation(approvedWith({ Errors: { Err: [VALIDATION] } }));
+      prepareConfig({});
+
+      const batch = await runCli([
+        ...['fc', '--cargar', writeInput('lote.json', [batchItem(1000), batchItem(2000)]), '--emitir', '--json'],
+      ]);
+
+      expect(batch).toMatchObject({ code: 0, stderr: '' });
+      expect(JSON.parse(batch.stdout)).toMatchObject([
+        { cae: CAE, estado: 'observado' },
+        { cae: CAE, estado: 'observado' },
+      ]);
+    });
+
+    it('fc con CAE y un error: el resultado entero', () => {
+      sdk.wsfe.createVoucher.mockImplementation(approvedWith({ Errors: { Err: [VALIDATION] } }));
+
+      return golden('fc-cae-con-error', [...FC, '--emitir', '--json']);
+    });
+
+    it('fe con CAE y un error: el resultado entero', () => {
+      sdk.wsfex.authorize.mockImplementation(approvedExport({}, { FEXErr: { ErrCode: 1601, ErrMsg: 'x' } }));
+
+      return golden('fe-cae-con-error', [...FE_APPROVABLE, '--emitir', '--json']);
+    });
+
+    // Lo que no cambia: los rechazos y las aprobaciones de siempre.
+    const GENERIC_HINT = 'Revisá observaciones y errores de ARCA antes de volver a emitir.';
+    const REJECTED: ReadonlyArray<readonly [string, unknown, Record<string, unknown>]> = [
+      ['R sin CAE ni errores', withDetail({ Resultado: 'R' }), { resultado: 'R' }],
+      ['R con un error interno', withDetail({ Resultado: 'R' }, { Errors: { Err: [INTERNAL] } }), { resultado: 'R' }],
+      ['600, sin detalle', withErrors({ Code: 600, Msg: 'x' }), { resultado: null, sugerencias: [GENERIC_HINT] }],
+      ['602, sin detalle', withErrors({ Code: 602, Msg: 'x' }), { resultado: null }],
+      ['10016, sin detalle', withErrors(VALIDATION), { resultado: null }],
+      ['11002, sin detalle', withErrors({ Code: 11002, Msg: 'x' }), { resultado: null }],
+      ['1000, que en wsfe no es interno', withErrors({ Code: 1000, Msg: 'x' }), { resultado: null }],
+      ['un 502 y un 10016', withErrors({ Code: 502, Msg: 'x' }, VALIDATION), { resultado: null }],
+      ['un 501 y un 10016', withErrors(INTERNAL, VALIDATION), { resultado: null }],
+      ['un error sin código y un 10016', withErrors({ Msg: 'x' }, VALIDATION), { resultado: null }],
+    ];
+
+    it.each(REJECTED)('sin cambios, fc, %s: rechazado, exit 2', async (_name, answer, expected) => {
+      sdk.wsfe.createVoucher.mockResolvedValue(answer);
+      prepareConfig({});
+
+      const rejected = await runCli([...FC, '--emitir', '--json']);
+
+      expect(rejected).toMatchObject({ code: 2, stderr: '' });
+      expect(JSON.parse(rejected.stdout)).toMatchObject({ cae: null, estado: 'rechazado', ...expected });
+    });
+
+    it.each<[string, unknown]>([
+      ['R sin CAE', fex(undefined, { Resultado: 'R' })],
+      ['R con un error interno', fex({ ErrCode: 500, ErrMsg: 'x' }, { Cae: '', Resultado: 'R' })],
+      ['600, sin autorización', fex({ ErrCode: 600, ErrMsg: 'x' })],
+      ['un 1000 y un 1601', fex([{ ErrCode: 1000 }, { ErrCode: 1601 }])],
+      ['un texto y un 1601', fex(['hola', { ErrCode: 1601 }])],
+      ['1601, sin autorización', fex({ ErrCode: 1601, ErrMsg: 'x' })],
+      ['un 500 y un 1601', fex([{ ErrCode: 500 }, { ErrCode: 1601 }])],
+    ])('sin cambios, fe, %s: rechazado, exit 2', async (_name, answer) => {
+      sdk.wsfex.authorize.mockResolvedValue(answer);
+      prepareConfig({});
+
+      const rejected = await runCli([...FE_APPROVABLE, '--emitir', '--json']);
+
+      expect(rejected).toMatchObject({ code: 2, stderr: '' });
+      expect(JSON.parse(rejected.stdout)).toMatchObject({ cae: null, estado: 'rechazado' });
+    });
+
+    it.each<[string, Record<string, unknown>, string[]]>([
+      ['ni errores', {}, [GENERIC_HINT]],
+      ['y con un 500', { Errors: { Err: [{ Code: 500, Msg: 'x' }] } }, [GENERIC_HINT]],
+      [
+        'y con un 501',
+        { Errors: { Err: [INTERNAL] } },
+        [expect.stringMatching(/error transitorio.*antes de reintentar/) as string],
+      ],
+    ])('fc, la cabecera en R sin detalle %s: rechazado, como un R del detalle', async (_name, root, sugerencias) => {
+      sdk.wsfe.createVoucher.mockResolvedValue(empty({ FeCabResp: { Resultado: 'R' }, ...root }));
+      prepareConfig({});
+
+      const rejected = await runCli([...FC, '--emitir', '--json']);
+
+      expect(rejected).toMatchObject({ code: 2, stderr: '' });
+      expect(JSON.parse(rejected.stdout)).toMatchObject({
+        cae: null,
+        estado: 'rechazado',
+        resultado: null,
+        sugerencias,
+      });
+    });
+
+    it.each<[string, Answer, Record<string, unknown>]>([
+      ['parcial (P)', approvedWith({}, { Resultado: 'P' }), { estado: 'observado', resultado: 'P' }],
+      [
+        'A con la cabecera en P',
+        approvedWith({ FeCabResp: { Resultado: 'P' } }),
+        { estado: 'aprobado', resultado: 'A' },
+      ],
+      [
+        'A, con la cabecera en R',
+        approvedWith({ FeCabResp: { Resultado: 'R' } }),
+        { estado: 'aprobado', resultado: 'A' },
+      ],
+    ])('sin cambios, fc con CAE y %s', async (_name, answer, expected) => {
+      sdk.wsfe.createVoucher.mockImplementation(answer);
+
+      expect(await showsCae(FC, CAE)).toMatchObject({ cae: CAE, errores: [], ...expected });
+    });
+
+    // ARCA se contradice: no se sabe si se emitió, y el CAE se nombra.
+    const contradiction = (cae: string) => `ARCA contestó rechazado y con el CAE ${cae}`;
+    // El SDK solo devuelve el CAE con `A` (`arca-sdk.emission.test.ts`): se lee el del detalle.
+    const rejectedWithCae = (root: Record<string, unknown> = {}) =>
+      approvedWith(root, { CAE, Resultado: 'R' }, { cae: '', caeFchVto: '' });
+
+    it('R con un CAE legible: EMISSION_UNCERTAIN, y el motivo lo nombra', async () => {
+      sdk.wsfe.createVoucher.mockImplementation(rejectedWithCae());
+      sdk.wsfex.authorize.mockImplementation(approvedExport({ Resultado: 'R' }));
+
+      await uncertainCause(FC, contradiction(CAE));
+      await uncertainCause(FE_APPROVABLE, contradiction(CAE_E), { idSolicitud: 42, numero: 8 });
+    });
+
+    it('la cabecera en R, sin resultado en el detalle y con un CAE legible: EMISSION_UNCERTAIN', async () => {
+      sdk.wsfe.createVoucher.mockImplementation(
+        approvedWith({ FeCabResp: { Resultado: 'R' } }, { Resultado: '' }, { cae: '' }),
+      );
+
+      await uncertainCause(FC, contradiction(CAE));
+    });
+
+    // Con CAE ninguna sugerencia propone emitir de nuevo, venga de un error o de una observación.
+    const EMITTED_OBSERVED_HINT = 'El comprobante está emitido: ARCA dio el CAE. No lo repitas: revisá la observación.';
+
+    it.each<[string, { readonly Code: number; readonly Msg: string }]>([
+      ['10038', { Code: 10038, Msg: 'x' }],
+      ['10154', { Code: 10154, Msg: 'x' }],
+      ['10243', { Code: 10243, Msg: 'x' }],
+      ['transacción activa', { Code: 1, Msg: 'Transacción Activa' }],
+      ['objeto IVA', { Code: 1, Msg: 'El objeto IVA es obligatorio' }],
+      ['padrones', { Code: 1, Msg: 'no se encuentra registrado en los padrones' }],
+    ])('fc con CAE y la observación %s: se ve, y no propone repetirlo', async (_name, obs) => {
+      sdk.wsfe.createVoucher.mockImplementation(approvedWith({}, { Observaciones: { Obs: [obs] } }));
+
+      expect(await showsCae(FC, CAE)).toMatchObject({
+        estado: 'observado',
+        observaciones: [obs.Msg],
+        sugerencias: [EMITTED_OBSERVED_HINT],
+      });
+
+      // Con un error además, una sola sugerencia.
+      sdk.wsfe.createVoucher.mockImplementation(
+        approvedWith({ Errors: { Err: [VALIDATION] } }, { Observaciones: { Obs: [obs] } }),
+      );
+      process.exitCode = undefined;
+      expect((await showsCae(FC, CAE)).sugerencias).toEqual([EMITTED_HINT]);
+    });
+
+    it.each(['La actividad no es valida', 'El numero no es correlativo'])(
+      'fe con CAE y el motivo "%s": se ve, y no propone repetirlo',
+      async (Motivos_Obs) => {
+        sdk.wsfex.authorize.mockImplementation(approvedExport({ Motivos_Obs }));
+
+        expect(await showsCae(FE_APPROVABLE, CAE_E)).toMatchObject({
+          estado: 'observado',
+          observaciones: [Motivos_Obs],
+          sugerencias: [EMITTED_OBSERVED_HINT],
+        });
+      },
+    );
+
+    it.each<[string, unknown, Array<{ codigo: number | null; mensaje: string }>]>([
+      ['sin código', { ErrMsg: 'x' }, [{ codigo: null, mensaje: 'x' }]],
+      ['con el código nulo', { ErrCode: null, ErrMsg: 'x' }, [{ codigo: null, mensaje: 'x' }]],
+      ['vacío', {}, [{ codigo: null, mensaje: 'ARCA no informó el detalle.' }]],
+      ['con un código que no es un número', { ErrCode: {}, ErrMsg: 'x' }, [{ codigo: null, mensaje: 'x' }]],
+    ])('fe, un error %s: se cuenta y se muestra', async (_name, FEXErr, errores) => {
+      sdk.wsfex.authorize.mockImplementation(approvedExport({}, { FEXErr }));
+      expect(await showsCae(FE_APPROVABLE, CAE_E)).toMatchObject({
+        estado: 'observado',
+        errores,
+        sugerencias: [EMITTED_HINT],
+      });
+
+      sdk.wsfex.authorize.mockResolvedValue(fex(FEXErr));
+      await uncertainCause(
+        FE_APPROVABLE,
+        `ARCA contestó sin CAE, sin resultado y con errores: ${errores[0]!.mensaje}`,
+        { idSolicitud: 42, numero: 8 },
+      );
+    });
+
+    it.each([0, '0'])('fe, ErrCode %j sigue siendo "OK"', async (ErrCode) => {
+      sdk.wsfex.authorize.mockImplementation(approvedExport({}, { FEXErr: { ErrCode, ErrMsg: 'OK' } }));
+
+      expect(await showsCae(FE_APPROVABLE, CAE_E)).toMatchObject({ errores: [], estado: 'aprobado', sugerencias: [] });
+    });
+
+    it('fe sin CAE no muestra el vencimiento', async () => {
+      sdk.wsfex.authorize.mockImplementation(approvedExport({ Cae: '', Resultado: 'R' }));
+      prepareConfig({});
+
+      expect(JSON.parse((await runCli([...FE_APPROVABLE, '--emitir', '--json'])).stdout)).toMatchObject({
+        cae: null,
+        caeVencimiento: null,
+        estado: 'rechazado',
+      });
+    });
+
+    it('R con un CAE legible y un error: el motivo trae los dos', async () => {
+      sdk.wsfe.createVoucher.mockImplementation(rejectedWithCae({ Errors: { Err: [VALIDATION] } }));
+      sdk.wsfex.authorize.mockImplementation(
+        approvedExport({ Resultado: 'R' }, { FEXErr: { ErrCode: 1601, ErrMsg: 'x' } }),
+      );
+
+      await uncertainCause(FC, `${contradiction(CAE)}, con errores: 10016 El número no es el próximo a autorizar`);
+      await uncertainCause(FE_APPROVABLE, `${contradiction(CAE_E)}, con errores: 1601 x`, {
+        idSolicitud: 42,
+        numero: 8,
+      });
+    });
+
+    it.each<[string, string[]]>([
+      ['nce', NCE],
+      ['nde', ['nde', ...NCE.slice(1)]],
+    ])('%s, R con un CAE legible: EMISSION_UNCERTAIN', async (_name, args) => {
+      sdk.wsfex.authorize.mockImplementation(approvedExport({ Resultado: 'R' }));
+
+      await uncertainCause(args, contradiction(CAE_E), { idSolicitud: 42, numero: 8 });
+    });
+
+    it('en un lote, R con un CAE legible corta y va en sinConfirmar', async () => {
+      sdk.wsfe.createVoucher.mockImplementationOnce(wsfeAnswer('A')).mockImplementationOnce(rejectedWithCae());
+      prepareConfig({});
+
+      const batch = await runCli([
+        ...[
+          'fc',
+          '--cargar',
+          writeInput('lote.json', [batchItem(1), batchItem(2), batchItem(3)]),
+          '--emitir',
+          '--json',
+        ],
+      ]);
+
+      expect(batch.code).toBe(1);
+      expect(JSON.parse(batch.stderr)).toMatchObject({
+        codigo: 'BATCH_EMISSION_ERROR',
+        detalles: { fallo: 2, procesados: 1, sinConfirmar: 2, sinProcesar: [3] },
+        error: expect.stringContaining(contradiction(CAE)),
+      });
+      expect(sdk.wsfe.createVoucher).toHaveBeenCalledTimes(2);
+    });
+
+    it('la cabecera en R con un CAE ilegible y sin resultado en el detalle: rechazado, sin CAE', async () => {
+      sdk.wsfe.createVoucher.mockImplementation(
+        approvedWith({ FeCabResp: { Resultado: 'R' } }, { CAE: 'NULL', Resultado: '' }, { cae: '' }),
+      );
+      prepareConfig({});
+
+      const rejected = await runCli([...FC, '--emitir', '--json']);
+
+      expect(rejected.code).toBe(2);
+      expect(JSON.parse(rejected.stdout)).toMatchObject({ cae: null, estado: 'rechazado' });
+    });
+
+    it.each<[string, unknown, string]>([
+      ['sin código', [{ Msg: 'x' }], 'x'],
+      ['con el código nulo', [{ Code: null, Msg: 'x' }], 'x'],
+      ['con el código en cero', [{ Code: 0, Msg: 'x' }], 'x'],
+      ['con un código que no es un número', [{ Code: 'abc', Msg: 'x' }], 'x'],
+      ['nulo', [null], 'ARCA no informó el detalle.'],
+      ['vacío', [{}], 'ARCA no informó el detalle.'],
+      ['de texto', 'hola', 'hola'],
+      ['sin código y un 501', [{ Msg: 'x' }, INTERNAL], 'x; 501 Error interno de base de datos'],
+    ])('fc, un error %s, sin CAE ni resultado: EMISSION_UNCERTAIN', async (_name, Err, reasons) => {
+      sdk.wsfe.createVoucher.mockResolvedValue(empty({ Errors: { Err } }));
+
+      await uncertainCause(FC, `ARCA contestó sin CAE, sin resultado y con errores: ${reasons}`);
+    });
   });
 });
 
@@ -1749,6 +2334,268 @@ describe('otros comandos que van a ARCA', () => {
     return golden('error-ultimos-comprobante', ['ultimos', 'fc', '--cantidad', '3', '--json']);
   });
 
+  describe('la E que ARCA devuelve sin sus datos no es "no existe" (ERR-15)', () => {
+    const EXPORT_VOUCHER: Record<string, unknown> = EXPORT_INVOICE.FEXGetCMPResult.FEXResultGet;
+    const fexResult = (row?: Record<string, unknown> | null, root: Record<string, unknown> = NO_FEX_ERROR) => ({
+      FEXGetCMPResult: { ...root, ...(row === undefined ? {} : { FEXResultGet: row }) },
+    });
+    const NOT_FOUND = fexResult({ Cbte_nro: 0, Tipo_expo: 0 }, { FEXErr: { ErrCode: 1020, ErrMsg: 'No existe' } });
+
+    const NO_DATA: ReadonlyArray<readonly [string, unknown]> = [
+      ['vacía', {}],
+      ['nula', null],
+      ['sin comprobante', fexResult()],
+      ['con el comprobante nulo', fexResult(null)],
+      ['en ceros, sin el 1020', fexResult({ Cbte_nro: 0, Tipo_expo: 0 })],
+      ['sin número', fexResult({ ...EXPORT_VOUCHER, Cbte_nro: undefined })],
+      ['sin tipo de exportación', fexResult({ ...EXPORT_VOUCHER, Tipo_expo: undefined })],
+      ['con un tipo que no conocemos', fexResult({ ...EXPORT_VOUCHER, Tipo_expo: 3 })],
+      ['sin moneda', fexResult({ ...EXPORT_VOUCHER, Moneda_Id: '' })],
+    ];
+
+    /** Cada numero pedido, con su respuesta; los demas, la E de siempre. */
+    function answering(answers: Readonly<Record<number, unknown>>) {
+      return async ({ Cmp: { Cbte_nro: number } }: { Cmp: { Cbte_nro: number } }) =>
+        number in answers ? answers[number] : fexResult({ ...EXPORT_VOUCHER, Cbte_nro: number });
+    }
+
+    function unknownVoucher(number: string) {
+      return {
+        codigo: 'ARCA_VOUCHER_QUERY_ERROR',
+        detalles: { errores: [] },
+        error: `ARCA devolvió una respuesta inesperada al consultar el comprobante 00004-${number} y no se sabe si existe.`,
+        sugerencia:
+          'Volvé a consultar en unos minutos. Si se repite, no insistas. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.',
+      };
+    }
+
+    async function failure(args: readonly string[]): Promise<Record<string, unknown>> {
+      prepareConfig({});
+
+      const result = await runCli([...args, '--json']);
+
+      expect(result).toMatchObject({ code: 1, stdout: '' });
+
+      return JSON.parse(result.stderr) as Record<string, unknown>;
+    }
+
+    it.each(['fe', 'nce', 'nde'].flatMap((kind) => NO_DATA.map(([name, answer]) => [kind, name, answer] as const)))(
+      'consultar %s, %s',
+      async (kind, _name, answer) => {
+        sdk.wsfex.getCmp.mockResolvedValue(answer);
+
+        expect(await failure(['consultar', kind, '8', '--pv', '4'])).toEqual(unknownVoucher('00000008'));
+      },
+    );
+
+    it('consultar fe: el error entero', () => {
+      sdk.wsfex.getCmp.mockResolvedValue(fexResult());
+
+      return golden('error-consultar-fe-sin-datos', ['consultar', 'fe', '8', '--pv', '4', '--json']);
+    });
+
+    it('consultar fe en la terminal', async () => {
+      sdk.wsfex.getCmp.mockResolvedValue(fexResult());
+      prepareConfig({});
+
+      const result = await runCli(['consultar', 'fe', '8', '--pv', '4']);
+
+      expect(result.code).toBe(1);
+      expect(result.stderr.replace(/[│┃\s]+/g, ' ')).toContain('00004-00000008 y no se sabe si existe.');
+    });
+
+    it.each(['fe', 'nce', 'nde'])('ultimos %s: falla uno del medio y falla el comando', async (kind) => {
+      sdk.wsfex.getCmp.mockImplementation(answering({ 6: fexResult({ Cbte_nro: 0, Tipo_expo: 0 }) }));
+
+      expect(await failure(['ultimos', kind, '--pv', '4', '--cantidad', '3'])).toEqual(unknownVoucher('00000006'));
+    });
+
+    it.each(['nce', 'nde'])('%s: el asociado sin datos frena, y no se emite', async (kind) => {
+      sdk.wsfex.getCmp.mockResolvedValue(fexResult());
+
+      expect(await failure([kind, ...NCE.slice(1), '--emitir'])).toEqual(unknownVoucher('00000001'));
+      expect(sdk.wsfex.authorize).not.toHaveBeenCalled();
+    });
+
+    // Lo que no cambia.
+    it.each(['fe', 'nce', 'nde'])('sin cambios: consultar %s con el 1020 es VOUCHER_NOT_FOUND', async (kind) => {
+      sdk.wsfex.getCmp.mockResolvedValue(NOT_FOUND);
+
+      expect(await failure(['consultar', kind, '8', '--pv', '4'])).toMatchObject({ codigo: 'VOUCHER_NOT_FOUND' });
+    });
+
+    it('sin cambios: un asociado con el 1020 frena con "ARCA no tiene"', async () => {
+      sdk.wsfex.getCmp.mockResolvedValue(NOT_FOUND);
+
+      expect(await failure(NCE)).toMatchObject({
+        codigo: 'INPUT_VALIDATION_ERROR',
+        error: expect.stringContaining('ARCA no tiene'),
+      });
+    });
+
+    it('sin cambios: otro error de ARCA sigue en ARCA_EXPORT_ERROR', async () => {
+      sdk.wsfex.getCmp.mockResolvedValue(fexResult(undefined, { FEXErr: { ErrCode: 1510, ErrMsg: 'Punto de venta' } }));
+
+      for (const args of [
+        ['consultar', 'fe', '8', '--pv', '4'],
+        ['ultimos', 'fe', '--pv', '4'],
+      ]) {
+        expect(await failure(args)).toMatchObject({
+          codigo: 'ARCA_EXPORT_ERROR',
+          detalles: { errores: [{ codigo: 1510, mensaje: 'Punto de venta' }] },
+        });
+        process.exitCode = undefined;
+      }
+    });
+
+    // Con su numero y su CAE existe, pero no se entiende: la lista lo saltea y lo avisa.
+    it.each<[string, unknown]>([
+      ['una con CAE y un tipo que no conocemos', fexResult({ ...EXPORT_VOUCHER, Cbte_nro: 6, Tipo_expo: 3 })],
+      [
+        'una con el CAE como número y sin moneda',
+        fexResult({ ...EXPORT_VOUCHER, Cae: 76463926585300, Cbte_nro: 6, Moneda_Id: '' }),
+      ],
+      ['una con CAE y sin moneda', fexResult({ ...EXPORT_VOUCHER, Cbte_nro: 6, Moneda_Id: '' })],
+    ])('ultimos fe saltea %s y lo avisa', async (_name, answer) => {
+      sdk.wsfex.getCmp.mockImplementation(answering({ 6: answer }));
+      prepareConfig({});
+
+      const result = await runCli(['ultimos', 'fe', '--pv', '4', '--cantidad', '3', '--json']);
+
+      expect(result.code).toBe(0);
+      expect(
+        (JSON.parse(result.stdout) as { comprobantes: Array<{ numero: number }> }).comprobantes.map((v) => v.numero),
+      ).toEqual([7, 5]);
+      // La forma del JSON no cambia: el aviso va en stderr, como el del certificado.
+      expect(Object.keys(JSON.parse(result.stdout) as object)).toEqual([
+        'atajo',
+        'comprobante',
+        'tipoArca',
+        'comprobantes',
+        'entorno',
+        'puntoVenta',
+      ]);
+      expect(flat(result.stderr)).toContain(
+        'No se muestra 1 comprobante, porque ARCLI no pudo leer sus datos: 00004-00000006.',
+      );
+
+      const text = await runCli(['ultimos', 'fe', '--pv', '4', '--cantidad', '3']);
+
+      expect(text).toMatchObject({ code: 0, stderr: '' });
+      expect(flat(text.stdout)).toContain(
+        'No se muestra 1 comprobante, porque ARCLI no pudo leer sus datos: 00004-00000006.',
+      );
+      expect(text.stdout).toContain('00004-00000007');
+    });
+
+    const flat = (text: string) => text.replace(/[│┃╏║\s]+/g, ' ');
+    const unreadable = (number: number) => fexResult({ ...EXPORT_VOUCHER, Cbte_nro: number, Tipo_expo: 3 });
+
+    it('sin cambios: ultimos fe saltea un 1020 sin avisar', async () => {
+      sdk.wsfex.getCmp.mockImplementation(answering({ 6: NOT_FOUND }));
+      prepareConfig({});
+
+      const result = await runCli(['ultimos', 'fe', '--pv', '4', '--cantidad', '3', '--json']);
+
+      expect(result).toMatchObject({ code: 0, stderr: '' });
+      expect(
+        (JSON.parse(result.stdout) as { comprobantes: Array<{ numero: number }> }).comprobantes.map((v) => v.numero),
+      ).toEqual([7, 5]);
+    });
+
+    it('ultimos fe --json: si stdout falló, el aviso no acompaña a OUTPUT_WRITE_ERROR', async () => {
+      sdk.wsfex.getCmp.mockImplementation(answering({ 6: unreadable(6) }));
+      prepareConfig({});
+
+      let stderr = '';
+
+      // El error de la escritura llega un turno después, como en un disco lleno.
+      vi.spyOn(process.stdout, 'write').mockImplementation(() => {
+        setImmediate(() => outputState.failures.set('stdout', Object.assign(new Error('write'), { code: 'ENOSPC' })));
+
+        return true;
+      });
+      vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => ((stderr += String(chunk)), true));
+
+      try {
+        await createProgram().parseAsync(['node', 'arcli', 'ultimos', 'fe', '--pv', '4', '--json']);
+        reportOutputFailure(outputState.failures, { commandError: undefined, json: true });
+      } finally {
+        outputState.failures.clear();
+        vi.mocked(process.stdout.write).mockRestore();
+        vi.mocked(process.stderr.write).mockRestore();
+      }
+
+      expect(JSON.parse(stderr)).toMatchObject({ codigo: 'OUTPUT_WRITE_ERROR' });
+    });
+
+    it('ultimos fe, si no se entiende ninguna: las nombra y no dice que no hay', async () => {
+      sdk.wsfex.getCmp.mockImplementation(answering({ 5: unreadable(5), 6: unreadable(6), 7: unreadable(7) }));
+      prepareConfig({});
+
+      const result = await runCli(['ultimos', 'fe', '--pv', '4', '--cantidad', '3']);
+
+      expect(result).toMatchObject({ code: 0, stderr: '' });
+      expect(flat(result.stdout)).toContain(
+        'No se muestran 3 comprobantes, porque ARCLI no pudo leer sus datos: 00004-00000007, 00004-00000006 y 00004-00000005.',
+      );
+      expect(result.stdout).not.toContain('No hay');
+    });
+
+    it('ultimos fe --json con una que no se entiende: la salida entera', () => {
+      sdk.wsfex.getCmp.mockImplementation(answering({ 6: unreadable(6) }));
+
+      return golden('ultimos-fe-salteada', ['ultimos', 'fe', '--pv', '4', '--cantidad', '2', '--json']);
+    });
+
+    const EXISTS = {
+      codigo: 'ARCA_VOUCHER_QUERY_ERROR',
+      detalles: { errores: [] },
+      error:
+        'El comprobante 00004-00000008 existe, con el CAE 76463926585300, pero ARCLI no pudo leer los datos que devolvió ARCA.',
+      sugerencia: expect.stringMatching(
+        /^Si estabas verificando una emisión, ya está emitido: no lo repitas\./,
+      ) as string,
+    };
+
+    it.each<[string, Record<string, unknown>]>([
+      ['un tipo que no conocemos', { Tipo_expo: 3 }],
+      ['sin moneda', { Moneda_Id: '' }],
+      ['el CAE como número', { Cae: 76463926585300, Tipo_expo: 3 }],
+    ])('consultar una E que existe y no se entiende lo dice: %s', async (_name, row) => {
+      sdk.wsfex.getCmp.mockResolvedValue(fexResult({ ...EXPORT_VOUCHER, Cbte_nro: 8, ...row }));
+
+      for (const kind of ['fe', 'nce', 'nde']) {
+        expect(await failure(['consultar', kind, '8', '--pv', '4'])).toEqual(EXISTS);
+      }
+    });
+
+    it.each(['00000000000000', 'NULL'])('con el CAE %j no se sabe si existe', async (Cae) => {
+      sdk.wsfex.getCmp.mockResolvedValue(fexResult({ ...EXPORT_VOUCHER, Cae, Cbte_nro: 8, Tipo_expo: 3 }));
+
+      expect(await failure(['consultar', 'fe', '8', '--pv', '4'])).toEqual(unknownVoucher('00000008'));
+    });
+
+    it('una nota sobre una E que existe y no se entiende lo dice y frena', async () => {
+      sdk.wsfex.getCmp.mockResolvedValue(unreadable(1));
+
+      expect(await failure([...NCE, '--emitir'])).toMatchObject({
+        codigo: 'ARCA_VOUCHER_QUERY_ERROR',
+        error: expect.stringContaining('00004-00000001 existe, con el CAE'),
+      });
+      expect(sdk.wsfex.authorize).not.toHaveBeenCalled();
+    });
+
+    it.each<[string, Record<string, unknown>]>([
+      ['otro número', { Cbte_nro: 9, Tipo_expo: 3 }],
+      ['sin CAE', { Cae: '', Cbte_nro: 6, Tipo_expo: 3 }],
+    ])('ultimos fe no saltea una que no se sabe si existe: %s', async (_name, row) => {
+      sdk.wsfex.getCmp.mockImplementation(answering({ 6: fexResult({ ...EXPORT_VOUCHER, ...row }) }));
+
+      expect(await failure(['ultimos', 'fe', '--pv', '4', '--cantidad', '3'])).toEqual(unknownVoucher('00000006'));
+    });
+  });
+
   it('ultimos saltea un 602 del medio', () => {
     sdk.generic.call.mockImplementation(
       async (service: string, method: string, params: { FeCompConsReq: { CbteNro: number } }) =>
@@ -1756,6 +2603,77 @@ describe('otros comandos que van a ARCA', () => {
     );
 
     return golden('ultimos-con-hueco', ['ultimos', 'fc', '--cantidad', '3', '--json']);
+  });
+
+  // Con estos comandos se verifica una emisión: no pueden decir que no se emitió ni mandar a emitir.
+  describe('un error al consultar no habla de emitir', () => {
+    const VERIFY = 'Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.';
+
+    async function failure(args: readonly string[]): Promise<Record<string, unknown>> {
+      prepareConfig({});
+      process.exitCode = undefined;
+
+      const result = await runCli([...args, '--json']);
+
+      expect(result).toMatchObject({ code: 1, stdout: '' });
+
+      return JSON.parse(result.stderr) as Record<string, unknown>;
+    }
+
+    const fail = (error: Error) => {
+      sdk.generic.call.mockRejectedValue(error);
+      sdk.wsfe.getLastVoucher.mockRejectedValue(error);
+      sdk.wsfe.getQuotation.mockRejectedValue(error);
+      sdk.wsfex.getCmp.mockRejectedValue(error);
+      sdk.wsaa.login.mockRejectedValue(error);
+    };
+
+    it.each<[string, string[]]>([
+      ['ultimos fc', ['ultimos', 'fc']],
+      ['consultar fc', ['consultar', 'fc', '9']],
+      ['ultimos fe', ['ultimos', 'fe', '--pv', '4']],
+      ['consultar fe', ['consultar', 'fe', '9', '--pv', '4']],
+      ['parametros cotizacion', ['parametros', 'cotizacion', 'USD']],
+    ])('%s: TRANSIENT_ERROR', async (_name, args) => {
+      fail(new Error('(502) Transacción Activa'));
+      expect(await failure(args)).toEqual({
+        codigo: 'TRANSIENT_ERROR',
+        detalles: null,
+        error: '(502) Transacción Activa',
+        sugerencia: `ARCA devolvió una transacción activa. Esperá unos segundos y repetí la consulta. ${VERIFY}`,
+      });
+
+      fail(new Error('ns1:coe.alreadyAuthenticated'));
+      expect(await failure(args)).toMatchObject({
+        codigo: 'TRANSIENT_ERROR',
+        sugerencia: `ARCA todavía tiene abierta una sesión anterior. Esperá un par de minutos y repetí la consulta. ${VERIFY}`,
+      });
+    });
+
+    it('ultimos fc: ARCA_LAST_VOUCHER_ERROR', async () => {
+      sdk.wsfe.getLastVoucher.mockResolvedValue({ errors: { err: [{ code: 501, msg: 'Error interno' }] } });
+
+      expect(await failure(['ultimos', 'fc'])).toEqual({
+        codigo: 'ARCA_LAST_VOUCHER_ERROR',
+        detalles: { errores: [{ code: 501, codigo: 501, mensaje: 'Error interno', msg: 'Error interno' }] },
+        error: 'ARCA devolvió un error al pedir el último comprobante del punto de venta 3: 501 Error interno',
+        sugerencia: `Revisá el mensaje de ARCA: si es pasajero, volvé a consultar en unos minutos; si no, corregí lo que dice. Si se repite, no insistas. ${VERIFY}`,
+      });
+    });
+
+    it('sin cambios al facturar: antes de la llamada que emite, no se emitió nada', async () => {
+      sdk.wsfe.getLastVoucher.mockResolvedValue({ errors: { err: [{ code: 501, msg: 'x' }] } });
+      expect(await failure([...FC, '--emitir'])).toMatchObject({
+        codigo: 'ARCA_LAST_VOUCHER_ERROR',
+        sugerencia: 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.',
+      });
+
+      sdk.wsfe.getLastVoucher.mockRejectedValue(new Error('Transacción Activa'));
+      expect(await failure([...FC, '--emitir'])).toMatchObject({
+        codigo: 'TRANSIENT_ERROR',
+        sugerencia: expect.stringContaining('reintentá la emisión'),
+      });
+    });
   });
 
   it('consultar con un error transitorio sigue siendo TRANSIENT_ERROR', () => {

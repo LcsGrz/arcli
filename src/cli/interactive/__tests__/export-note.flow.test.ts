@@ -9,9 +9,11 @@ import {
 } from '../../../modules/export/export.types';
 import { buildExportNoteInput } from '../../../modules/interactive/export-note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
+import { VoucherQueryError } from '../../../modules/vouchers/voucher-history';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
+import { formatCliError } from '../../error-output';
 import { exportNoteSteps, runExportNoteFlow } from '../export-note.flow';
 import type { InteractiveSession } from '../session';
 
@@ -292,6 +294,38 @@ describe('runExportNoteFlow', () => {
       'El comprobante tiene ítems de seña, anticipo o bonificación (unidades 97 y 99), que el asistente no informa: sale un renglón con el monto total.',
     );
     expect(script.editRowsStep.mock.calls[0]?.[1].map((row) => row.title)).toEqual(['Según detalle']);
+  });
+
+  it('si no se sabe si el asociado existe, muestra el error y vuelve a preguntar el número (ERR-15)', async () => {
+    const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    vi.mocked(gateway.getVoucher).mockRejectedValueOnce(
+      new VoucherQueryError('No se sabe si existe', { errores: [] }, 'Volvé a consultar.', 'respuesta inesperada'),
+    );
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [/Número de la factura E/, BACK],
+      [/Punto de venta de la factura E/, BACK],
+    ]);
+
+    await runExportNoteFlow(createSession(), 'credito');
+
+    expect(errors.mock.calls.join('')).toContain('No se sabe si existe');
+    expect(printed()).not.toContain('ARCA no tiene');
+  });
+
+  it('sin cambios: otro error al buscar el asociado sale al menú', async () => {
+    vi.mocked(gateway.getVoucher).mockRejectedValueOnce(new Error('ETIMEDOUT: Transacción Activa'));
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+    ]);
+
+    const error: unknown = await runExportNoteFlow(createSession(), 'credito').catch((reason: unknown) => reason);
+
+    expect(error).toMatchObject({ message: 'ETIMEDOUT: Transacción Activa' });
+    expect(formatCliError(error, true)).toContain('repetí la consulta');
   });
 
   it('ajusta otra nota E con --ac y suma los opcionales, sin ofrecer la cotización en servicios', async () => {

@@ -3,7 +3,18 @@ import type { CreateVoucherResultDto } from '../../services/arca/arca-sdk.types'
 
 import { findArcaRejections, formatArcaRejection } from './arca-rejections';
 import type { BillingResponseSummary } from './billing.types.internal';
-import { NO_DETAIL_TEXT, readCae, readCaeExpiration, readResponseText } from './emission-response';
+import {
+  EMITTED_WITH_ERROR_SUGGESTION,
+  EMITTED_WITH_OBSERVATION_SUGGESTION,
+  NO_DETAIL_TEXT,
+  readCae,
+  readCaeExpiration,
+  readErrorCode,
+  readRejectedCae,
+  readResponseText,
+  resolveEmissionStatus,
+  WSFE_INTERNAL_ERRORS,
+} from './emission-response';
 
 export function createDryRunResponse(): BillingResponseSummary {
   return {
@@ -44,25 +55,31 @@ export function mapBillingResponse(response: CreateVoucherResultDto): BillingRes
   const observations = asArray<unknown>(detail?.Observaciones?.Obs);
   const observaciones = observations.map(readMessage).filter(Boolean);
   const resultado = readResponseText(detail?.Resultado);
-  const suggestions = buildResponseSuggestions({ errors, observations, resultado });
-  const rejected = resultado === 'R';
+  // Sin el resultado del comprobante vale el de la cabecera, que con uno solo es el mismo.
+  const rejected = (resultado ?? readResponseText(response.response?.FeCabResp?.Resultado)) === 'R';
+  // El SDK solo devuelve el CAE con `A`; el JSON publico promete null.
+  const readAnswerCae = rejected ? readRejectedCae : readCae;
+  const cae = readAnswerCae(response.cae) ?? readAnswerCae(detail?.CAE);
+  const status = resolveEmissionStatus({
+    cae,
+    errors: errors.map((item) => ({ code: readCode(item), message: readMessage(item) || readText(item) })),
+    hasObservations: observaciones.length > 0,
+    internalErrors: WSFE_INTERNAL_ERRORS,
+    rejected,
+    result: resultado,
+  });
 
   return {
-    // El SDK devuelve "" en un rechazo; el JSON publico promete null.
-    cae: readCae(response.cae) ?? (rejected ? null : readCae(detail?.CAE)),
-    caeVencimiento: readCaeExpiration(response.caeFchVto || (rejected ? undefined : detail?.CAEFchVto)),
+    cae,
+    caeVencimiento: readCaeExpiration(response.caeFchVto || (cae === null ? undefined : detail?.CAEFchVto)),
     errors,
     events,
     observaciones,
     observacion: observaciones.join(' | ') || null,
     raw: response,
     resultado,
-    suggestions,
-    status: resolveBillingStatus({
-      errors,
-      observaciones,
-      resultado,
-    }),
+    suggestions: buildResponseSuggestions({ emitted: status !== 'rechazado', errors, observations }),
+    status,
   };
 }
 
@@ -74,45 +91,39 @@ function toItem(item: unknown): unknown {
 }
 
 function readCode(item: unknown): number | undefined {
-  const code = typeof item === 'object' && item && 'Code' in item ? Number((item as { Code?: number }).Code) : NaN;
-
-  return Number.isInteger(code) ? code : undefined;
+  return typeof item === 'object' && item && 'Code' in item ? readErrorCode(item.Code) : undefined;
 }
 
 function readMessage(item: unknown): string {
   return typeof item === 'object' && item && 'Msg' in item ? (readResponseText(item.Msg) ?? '') : '';
 }
 
+/** El texto de un error que no vino como `{ Code, Msg }` (ver `toItem`). */
+function readText(item: unknown): string {
+  return typeof item === 'object' && item && 'mensaje' in item ? (readResponseText(item.mensaje) ?? '') : '';
+}
+
 /** Lo que sugiere la tabla de rechazos (`arca-rejections.ts`) para los codigos y mensajes de errores y observaciones. */
 function buildResponseSuggestions(options: {
+  readonly emitted: boolean;
   readonly errors: readonly unknown[];
   readonly observations: readonly unknown[];
-  readonly resultado: string | null;
 }): string[] {
-  const items = [...options.errors, ...options.observations];
+  const emittedWithError = options.emitted && options.errors.length > 0;
+  const items = emittedWithError ? options.observations : [...options.errors, ...options.observations];
   const codes = items.map(readCode).filter((code): code is number => code !== undefined);
   const messages = items.map(readMessage).filter(Boolean).join(' | ');
-  const suggestions = findArcaRejections(codes, messages).map(formatArcaRejection);
+  const rejections = findArcaRejections(codes, messages);
+  const shown = options.emitted ? rejections.filter(({ retry }) => !retry) : rejections;
+  const suggestions = shown.map(formatArcaRejection);
 
-  if (options.resultado === 'R' && suggestions.length === 0) {
+  if (!options.emitted && suggestions.length === 0) {
     suggestions.push('Revisá observaciones y errores de ARCA antes de volver a emitir.');
   }
 
-  return suggestions;
-}
-
-function resolveBillingStatus(options: {
-  readonly errors: unknown[];
-  readonly observaciones: string[];
-  readonly resultado: string | null;
-}): BillingResponseSummary['status'] {
-  if (options.resultado === 'R' || options.errors.length > 0) {
-    return 'rechazado';
+  if (emittedWithError) {
+    return [...suggestions, EMITTED_WITH_ERROR_SUGGESTION];
   }
 
-  if (options.resultado === 'A' && options.observaciones.length === 0) {
-    return 'aprobado';
-  }
-
-  return 'observado';
+  return shown.length < rejections.length ? [...suggestions, EMITTED_WITH_OBSERVATION_SUGGESTION] : suggestions;
 }

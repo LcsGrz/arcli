@@ -105,6 +105,6 @@ El porcentaje de IVA aplicado. ARCLI calcula el IVA automáticamente en las letr
 ### Estado vs. resultado
 
 - `resultado` es el valor crudo que devuelve ARCA (por ejemplo `A` de aprobado o `R` de rechazado).
-- `estado` es la normalización que hace ARCLI (`aprobado`, `observado`, `rechazado`), distinguiendo si hubo observaciones aunque ARCA haya aprobado.
+- `estado` es la normalización que hace ARCLI (`aprobado`, `observado`, `rechazado`), distinguiendo si hubo observaciones, o un error junto con el CAE, aunque ARCA haya aprobado.
 
 Ver el detalle completo en [Entrada y salida](input-output.md#estado-vs-resultado).
