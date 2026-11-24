@@ -3,10 +3,14 @@ import type { ExportExecutionResult, ExportVoucherInput } from '../../modules/ex
 import { resolvePdfDecision } from '../../modules/pdf/pdf-decision';
 import { resolvePdfIssuer } from '../../modules/pdf/pdf-issuer';
 import { exportExportacionPdf, toPdfFailure } from '../../services/pdf/pdf-exporter';
-import { isPromptCancellation } from '../interactive/prompts';
 import { startSpinner } from '../spinner';
 
-import { defaultPdfStepDependencies, loadPdfRenderer, type PdfStepDependencies } from './billing.command.pdf';
+import {
+  defaultPdfStepDependencies,
+  loadPdfRenderer,
+  type PdfStepDependencies,
+  withCancellationAsNo,
+} from './billing.command.pdf';
 
 export interface ExportPdfOptions {
   readonly config: ArcliConfig;
@@ -22,19 +26,6 @@ function canHavePdf(result: ExportExecutionResult): boolean {
   return !result.dryRun && result.response.status !== 'rechazado' && Boolean(result.response.cae);
 }
 
-async function ask(deps: PdfStepDependencies, message: string, yesLabel: string): Promise<boolean> {
-  try {
-    return await deps.confirm(message, yesLabel, 'No');
-  } catch (error) {
-    // El comprobante ya se emitio: Ctrl+C en la pregunta del PDF es "No", no un error del comando.
-    if (isPromptCancellation(error)) {
-      return false;
-    }
-
-    throw error;
-  }
-}
-
 /**
  * Genera el PDF del comprobante emitido. El comprobante ya esta emitido, asi que un error del PDF se devuelve en
  * `pdf.error` y no cambia el codigo de salida. Solo lanza lo que lance `completeConfig`, como un Ctrl+C.
@@ -42,8 +33,10 @@ async function ask(deps: PdfStepDependencies, message: string, yesLabel: string)
 export async function attachExportPdf(
   result: ExportExecutionResult,
   options: ExportPdfOptions,
-  deps: PdfStepDependencies = defaultPdfStepDependencies,
+  defaultDeps: PdfStepDependencies = defaultPdfStepDependencies,
 ): Promise<ExportExecutionResult> {
+  const deps = withCancellationAsNo(defaultDeps);
+
   if (!canHavePdf(result)) {
     return result;
   }
@@ -58,7 +51,10 @@ export async function attachExportPdf(
     return result;
   }
 
-  if (decision === 'preguntar' && !(await ask(deps, '¿Generamos el PDF del comprobante?', 'Sí, generar el PDF'))) {
+  if (
+    decision === 'preguntar' &&
+    !(await deps.confirm('¿Generamos el PDF del comprobante?', 'Sí, generar el PDF', 'No'))
+  ) {
     return result;
   }
 

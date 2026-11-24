@@ -2,6 +2,7 @@ import { Separator } from '@inquirer/core';
 
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { DOCS_SITE_URL } from '../../lib/links';
+import { CANCELLED_NOTICE } from '../../modules/billing/billing.mappers';
 import {
   CertificateExpiredError,
   type CertificateExpiryNotice,
@@ -328,7 +329,7 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
       }
     } catch (error) {
       if (isPromptCancellation(error)) {
-        writeTerminalOutput(colorize('Cancelado. No se emitió nada.', 'muted'));
+        writeTerminalOutput(colorize(CANCELLED_NOTICE, 'muted'));
       } else {
         writeTerminalError(() => formatCliError(error, false));
       }

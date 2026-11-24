@@ -231,3 +231,42 @@ describe('formatCliError: errores de config establecer', () => {
     expect(panel).not.toContain('zod');
   });
 });
+
+describe('Ctrl+C en una pregunta que nadie atrapó', () => {
+  function report(asJson: boolean): { code: number; stderr: string } {
+    let stderr = '';
+    const write = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      stderr += String(chunk);
+
+      return true;
+    });
+
+    try {
+      const error = Object.assign(new Error('User force closed the prompt with SIGINT'), { name: 'ExitPromptError' });
+
+      return { code: reportCliError(error, asJson), stderr: stripAnsi(stderr) };
+    } finally {
+      write.mockRestore();
+    }
+  }
+
+  it('en texto dice "Cancelado." sin afirmar nada sobre la emisión, y sale con 1', () => {
+    const { code, stderr } = report(false);
+
+    expect(code).toBe(1);
+    expect(stderr).toContain('Cancelado.');
+    expect(stderr).not.toMatch(/emiti|inesperado|User force closed/i);
+  });
+
+  it('en JSON no cambia', () => {
+    const { code, stderr } = report(true);
+
+    expect(code).toBe(1);
+    expect(JSON.parse(stderr)).toEqual({
+      codigo: 'UNEXPECTED_ERROR',
+      detalles: null,
+      error: 'User force closed the prompt with SIGINT',
+      sugerencia: null,
+    });
+  });
+});

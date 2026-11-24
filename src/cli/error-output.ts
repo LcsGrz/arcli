@@ -3,9 +3,10 @@ import { ZodError } from 'zod';
 
 import { AppError, HELP_SUGGESTION, InputIssuesError } from '../lib/errors/app-error';
 import { describeZodIssues } from '../modules/billing/billing.zod-errors';
-import { formatAppError, formatInputIssues, writeTerminalError, writeTerminalJsonError } from '../ui';
+import { colorize, formatAppError, formatInputIssues, writeTerminalError, writeTerminalJsonError } from '../ui';
 
 import { readJsonDefault } from './global-options';
+import { isPromptCancellation } from './interactive/prompts';
 
 /** Cualquier error, como panel o JSON. Los de un esquema los describe billing: la UI no conoce sus campos. */
 export function formatCliError(error: unknown, useJson: boolean): string {
@@ -130,6 +131,9 @@ export function reportCliError(error: unknown, errorsAsJson: boolean): number {
 
   if (errorsAsJson) {
     writeTerminalJsonError(formatCliError(error, true));
+  } else if (isPromptCancellation(error)) {
+    // Ctrl+C en una pregunta que el comando no atrapo: aca no se sabe si ya se emitio algo, asi que no se dice.
+    writeTerminalError(() => colorize('Cancelado.', 'muted'));
   } else {
     writeTerminalError(() => formatCliError(error, false));
   }
