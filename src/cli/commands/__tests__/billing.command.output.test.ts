@@ -176,7 +176,7 @@ describe('writePdfOutcomes', () => {
       [
         createResult({ pdf: { path: '/tmp/fa-3-1.pdf' } }),
         createResult({
-          pdf: { error: { code: 'PDF_PLUGIN', message: 'Falta el plugin.', suggestion: 'Instalalo.' } },
+          pdf: { error: { code: 'PDF_PLUGIN_MISSING', message: 'Falta el plugin.', suggestion: 'Instalalo.' } },
           warnings: ['Sin logo'],
         }),
       ],

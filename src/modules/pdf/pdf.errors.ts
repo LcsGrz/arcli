@@ -1,7 +1,7 @@
 import { AppError } from '../../lib/errors/app-error';
+import type { ErrorCode } from '../../lib/errors/error-codes';
 
-export type PdfErrorCode =
-  'PDF_GENERATION_ERROR' | 'PDF_ISSUER_INCOMPLETE' | 'PDF_PLUGIN_INSTALL_ERROR' | 'PDF_PLUGIN_MISSING';
+export type PdfErrorCode = Extract<ErrorCode, `PDF_${string}`>;
 
 export class PdfError extends AppError {
   public constructor(

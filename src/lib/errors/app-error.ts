@@ -1,16 +1,17 @@
+import type { ErrorCode } from './error-codes';
 import type { InputIssue } from './input-issue';
 
 export const HELP_SUGGESTION = 'Usá `arcli ayuda` o `arcli <comando> --ayuda` para ver comandos y opciones.';
 
 export class AppError extends Error {
-  public readonly code: string;
+  public readonly code: ErrorCode;
   public readonly details?: Record<string, unknown>;
   /** Que hacer ahora; sale como "Sugerencia" en texto y `sugerencia` en JSON. */
   public readonly suggestion?: string;
 
   public constructor(
     message: string,
-    options: { code: string; details?: Record<string, unknown>; suggestion?: string },
+    options: { code: ErrorCode; details?: Record<string, unknown>; suggestion?: string },
   ) {
     super(message);
     this.name = 'AppError';

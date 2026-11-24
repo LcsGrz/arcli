@@ -1,5 +1,5 @@
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
-import { summarizeError } from '../../lib/errors/error-summary';
+import { causeDetails } from '../../lib/errors/error-summary';
 import { errorText } from '../../lib/files/file-error';
 import type { PadronGateway, Taxpayer } from '../padron/padron';
 
@@ -29,10 +29,7 @@ export function needsPadronLookup(input: BillingCommandInput): boolean {
 /** `failure` es la falla de la consulta, si la hubo: sin ella, el padron contesto. */
 function fallBack(input: BillingCommandInput, reason: string, failure?: { readonly error: unknown }): PadronResolution {
   if (input.ivaConditionSource === 'missing') {
-    throw new InputValidationError(
-      missingIvaReceiverMessage(reason),
-      failure && { codigoCausa: summarizeError(failure.error).code },
-    );
+    throw new InputValidationError(missingIvaReceiverMessage(reason), failure && causeDetails(failure.error));
   }
 
   const warning = `${reason}. Se usa el IVA receptor de la config: ${ivaConditionLabel(ivaConditionCode(input.ivaCondition))}.`;

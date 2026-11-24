@@ -1,6 +1,7 @@
 import { ZodError } from 'zod';
 
 import { AppError } from '../../lib/errors/app-error';
+import type { ErrorCode } from '../../lib/errors/error-codes';
 import { summarizeError } from '../../lib/errors/error-summary';
 import { errorText } from '../../lib/files/file-error';
 
@@ -9,7 +10,7 @@ import { summarizeZodError } from './billing.zod-errors';
 
 export interface BatchItemError {
   /** El `codigo` que daria ese comprobante solo. */
-  readonly code: string;
+  readonly code: ErrorCode;
   /** Posicion en el lote, empezando en 1. */
   readonly index: number;
   readonly message: string;
@@ -28,8 +29,20 @@ export function toBatchItemError(index: number, error: unknown): BatchItemError 
   return { code, index, message: describeBatchItemError(error), suggestion };
 }
 
+/** Las claves de `detalles` del `--json`: son contrato. */
+type BatchValidationDetails = {
+  readonly comprobantes: ReadonlyArray<{
+    readonly codigo: ErrorCode;
+    readonly error: string;
+    readonly indice: number;
+    readonly sugerencia: string | null;
+  }>;
+};
+
 /** Uno o mas comprobantes del lote no pasan la validacion. Se detecta antes de emitir: no se emitio ninguno. */
 export class BatchValidationError extends AppError {
+  declare public readonly details: BatchValidationDetails;
+
   public constructor(errors: readonly BatchItemError[], total: number) {
     const lines = errors.map((item) => `#${item.index}: ${item.message}`);
 
@@ -50,18 +63,30 @@ export class BatchValidationError extends AppError {
             indice: item.index,
             sugerencia: item.suggestion,
           })),
-        },
+        } satisfies BatchValidationDetails,
       },
     );
     this.name = 'BatchValidationError';
   }
 }
 
+/** Las claves de `detalles` del `--json`: son contrato. */
+type BatchEmissionDetails = {
+  readonly procesados: number;
+  readonly fallo: number;
+  readonly sinProcesar: readonly number[];
+  /** Solo si el que fallo puede haberse emitido. */
+  readonly sinConfirmar?: number;
+  readonly total: number;
+};
+
 /**
  * La emision se corto a mitad del lote (red, ARCA). Los resultados ya emitidos se imprimen antes que este
  * error, para que nadie los vuelva a cargar y los duplique.
  */
 export class BatchEmissionError extends AppError {
+  declare public readonly details: BatchEmissionDetails;
+
   public constructor(options: {
     readonly cause: unknown;
     readonly emitted: number;
@@ -91,7 +116,7 @@ export class BatchEmissionError extends AppError {
           sinProcesar: pending,
           ...(uncertain ? { sinConfirmar: options.failedIndex } : {}),
           total: options.total,
-        },
+        } satisfies BatchEmissionDetails,
       },
     );
     this.name = 'BatchEmissionError';

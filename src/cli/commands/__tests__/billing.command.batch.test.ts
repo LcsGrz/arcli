@@ -32,7 +32,7 @@ describe('prepareBatch', () => {
   it('junta los fallos de las consultas con los de validacion, con su indice, sin cortar en el primero', async () => {
     const plan = {
       inputIndexes: [1, 2, 4, 5],
-      invalidItems: [{ code: 'INPUT_VALIDATION_ERROR', index: 3, message: 'Falta monto.', suggestion: null }],
+      invalidItems: [{ code: 'INPUT_VALIDATION_ERROR' as const, index: 3, message: 'Falta monto.', suggestion: null }],
       isBatch: true,
       total: 5,
     };

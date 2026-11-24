@@ -1,4 +1,5 @@
 import { AppError, HELP_SUGGESTION } from '../../lib/errors/app-error';
+import type { ErrorCode } from '../../lib/errors/error-codes';
 import { summarizeError } from '../../lib/errors/error-summary';
 import { errorText } from '../../lib/files/file-error';
 import { ISSUES_URL } from '../../lib/links';
@@ -8,30 +9,26 @@ import { errorPanel } from '../components/errorPanel';
 import { renderJson } from '../primitives/renderJson';
 import { bold } from '../primitives/text';
 
-function formatErrorTitle(code: string): string {
-  switch (code) {
-    case 'CONFIGURATION_ERROR':
-      return 'Error de configuración';
-    case 'CERTIFICATE_EXPIRED':
-      return 'Certificado vencido';
-    case 'INPUT_VALIDATION_ERROR':
-      return 'Error de entrada';
-    case 'BATCH_VALIDATION_ERROR':
-      return 'Lote inválido';
-    case 'BATCH_EMISSION_ERROR':
-      return 'Lote interrumpido';
-    case 'EMISSION_UNCERTAIN':
-      return 'Emisión sin confirmar';
-    case 'PDF_GENERATION_ERROR':
-    case 'PDF_ISSUER_INCOMPLETE':
-    case 'PDF_PLUGIN_MISSING':
-      return 'PDF no generado';
-    case 'PDF_PLUGIN_INSTALL_ERROR':
-      return 'Plugin de PDF no instalado';
-    default:
-      return 'Error';
-  }
-}
+/** Los que no estan se titulan "Error". */
+const ERROR_TITLES: Readonly<Partial<Record<ErrorCode, string>>> = {
+  BATCH_EMISSION_ERROR: 'Lote interrumpido',
+  BATCH_VALIDATION_ERROR: 'Lote inválido',
+  CERTIFICATE_EXPIRED: 'Certificado vencido',
+  CONFIGURATION_ERROR: 'Error de configuración',
+  EMISSION_UNCERTAIN: 'Emisión sin confirmar',
+  INPUT_VALIDATION_ERROR: 'Error de entrada',
+  PDF_GENERATION_ERROR: 'PDF no generado',
+  PDF_ISSUER_INCOMPLETE: 'PDF no generado',
+  PDF_PLUGIN_INSTALL_ERROR: 'Plugin de PDF no instalado',
+  PDF_PLUGIN_MISSING: 'PDF no generado',
+};
+
+/** La sugerencia del panel para los errores que no traen la suya. */
+const ERROR_HINTS: Readonly<Partial<Record<ErrorCode, string>>> = {
+  BATCH_VALIDATION_ERROR: 'Corregí esos comprobantes en el archivo y volvé a correr el lote completo.',
+  CONFIGURATION_ERROR: 'Revisá la configuración con `arcli config` o corré `arcli config revisar`.',
+  INPUT_VALIDATION_ERROR: HELP_SUGGESTION,
+};
 
 /**
  * Que hacer con un lote cortado. Los procesados pueden incluir rechazados, que no se emitieron: manda el CAE. Con uno
@@ -55,18 +52,9 @@ function formatErrorHint(error: AppError): string | null {
     return error.suggestion;
   }
 
-  switch (error.code) {
-    case 'CONFIGURATION_ERROR':
-      return 'Revisá la configuración con `arcli config` o corré `arcli config revisar`.';
-    case 'INPUT_VALIDATION_ERROR':
-      return HELP_SUGGESTION;
-    case 'BATCH_VALIDATION_ERROR':
-      return 'Corregí esos comprobantes en el archivo y volvé a correr el lote completo.';
-    case 'BATCH_EMISSION_ERROR':
-      return formatInterruptedBatchHint(error.details);
-    default:
-      return null;
-  }
+  return error.code === 'BATCH_EMISSION_ERROR'
+    ? formatInterruptedBatchHint(error.details)
+    : (ERROR_HINTS[error.code] ?? null);
 }
 
 /** Lo que dicen Node y los clientes HTTP cuando no hubo conexion o se corto. */
@@ -151,7 +139,7 @@ export function formatAppError(error: unknown, useJson: boolean): string {
 
     const hint = formatErrorHint(error);
     const details = formatErrorDetails(error.details, `${error.message}\n${hint ?? ''}`);
-    return errorPanel(formatErrorTitle(error.code), error.message, details, hint ?? undefined);
+    return errorPanel(ERROR_TITLES[error.code] ?? 'Error', error.message, details, hint ?? undefined);
   }
 
   const message = error instanceof Error ? errorText(error) : 'Ocurrió un error inesperado.';

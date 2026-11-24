@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { AppError, ConfigurationError, InputValidationError } from '../../../lib/errors/app-error';
+import type { ErrorCode } from '../../../lib/errors/error-codes';
 import { formatAppError } from '../errors.presenter';
 
 describe('errors.presenter', () => {
@@ -116,7 +117,7 @@ describe('errors.presenter', () => {
 });
 
 describe('titulos y sugerencias por codigo', () => {
-  it.each([
+  it.each<[ErrorCode, string, string | undefined]>([
     ['BATCH_VALIDATION_ERROR', 'LOTE INVÁLIDO', 'Corregí esos comprobantes'],
     ['BATCH_EMISSION_ERROR', 'LOTE INTERRUMPIDO', undefined],
     ['EMISSION_UNCERTAIN', 'EMISIÓN SIN CONFIRMAR', undefined],
