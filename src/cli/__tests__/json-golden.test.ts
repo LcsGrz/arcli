@@ -168,6 +168,14 @@ function issuedVoucher(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** `FECompConsultar` con un error que no es el 602 (ERR-1), para los numeros pedidos o para todos. */
+function failingQuery(numbers?: readonly number[]) {
+  return async (service: string, method: string, params: { FeCompConsReq: { CbteNro: number } }) =>
+    !numbers || numbers.includes(params.FeCompConsReq.CbteNro)
+      ? { FECompConsultarResult: { Errors: { Err: [{ Code: 600, Msg: 'ValidacionDeToken: No aparecio CUIT.' }] } } }
+      : consulting(issuedVoucher())(service, method);
+}
+
 /** `FECompConsultar` por `genericService` (SDK-13): devuelve `resultGet`, o el 602 si es `null`. */
 function consulting(resultGet: Record<string, unknown> | null) {
   return async (_service: string, method: string) => {
@@ -632,6 +640,46 @@ describe('A, B y C', () => {
   it('fc en dolares con la cotizacion de ARCA', () =>
     golden('fc-dolares', [...FC, '--mda', 'USD', '--previsualizar', '--json']));
   it('ncc vista previa con el asociado', () => golden('ncc-previsualizar', [...NCC, '--previsualizar', '--json']));
+  it('ncc con el asociado sin verificar: aviso, no "ARCA no tiene" (ERR-1)', () => {
+    sdk.generic.call.mockImplementation(failingQuery());
+    sdk.wsfe.getSalesPoints.mockResolvedValue({
+      resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 3 }] },
+    });
+
+    return golden('ncc-asociado-sin-verificar', [...NCC, '--previsualizar', '--json']);
+  });
+  it('ncc sobre un asociado de otro sistema, con un error que no es el 602 (REGLAS-1, ERR-1)', () => {
+    sdk.generic.call.mockImplementation(failingQuery());
+    sdk.wsfe.getSalesPoints.mockResolvedValue({
+      resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 3 }] },
+    });
+
+    return golden('ncc-asociado-otro-sistema', [
+      ...NCC.map((arg, index) => (NCC[index - 1] === '--apv' ? '50' : arg)),
+      '--previsualizar',
+      '--json',
+    ]);
+  });
+  it('ncc por --cargar sobre un asociado de otro sistema, con un error que no es el 602', () => {
+    sdk.generic.call.mockImplementation(failingQuery());
+    sdk.wsfe.getSalesPoints.mockResolvedValue({
+      resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 3 }] },
+    });
+
+    return golden('ncc-cargar-otro-sistema', [
+      'ncc',
+      '--cargar',
+      writeInput('nota.json', {
+        comprobanteAsociado: { atajo: 'fc', cuit: String(CUIT), numero: 12, puntoVenta: 50 },
+        concepto: 'servicios',
+        ivaReceptor: 'consumidor-final',
+        montoTotal: 1000,
+        tipoDocumento: 'consumidor-final',
+      }),
+      '--previsualizar',
+      '--json',
+    ]);
+  });
   it('ncc aprobada', () => golden('ncc-aprobada', [...NCC, '--emitir', '--json']));
 
   it('nda aprobada', () =>
@@ -956,6 +1004,45 @@ describe('otros comandos que van a ARCA', () => {
     sdk.generic.call.mockImplementation(consulting(null));
 
     return golden('error-consultar-no-existe', ['consultar', 'fc', '99', '--json']);
+  });
+
+  it('ARCA_VOUCHER_QUERY_ERROR en consultar (ERR-1)', () => {
+    sdk.generic.call.mockImplementation(failingQuery());
+
+    return golden('error-consultar-arca', ['consultar', 'fc', '99', '--json']);
+  });
+
+  it('ARCA_VOUCHER_QUERY_ERROR en ultimos: falla uno del medio y falla el comando', () => {
+    sdk.generic.call.mockImplementation(failingQuery([40]));
+
+    return golden('error-ultimos-comprobante', ['ultimos', 'fc', '--cantidad', '3', '--json']);
+  });
+
+  it('ultimos saltea un 602 del medio', () => {
+    sdk.generic.call.mockImplementation(
+      async (service: string, method: string, params: { FeCompConsReq: { CbteNro: number } }) =>
+        consulting(params.FeCompConsReq.CbteNro === 40 ? null : issuedVoucher())(service, method),
+    );
+
+    return golden('ultimos-con-hueco', ['ultimos', 'fc', '--cantidad', '3', '--json']);
+  });
+
+  it('consultar con un error transitorio sigue siendo TRANSIENT_ERROR', () => {
+    sdk.generic.call.mockRejectedValue(new Error('ns1:coe.alreadyAuthenticated'));
+
+    return golden('error-consultar-transitorio', ['consultar', 'fc', '99', '--json']);
+  });
+
+  it('consultar con una excepción que dice "no existe" es UNEXPECTED_ERROR (ERR-1)', () => {
+    sdk.generic.call.mockRejectedValue(new Error('El dominio no existe'));
+
+    return golden('error-consultar-excepcion', ['consultar', 'fc', '99', '--json']);
+  });
+
+  it('consultar sin autorizar sigue siendo WSFE_SERVICE_NOT_AUTHORIZED', () => {
+    sdk.generic.call.mockRejectedValue(new Error('ns1:cms.cert.notAuthorized'));
+
+    return golden('error-consultar-no-autorizado', ['consultar', 'fc', '99', '--json']);
   });
 
   it('consultar una NC A con asociado, período, vencimiento, misma moneda y opcionales (SDK-13)', () => {

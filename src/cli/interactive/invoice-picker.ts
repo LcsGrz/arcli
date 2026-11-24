@@ -1,6 +1,6 @@
 import { Separator } from '@inquirer/core';
 
-import { classifyAssociatedPointOfSale } from '../../modules/billing/billing.associated-lookup';
+import { classifyAssociatedPointOfSale, describeQueryFailure } from '../../modules/billing/billing.associated-lookup';
 import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { resolveRowsPerList } from '../../modules/config/config.schemas';
@@ -9,11 +9,12 @@ import type { ExportGateway, ExportIssuedVoucher, ExportVoucherKind } from '../.
 import type { OtherSystemInvoice } from '../../modules/interactive/note-input';
 import { validatePositiveInteger } from '../../modules/interactive/validators';
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { fetchVouchersBackwards, type IssuedVoucher } from '../../modules/vouchers/voucher-history';
+import { fetchVouchersBackwards, type IssuedVoucher, VoucherQueryError } from '../../modules/vouchers/voucher-history';
 import { formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
-import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalOutput } from '../../ui';
+import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
+import { formatCliError } from '../error-output';
 import { withSpinner } from '../spinner';
 
 import { PinnedSeparator } from './list-select';
@@ -51,8 +52,11 @@ interface VoucherSource<T extends { readonly number: number }, M = never> {
   getLastNumber(pointOfSale: number): Promise<number>;
   getVoucher(number: number, pointOfSale: number): Promise<T | null | undefined>;
   formatRows(pointOfSale: number, vouchers: readonly T[], separator: string, width: number): string[];
-  /** Si el comprobante ingresado a mano no existe y hay algo mas que decir que "No existe", o igual sirve. */
-  describeMissing?(pointOfSale: number, number: number): Promise<MissingVoucher<M> | undefined>;
+  /**
+   * Si el comprobante ingresado a mano no existe y hay algo mas que decir que "No existe", o igual sirve. Con
+   * `queryReason`, ARCA contesto con un error (ese es el motivo) y no se sabe si existe: sin respuesta, se muestra ese error.
+   */
+  describeMissing?(pointOfSale: number, number: number, queryReason?: string): Promise<MissingVoucher<M> | undefined>;
 }
 
 /** Solo el nombre y la familia: tambien la E, que no es un VoucherKindDefinition. */
@@ -123,8 +127,26 @@ async function askPointOfSaleAndNumber(
 }
 
 /**
- * Pide punto de venta y numero, y lo busca en ARCA. Volver o un comprobante inexistente vuelven a la lista, salvo que
- * la fuente lo acepte igual (`describeMissing`).
+ * Con la lista en pantalla, si ARCA contesta con un error (`VoucherQueryError`) se muestra y se sigue en la
+ * lista, sin perder lo cargado. Los demas errores salen al menu, como siempre.
+ */
+async function orShowQueryError<T>(search: () => Promise<T>): Promise<T | undefined> {
+  try {
+    return await search();
+  } catch (error) {
+    if (!(error instanceof VoucherQueryError)) {
+      throw error;
+    }
+
+    writeTerminalError(() => formatCliError(error, false));
+
+    return undefined;
+  }
+}
+
+/**
+ * Pide punto de venta y numero, y lo busca en ARCA. Volver, un comprobante inexistente o un error de ARCA vuelven a la
+ * lista, salvo que la fuente acepte el inexistente igual (`describeMissing`).
  */
 async function askVoucherByNumber<T extends { readonly number: number }, M>(
   source: VoucherSource<T, M>,
@@ -139,11 +161,35 @@ async function askVoucherByNumber<T extends { readonly number: number }, M>(
   }
 
   const { number, pointOfSale } = typed;
-  const { invoice, missing } = await withSpinner('Buscando en ARCA...', async () => {
-    const found = await source.getVoucher(number, pointOfSale);
+  const search = await orShowQueryError(() =>
+    withSpinner('Buscando en ARCA...', async () => {
+      try {
+        const found = await source.getVoucher(number, pointOfSale);
 
-    return { invoice: found, missing: found ? undefined : await source.describeMissing?.(pointOfSale, number) };
-  });
+        return {
+          invoice: found,
+          missing: found ? undefined : await source.describeMissing?.(pointOfSale, number),
+        };
+      } catch (error) {
+        const missing =
+          error instanceof VoucherQueryError
+            ? await source.describeMissing?.(pointOfSale, number, error.reason)
+            : undefined;
+
+        if (!missing) {
+          throw error;
+        }
+
+        return { invoice: undefined, missing };
+      }
+    }),
+  );
+
+  if (!search) {
+    return BACK;
+  }
+
+  const { invoice, missing } = search;
 
   if (!invoice) {
     writeTerminalOutput(
@@ -161,7 +207,7 @@ async function askVoucherByNumber<T extends { readonly number: number }, M>(
 }
 
 /**
- * Una factura que ARCA no tiene, en un punto de venta que no es de web service: el asistente no puede copiar sus
+ * Una factura que ARCA no tiene (o que no se pudo consultar: `queryReason`), en un punto de venta que no es de web service: el asistente no puede copiar sus
  * datos, asi que los pregunta (ver `noteSteps`).
  *
  * @internal Exportado para los tests.
@@ -171,13 +217,17 @@ export function missingNonWebServiceInvoiceNotice(
   pointOfSale: number,
   number: number,
   origin: OtherSystemInvoice['origin'],
+  queryReason?: string,
 ): string {
   const where =
     origin === 'other'
       ? `el punto de venta ${pointOfSale} no es de web service`
       : `no se pudo consultar si el punto de venta ${pointOfSale} es de web service`;
 
-  return `ARCA no tiene ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)} y ${where}. Si es de Comprobantes en línea o de un controlador fiscal, seguí: como no se pueden copiar sus datos, te los pregunto. Si no, volvé y revisá el número.`;
+  const label = `${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)}`;
+  const what = queryReason === undefined ? `ARCA no tiene ${label}` : describeQueryFailure(label, queryReason);
+
+  return `${what} y ${where}. Si es de Comprobantes en línea o de un controlador fiscal, seguí: como no se pueden copiar sus datos, te los pregunto. Si no, volvé y revisá el número.`;
 }
 
 /** Un comprobante A, B o C emitido, por wsfe. Ver `pickVoucher`. */
@@ -189,8 +239,9 @@ export async function pickInvoice(
 }
 
 /**
- * El asociado de una nota A, B, C o FCE: como `pickInvoice`, pero si el ingresado a mano no existe y su punto de venta
- * no es de web service (mismo criterio que `checkAssociatedInArca`), lo devuelve igual para preguntar sus datos.
+ * El asociado de una nota A, B, C o FCE: como `pickInvoice`, pero si el ingresado a mano no existe (o ARCA contesta
+ * con un error) y su punto de venta no es de web service (mismo criterio que `checkAssociatedInArca`), lo devuelve igual
+ * para preguntar sus datos.
  */
 export async function pickNoteInvoice(
   session: InteractiveSession,
@@ -200,19 +251,26 @@ export async function pickNoteInvoice(
 
   return pickVoucher(session, options, {
     ...invoiceSource(session, voucherKind),
-    describeMissing: async (pointOfSale: number, number: number) => {
+    describeMissing: async (pointOfSale: number, number: number, queryReason?: string) => {
       const origin = await classifyAssociatedPointOfSale({
         history: session.historyGateway,
         pointOfSale,
+        queryFailed: queryReason !== undefined,
         salesPoints: new ArcaParametersGateway(session.arca),
         voucherType: voucherKind.arcaType,
       });
 
-      return origin === 'web-service'
+      return origin === 'web-service' || (queryReason !== undefined && origin === 'unknown')
         ? undefined
         : {
-            accepted: { number, origin, otherSystem: true, pointOfSale },
-            notice: missingNonWebServiceInvoiceNotice(voucherKind, pointOfSale, number, origin),
+            accepted: {
+              number,
+              origin,
+              otherSystem: true,
+              pointOfSale,
+              ...(queryReason === undefined ? {} : { queryReason }),
+            },
+            notice: missingNonWebServiceInvoiceNotice(voucherKind, pointOfSale, number, origin, queryReason),
           };
     },
   });
@@ -258,17 +316,19 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
   const pageSize = resolveRowsPerList(session.runtime.config);
   const listFrom = (fromNumber: number): Promise<T[]> =>
     fetchVouchersBackwards(fromNumber, (number) => source.getVoucher(number, pointOfSale), { limit: pageSize });
-  const { invoices, lastNumber } = await withSpinner('Buscando en ARCA...', async () => {
-    const last = await source.getLastNumber(pointOfSale);
-
-    return { invoices: await listFrom(last), lastNumber: last };
-  });
+  const lastNumber = await withSpinner('Buscando en ARCA...', () => source.getLastNumber(pointOfSale));
+  const firstBatch = await orShowQueryError(() => withSpinner('Buscando en ARCA...', () => listFrom(lastNumber)));
+  const invoices: T[] = firstBatch ?? [];
+  // La primera tanda fallo y todavia no se pudo cargar: no se sabe si hay comprobantes.
+  let firstBatchPending = !firstBatch;
   // Proximo numero a consultar al cargar mas.
-  let nextNumber = lastNumber - pageSize;
+  let nextNumber = firstBatchPending ? lastNumber : lastNumber - pageSize;
   // Al volver a la pregunta, el elegido antes; si no esta en la lista, "a mano".
-  const previousInList: T | undefined =
+  const findPrevious = (): T | undefined =>
     previous?.pointOfSale === pointOfSale ? invoices.find((item: T) => item.number === previous.number) : undefined;
-  let defaultChoice: Back | PickerChoice<T> | undefined = previous ? (previousInList ?? BY_NUMBER) : undefined;
+  const previousInList = findPrevious();
+  let defaultChoice: Back | PickerChoice<T> | undefined =
+    previous && !firstBatchPending ? (previousInList ?? BY_NUMBER) : undefined;
   // Lo escrito para filtrar y la marcada mientras la lista esta en pantalla: al terminar una carga se redibuja igual.
   // Un objeto y no dos variables: `onChange` las cambia desde el prompt, y TypeScript no lo ve.
   const onScreen: { marked?: ListSelectState<Back | PickerChoice<T>>; typed: string } = { typed: '' };
@@ -281,10 +341,16 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
     },
   });
 
-  if (invoices.length === 0) {
-    writeTerminalOutput(
-      noticePanel(`${formatNoVouchersEmitted(voucherKind)} en el punto de venta ${pointOfSale}.`, 'warning'),
-    );
+  const warnIfEmpty = () => {
+    if (invoices.length === 0) {
+      writeTerminalOutput(
+        noticePanel(`${formatNoVouchersEmitted(voucherKind)} en el punto de venta ${pointOfSale}.`, 'warning'),
+      );
+    }
+  };
+
+  if (!firstBatchPending) {
+    warnIfEmpty();
   }
 
   // Tanda pedida a ARCA con "cargar mas" mientras la lista sigue en pantalla.
@@ -294,7 +360,7 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
     const choices: Array<Choice<PickerChoice<T>> | Separator> = [];
 
     // El listado y "cargar mas" van entre lineas punteadas; buscar a mano queda afuera.
-    if (invoices.length > 0) {
+    if (invoices.length > 0 || firstBatchPending) {
       // Las filas llegan hasta el final de la linea punteada; el cursor "❯ " ocupa dos columnas.
       const rows = source.formatRows(pointOfSale, invoices, COLUMN_SEPARATOR, statusBarWidth() - 2);
 
@@ -312,7 +378,10 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
         // "Cargando…" se sigue viendo mientras se filtra.
         choices.push(new Separator(' '), new PinnedSeparator(colorize(` Cargando${uiSymbol('ellipsis')}`, 'muted')));
       } else if (nextNumber > 0) {
-        choices.push(new Separator(' '), { name: `+ Cargar más${uiSymbol('ellipsis')}`, value: LOAD_MORE });
+        choices.push(new Separator(' '), {
+          name: `+ ${firstBatchPending ? 'Volver a cargar' : 'Cargar más'}${uiSymbol('ellipsis')}`,
+          value: LOAD_MORE,
+        });
       }
 
       choices.push(listRule(), new Separator(' '));
@@ -330,19 +399,34 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
     onScreen.marked = undefined;
 
     if (loading) {
-      const result: LoadingResult<PickerChoice<T>, T[]> = await chooseStepWhileLoading(
-        message,
-        choices,
-        defaultChoice,
-        pageSizeOnScreen,
-        loading,
-        listOptions(),
+      const batch: Promise<T[]> = loading;
+      const result: LoadingResult<PickerChoice<T>, T[]> | undefined = await orShowQueryError(() =>
+        chooseStepWhileLoading(message, choices, defaultChoice, pageSizeOnScreen, batch, listOptions()),
       );
 
       loading = undefined;
 
+      if (!result) {
+        // Como al terminar la carga, el cursor queda donde lo dejaste; si no, en el boton, para reintentar.
+        defaultChoice = markedValue() ?? LOAD_MORE;
+        continue;
+      }
+
       if ('loaded' in result) {
         nextNumber -= pageSize;
+
+        if (firstBatchPending) {
+          // Como si la primera tanda llegara ahora.
+          firstBatchPending = false;
+          invoices.push(...result.loaded);
+          warnIfEmpty();
+          // El boton de volver a cargar ya no esta: marcarlo no es elegir.
+          const marked = markedValue() === LOAD_MORE ? undefined : markedValue();
+
+          defaultChoice = marked ?? findPrevious() ?? (previous ? BY_NUMBER : invoices[0]);
+          continue;
+        }
+
         // El cursor queda donde lo dejaste; si no lo moviste, en el primero nuevo y, si no vino ninguno, en "cargar
         // mas" o "a mano".
         defaultChoice = markedValue() ?? result.loaded[0] ?? (nextNumber > 0 ? LOAD_MORE : BY_NUMBER);

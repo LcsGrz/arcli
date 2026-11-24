@@ -606,6 +606,7 @@ export function noteWarnings(state: NoteState): string[] {
       label: describeAssociated(invoiceKind.arcaType, other.pointOfSale, other.number),
       origin: other.origin,
       pointOfSale: other.pointOfSale,
+      queryReason: other.queryReason,
     }),
   ];
 }

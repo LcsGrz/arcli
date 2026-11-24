@@ -8,6 +8,18 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+> [!WARNING]
+> **Puede afectar scripts**
+>
+> - Si ARCA contesta con un error al consultar un comprobante A, B, C, FCE o recibo, `consultar` sale con `ARCA_VOUCHER_QUERY_ERROR`, antes `VOUCHER_NOT_FOUND`.
+> - En el mismo caso, `ultimos` sale con `ARCA_VOUCHER_QUERY_ERROR` y exit code `1`, antes `0` con la lista vacía o incompleta.
+> - En el mismo caso, una nota A, B, C o FCE que frenaba con "ARCA no tiene…" sigue con un aviso y, con `--emitir`, se emite. Si el punto de venta es de otro sistema ya seguía: cambia el texto del aviso.
+> - Una falla con "no existe" en el texto (`El dominio no existe`) ya no es `VOUCHER_NOT_FOUND`: sale con su error, por ejemplo `UNEXPECTED_ERROR`. Por el asociado de una nota es un aviso, y en FCE sin `--afecha` frena.
+>
+> No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
+
+---
+
 ### 🔧 Cambiado
 
 - **Factura E:** en el asistente, el país de destino y el CUIT del país se eligen de una lista con filtro donde también podés escribir (#257).
@@ -30,9 +42,18 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### 🐛 Corregido
 
+- **Consultas:** `consultar` y `ultimos` dan `ARCA_VOUCHER_QUERY_ERROR` si ARCA contesta con un error, en vez de decir que no existe (#268).
+- **Notas:** si ARCA contesta con un error por el asociado, A, B, C y FCE ya no dicen que no existe (#268).
+- **Asistente:** si ARCA contesta con un error al listar A, B, C, FCE o recibos, lo muestra y podés reintentar o buscar a mano (#268).
 - **Salida:** cortar la salida (`arcli ayuda | head`) ya no muestra un error de Node ni corta el comando a mitad de camino (#266).
 
 <details><summary>Detalle</summary>
+
+**Un error de ARCA no es "no existe".** Al consultar un comprobante A, B, C, FCE o recibo, solo el error 602 de ARCA significa que no existe. Antes, cualquier otro error (por ejemplo 600) y una respuesta sin datos se leían igual: `consultar` daba `VOUCHER_NOT_FOUND` y `ultimos` terminaba bien con la lista vacía o incompleta, que al verificar una emisión sin confirmar podía llevar a emitir dos veces. Ahora los dos dan `ARCA_VOUCHER_QUERY_ERROR`, con los errores de ARCA en `detalles.errores` (`codigo` es `null` si ARCA no lo mandó) y una `sugerencia`; `ultimos` falla si no se puede leer uno de los comprobantes, y saltea como antes el que no existe. Una falla con "no existe" en el texto, como `El dominio no existe`, también se tomaba por inexistente: ahora sale con su propio error (`UNEXPECTED_ERROR`). `VOUCHER_NOT_FOUND`, `WSFE_SERVICE_NOT_AUTHORIZED`, `TRANSIENT_ERROR` y la factura `E` no cambian.
+
+**Notas.** Si ARCA contesta con un error por el asociado, se mira si su punto de venta es de web service. Si no lo es (Comprobantes en línea, controlador fiscal), la nota sigue como antes, con `--afecha` y, en el asistente, las mismas preguntas, pero el texto ya no dice que ARCA no lo tiene: dice que no se pudo consultar y el motivo. Si es de web service, la nota que frenaba con "ARCA no tiene…" sigue con "No se pudo verificar en ARCA…" en `avisos`, también al emitir. Si no se puede saber (la lista de puntos de venta viene vacía, como en testing, o falla), con flags la nota sigue con ese aviso; el asistente muestra el error y vuelve a la lista, donde antes podía seguir con las preguntas. Una nota FCE sin `--afecha` sigue frenando con `INPUT_VALIDATION_ERROR`, porque no hay de dónde tomar la fecha, y el mensaje dice que no se pudo consultar. Una falla con "no existe" en el texto tampoco es ya un asociado inexistente: con flags sale como "No se pudo verificar en ARCA…" y en el asistente vuelve al menú.
+
+**Asistente.** En las listas de comprobantes A, B, C, FCE y recibos (Mis comprobantes, Repetir y notas), el error se muestra y seguís en la lista, con lo que ya estaba cargado y lo que respondiste. Si falla la primera carga, quedan "Volver a cargar" e "Ingresar el número a mano". La `E` no cambia.
 
 **Salida cortada.** Si quien lee la salida la cerraba antes de tiempo (`| head`, o `less` y `q`), ARCLI mostraba `Error: write EPIPE` con el detalle interno de Node y salía con 1. Ahora el comando termina sin ese error y, con la salida cortada, el código de salida pasa de 1 al del comando (0, 1 o 2), también si lo que se cerró es stderr: un 0 no garantiza que alguien haya leído la salida, así que si se cortó al emitir conviene buscar el comprobante antes de reintentar. Una emisión, su PDF o un lote se completan igual que con la salida abierta: antes podían cortarse ahí, por ejemplo con el comprobante ya autorizado y sin PDF. Cualquier otro error al escribir, como el disco lleno, sigue cortando el comando. La salida y el `--json` no cambian.
 

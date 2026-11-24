@@ -1,0 +1,13 @@
+$ arcli consultar fc 99 --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "UNEXPECTED_ERROR",
+  "detalles": null,
+  "error": "El dominio no existe",
+  "sugerencia": null
+}
+

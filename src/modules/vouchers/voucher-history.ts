@@ -1,3 +1,4 @@
+import { AppError } from '../../lib/errors/app-error';
 import { BILLING_IVA_RATES, documentTypeFromCode, ivaRateFactor } from '../billing/arca-codes';
 import type { BillingDocumentType, BillingIvaRate } from '../billing/billing.schemas';
 
@@ -65,8 +66,22 @@ export interface IssuedVoucher {
   readonly untaxedAmount?: number;
 }
 
+/** ARCA contesto la consulta de un comprobante y no se sabe si existe. `reason` es el motivo solo, para otra frase. */
+export class VoucherQueryError extends AppError {
+  public constructor(
+    message: string,
+    details: Record<string, unknown>,
+    suggestion: string,
+    public readonly reason: string,
+  ) {
+    super(message, { code: 'ARCA_VOUCHER_QUERY_ERROR', details, suggestion });
+    this.name = 'VoucherQueryError';
+  }
+}
+
 export interface VoucherHistoryGateway {
   getLastNumber(pointOfSale: number, voucherType: number): Promise<number>;
+  /** `undefined` solo si ARCA dice que no existe; si contesta otra cosa, falla con `VoucherQueryError`. */
   getVoucher(number: number, pointOfSale: number, voucherType: number): Promise<IssuedVoucher | undefined>;
 }
 

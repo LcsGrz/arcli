@@ -30,6 +30,8 @@ export interface OtherSystemInvoice {
   readonly origin: Exclude<AssociatedPointOfSaleOrigin, 'web-service'>;
   readonly otherSystem: true;
   readonly pointOfSale: number;
+  /** El motivo, si ARCA contesto con un error en lugar de decir que no existe. */
+  readonly queryReason?: string;
 }
 
 /** Lo que responde quien emite una nota de credito o debito A, B, C o FCE. */

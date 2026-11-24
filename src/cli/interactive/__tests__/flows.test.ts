@@ -8,6 +8,8 @@ import { buildInvoiceInput, type InvoiceState } from '../../../modules/interacti
 import { buildNoteInput } from '../../../modules/interactive/note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
+import type { Arca } from '../../../services/arca/arca-sdk.types';
+import { ArcaVoucherHistoryGateway } from '../../../services/arca/arca-voucher-history.gateway';
 import { systemClock } from '../../../services/time/system-clock';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
@@ -1612,6 +1614,100 @@ describe('flujos del modo interactivo', () => {
         expect(buildEquivalentCommand(input, { environment: 'testing', platform: 'linux' })).toContain(
           '--ac fc --apv 50 --ar 15 --acuit 20333333334 --afecha 10/11/2026',
         );
+      });
+
+      describe.each([600, 10005, 11002])('si ARCA contesta con el error %i (ERR-1)', (code) => {
+        const failingSession = (failing: number): InteractiveSession => {
+          const session = sessionWithOtherSystem();
+          const find = session.historyGateway.getVoucher;
+          const real = new ArcaVoucherHistoryGateway({
+            genericService: {
+              call: async () => ({ FECompConsultarResult: { Errors: { Err: { Code: code, Msg: 'Error de ARCA' } } } }),
+            },
+          } as unknown as Arca);
+
+          return {
+            ...session,
+            historyGateway: {
+              getLastNumber: session.historyGateway.getLastNumber,
+              getVoucher: (number, pointOfSale, voucherType) =>
+                (number === failing ? real.getVoucher.bind(real) : find)(number, pointOfSale, voucherType),
+            },
+          };
+        };
+
+        it('en un punto de venta de otro sistema sigue preguntando los datos', async () => {
+          capturePrinted();
+          script = createScript([
+            [/Sobre qué comprobante/, 'Facturas'],
+            [/Qué factura\?/, 'Factura C'],
+            [/A qué la asociamos/, 'A una factura'],
+            [/Sobre qué factura C/, 'Ingresar el número a mano'],
+            [/Punto de venta/, '50'],
+            [/^Número/, '15'],
+            [/^Fecha de la factura C 00050-00000015/, '10/11/2026'],
+            [/A quién va la nota/, 'Con CUIT'],
+            [/CUIT del receptor/, '30-70996581-2'],
+            [/concepto ajusta/, 'Servicios'],
+            [/Monto de la nota de crédito/, '50000'],
+            [/Condición frente al IVA/, 'Responsable monotributo'],
+            [/Agregamos/, []],
+          ]);
+
+          const session = failingSession(15);
+          const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+          expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
+            associatedVoucher: { fecha: '10/11/2026', numero: 15, puntoVenta: 50, shortcut: 'fc' },
+            totalAmount: 50000,
+          });
+          expect(noteWarnings(state as NonNullable<typeof state>)).toEqual([
+            `No se pudo consultar la factura C 00050-00000015 en ARCA (${code} Error de ARCA) y el punto de venta 50 no es de web service: si es de Comprobantes en línea, de un controlador fiscal o de otro sistema, está bien; si no, revisá \`--ar\`, \`--apv\` y \`--ac\`. No se pudo controlar que la nota de crédito no lo supere.`,
+          ]);
+        });
+
+        it('en uno propio muestra el error y sigue en la lista, sin perder lo respondido', async () => {
+          const printed = capturePrinted();
+          const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+          script = createScript([
+            [/Sobre qué comprobante/, 'Facturas'],
+            [/Qué factura\?/, 'Factura C'],
+            [/A qué la asociamos/, 'A una factura'],
+            [/Sobre qué factura C/, 'Ingresar el número a mano'],
+            [/Punto de venta/, '3'],
+            [/^Número/, '99'],
+            [/Sobre qué factura C/, '00003-00000014'],
+            [/Total o parcial/, 'Anular el total'],
+            [/Agregamos/, []],
+          ]);
+
+          const state = await runWizard(noteSteps(failingSession(99), 3), { kind: 'credito' });
+
+          expect(state?.invoice?.number).toBe(14);
+          expect(errors.mock.calls.join('')).toContain(`${code} Error de ARCA`);
+          expect(printed()).not.toMatch(/No existe|ARCA no tiene/);
+        });
+
+        it('si falla la primera tanda, la nota sigue con lo respondido: reintentar o a mano', async () => {
+          capturePrinted();
+          vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+          script = createScript([
+            [/Sobre qué comprobante/, 'Facturas'],
+            [/Qué factura\?/, 'Factura C'],
+            [/A qué la asociamos/, 'A una factura'],
+            [/Sobre qué factura C/, 'Volver a cargar'],
+            [/Sobre qué factura C/, 'Ingresar el número a mano'],
+            [/Punto de venta/, '3'],
+            [/^Número/, '14'],
+            [/Total o parcial/, 'Anular el total'],
+            [/Agregamos/, []],
+          ]);
+
+          const state = await runWizard(noteSteps(failingSession(13), 3), { kind: 'credito' });
+
+          expect(state).toMatchObject({ invoice: { number: 14 }, kind: 'credito' });
+        });
       });
 
       it('en A y B pregunta la alícuota y deja elegir la moneda, como en una de período', async () => {
