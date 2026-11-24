@@ -52,7 +52,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 <details><summary>Detalle</summary>
 
-**La cuenta de la FCE.** El CBU y el alias se guardaban con dos comandos, y el orden importaba. Ahora `arcli config establecer cuenta <CBU> [ALIAS]` guarda los dos o ninguno. Sin alias borra el guardado, aunque el CBU sea el mismo, y lo avisa: en stderr, o en `avisos` con `--json`. En la ayuda, el autocompletado y `arcli config`, `cuenta` reemplaza a las dos claves; "Modificar configuración" del asistente tiene una sola opción, que pide el CBU y después el alias. El archivo, `arcli config --json`, `--cbu`, `--alias` y `--cargar` no cambian.
+**La cuenta de la FCE.** El CBU y el alias se guardaban con dos comandos, y el orden importaba. Ahora `arcli config establecer cuenta <CBU> [ALIAS]` guarda los dos o ninguno. Sin alias borra el guardado, aunque el CBU sea el mismo, y lo avisa: en stderr, o en `avisos` con `--json`. En la ayuda, el autocompletado y `arcli config`, `cuenta` reemplaza a las dos claves; "Modificar configuración" del asistente tiene una sola opción, que pide el CBU y después el alias: con el mismo CBU, Enter deja el alias guardado y `-` lo borra; con otro, Enter lo omite y borra el anterior, y la pregunta lo dice. El archivo, `arcli config --json`, `--cbu`, `--alias` y `--cargar` no cambian.
 
 </details>
 

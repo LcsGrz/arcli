@@ -5,6 +5,7 @@ import { AppError } from '../../lib/errors/app-error';
 import { errorText, isFileSystemError } from '../../lib/files/file-error';
 import { DOCS_SITE_URL } from '../../lib/links';
 import { normalizeDroppedPath } from '../../lib/paths/dropped-path';
+import { isSameCbu } from '../../modules/billing/billing.defaults';
 import {
   formatCompletionResultAsText,
   formatCompletionStateAsText,
@@ -241,13 +242,15 @@ interface AccountState {
 }
 
 /**
- * La cuenta, en dos pasos: el CBU, con el guardado propuesto, y su alias (Enter lo omite y borra el guardado, como
- * `config establecer cuenta <CBU>`). Se guardan juntos al final: Esc no deja nada a medias.
+ * La cuenta, en dos pasos: el CBU y su alias, con los guardados propuestos. Con otro CBU, Enter en el alias lo omite y
+ * borra el guardado, como `config establecer cuenta <CBU>`. Se guardan juntos al final: Esc no deja nada a medias.
  */
 async function askAccount(config: ArcliConfig): Promise<'borrado' | 'guardado' | 'sin-cambios' | typeof BACK> {
   const { aliasCbu, cbu: savedCbu } = config;
   const canClear = Boolean(savedCbu ?? aliasCbu);
   const isClear = (text: string | undefined) => canClear && text?.trim() === '-';
+  // El alias guardado es de este CBU: se propone. Con otro, se borra.
+  const keptAlias = (cbu: string | undefined) => (isSameCbu(cbu, savedCbu) ? aliasCbu : undefined);
   const steps: Array<WizardStep<AccountState>> = [
     {
       name: 'cbu',
@@ -263,14 +266,17 @@ async function askAccount(config: ArcliConfig): Promise<'borrado' | 'guardado' |
     },
     {
       name: 'alias',
-      run: async (_state, { previous }) => {
-        const alias = await askTextStep('Alias del CBU:', {
-          hint: aliasCbu ? skipAndRemoveHint(aliasCbu) : SKIP_HINT,
+      dependsOn: ['cbu'],
+      run: async ({ cbu }, { previous }) => {
+        const kept = keptAlias(cbu);
+        const alias = await askTextStep(`Alias del CBU${kept ? ' ("-" para borrar)' : ''}:`, {
+          defaultValue: kept,
+          hint: kept ? undefined : aliasCbu ? skipAndRemoveHint(aliasCbu) : SKIP_HINT,
           previousAnswer: previous?.alias,
-          validate: validateOptionalCbuAlias,
+          validate: (text) => (kept && text.trim() === '-' ? true : validateOptionalCbuAlias(text)),
         });
 
-        return alias === BACK ? BACK : { alias: alias.trim() || undefined };
+        return alias === BACK ? BACK : { alias: alias.trim() === '-' ? undefined : alias.trim() || kept };
       },
       skip: ({ cbu }) => !cbu || isClear(cbu),
     },
@@ -289,11 +295,17 @@ async function askAccount(config: ArcliConfig): Promise<'borrado' | 'guardado' |
     return 'borrado';
   }
 
-  if (!cbu || (cbu === savedCbu && alias === aliasCbu)) {
+  const isSame = isSameCbu(cbu, savedCbu);
+
+  if (!cbu || (isSame && alias === aliasCbu)) {
     return 'sin-cambios';
   }
 
   withConfigService((service) => service.setValue('cuenta', cbu, alias));
+
+  if (isSame && !alias) {
+    return 'borrado';
+  }
 
   const warning = alias ? undefined : accountAliasRemovedWarning(config);
 

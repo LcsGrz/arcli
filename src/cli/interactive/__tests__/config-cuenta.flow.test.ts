@@ -108,12 +108,47 @@ describe('"Cuenta" en "Modificar configuración"', () => {
     expect(stripAnsi(output)).not.toContain('Se borró');
   });
 
-  it('con Enter en el alias lo borra: la pregunta lo dice antes y el panel después', async () => {
-    await changeAccount(CBU, '');
+  it('con otro CBU, Enter en el alias borra el viejo: la pregunta lo dice antes y el panel después', async () => {
+    await changeAccount(OTHER_CBU, '');
 
-    expect(saved()).toEqual({ aliasCbu: undefined, cbu: CBU });
-    expect(question(1).hint).toBe(`(Enter para omitirlo: borra ${ALIAS})`);
+    expect(saved()).toEqual({ aliasCbu: undefined, cbu: OTHER_CBU });
+    expect(question(1)).toMatchObject({
+      hint: `(Enter para omitirlo: borra ${ALIAS})`,
+      message: 'Alias del CBU:',
+    });
+    expect(question(1).defaultValue).toBeUndefined();
     expect(stripAnsi(output)).toContain('Se borró el alias');
+  });
+
+  it('con el mismo CBU, el alias guardado es el valor por defecto y "-" lo borra', async () => {
+    await changeAccount(CBU, '-');
+
+    expect(question(1)).toMatchObject({ defaultValue: ALIAS, message: 'Alias del CBU ("-" para borrar):' });
+    expect(question(1).hint).toBeUndefined();
+    expect(question(1).validate?.('-')).toBe(true);
+    expect(saved()).toEqual({ aliasCbu: undefined, cbu: CBU });
+    expect(stripAnsi(output)).toContain('Dato borrado.');
+  });
+
+  it('con el mismo CBU se puede cambiar el alias', async () => {
+    await changeAccount(CBU, 'otro.alias');
+
+    expect(saved()).toEqual({ aliasCbu: 'otro.alias', cbu: CBU });
+    expect(stripAnsi(output)).not.toContain('Se borró');
+  });
+
+  it('"-" no es un alias válido si no hay uno guardado de ese CBU', async () => {
+    await changeAccount(OTHER_CBU, BACK, BACK);
+
+    expect(question(1).validate?.('-')).toContain('entre 6 y 20');
+  });
+
+  it('al volver y cambiar el CBU, el alias escrito para el otro no se propone', async () => {
+    await changeAccount(CBU, BACK, OTHER_CBU, 'otro.alias');
+
+    expect(question(1).defaultValue).toBe(ALIAS);
+    expect(question(3).defaultValue).toBeUndefined();
+    expect(question(3).previousAnswer).toBeUndefined();
   });
 
   it('sin alias guardado, Enter lo omite y no hay nada que avisar', async () => {
@@ -127,10 +162,15 @@ describe('"Cuenta" en "Modificar configuración"', () => {
   });
 
   it('lo mismo que lo guardado no cambia nada', async () => {
+    const write = vi.spyOn(ConfigService.prototype, 'setValue');
+
     await changeAccount(CBU, ALIAS);
 
+    expect(write).not.toHaveBeenCalled();
+    write.mockRestore();
     expect(saved()).toEqual({ aliasCbu: ALIAS, cbu: CBU });
     expect(stripAnsi(output)).toContain('Sin cambios.');
+    expect(stripAnsi(output)).not.toContain('Se borró');
   });
 
   it('Esc en el CBU no cambia nada', async () => {
