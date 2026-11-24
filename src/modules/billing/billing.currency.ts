@@ -190,18 +190,17 @@ export function resolveBillingCurrencyFields(input: CurrencyInput): BillingCurre
 /** Con que codigo rechaza ARCA una moneda que no esta en su tabla: `MonId` en WSFEv1 y `Moneda_Id` en WSFEX. */
 export const UNKNOWN_CURRENCY_ERROR = { wsfe: 10_037, wsfex: 1590 } as const;
 
-/** Donde ver las validas. `parametros monedas` es la tabla de wsfe: para la E, las mas comunes de la de WSFEX. */
-function currencyTableHint(options: { readonly service: 'wsfe' | 'wsfex'; readonly table: readonly string[] }): string {
+/** Que va en `--moneda` y donde ver las validas. `parametros monedas` es la tabla de wsfe: en la E, de la de WSFEX. */
+function currencyCodeHint(options: { readonly service: 'wsfe' | 'wsfex'; readonly table: readonly string[] }): string {
   if (options.service === 'wsfe') {
-    return ' Las monedas de ARCA están en `arcli parametros monedas`.';
+    return 'va el código de ARCA, como `DOL` o `060`, o su ISO, como `USD` o `EUR`. Las monedas de ARCA están en `arcli parametros monedas`.';
   }
 
   const codes = new Set(options.table.map((entry) => entry.trim().toUpperCase()));
   const common = ARCA_CURRENCIES.filter((entry) => entry.iso && codes.has(entry.arca)).slice(0, 6);
+  const list = common.map(({ arca, iso }) => `\`${arca}\` (${iso})`).join(', ');
 
-  return common.length > 0
-    ? ` Las más comunes de la E son ${common.map((entry) => `\`${entry.iso}\``).join(', ')}.`
-    : '';
+  return `va el código de ARCA o su ISO.${list && ` Las más comunes de la E: ${list}.`}`;
 }
 
 /**
@@ -224,6 +223,6 @@ export function assertCurrencyInTable(options: {
   throw new InputValidationError(
     `La moneda ${options.requested.trim().toUpperCase()} no está en la tabla de monedas de ARCA: la rechaza al emitir (error ${UNKNOWN_CURRENCY_ERROR[options.service]}).`,
     undefined,
-    `Revisá \`--moneda\` (o \`codigoMoneda\` del JSON de \`--cargar\`): va el código de ARCA, como \`DOL\` o \`060\`, o su ISO, como \`USD\` o \`EUR\`.${currencyTableHint(options)}`,
+    `Revisá \`--moneda\` (o \`codigoMoneda\` del JSON de \`--cargar\`): ${currencyCodeHint(options)}`,
   );
 }

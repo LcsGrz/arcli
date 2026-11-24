@@ -8,6 +8,6 @@ exit: 1
   "codigo": "INPUT_VALIDATION_ERROR",
   "detalles": null,
   "error": "El incoterm \"XXX\" no existe en la tabla de ARCA.",
-  "sugerencia": "Los válidos son `FOB`."
+  "sugerencia": "Los válidos: `FOB`."
 }
 

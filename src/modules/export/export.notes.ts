@@ -1,12 +1,11 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
-import { ARCA_QUERY_ERROR_SUGGESTION } from '../../lib/errors/query-error';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { assertRules } from '../../lib/rules/rules';
 import { creditNoteOverTotalError, isCreditNoteOverTotal } from '../billing/billing.associated-lookup';
 import { ARCA_LOCAL_CURRENCY_CODE, isSameCurrency } from '../billing/currency-codes';
 import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/voucher-names';
-import { VoucherQueryError } from '../vouchers/voucher-history';
+import { VoucherQueryError, voucherQueryErrorMessage } from '../vouchers/voucher-history';
 import { formatVoucherNumber } from '../vouchers/voucher-number';
 
 import { assertExportPointOfSaleRange, resolveExportRuleDate } from './export.mappers';
@@ -406,12 +405,14 @@ export async function fetchExportAssociatedVoucher(
     }
 
     throw new VoucherQueryError(
-      `ARCA devolvió un error al consultar el comprobante asociado ${formatVoucherNumber(query.pointOfSale, query.number)} y no se sabe si existe: ${error.reason}`,
-      error.details ?? {},
-      error.suggestion ?? ARCA_QUERY_ERROR_SUGGESTION,
+      voucherQueryErrorMessage(
+        `el comprobante asociado ${formatVoucherNumber(query.pointOfSale, query.number)}`,
+        error.reason,
+      ),
+      error.details,
+      error.suggestion,
       error.reason,
-      false,
-      error.code,
+      { cause: error, code: error.code },
     );
   }
 }

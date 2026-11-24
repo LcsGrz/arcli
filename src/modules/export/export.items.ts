@@ -167,7 +167,7 @@ function commonUnitsHint(units: readonly ExportUnit[]): string | undefined {
   const common = units.filter(({ id }) => COMMON_UNIT_CODES.includes(id));
 
   return common.length > 0
-    ? `Las más comunes son ${common.map(({ id, name }) => `${id} (${name.trim()})`).join(', ')}.`
+    ? `Las más comunes: ${common.map(({ id, name }) => `${id} (${name.trim()})`).join(', ')}.`
     : undefined;
 }
 

@@ -2710,8 +2710,37 @@ describe('otros comandos que van a ARCA', () => {
         expect(shown).not.toContain('asociado');
       });
 
-      it('ultimos fe', async () => {
-        expect(await failure(['ultimos', 'fe', '--pv', '4', '--cantidad', '3'])).toEqual(report('00004-00000006'));
+      it.each(['fe', 'nce', 'nde'])('ultimos %s', async (kind) => {
+        expect(await failure(['ultimos', kind, '--pv', '4', '--cantidad', '3'])).toEqual(report('00004-00000006'));
+      });
+
+      describe('el último número', () => {
+        const detalles = { errores: [{ codigo: 1510, mensaje: 'Punto de venta' }] };
+
+        beforeEach(
+          () =>
+            void sdk.wsfex.getLastCmp.mockResolvedValue({
+              FEXGetLast_CMPResult: { FEXErr: { ErrCode: 1510, ErrMsg: 'Punto de venta' } },
+            }),
+        );
+
+        it.each(['fe', 'nce', 'nde'])('ultimos %s: la sugerencia de consultar', async (kind) => {
+          expect(await failure(['ultimos', kind, '--pv', '4'])).toEqual({
+            codigo: 'ARCA_EXPORT_ERROR',
+            detalles,
+            error: 'ARCA devolvió un error al consultar el último número: Punto de venta',
+            sugerencia: SUGGESTION,
+          });
+        });
+
+        it('fe --emitir: la de emitir', async () => {
+          expect(await failure([...FE, '--emitir'])).toEqual({
+            codigo: 'ARCA_EXPORT_ERROR',
+            detalles,
+            error: 'ARCA devolvió un error al consultar el último número: Punto de venta',
+            sugerencia: 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.',
+          });
+        });
       });
 
       it.each(['nce', 'nde'])('%s: el texto dice que es el asociado, y no se emite', async (kind) => {

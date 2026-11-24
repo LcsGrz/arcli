@@ -90,7 +90,15 @@ describe('mapExportResponse', () => {
   });
 
   it.each([
-    ['El punto de venta no es valido', /--punto-venta/],
+    [
+      'El punto de venta no es valido',
+      /^Revisá el punto de venta \(`--punto-venta` o `puntoVenta` de la config\).*en producción/,
+    ],
+    [
+      'El punto de venta del comprobante asociado no es valido',
+      /^Revisá el punto de venta del comprobante asociado \(`--apv`\)\.$/,
+    ],
+    ['El numero no es correlativo para el punto de venta', /^Revisá el número del comprobante/],
     ['El incoterm no es valido', /`FOB`/],
     ['La moneda no es valida', /--moneda/],
   ])('"%s": no manda a `parametros`, que es de wsfe (ARQ-22)', async (Motivos_Obs, hint) => {

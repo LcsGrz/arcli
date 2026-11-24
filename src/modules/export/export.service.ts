@@ -400,7 +400,9 @@ export class ExportService {
       label: 'El número del comprobante',
       max: MAX_EXPORT_VOUCHER_NUMBER,
       last:
-        input.voucherNumber === undefined ? await gateway.getLastVoucherNumber(voucherKind.arcaType, pointOfSale) : 0,
+        input.voucherNumber === undefined
+          ? await gateway.getLastVoucherNumber(voucherKind.arcaType, pointOfSale, 'emitir')
+          : 0,
       provided: input.voucherNumber,
     });
     const requestId = resolveExportNumber({

@@ -11,6 +11,7 @@ import {
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import { roundToCents } from '../../lib/numbers/argentine-amount';
 import { assertRules } from '../../lib/rules/rules';
+import { normalizeSearchText, searchWords } from '../../lib/text/search';
 import { INVALID_POINT_OF_SALE_MESSAGE } from '../billing/billing.schemas';
 import { ARCA_LOCAL_CURRENCY_CODE, resolveBillingCurrencyCode } from '../billing/currency-codes';
 import { type ArcliConfig, MISSING_POINT_OF_SALE_MESSAGE } from '../config/config.schemas';
@@ -26,6 +27,7 @@ import {
   EXPORT_TYPES,
   EXPORT_TYPES_WITH_PAYMENT_DATE,
   EXPORT_TYPES_WITHOUT_PERMITS,
+  EXPORT_VOUCHER_KIND,
   type ExportActivity,
   type ExportAssociatedVoucherPayload,
   type ExportCountry,
@@ -391,7 +393,7 @@ export function resolveExportLanguage(
     throw new InputValidationError(
       `El idioma ${value} no existe en la tabla de ARCA.`,
       undefined,
-      `Los válidos son ${languages.map(({ id, name }) => (name ? `${id} (${name})` : id)).join(', ')}.`,
+      `Los válidos: ${languages.map(({ id, name }) => (name ? `${id} (${name})` : id)).join(', ')}.`,
     );
   }
 
@@ -416,7 +418,7 @@ export function resolveExportDestinationCountry(
     throw new InputValidationError(
       `El país de destino "${trimmed}" no existe en la tabla de ARCA. Usá el código o el nombre que informa ARCA.`,
       undefined,
-      'Están todos en el asistente: `arcli`, factura de exportación E, "País de destino".',
+      countriesHint(trimmed, countries),
     );
   }
 
@@ -428,6 +430,24 @@ export function resolveExportDestinationCountry(
   }
 
   return country;
+}
+
+const MAX_SIMILAR_COUNTRIES = 5;
+
+/** Donde ver los paises, que no tienen comando: los que contienen lo escrito y el asistente. Sin tabla, nada. */
+function countriesHint(value: string, countries: readonly ExportCountry[]): string | undefined {
+  if (countries.length === 0) {
+    return undefined;
+  }
+
+  const words = searchWords(value);
+  const similar = exportDestinationCountryChoices(countries)
+    .filter(({ name }) => words.every((word) => normalizeSearchText(name).includes(word)))
+    .slice(0, MAX_SIMILAR_COUNTRIES)
+    .map(({ code, name }) => `${name.trim()} (${code})`);
+  const everywhere = `Están todos en el asistente: \`arcli\` > "Emitir factura" > "${EXPORT_VOUCHER_KIND.displayName}".`;
+
+  return similar.length > 0 ? `Parecidos: ${similar.join(', ')}. ${everywhere}` : everywhere;
 }
 
 /** Los destinos que acepta `--pais-destino` (`resolveExportDestinationCountry`): la tabla de ARCA sin Argentina. */
@@ -528,17 +548,16 @@ export function resolveExportClientCountryCuit(options: {
     return pickCountryCuit(forDestination)?.cuit;
   }
 
+  const expected = pickCountryCuit(forDestination);
   const match = options.countries.find((entry) => entry.cuit === options.cuit);
 
   if (!match) {
     throw new InputValidationError(
       `El CUIT de país ${options.cuit} no existe en la tabla de ARCA.`,
       undefined,
-      'Sin `--cuit-pais`, ARCLI usa el del país de destino si la tabla lo trae.',
+      expected && `Para "${options.country.name}" la tabla de ARCA trae ${expected.cuit}: pasalo con \`--cuit-pais\`.`,
     );
   }
-
-  const expected = pickCountryCuit(forDestination);
 
   if (expected && normalizeCountryName(countryNameWithoutEntity(match.countryName)) !== destination) {
     throw new InputValidationError(
@@ -658,7 +677,7 @@ export function resolveExportIncoterm(
     throw new InputValidationError(
       `El incoterm "${trimmed}" no existe en la tabla de ARCA.`,
       undefined,
-      `Los válidos son ${incoterms.map((entry) => `\`${entry.code.trim()}\``).join(', ')}.`,
+      `Los válidos: ${incoterms.map((entry) => `\`${entry.code.trim()}\``).join(', ')}.`,
     );
   }
 

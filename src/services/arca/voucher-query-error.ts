@@ -1,7 +1,7 @@
 import type { ErrorCode } from '../../lib/errors/error-codes';
 import { ARCA_QUERY_ERROR_SUGGESTION, VERIFY_BEFORE_RETRY } from '../../lib/errors/query-error';
 import { ISSUES_URL } from '../../lib/links';
-import { VoucherQueryError } from '../../modules/vouchers/voucher-history';
+import { VoucherQueryError, voucherQueryErrorMessage } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 
 import { toDetailErrors } from './arca-error-details';
@@ -19,20 +19,19 @@ export function voucherQueryError(query: {
   readonly pointOfSale: number;
 }): VoucherQueryError {
   const { as, errors, number, pointOfSale } = query;
-  const voucher = `el comprobante ${formatVoucherNumber(pointOfSale, number)} y no se sabe si existe`;
+  const voucher = `el comprobante ${formatVoucherNumber(pointOfSale, number)}`;
   const reasons = errors.map(({ code, msg }) => [code ?? '', msg].join(' ').trim()).join('; ');
 
   return new VoucherQueryError(
     reasons
-      ? `ARCA devolvió un error al consultar ${voucher}: ${reasons}`
-      : `ARCA devolvió una respuesta inesperada al consultar ${voucher}.`,
+      ? voucherQueryErrorMessage(voucher, reasons)
+      : `ARCA devolvió una respuesta inesperada al consultar ${voucher} y no se sabe si existe.`,
     as?.details ?? { errores: toDetailErrors(errors) },
     reasons
       ? ARCA_QUERY_ERROR_SUGGESTION
       : `Volvé a consultar en unos minutos. Si se repite, no insistas. ${VERIFY_BEFORE_RETRY}`,
     reasons || 'respuesta inesperada',
-    false,
-    as?.code,
+    { code: as?.code },
   );
 }
 
@@ -49,6 +48,6 @@ export function unreadableVoucherError(voucher: {
     { errores: [] },
     `Si estabas verificando una emisión, ya está emitido: no lo repitas. Miralo en ARCA y avisanos en ${ISSUES_URL}.`,
     'existe, pero ARCLI no pudo leer sus datos',
-    true,
+    { exists: true },
   );
 }

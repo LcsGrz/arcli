@@ -18,7 +18,7 @@ import {
 import type { ExportResponseError, ExportResponseSummary } from './export.types';
 
 // Sin comando: `parametros puntos-venta` lista los de wsfe y los de la E son de otro sistema.
-const POINT_OF_SALE_HINT = `Revisá \`--punto-venta\`: la E usa un punto de venta de exportación por web service (WSFEX), distinto de los de A, B y C. Los ves en ARCA, en "Administración de puntos de venta y domicilios". Guía: ${POINT_OF_SALE_GUIDE_URL}`;
+const POINT_OF_SALE_HINT = `Revisá el punto de venta (\`--punto-venta\` o \`puntoVenta\` de la config): si el problema es ese, en producción la E pide uno de exportación por web service (WSFEX), distinto de los de A, B y C. Guía: ${POINT_OF_SALE_GUIDE_URL}`;
 
 /** El codigo sale como vino: ARCA manda un numero. */
 interface RawEvent {
@@ -72,8 +72,13 @@ function buildSuggestions(options: {
 }): string[] {
   const suggestions = new Set<string>();
 
-  if (/punto de venta/i.test(options.messages)) {
-    suggestions.add(POINT_OF_SALE_HINT);
+  // Solo si el mensaje es del punto de venta propio: el del asociado y el numero tienen su sugerencia.
+  for (const message of options.messages.split(' | ').filter((text) => /punto de venta/i.test(text))) {
+    if (/asociad/i.test(message)) {
+      suggestions.add('Revisá el punto de venta del comprobante asociado (`--apv`).');
+    } else if (!/correlativ/i.test(message)) {
+      suggestions.add(POINT_OF_SALE_HINT);
+    }
   }
 
   if (/permiso/i.test(options.messages)) {

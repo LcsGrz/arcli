@@ -15,7 +15,7 @@ import {
   planEmissionConfirmation,
   resolvePdfAfterConfirmation,
 } from '../../modules/pdf/pdf-decision';
-import type { VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
+import { type VoucherHistoryGateway, VoucherQueryError } from '../../modules/vouchers/voucher-history';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { type ArcaClient, ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
@@ -187,20 +187,26 @@ export function formatEquivalentCommand(command: string): string {
  * Un error de validacion de la vista previa (`InputValidationError` o `InputIssuesError`: lo que el CLI rechazaria
  * con `INPUT_VALIDATION_ERROR`) se muestra y devuelve BACK: como `confirm` de `runWizard`, el asistente vuelve a la
  * ultima pregunta con todo lo respondido, en vez de volver al menu y perderlo (TUI-15). Los errores de ARCA o de red
- * siguen de largo, como antes.
+ * siguen de largo, como antes. Con `queryErrors` (la E, que en una nota vuelve a consultar el asociado) tambien
+ * vuelve si no se sabe si un comprobante existe (`VoucherQueryError`), como al elegirlo (ARQ-22).
  */
-export async function rejectedAsBack<T>(preview: () => Promise<T>): Promise<Back | T> {
+export async function rejectedAsBack<T>(
+  preview: () => Promise<T>,
+  options: { readonly queryErrors?: boolean } = {},
+): Promise<Back | T> {
   try {
     return await preview();
   } catch (error) {
-    if (!(error instanceof InputValidationError || error instanceof InputIssuesError)) {
+    const queryError = options.queryErrors === true && error instanceof VoucherQueryError;
+
+    if (!(queryError || error instanceof InputValidationError || error instanceof InputIssuesError)) {
       throw error;
     }
 
     await showAssistantError(error);
     writeTerminalOutput(
       noticePanel(
-        'No se emitió nada. Volvemos a la última pregunta con lo que respondiste: corregí el dato ahí o volvé con Esc hasta la pregunta que lo pide.',
+        `No se emitió nada. Volvemos a la última pregunta con lo que respondiste: ${queryError ? 'seguí desde ahí para volver a consultar.' : 'corregí el dato ahí o volvé con Esc hasta la pregunta que lo pide.'}`,
         'muted',
       ),
     );
