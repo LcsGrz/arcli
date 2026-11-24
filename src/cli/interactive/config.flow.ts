@@ -17,6 +17,7 @@ import {
   uninstallCompletion,
 } from '../../modules/completion/installer';
 import { COMPLETION_SHELLS, type CompletionShell } from '../../modules/completion/shell-scripts';
+import { cbuAliasChange } from '../../modules/config/cbu-alias-change';
 import { formatConfigAsText, formatConfigDoctorAsText } from '../../modules/config/config.presenter';
 import {
   type ArcliConfig,
@@ -226,7 +227,14 @@ async function askField(
     return 'sin-cambios';
   }
 
+  // El cambio lo hace `ConfigService`, como en `config establecer`; aca solo se avisa.
+  const aliasChange = field.key === 'cbu' ? cbuAliasChange(config, value) : undefined;
+
   withConfigService((service) => service.setValue(field.key, value));
+
+  if (aliasChange) {
+    writeTerminalOutput(noticePanel(aliasChange.warning, 'warning'));
+  }
 
   return 'guardado';
 }

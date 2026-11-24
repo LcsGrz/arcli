@@ -9,6 +9,7 @@ import { parseCbu } from '../../lib/identity/cbu';
 import { deleteAtPath, setAtPath } from '../../lib/json/object-path';
 import { describeZodIssues, parseZodInput } from '../billing/billing.zod-errors';
 
+import { cbuAliasChange } from './cbu-alias-change';
 import {
   type ArcliConfig,
   arcliConfigSchema,
@@ -134,11 +135,14 @@ export interface ConfigChange {
   /** Con `pending`, sin las claves rotas: las que tienen default lo traen y no es lo guardado. */
   readonly config: ArcliConfig;
   readonly pending?: PendingConfigProblems;
+  /** Lo que el cambio hizo ademas de lo pedido, ya guardado. */
+  readonly warnings?: readonly string[];
 }
 
 interface PlannedChange {
   readonly apply: (draft: Record<string, unknown>) => void;
   readonly key: CanonicalConfigKey;
+  readonly warning?: string;
 }
 
 export class ConfigService {
@@ -267,7 +271,10 @@ export class ConfigService {
 
   /** `config establecer`: como `setValue`, pero guarda aunque queden otras claves que ya estaban rotas. */
   public repairValue(rawKey: string, rawValue: string): ConfigChange {
-    return this.saveIfNotWorse(this.planSet(rawKey, rawValue));
+    const change = this.planSet(rawKey, rawValue);
+    const result = this.saveIfNotWorse(change);
+
+    return change.warning === undefined ? result : { ...result, warnings: [change.warning] };
   }
 
   /** `config eliminar`: como `unsetValue`, pero guarda aunque queden otras claves que ya estaban rotas. */
@@ -279,13 +286,19 @@ export class ConfigService {
     const key = this.resolveKey(rawKey);
     const canonicalKey = CONFIG_KEY_ALIASES[key];
     const parsedValue = withConfigHelp(() => parseConfigValue(canonicalKey, rawValue, key));
+    const aliasChange = key === 'cbu' ? cbuAliasChange(this.readSaved(), rawValue) : undefined;
 
     return {
       apply: (draft) => {
         deleteLegacyKeys(draft, key);
         setAtPath(draft, canonicalKey, parsedValue);
+
+        if (aliasChange?.removesAlias) {
+          deleteAtPath(draft, CONFIG_KEY_ALIASES.aliasCbu);
+        }
       },
       key: canonicalKey,
+      warning: aliasChange?.warning,
     };
   }
 

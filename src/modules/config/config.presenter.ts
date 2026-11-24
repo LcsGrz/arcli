@@ -133,11 +133,16 @@ function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): Publi
   };
 }
 
-export function serializeConfig(config: ArcliConfig, paths: ConfigPathSnapshot, pending?: PendingConfigProblems) {
+export function serializeConfig(
+  config: ArcliConfig,
+  paths: ConfigPathSnapshot,
+  pending?: PendingConfigProblems,
+  warnings: readonly string[] = [],
+) {
   const snapshot = toPublicSnapshot(config, paths);
 
   if (!pending) {
-    return snapshot;
+    return warnings.length > 0 ? { ...snapshot, avisos: warnings } : snapshot;
   }
 
   const visible = structuredClone(snapshot) as unknown as Record<string, unknown>;
@@ -151,15 +156,19 @@ export function serializeConfig(config: ArcliConfig, paths: ConfigPathSnapshot, 
     delete visible.deprecado;
   }
 
-  return { ...visible, avisos: pending.warnings };
+  return { ...visible, avisos: [...warnings, ...pending.warnings] };
 }
 
-/** Lo que sigue mal despues de `config establecer` o `config eliminar`, para stderr. */
-export function formatPendingConfigWarnings(pending: PendingConfigProblems | undefined): string | undefined {
-  return (
-    pending &&
-    attentionPanel('Avisos', pending.warnings.map((warning) => `${uiSymbol('bullet')} ${warning}`).join('\n'))
-  );
+/** Lo que hizo de mas y lo que sigue mal despues de `config establecer` o `config eliminar`, para stderr. */
+export function formatConfigChangeWarnings(
+  pending: PendingConfigProblems | undefined,
+  warnings: readonly string[] = [],
+): string | undefined {
+  const all = [...warnings, ...(pending?.warnings ?? [])];
+
+  return all.length > 0
+    ? attentionPanel('Avisos', all.map((warning) => `${uiSymbol('bullet')} ${warning}`).join('\n'))
+    : undefined;
 }
 
 function isPending(key: ConfigPublicKey, config: ArcliConfig, pending: PendingConfigProblems | undefined): boolean {
