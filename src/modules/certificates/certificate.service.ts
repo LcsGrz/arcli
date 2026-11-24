@@ -326,7 +326,7 @@ export class CertificateService {
         [
           ...(pendingKey ? [`${downloadLatest} Si no es de ese pedido, revisá`] : ['Revisá']),
           'que tu usuario tenga permiso para leer esa clave y su carpeta, y volvé a importar el certificado.',
-          // Con un pedido (o sin poder saberlo), `generar` cortaria o lo pisaria.
+          // Con un pedido (o sin poder saberlo), `generar` frena: no se sugiere.
           ...(pendingKey === undefined && !pendingProblem
             ? [`Si esa clave se perdió, armá otro pedido con \`arcli certificado generar --${environment}\`.`]
             : []),

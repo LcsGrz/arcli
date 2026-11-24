@@ -146,7 +146,8 @@ export function formatConfig(config: ArcliConfig, paths: ConfigPathSnapshot, pen
     deleteAtPath(visible, key);
   }
 
-  if (pending.keys.includes('comprobantesPorLista')) {
+  // El aviso nombra las dos: sin una en la respuesta, no tiene a que mandar.
+  if (pending.keys.some((key) => key === 'comprobantesPorLista' || key === 'filasPorLista')) {
     delete visible.deprecado;
   }
 

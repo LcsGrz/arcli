@@ -1,3 +1,4 @@
+import Conf from 'conf';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -237,6 +238,27 @@ describe('varias claves rotas en la config guardada (ERR-22)', () => {
     expect(stored()).toEqual({ alicuotaPorDefecto: '21', cuit: '123', filasPorLista: 9 });
   });
 
+  it('con `filasPorLista` rota, `deprecado` no manda a una clave que no sale', async () => {
+    save({ comprobantesPorLista: 8, filasPorLista: 0 });
+
+    const json = await runJson('config', 'establecer', 'alicuota', '21');
+
+    expect(json).toMatchObject({ comprobantesPorLista: 8 });
+    expect(json).not.toHaveProperty('filasPorLista');
+    expect(json).not.toHaveProperty('deprecado');
+  });
+
+  it('sin disco al completar los valores por defecto, el error nombra config.json', async () => {
+    save({ cuit: CUIT });
+    vi.spyOn(Conf.prototype, 'store', 'set').mockImplementation(() => {
+      throw Object.assign(new Error('ENOSPC: no space left on device, write'), { code: 'ENOSPC', syscall: 'write' });
+    });
+
+    expect((await runError('config')).error).toMatch(
+      /^No se pudo escribir .*config\.json: no queda espacio en el disco\.$/,
+    );
+  });
+
   it.each([[[]], [null]])('%j guardado se toma como vacío', async (config) => {
     save(config);
     expect(await runJson('config', 'establecer', 'cuit', CUIT)).toMatchObject({ cuit: CUIT, entorno: 'testing' });
@@ -292,6 +314,21 @@ describe('certificado generar con el pedido pendiente ilegible (ERR-21)', () => 
   );
 
   it.runIf(withPermissions)('con la clave sin permiso', () => expectUntouched(key));
+
+  it.runIf(withPermissions)(
+    'con --reemplazar también frena si no puede leer la clave o entrar a certificados',
+    async () => {
+      for (const path of [key(), join(directory, 'certificados')]) {
+        chmodSync(path, 0o000);
+
+        const error = await runError('certificado', 'generar', '--reemplazar');
+
+        chmodSync(path, 0o700);
+        expect(error.codigo).toBe('UNEXPECTED_ERROR');
+        expect(readFileSync(key(), 'utf8')).toBe('CLAVE');
+      }
+    },
+  );
 
   it.runIf(withPermissions)('con --reemplazar repone el permiso de la carpeta y lo descarta', async () => {
     chmodSync(folder(), 0o000);

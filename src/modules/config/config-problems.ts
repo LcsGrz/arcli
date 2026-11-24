@@ -25,6 +25,8 @@ interface SavedKey {
   /** Con `config eliminar` tambien se arregla: no alcanza para un grupo entero, como `emisor`. */
   readonly canDelete: boolean;
   readonly key: ConfigPublicKey;
+  /** Un grupo con certificados o claves: `establecer` pide un PEM que quizas no se tiene a mano. */
+  readonly needsFile?: boolean;
   readonly names: readonly string[];
 }
 
@@ -44,7 +46,12 @@ function findSavedKey(path: string): SavedKey | undefined {
 
   return keys.length === 0
     ? undefined
-    : { canDelete: false, key: keys[0], names: keys.every((key) => key.startsWith(`${path}.`)) ? [path] : keys };
+    : {
+        canDelete: false,
+        key: keys[0],
+        names: keys.every((key) => key.startsWith(`${path}.`)) ? [path] : keys,
+        needsFile: keys.some((key) => /(^|\.)(cert|key)\./.test(key)),
+      };
 }
 
 export function issuePath(issue: { readonly path: PropertyKey[] }): string {
@@ -107,19 +114,23 @@ export function suggestConfigFix(saved: ZodError, configPath: string): string {
   const keys = [...fixes.values()];
 
   if (keys.length === 1) {
-    return suggestKeyFix(keys[0]);
+    return suggestKeyFix(keys[0], configPath);
   }
 
   const steps = keys.map(
-    ({ canDelete, key }) =>
-      `\`arcli config establecer ${key} <valor>\`${canDelete ? ` o \`arcli config eliminar ${key}\`` : ''}`,
+    ({ canDelete, key, needsFile }) =>
+      `\`arcli config establecer ${key} <valor>\`${canDelete ? ` o \`arcli config eliminar ${key}\`` : ''}${needsFile ? ` o a mano en ${configPath}` : ''}`,
   );
 
   return `Corregilos de a uno: ${steps.join('; ')}.`;
 }
 
-function suggestKeyFix({ canDelete, key }: SavedKey): string {
+function suggestKeyFix({ canDelete, key, needsFile }: SavedKey, configPath: string): string {
   const set = `Corregilo con \`arcli config establecer ${key} <valor>\``;
+
+  if (needsFile) {
+    return `${set} o a mano en ${configPath}.`;
+  }
 
   return canDelete ? `${set} o borralo con \`arcli config eliminar ${key}\`.` : `${set}.`;
 }

@@ -147,15 +147,17 @@ export class ConfigService {
   public constructor(options: ConfigServiceOptions = {}) {
     try {
       // La carpeta por defecto la sabe `Conf`, que no llego a crearse: ahi alcanza con `arcli`.
+      const path = join(options.cwd ?? resolveConfigDirectory() ?? 'arcli', `${options.configName ?? 'config'}.json`);
+
       this.store = withFilePath(
-        join(options.cwd ?? resolveConfigDirectory() ?? 'arcli', `${options.configName ?? 'config'}.json`),
+        path,
         () =>
           new Conf<Record<string, unknown>>({
             ...storeLocation(options),
             clearInvalidConfig: false,
           }),
       );
-      this.completeDefaults();
+      withFilePath(path, () => this.completeDefaults());
     } catch (error) {
       if (error instanceof SyntaxError) {
         throw invalidConfigFileError(resolveStorePath(options));

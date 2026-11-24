@@ -42,7 +42,19 @@ describe('suggestConfigFix', () => {
     );
   });
 
-  it('todo lo que el esquema puede rechazar de un grupo tiene clave pública', () => {
+  it.each(['cert', 'key', 'exportacion', 'exportacion.cert', 'exportacion.key'])(
+    'el grupo `%s` entero roto también se corrige a mano: `establecer` pide un PEM',
+    (group) => {
+      expect(suggestConfigFix(error([group, 'a']), '/x/config.json')).toMatch(
+        /^Corregilo con `arcli config establecer \S+ <valor>` o a mano en \/x\/config\.json\.$/,
+      );
+      expect(suggestConfigFix(error(['cuit', 'a'], [group, 'b']), '/x/config.json')).toMatch(
+        /`arcli config eliminar cuit`; `arcli config establecer \S+ <valor>` o a mano en \/x\/config\.json\.$/,
+      );
+    },
+  );
+
+  it('los grupos sin certificados no mandan al archivo, y todos tienen clave pública', () => {
     const problems = parseConfigProblems({
       cert: 1,
       emisor: 1,
@@ -53,6 +65,10 @@ describe('suggestConfigFix', () => {
     });
 
     expect(problems?.issues).toHaveLength(7);
-    expect(suggestConfigFix(problems!, '/x/config.json')).not.toContain('/x/config.json');
+    expect(suggestConfigFix(problems!, '/x/config.json')).toMatch(/^Corregilos de a uno: /);
+
+    const plain = parseConfigProblems({ emisor: 1, monotributo: 1, output: 1 });
+
+    expect(suggestConfigFix(plain!, '/x/config.json')).not.toContain('/x/config.json');
   });
 });
