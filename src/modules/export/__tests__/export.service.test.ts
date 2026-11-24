@@ -636,7 +636,7 @@ describe('ExportService.resolve', () => {
     expect(await warningsFor(18)).toEqual([expect.stringContaining('(error 1667)')]);
     expect(await warningsFor(3602.01)).toEqual([expect.stringContaining('(error 1667)')]);
     expect(await warningsFor(9)).toEqual([
-      'La cotización de DOL (9) está fuera de lo que acepta ARCA: entre el 2 % y el 400 % de la oficial (900,50), o sea de 18,01 a 3.602. ARCA la puede rechazar (error 1667): revisá `--cm`.',
+      'La cotización de DOL (9) está fuera de lo que dice el manual de ARCA: entre el 2 % y el 400 % de la oficial (900,50), o sea de 18,01 a 3.602. ARCA la puede rechazar (error 1667): revisá `--cm`.',
     ]);
     // Sin la oficial no hay contra que comparar.
     expect(await warningsFor(9, createGateway({ getQuotations: vi.fn(async () => []) }))).toEqual([]);

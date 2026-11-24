@@ -242,8 +242,9 @@ function exportQuotationWarnings(options: {
 }
 
 /**
- * 1667 (WSFEX v3.1.0, p. 19): la cotizacion va "entre el 2% y el 400% de la oficial". Solo avisa: en testing no se puede
- * probar, porque sus cotizaciones son ficticias.
+ * 1667 (WSFEX v3.1.0, p. 19): la cotizacion va "entre el 2% y el 400% de la oficial" (citado en TEST-8), y no hasta
+ * "superior en un 400%" como la 10119: por eso no comparte su maximo. Solo avisa: en testing no se puede probar, porque
+ * sus cotizaciones son ficticias.
  */
 const EXPORT_EXCHANGE_RATE_LIMITS = { maxRatio: 4, minRatio: 0.02 } as const;
 
@@ -275,7 +276,7 @@ async function checkWrittenExchangeRate(options: {
 
   return official && !isExchangeRateInRange(rate, official.rate, EXPORT_EXCHANGE_RATE_LIMITS)
     ? [
-        `${describeExchangeRateRange({ code, limits: EXPORT_EXCHANGE_RATE_LIMITS, official: official.rate, rate })} ARCA la puede rechazar (error 1667): revisá \`--cm\`.`,
+        `${describeExchangeRateRange({ code, limits: EXPORT_EXCHANGE_RATE_LIMITS, official: official.rate, rate, source: 'lo que dice el manual de ARCA' })} ARCA la puede rechazar (error 1667): revisá \`--cm\`.`,
       ]
     : [];
 }

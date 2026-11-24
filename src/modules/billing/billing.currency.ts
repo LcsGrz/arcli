@@ -119,10 +119,12 @@ export function describeExchangeRateRange(options: {
   readonly limits: ExchangeRateLimits;
   readonly official: number;
   readonly rate: number;
+  /** Quien lo dice, si no se probo en ARCA. */
+  readonly source?: string;
 }): string {
-  const { code, limits, official, rate } = options;
+  const { code, limits, official, rate, source = 'lo que acepta ARCA' } = options;
 
-  return `La cotización de ${code} (${formatExchangeRate(rate)}) está fuera de lo que acepta ARCA: entre el ${limits.minRatio * 100} % y el ${limits.maxRatio * 100} % de la oficial (${formatExchangeRate(official)}), o sea de ${formatExchangeRate(official * limits.minRatio)} a ${formatExchangeRate(official * limits.maxRatio)}.`;
+  return `La cotización de ${code} (${formatExchangeRate(rate)}) está fuera de ${source}: entre el ${limits.minRatio * 100} % y el ${limits.maxRatio * 100} % de la oficial (${formatExchangeRate(official)}), o sea de ${formatExchangeRate(official * limits.minRatio)} a ${formatExchangeRate(official * limits.maxRatio)}.`;
 }
 
 /** Que dato poner en la sugerencia cuando la cotizacion esta fuera de rango. */
