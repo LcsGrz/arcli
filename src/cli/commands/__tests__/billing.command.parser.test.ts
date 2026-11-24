@@ -4,14 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { BillingDefaults } from '../../../modules/billing/billing.defaults';
 import { needsPadronLookup } from '../../../modules/billing/billing.padron';
 import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
 import { prepareBatch } from '../billing.command.batch';
-import {
-  type BillingCommandDefaults,
-  parseBillingCommandPlan,
-  registerBillingOptions,
-} from '../billing.command.parser';
+import { parseBillingCommandPlan, registerBillingOptions } from '../billing.command.parser';
 
 const temporaryDirectories: string[] = [];
 
@@ -19,7 +16,7 @@ const temporaryDirectories: string[] = [];
 function parseSingleInput(
   command: Command,
   shortcut: Parameters<typeof parseBillingCommandPlan>[1],
-  defaults?: BillingCommandDefaults,
+  defaults?: BillingDefaults,
 ): BillingCommandInput {
   const plan = parseBillingCommandPlan(command, shortcut, defaults);
 
@@ -243,6 +240,8 @@ describe('billing.command.parser', () => {
           'reducida',
           '--cuit',
           '20111111112',
+          '--ir',
+          'responsable-inscripto',
         ]),
         'fa',
       );

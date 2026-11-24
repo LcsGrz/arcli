@@ -81,7 +81,7 @@ Con un solo comprobante, `detalles.campos` lista cada problema con su ruta en el
 
 ### Flags y claves del JSON
 
-Los nombres de las claves no siempre coinciden con los flags. Si pasás las dos cosas, gana el flag.
+Los nombres de las claves no siempre coinciden con los flags. Si pasás las dos cosas, gana el flag, que además puede descartar otros datos del archivo: ver [Datos del JSON que un flag descarta](validation-rules.md#datos-del-json-que-un-flag-descarta).
 
 | Flag                                                          | Clave del JSON                      |
 | ------------------------------------------------------------- | ----------------------------------- |
@@ -860,6 +860,8 @@ Los importes son números en pesos. Con `--categoria E`, `categorias` trae solo 
 Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `key.*`, `emisor.*` y `exportacion.*` van anidadas en los objetos `cert`, `key`, `emisor` y `exportacion` (vacíos si no hay nada; `exportacion` trae a su vez `cert`, `key` y, si está, `actividad`). `emitir`, `entorno`, `exportacion`, `json`, `bruto`, `pdf`, `pdfCarpeta`, `moneda`, `cotizacion`, `consultarPadron` y `ticketPath` siempre aparecen, con su valor por defecto si no se configuraron; el resto, solo si tiene valor. `monotributo` sale solo con `monotributo.tope` configurado: `{ "tope": 30000000 }`. Si `filasPorLista` tiene valor (o el archivo tiene la clave vieja `comprobantesPorLista`), sale también `comprobantesPorLista` con el mismo valor, deprecada hasta la 3.0.0, y `deprecado` lo avisa (ver [Estabilidad del contrato](#estabilidad-del-contrato)).
 
 Si en el archivo hay otras claves inválidas, `config establecer` y `config eliminar` guardan igual el cambio pedido, sin tocar el resto, y salen con exit code `0`. El JSON no trae las claves rotas y suma `avisos` (`string[]`), con un texto por cada una que queda y cómo arreglarla; sin `--json`, el aviso sale en stderr. Si la rota es `json`, manda el flag. Un valor inválido, o un cambio que produce un problema nuevo, se rechaza y no se guarda nada. Los demás comandos siguen frenando hasta que no quede ninguna.
+
+`config establecer cbu` con otro CBU que el guardado borra `aliasCbu` en el mismo cambio y lo dice en `avisos`; sin CBU guardado, el alias queda y `avisos` dice que se va a usar con ese CBU. Sin `--json`, el aviso sale en stderr. Con el mismo CBU, o sin alias, no hay `avisos`.
 
 `arcli config revisar --json`:
 

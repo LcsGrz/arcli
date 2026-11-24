@@ -24,8 +24,8 @@ vi.mock('../session', async (importOriginal) => ({
 vi.mock('../../../modules/config/config.service', () => ({
   ConfigService: class {
     public close() {}
-    public setValue(key: string, value: string) {
-      savedConfig(key, value);
+    public changeValues({ set }: { set: ReadonlyArray<readonly [string, string]> }) {
+      set.forEach(([key, value]) => savedConfig(key, value));
     }
   },
 }));

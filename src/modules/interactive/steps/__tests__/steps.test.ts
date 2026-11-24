@@ -167,6 +167,21 @@ describe('lo que se ofrece guardar en la config (REV-74, #16)', () => {
     });
   });
 
+  it('con un alias guardado de otro CBU, lo dice y lo borra; con uno escrito, lo reemplaza', () => {
+    expect(cbuToSave(fce, { aliasCbu: 'otra.cuenta' }, true)).toEqual({
+      message: '¿Guardamos el CBU en la config para la próxima y borramos el alias otra.cuenta, que es de otro CBU?',
+      removes: { keys: ['aliasCbu'], notice: 'CBU guardado. Se borró el alias otra.cuenta de la config.' },
+      values: [['cbu', '0170099220000067797370']],
+    });
+    expect(cbuToSave({ ...fce, cbuAlias: 'mi.alias' }, { aliasCbu: 'otra.cuenta' }, true)).toEqual({
+      message: '¿Guardamos el CBU y el alias mi.alias en la config para la próxima?',
+      values: [
+        ['cbu', '0170099220000067797370'],
+        ['aliasCbu', 'mi.alias'],
+      ],
+    });
+  });
+
   it('nada si no se emitio, si la config ya tiene CBU, si no se escribio o si no es una FCE', () => {
     expect(cbuToSave(fce, {}, false)).toBeUndefined();
     expect(cbuToSave(fce, { cbu: '0170099220000067797370' }, true)).toBeUndefined();

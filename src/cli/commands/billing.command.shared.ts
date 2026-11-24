@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 
 import { checkAssociatedInArca, checkFceCancellationInRegistry } from '../../modules/billing/billing.associated-lookup';
-import { DEFAULT_EXCHANGE_RATE } from '../../modules/billing/billing.constants';
+import { billingDefaultsFromConfig } from '../../modules/billing/billing.defaults';
 import { prepareBillingInput, resolveFceWarningsInOrder } from '../../modules/billing/billing.prepare';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
@@ -10,7 +10,6 @@ import type { BillingExecutionResult, BillingGateway } from '../../modules/billi
 import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map';
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
-import { isPadronLookupEnabled } from '../../modules/config/config.schemas';
 import type { FceObligationGateway } from '../../modules/fce/fce-obligation';
 import type { FceRegistryGateway } from '../../modules/fce/fce-registry';
 import type { PadronGateway } from '../../modules/padron/padron';
@@ -32,7 +31,7 @@ import { startSpinner } from '../spinner';
 import { emitBatch, prepareBatch } from './billing.command.batch';
 import { runInteractiveBillingPreview } from './billing.command.interactive-preview';
 import { writeBillingCommandResults, writePartialResultsFailure, writePdfOutcomes } from './billing.command.output';
-import { type BillingCommandDefaults, parseBillingCommandPlan, registerBillingOptions } from './billing.command.parser';
+import { parseBillingCommandPlan, registerBillingOptions } from './billing.command.parser';
 import { attachPdfs } from './billing.command.pdf';
 
 /** Exit code cuando ARCA rechaza algun comprobante: la operacion corrio bien, pero no hay CAE. */
@@ -52,27 +51,6 @@ export function setExitCodeForResults(results: readonly BillingExecutionResult[]
 export function registerBillingCommandOptions(command: Command): void {
   registerGlobalOptions(command);
   registerBillingOptions(command);
-}
-
-/**
- * Los defaults de la config que completan lo que no viene por flags ni por JSON.
- *
- * @internal Exportado para los tests.
- */
-export function resolveBillingCommandDefaults(config: ArcliConfig): BillingCommandDefaults {
-  return {
-    defaultCbu: config.cbu,
-    defaultCbuAlias: config.aliasCbu,
-    defaultConcept: config.conceptoPorDefecto,
-    defaultCurrencyCode: config.monedaPorDefecto,
-    defaultEmit: config.output.emitirPorDefecto,
-    // `conf` guarda el default 1 en el archivo: 1 es lo mismo que no tenerla, y en moneda extranjera no es valida.
-    defaultExchangeRate:
-      config.cotizacionPorDefecto === DEFAULT_EXCHANGE_RATE ? undefined : config.cotizacionPorDefecto,
-    defaultIvaCondition: config.ivaReceptorPorDefecto,
-    defaultIvaRate: config.alicuotaPorDefecto,
-    lookupIvaConditionInPadron: isPadronLookupEnabled(config),
-  };
 }
 
 /**
@@ -168,7 +146,7 @@ export async function executeBillingCommand(
 
   try {
     const runtime = dependencies.resolveRuntime(globalOptions);
-    const plan = parseBillingCommandPlan(command, shortcut, resolveBillingCommandDefaults(runtime.config));
+    const plan = parseBillingCommandPlan(command, shortcut, billingDefaultsFromConfig(runtime.config));
     const service = new BillingService({ clock: systemClock });
     const gateways = dependencies.createGateways(runtime);
     const gateway = gateways.billing;

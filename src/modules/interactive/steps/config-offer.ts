@@ -5,6 +5,8 @@ import { type InvoiceState, isFceInvoiceState } from '../invoice-input';
 /** Lo que se ofrece guardar en la config despues de emitir: la pregunta y las claves con su valor. */
 export interface ConfigOffer {
   readonly message: string;
+  /** Las claves que se borran junto con lo guardado, y el aviso de despues, que lo dice. */
+  readonly removes?: { readonly keys: readonly string[]; readonly notice: string };
   readonly values: ReadonlyArray<readonly [key: string, value: string]>;
 }
 
@@ -15,13 +17,22 @@ export interface ConfigOffer {
  */
 export function cbuToSave(
   state: Pick<InvoiceState, 'cbu' | 'cbuAlias' | 'voucherKind'>,
-  config: Pick<ArcliConfig, 'cbu'>,
+  config: Pick<ArcliConfig, 'aliasCbu' | 'cbu'>,
   authorized: boolean,
 ): ConfigOffer | undefined {
   const { cbu, cbuAlias } = state;
 
   if (!authorized || !cbu || config.cbu || !isFceInvoiceState(state)) {
     return undefined;
+  }
+
+  // Guardar solo el CBU lo dejaria con el alias que ya esta en la config, que es de otra cuenta.
+  if (!cbuAlias && config.aliasCbu) {
+    return {
+      message: `¿Guardamos el CBU en la config para la próxima y borramos el alias ${config.aliasCbu}, que es de otro CBU?`,
+      removes: { keys: ['aliasCbu'], notice: `CBU guardado. Se borró el alias ${config.aliasCbu} de la config.` },
+      values: [['cbu', cbu]],
+    };
   }
 
   return {

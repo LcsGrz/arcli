@@ -36,8 +36,8 @@ const savedConfig = vi.fn();
 vi.mock('../../../modules/config/config.service', () => ({
   ConfigService: class {
     public close() {}
-    public setValue(key: string, value: string) {
-      savedConfig(key, value);
+    public changeValues({ set }: { set: ReadonlyArray<readonly [string, string]> }) {
+      set.forEach(([key, value]) => savedConfig(key, value));
     }
   },
 }));
@@ -402,7 +402,7 @@ describe('flujos del modo interactivo', () => {
       expect(savedConfig).toHaveBeenCalledWith('aliasCbu', 'mi.alias.cbu');
     });
 
-    it('con alias en la config no pregunta el alias, y Enter lo omite', async () => {
+    it('pregunta el alias aunque haya uno en la config, que es de otro CBU, y Enter lo omite', async () => {
       const withAlias = createSession();
       const configured = {
         ...withAlias,
@@ -414,7 +414,10 @@ describe('flujos del modo interactivo', () => {
         voucherKind: getVoucherKindByShortcut('fcea'),
       } as InvoiceState;
 
-      script = createScript([[/CBU del emisor/, '0110599520000012345678']]);
+      script = createScript([
+        [/CBU del emisor/, '0110599520000012345678'],
+        [/Alias del CBU/, ''],
+      ]);
       await expect(runWizard(cbuSteps(configured.runtime.config), fcea)).resolves.toMatchObject({
         cbu: '0110599520000012345678',
         cbuAlias: undefined,
@@ -430,15 +433,17 @@ describe('flujos del modo interactivo', () => {
       });
     });
 
-    it('en una FCE informa el alias del CBU de la config, como el CLI', () => {
+    it('en una FCE informa el alias de la config solo con su CBU, como el CLI', () => {
       const session = createSession();
       const withAlias = {
         ...session,
-        runtime: { ...session.runtime, config: { ...session.runtime.config, aliasCbu: 'mi.alias.cbu' } },
+        runtime: {
+          ...session.runtime,
+          config: { ...session.runtime.config, aliasCbu: 'mi.alias.cbu', cbu: '0110599520000012345678' },
+        },
       } as InteractiveSession;
       const state = {
         advanced: { currencyCode: 'ARS', sameCurrency: false },
-        cbu: '0110599520000012345678',
         concept: 'servicios',
         documentNumber: 30709965812,
         documentType: 'cuit',
@@ -448,6 +453,9 @@ describe('flujos del modo interactivo', () => {
       } as const;
 
       expect(buildInvoiceInput(state as never, withAlias.runtime)).toMatchObject({ cbuAlias: 'mi.alias.cbu' });
+      expect(
+        buildInvoiceInput({ ...state, cbu: '0170099220000067797370' } as never, withAlias.runtime).cbuAlias,
+      ).toBeUndefined();
       expect(
         buildInvoiceInput({ ...state, voucherKind: getVoucherKindByShortcut('fa') } as never, withAlias.runtime)
           .cbuAlias,

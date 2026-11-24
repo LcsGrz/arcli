@@ -50,6 +50,14 @@ export function creditNoteOverTotalError(options: {
   );
 }
 
+/**
+ * El tope de la NC, uno solo para A, B, C, FCE y la E, al validar y al preguntar en el asistente. Cuando aplica (no sobre
+ * otra NC ni en otra moneda) lo decide cada uno.
+ */
+export function isCreditNoteOverTotal(noteTotal: number, associatedTotal: number): boolean {
+  return noteTotal > associatedTotal;
+}
+
 /** El mismo aviso en el paso del monto del asistente: `No puede superar el total de la factura C 00003-00000045, de $ 120.000.` */
 export function creditNoteOverTotalHint(associatedLabel: string, total: number, currency?: string): string {
   return `No puede superar el total de ${describeTotal(associatedLabel, total, currency)}.`;
@@ -74,7 +82,7 @@ export function assertCreditNoteWithinAssociated(options: {
     return;
   }
 
-  if (note.total > associated.total) {
+  if (isCreditNoteOverTotal(note.total, associated.total)) {
     throw creditNoteOverTotalError({
       associatedCurrency: associated.currency,
       associatedLabel,

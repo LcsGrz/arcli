@@ -1,6 +1,7 @@
 import type { Command } from 'commander';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { billingDefaultsFromConfig } from '../../../modules/billing/billing.defaults';
 import { prepareBillingInput } from '../../../modules/billing/billing.prepare';
 import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
@@ -28,7 +29,6 @@ import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouc
 import { systemClock } from '../../../services/time/system-clock';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { parseBillingCommandPlan } from '../../commands/billing.command.parser';
-import { resolveBillingCommandDefaults } from '../../commands/billing.command.shared';
 import { parseExportCommandPlan } from '../../commands/export.command.parser';
 import { exportNoteSteps } from '../export-note.flow';
 import { exportRepeatSteps } from '../export-repeat.flow';
@@ -176,7 +176,7 @@ async function expectSameBillingRequest(
     const plan = parseBillingCommandPlan(
       call.command,
       call.shortcut as VoucherShortcut,
-      resolveBillingCommandDefaults(withConfig),
+      billingDefaultsFromConfig(withConfig),
     );
 
     expect(plan.invalidItems).toEqual([]);

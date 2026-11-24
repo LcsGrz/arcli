@@ -8,10 +8,10 @@ import { offerConfig } from '../save-to-config';
 import { SKIP_HINT } from '../text-hints';
 
 /**
- * El CBU de la FCE cuando la config no tiene uno y, si tampoco tiene alias, el alias (Enter lo omite, como sin
- * `--alias`), en dos pasos. Los comparten "Emitir factura" y "Repetir".
+ * El CBU de la FCE cuando la config no tiene uno y su alias (Enter lo omite, como sin `--alias`), en dos pasos. El alias
+ * se pregunta aunque haya uno guardado: es de otro CBU. Los comparten "Emitir factura" y "Repetir".
  */
-export function cbuSteps<S extends InvoiceState>(config: Pick<ArcliConfig, 'aliasCbu' | 'cbu'>): Array<WizardStep<S>> {
+export function cbuSteps<S extends InvoiceState>(config: Pick<ArcliConfig, 'cbu'>): Array<WizardStep<S>> {
   const asksCbu = (state: S): boolean => isFceInvoiceState(state) && !config.cbu;
 
   return [
@@ -38,7 +38,7 @@ export function cbuSteps<S extends InvoiceState>(config: Pick<ArcliConfig, 'alia
 
         return alias === BACK ? BACK : ({ cbuAlias: alias.trim() || undefined } as Partial<S>);
       },
-      skip: (state) => !asksCbu(state) || Boolean(config.aliasCbu),
+      skip: (state) => !asksCbu(state),
     },
   ];
 }
@@ -48,7 +48,7 @@ export function cbuSteps<S extends InvoiceState>(config: Pick<ArcliConfig, 'alia
  * escribio (REV-74, #16): dejada sin emitir o rechazada, no.
  */
 export async function offerSavingCbu(
-  config: Pick<ArcliConfig, 'cbu'>,
+  config: Pick<ArcliConfig, 'aliasCbu' | 'cbu'>,
   state: InvoiceState,
   authorized: boolean,
 ): Promise<void> {

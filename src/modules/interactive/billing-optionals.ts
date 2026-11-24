@@ -1,6 +1,7 @@
 import { formatArgentineAmount, formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { DEFAULT_CURRENCY_CODE } from '../billing/billing.constants';
 import { isForeignCurrency, resolveConfigExchangeRate } from '../billing/billing.currency';
+import { billingVoucherDefaults } from '../billing/billing.defaults';
 import type { BillingRuleContext } from '../billing/billing.rules';
 import type { BillingCommandInput } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
@@ -95,9 +96,11 @@ type CurrencyConfig = Pick<ArcliConfig, 'cotizacionPorDefecto' | 'monedaPorDefec
  * pesos: la misma regla que el parser (`resolveConfigExchangeRate`).
  */
 export function configExchangeRateFor(config: CurrencyConfig, currencyCode: string): number | undefined {
+  const { defaultCurrencyCode, defaultExchangeRate } = billingVoucherDefaults(config);
+
   return resolveConfigExchangeRate({
-    configCurrencyCode: config.monedaPorDefecto,
-    configExchangeRate: config.cotizacionPorDefecto,
+    configCurrencyCode: defaultCurrencyCode,
+    configExchangeRate: defaultExchangeRate,
     currencyCode,
     sameCurrency: false,
   });
@@ -118,7 +121,7 @@ export type ExchangeRateSuggestion =
  * de ARCA.
  */
 export function initialAdvancedOptions(config: CurrencyConfig): AdvancedOptions {
-  const currencyCode = config.monedaPorDefecto;
+  const currencyCode = billingVoucherDefaults(config).defaultCurrencyCode;
 
   if (!currencyCode || !isForeignCurrency({ currencyCode })) {
     return { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false };

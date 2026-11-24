@@ -2,13 +2,14 @@ import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { assertRules } from '../../lib/rules/rules';
-import { creditNoteOverTotalError } from '../billing/billing.associated-lookup';
-import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
+import { creditNoteOverTotalError, isCreditNoteOverTotal } from '../billing/billing.associated-lookup';
+import { ARCA_LOCAL_CURRENCY_CODE, isSameCurrency } from '../billing/currency-codes';
 import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/voucher-names';
 import { formatVoucherNumber } from '../vouchers/voucher-number';
 
 import { assertExportPointOfSaleRange, resolveExportRuleDate } from './export.mappers';
 import type { ExportRule, ExportRuleContext } from './export.rules';
+import { isSameExportClient, isSameExportCountry, isSameExportIncoterm } from './export.same';
 import {
   DEFAULT_EXPORT_TYPE,
   EXPORT_CREDIT_NOTE_KIND,
@@ -192,32 +193,63 @@ export function assertExportNoteFields(input: ExportVoucherInput, kind: ExportVo
   }
 }
 
+/** Lo del asociado que depende de otro dato: va solo si ese dato de la nota es el mismo. */
+function dependentFields(
+  associated: ExportIssuedVoucher,
+  note: {
+    readonly clientName: string;
+    readonly currencyCode: string;
+    readonly destinationCountry: string;
+    readonly incoterm?: string;
+  },
+): Pick<
+  ExportVoucherInput,
+  'clientAddress' | 'clientCountryCuit' | 'clientTaxId' | 'exchangeRate' | 'incotermDescription'
+> {
+  const sameClient = isSameExportClient(note.clientName, associated.clientName);
+  const sameCountry = isSameExportCountry(note.destinationCountry, String(associated.destinationCountry));
+  const sameIncoterm = isSameExportIncoterm(note.incoterm ?? '', associated.incoterm ?? '');
+  const sameCurrency = isSameCurrency(note.currencyCode, associated.currencyCode);
+
+  return {
+    clientAddress: sameClient ? associated.clientAddress : undefined,
+    clientCountryCuit: sameCountry ? associated.clientCountryCuit : undefined,
+    clientTaxId: sameClient ? associated.clientTaxId : undefined,
+    exchangeRate: sameCurrency && associated.exchangeRate > 0 ? associated.exchangeRate : undefined,
+    incotermDescription: sameIncoterm ? associated.incotermDescription : undefined,
+  };
+}
+
 /**
  * Los datos de la nota que faltan salen del asociado: cliente, domicilio, destino, CUIT del pais, ID impositivo,
  * tipo de exportacion, moneda y cotizacion, idioma, incoterm, forma de pago y actividad. Lo que vino por flag gana.
- * La cotizacion del asociado solo se toma si la moneda es la misma: en servicios ARCA exige esa (error 2053).
+ * La cotizacion del asociado solo se toma si la moneda es la misma: en servicios ARCA exige esa (error 2053). Tampoco se
+ * toma lo que depende de un dato que cambio: con otro cliente, su domicilio y su ID impositivo; con otro pais, su CUIT
+ * (si uno es el nombre y el otro el codigo, lo decide `ExportService` con la tabla); con otro incoterm, su descripcion.
  */
 export function applyExportAssociatedDefaults(
   input: ExportVoucherInput,
   associated: ExportIssuedVoucher,
 ): ExportVoucherInput {
   const currencyCode = input.currencyCode ?? associated.currencyCode;
-  const sameCurrency = currencyCode.trim().toUpperCase() === associated.currencyCode.trim().toUpperCase();
+  const clientName = input.clientName ?? associated.clientName;
+  const destinationCountry = input.destinationCountry ?? String(associated.destinationCountry);
+  const incoterm = input.incoterm ?? associated.incoterm;
+  const inherited = dependentFields(associated, { clientName, currencyCode, destinationCountry, incoterm });
 
   return {
     ...input,
     activity: input.activity ?? associated.activities[0],
-    clientAddress: input.clientAddress ?? associated.clientAddress,
-    clientCountryCuit: input.clientCountryCuit ?? associated.clientCountryCuit,
-    clientName: input.clientName ?? associated.clientName,
-    clientTaxId: input.clientTaxId ?? associated.clientTaxId,
+    clientAddress: input.clientAddress ?? inherited.clientAddress,
+    clientCountryCuit: input.clientCountryCuit ?? inherited.clientCountryCuit,
+    clientName,
+    clientTaxId: input.clientTaxId ?? inherited.clientTaxId,
     currencyCode,
-    destinationCountry: input.destinationCountry ?? String(associated.destinationCountry),
-    exchangeRate:
-      input.exchangeRate ?? (sameCurrency && associated.exchangeRate > 0 ? associated.exchangeRate : undefined),
+    destinationCountry,
+    exchangeRate: input.exchangeRate ?? inherited.exchangeRate,
     exportType: input.exportType ?? associated.exportType,
-    incoterm: input.incoterm ?? associated.incoterm,
-    incotermDescription: input.incotermDescription ?? associated.incotermDescription,
+    incoterm,
+    incotermDescription: input.incotermDescription ?? inherited.incotermDescription,
     language: input.language ?? associated.language,
     paymentTerms: input.paymentTerms ?? associated.paymentTerms,
   };
@@ -285,10 +317,10 @@ export function assertExportNoteMatchesAssociated(options: {
     { associated: exportAssociatedRuleContext(associated) },
   );
 
-  const sameCurrency = note.currencyCode.trim().toUpperCase() === associated.currencyCode.trim().toUpperCase();
+  const sameCurrency = isSameCurrency(note.currencyCode, associated.currencyCode);
 
   if (kind === EXPORT_CREDIT_NOTE_KIND && associated.arcaType !== EXPORT_CREDIT_NOTE_KIND.arcaType && sameCurrency) {
-    if (note.amount > associated.total) {
+    if (isCreditNoteOverTotal(note.amount, associated.total)) {
       throw creditNoteOverTotalError({
         associatedCurrency: associated.currencyCode,
         associatedLabel: label,
@@ -342,7 +374,7 @@ export function assertExportNoteMatchesAssociated(options: {
     );
   }
 
-  if (!sameCurrency && note.currencyCode.trim().toUpperCase() !== ARCA_LOCAL_CURRENCY_CODE) {
+  if (!sameCurrency && !isSameCurrency(note.currencyCode, ARCA_LOCAL_CURRENCY_CODE)) {
     throw new InputValidationError(
       `En servicios la nota va en la moneda de ${label} (${associated.currencyCode}) o en pesos: ARCA rechaza otra (error 2051).`,
     );

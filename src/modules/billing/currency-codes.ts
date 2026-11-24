@@ -94,6 +94,11 @@ export function resolveBillingCurrencyCode(currencyCode = DEFAULT_CURRENCY_CODE)
   return toArcaCurrencyCode(currencyCode);
 }
 
+/** Si dos codigos son la misma moneda, en ISO o de ARCA: `EUR` y `060`. */
+export function isSameCurrency(left: string, right: string): boolean {
+  return toArcaCurrencyCode(left) === toArcaCurrencyCode(right);
+}
+
 /** El ISO de un codigo de ARCA, para mostrarlo; si no tiene, el mismo codigo. */
 export function toIsoCurrencyCode(arcaCode: string): string {
   const normalized = arcaCode.trim().toUpperCase();

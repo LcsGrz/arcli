@@ -240,6 +240,12 @@ pisa lo que diga el archivo (en producción también, si `config.entorno` es `pr
 flags, también las relativas: `hoy`, `+10`, `mes-pasado`; `dia` está deprecado, usá `vencimientoPago`), `alicuotaIva`, `alicuotas` (`[{tasa, monto}]`),
 `importeExento`, `importeNoGravado`, `mismaMoneda`, `vencimientoPago`, `condicionVenta`, `cbu`, `aliasCbu`, `transferencia` y, solo en notas,
 `comprobanteAsociado` (`{atajo|tipo, puntoVenta, numero, cuit, fecha}`), `periodoAsociado` (`{desde, hasta}`) y `anulacion`. Lista y equivalencia con los flags: https://github.com/LcsGrz/arcli/blob/main/docs/input-output.md.
+Un flag que cambia a quién, qué comprobante o qué moneda descarta del archivo lo que dependía del valor anterior: otro documento
+(`--cuit`, `--dni`…) descarta `ivaReceptor`, `receptorNombre` y `receptorDomicilio`; otra `--moneda`, `cotizacionMoneda` (va la oficial);
+otro `--cbu`, `aliasCbu` (el de la config va solo con su `cbu`: pasá `--alias`; `config establecer cbu` con otro CBU borra `aliasCbu` y lo dice en `avisos`); otro `--ac`/`--at`/`--ar`/`--apv`, `cuit` y `fecha` del asociado,
+y cualquiera de ellos, `periodoAsociado` (y `--pd`/`--ph`, `comprobanteAsociado`); `--vto`, `dia` (y al revés). En la E: otro `--cliente`,
+`domicilioCliente` e `idImpositivo`; otro `--pais-destino`, `cuitPais`; otro `--incoterm`, `descripcionIncoterm`; `--cm`, `mismaMoneda` (y al revés). En las notas E, `--moneda` descarta además una `cotizacionMoneda` sin `codigoMoneda`, y con otro cliente, país o incoterm
+que el asociado (por flag o archivo) la nota no hereda su domicilio e ID impositivo, su CUIT del país o su descripción: pasalos.
 Una clave desconocida (`montototal`, `vencimiento`, `moneda`) o un tipo incorrecto (`"puntoVenta": "3"`, `"emitir": "true"`,
 `null` salvo en `condicionVenta`) es `INPUT_VALIDATION_ERROR` (en un lote, `BATCH_VALIDATION_ERROR` con el índice): no se ignora. Números sin comillas. En la E, igual, con `detalles` en `null`.
 

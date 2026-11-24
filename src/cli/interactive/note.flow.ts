@@ -2,6 +2,7 @@ import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import {
   creditNoteOverTotalHint,
   describeAssociated,
+  isCreditNoteOverTotal,
   missingAssociatedWarning,
 } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
@@ -221,9 +222,9 @@ function validateNoteAmount(state: NoteState): (value: string) => string | true 
       return valid;
     }
 
-    return (parseAmountInput(value) ?? 0) <= invoice.total
-      ? true
-      : creditNoteOverTotalHint(describeInvoice(state, invoice), invoice.total, invoice.currency);
+    return isCreditNoteOverTotal(parseAmountInput(value) ?? 0, invoice.total)
+      ? creditNoteOverTotalHint(describeInvoice(state, invoice), invoice.total, invoice.currency)
+      : true;
   };
 }
 

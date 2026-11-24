@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { errorText } from '../../lib/files/file-error';
 import {
   formatConfigAsText,
+  formatConfigChangeWarnings,
   formatConfigDoctorAsText,
-  formatPendingConfigWarnings,
   serializeConfig,
   serializeConfigDoctor,
   serializeConfigPath,
@@ -40,15 +40,23 @@ function printConfigResult(textValue: string, jsonValue: object, useJson = false
   writeTerminalOutput(textValue);
 }
 
-/** La config como quedo y, si hay otras claves que siguen rotas, el aviso: con JSON va en `avisos`. */
-function printConfigChange(service: ConfigService, { config, pending }: ConfigChange, command: Command): void {
+/** La config como quedo y los avisos (otras claves que siguen rotas, el alias que se borro): con JSON van en `avisos`. */
+function printConfigChange(
+  service: ConfigService,
+  { config, pending, warnings }: ConfigChange,
+  command: Command,
+): void {
   const paths = service.resolvePaths(config);
   const useJson = resolveOutputJson(command, config);
 
-  printConfigResult(formatConfigAsText(config, paths, pending), serializeConfig(config, paths, pending), useJson);
+  printConfigResult(
+    formatConfigAsText(config, paths, pending),
+    serializeConfig(config, paths, pending, warnings),
+    useJson,
+  );
 
   if (!useJson) {
-    writeTerminalNotice(() => formatPendingConfigWarnings(pending));
+    writeTerminalNotice(() => formatConfigChangeWarnings(pending, warnings));
   }
 }
 

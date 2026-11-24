@@ -124,6 +124,8 @@ Ejemplo simple de prioridad:
 
 ARCLI usa `7`, porque el flag explícito siempre pisa JSON y config.
 
+Si el flag cambia a quién, qué comprobante o qué moneda, además descarta del JSON los datos que dependían del valor anterior: con `--cuit` de otro cliente no van el nombre, el domicilio ni el IVA del que trae el archivo. La lista está en [Datos del JSON que un flag descarta](validation-rules.md#datos-del-json-que-un-flag-descarta).
+
 ### Exclusividades importantes
 
 Hay varias combinaciones de flags que no podés usar juntas (entorno, modo de ejecución, concepto, IVA receptor, identidad del receptor, tipo de asociado). El detalle completo vive en [Flags mutuamente excluyentes](validation-rules.md#flags-mutuamente-excluyentes).
@@ -323,12 +325,12 @@ Dicho más directo: **no aplican a `factura`, `factura-credito-electronica`, `re
 
 Estos flags solo aplican a comprobantes de crédito electrónica. En cualquier otro comprobante dan error, porque ARCA los rechaza (10169).
 
-| Flag                          | Alias   | Tipo             | Valor por defecto | Aplica a    | Descripción                         |
-| ----------------------------- | ------- | ---------------- | ----------------- | ----------- | ----------------------------------- |
-| `--cbu <cbu>`                 | ninguno | `string(22)`     | `config.cbu`      | Factura FCE | CBU del emisor (obligatorio)        |
-| `--alias <alias>`             | ninguno | `string(6..20)`  | `config.aliasCbu` | Factura FCE | Alias del CBU (opcional)            |
-| `--transferencia <modalidad>` | ninguno | `'sca' \| 'adc'` | `sca`             | Factura FCE | Modalidad de transferencia          |
-| `--anulacion`                 | ninguno | `boolean`        | `false`           | NC/ND FCE   | La nota anula una factura rechazada |
+| Flag                          | Alias   | Tipo             | Valor por defecto | Aplica a    | Descripción                                                                 |
+| ----------------------------- | ------- | ---------------- | ----------------- | ----------- | --------------------------------------------------------------------------- |
+| `--cbu <cbu>`                 | ninguno | `string(22)`     | `config.cbu`      | Factura FCE | CBU del emisor (obligatorio)                                                |
+| `--alias <alias>`             | ninguno | `string(6..20)`  | `config.aliasCbu` | Factura FCE | Alias del CBU (opcional). El de la config va solo si el CBU es `config.cbu` |
+| `--transferencia <modalidad>` | ninguno | `'sca' \| 'adc'` | `sca`             | Factura FCE | Modalidad de transferencia                                                  |
+| `--anulacion`                 | ninguno | `boolean`        | `false`           | NC/ND FCE   | La nota anula una factura rechazada                                         |
 
 ### PDF
 
@@ -542,7 +544,7 @@ La base es la de una factura común, más los datos de cobro que exige el régim
 **Obligatorio**
 
 - lo mismo que en una factura común
-- CBU: `--cbu`, o configurado una vez con `arcli config establecer cbu <22 dígitos>`
+- CBU: `--cbu`, o configurado una vez con `arcli config establecer cbu <22 dígitos>`. Cargar otro CBU borra el `aliasCbu` guardado, que es del anterior, y lo avisa: cargá primero el CBU y después su alias, con `arcli config establecer aliasCbu <alias>`. Sin CBU guardado antes, el alias queda y se avisa que se va a usar con ese CBU
 
 **Opcional**
 
