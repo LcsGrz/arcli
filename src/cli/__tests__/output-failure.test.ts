@@ -7,6 +7,7 @@ import type { ExportExecutionResult } from '../../modules/export/export.types';
 import { stripAnsi } from '../../ui';
 import type { OutputFailures, OutputName } from '../closed-output';
 import { writePartialResultsFailure } from '../commands/billing.command.output';
+import { EmissionCancelledError } from '../emission-cancelled';
 import {
   describeEmittedInThisRun,
   recordEmission,
@@ -104,6 +105,13 @@ describe('reportOutputFailure', () => {
       expect(stdout).not.toMatch(/ERROR|outputHelp/);
     },
   );
+
+  it('stderr, en texto, cancelado: su aviso, no un error inesperado', () => {
+    reportOutputFailure(failures('stderr'), { commandError: new EmissionCancelledError(), json: false });
+
+    expect(plain(stdout)).toContain('No se emitió nada');
+    expect(stdout).not.toMatch(/inesperado/i);
+  });
 
   it('stderr, en JSON: nada, stdout es solo el resultado', () => {
     reportOutputFailure(failures('stderr'), { commandError: new Error('x'), json: true });

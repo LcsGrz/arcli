@@ -647,6 +647,16 @@ describe('con stdout que no se puede escribir', () => {
 
     expect(healthy.stderr).toContain('99.0.0');
     expect(JSON.parse(stripVTControlCharacters(result.stderr))).toMatchObject({ error: UNWRITTEN });
+
+    const asText = await runClosing([], ['ayuda'], [failOutput(['stdout']), terminal]);
+
+    writeFileSync(file('config.json'), JSON.stringify({ ...readConfig(), output: { jsonPorDefecto: false } }));
+
+    const inText = await runClosing([], INVOICE, [failOutput(['stdout']), terminal, fakeArca()]);
+
+    expect(asText.stderr).not.toContain('99.0.0');
+    expect(inText.stderr).toContain('99.0.0');
+    expect(plain(inText.stderr)).toContain(UNWRITTEN);
   });
 
   it('un rechazo sale con 2 y no dice que se emitió', async () => {

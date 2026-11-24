@@ -7,6 +7,7 @@ import { blockPager } from '../block-pager';
 import { filterList } from '../filter-list';
 import { listSelect } from '../list-select';
 import { multiSelect } from '../multi-select';
+import { withOutputGuard } from '../output-guard';
 import {
   browseBlocks,
   browseFilterList,
@@ -206,6 +207,23 @@ describe('prompts de paso', () => {
 
     pressEscape();
     expect(await result).toEqual({ answer: BACK });
+  });
+
+  it('chooseStepWhileLoading, en el asistente: la carga que termina antes de abrir la lista también la cierra', async () => {
+    // El control de la salida espera un turno antes de escuchar (ERR-18).
+    selectMock.mockImplementationOnce((config, context) =>
+      context?.signal?.aborted
+        ? (Promise.reject(Object.assign(new Error('abort'), { name: 'AbortPromptError' })) as never)
+        : waitForAbort(config, context),
+    );
+
+    let result: unknown;
+
+    await withOutputGuard(async () => {
+      result = await chooseStepWhileLoading('¿Cual?', [], undefined, 12, Promise.resolve('cargado'));
+    });
+
+    expect(result).toEqual({ loaded: 'cargado' });
   });
 
   it('chooseStepWhileLoading: si la carga falla, la lista se cierra y el error sale', async () => {

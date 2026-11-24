@@ -61,11 +61,9 @@ export async function settleOutput(
   stream: Pick<NodeJS.WriteStream, 'writableLength'> = process[output],
   state: OutputState = outputState,
 ): Promise<void> {
-  for (
-    let waited = 0;
-    stream.writableLength > 0 && !isOutputLost(output, state) && waited < SETTLE_TIMEOUT_MS;
-    waited += SETTLE_STEP_MS
-  ) {
+  const deadline = performance.now() + SETTLE_TIMEOUT_MS;
+
+  while (stream.writableLength > 0 && !isOutputLost(output, state) && performance.now() < deadline) {
     await setTimeout(SETTLE_STEP_MS);
   }
 

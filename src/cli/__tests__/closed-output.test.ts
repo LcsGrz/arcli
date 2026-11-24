@@ -126,5 +126,5 @@ describe('settleOutput', () => {
 
     expect(elapsed).toBeGreaterThan(500);
     expect(elapsed).toBeLessThan(4000);
-  });
+  }, 15_000);
 });
