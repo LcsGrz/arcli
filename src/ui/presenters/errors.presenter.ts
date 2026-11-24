@@ -1,5 +1,6 @@
 import { AppError, HELP_SUGGESTION } from '../../lib/errors/app-error';
 import { summarizeError } from '../../lib/errors/error-summary';
+import { errorText } from '../../lib/files/file-error';
 import { ISSUES_URL } from '../../lib/links';
 import { shortenPath } from '../../lib/paths/mask-path';
 import { normalizeSearchText } from '../../lib/text/search';
@@ -153,7 +154,7 @@ export function formatAppError(error: unknown, useJson: boolean): string {
     return errorPanel(formatErrorTitle(error.code), error.message, details, hint ?? undefined);
   }
 
-  const message = error instanceof Error ? error.message : 'Ocurrió un error inesperado.';
+  const message = error instanceof Error ? errorText(error) : 'Ocurrió un error inesperado.';
   const { code, suggestion, transient } = summarizeError(error);
 
   if (useJson) {

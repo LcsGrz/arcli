@@ -9,6 +9,7 @@ import {
   removeSelfSignedCertificates,
   type SelfSignedCertificate,
 } from '../../lib/security/__tests__/self-signed-certificate';
+import { toBatchItemError } from '../../modules/billing/billing.batch';
 import { stripAnsi } from '../../ui';
 import { formatCliError, reportCliError } from '../error-output';
 import { showAssistantError } from '../interactive/show-assistant-error';
@@ -298,6 +299,23 @@ describe('errores de archivos (ERR-8)', () => {
       detalles: null,
       error: 'connect EACCES 10.0.0.1:443',
       sugerencia: null,
+    });
+  });
+
+  it('en un lote, el mismo código, texto y sugerencia que solo', () => {
+    const error = Object.assign(new Error("EACCES: permission denied, open '/Users/ana/x/y.key'"), {
+      code: 'EACCES',
+      path: '/Users/ana/x/y.key',
+      syscall: 'open',
+    });
+    const alone = JSON.parse(formatCliError(error, true)) as JsonError;
+
+    expect(alone.error).toBe('No se pudo abrir .../x/y.key: no tenés permiso.');
+    expect(toBatchItemError(1, error)).toEqual({
+      code: alone.codigo,
+      index: 1,
+      message: alone.error,
+      suggestion: alone.sugerencia,
     });
   });
 

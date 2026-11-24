@@ -2,6 +2,7 @@ import { ZodError } from 'zod';
 
 import { AppError } from '../../lib/errors/app-error';
 import { summarizeError } from '../../lib/errors/error-summary';
+import { errorText } from '../../lib/files/file-error';
 
 import { EmissionUncertainError } from './billing.errors';
 import { summarizeZodError } from './billing.zod-errors';
@@ -17,11 +18,7 @@ export interface BatchItemError {
 }
 
 function describeBatchItemError(error: unknown): string {
-  if (error instanceof ZodError) {
-    return summarizeZodError(error);
-  }
-
-  return error instanceof Error ? error.message : String(error);
+  return error instanceof ZodError ? summarizeZodError(error) : errorText(error);
 }
 
 /** El error de un comprobante del lote; `index` es su posicion, empezando en 1. */
