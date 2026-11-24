@@ -17,19 +17,31 @@ export interface BillingDefaults {
   readonly lookupIvaConditionInPadron?: boolean;
 }
 
-/** Los defaults de la config que completan lo que no viene por flags ni por JSON. */
-export function billingDefaultsFromConfig(config: ArcliConfig): BillingDefaults {
+type BillingVoucherConfig = Pick<
+  ArcliConfig,
+  'aliasCbu' | 'alicuotaPorDefecto' | 'cbu' | 'cotizacionPorDefecto' | 'monedaPorDefecto'
+>;
+
+/** La parte de `billingDefaultsFromConfig` que usa el asistente: alícuota, CBU, alias y moneda. */
+export function billingVoucherDefaults(config: BillingVoucherConfig) {
   return {
     defaultCbu: config.cbu,
     defaultCbuAlias: config.aliasCbu,
-    defaultConcept: config.conceptoPorDefecto,
     defaultCurrencyCode: config.monedaPorDefecto,
-    defaultEmit: config.output.emitirPorDefecto,
     // `conf` guarda el default 1 en el archivo: 1 es lo mismo que no tenerla, y en moneda extranjera no es valida.
     defaultExchangeRate:
       config.cotizacionPorDefecto === DEFAULT_EXCHANGE_RATE ? undefined : config.cotizacionPorDefecto,
-    defaultIvaCondition: config.ivaReceptorPorDefecto,
     defaultIvaRate: config.alicuotaPorDefecto,
+  } satisfies BillingDefaults;
+}
+
+/** Los defaults de la config que completan lo que no viene por flags ni por JSON. */
+export function billingDefaultsFromConfig(config: ArcliConfig): BillingDefaults {
+  return {
+    ...billingVoucherDefaults(config),
+    defaultConcept: config.conceptoPorDefecto,
+    defaultEmit: config.output.emitirPorDefecto,
+    defaultIvaCondition: config.ivaReceptorPorDefecto,
     lookupIvaConditionInPadron: isPadronLookupEnabled(config),
   };
 }

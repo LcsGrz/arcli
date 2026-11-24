@@ -2,7 +2,7 @@ import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { assertRules } from '../../lib/rules/rules';
-import { creditNoteOverTotalError } from '../billing/billing.associated-lookup';
+import { creditNoteOverTotalError, isCreditNoteOverTotal } from '../billing/billing.associated-lookup';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/voucher-names';
 import { formatVoucherNumber } from '../vouchers/voucher-number';
@@ -288,7 +288,7 @@ export function assertExportNoteMatchesAssociated(options: {
   const sameCurrency = note.currencyCode.trim().toUpperCase() === associated.currencyCode.trim().toUpperCase();
 
   if (kind === EXPORT_CREDIT_NOTE_KIND && associated.arcaType !== EXPORT_CREDIT_NOTE_KIND.arcaType && sameCurrency) {
-    if (note.amount > associated.total) {
+    if (isCreditNoteOverTotal(note.amount, associated.total)) {
       throw creditNoteOverTotalError({
         associatedCurrency: associated.currencyCode,
         associatedLabel: label,

@@ -1,4 +1,5 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
+import { billingVoucherDefaults } from '../billing/billing.defaults';
 import { BILLING_RULES, type BillingRuleContext } from '../billing/billing.rules';
 import { type BillingCommandInput, billingCommandSchema } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
@@ -63,6 +64,7 @@ export function buildInvoiceInput(state: InvoiceState, env: InvoiceInputEnv): Bi
  */
 function invoiceInputFields(state: InvoiceState, env: InvoiceInputEnv): Partial<BillingCommandInput> {
   const { config } = env;
+  const defaults = billingVoucherDefaults(config);
   const voucherKind = requireStepValue(state.voucherKind, 'voucherKind');
   const ivaRate = discriminatesIva(voucherKind.letter) ? defaultIvaRate(config, state.advanced.ivaRate) : undefined;
   const { consumerDocumentNumber, consumerDocumentType, ...advanced } = state.advanced;
@@ -71,9 +73,9 @@ function invoiceInputFields(state: InvoiceState, env: InvoiceInputEnv): Partial<
 
   return {
     ...advanced,
-    cbu: fce ? (state.cbu ?? config.cbu) : undefined,
+    cbu: fce ? (state.cbu ?? defaults.defaultCbu) : undefined,
     // Como en el CLI: en una FCE el alias de la config se informa junto con el CBU.
-    cbuAlias: fce ? (state.cbuAlias ?? config.aliasCbu) : undefined,
+    cbuAlias: fce ? (state.cbuAlias ?? defaults.defaultCbuAlias) : undefined,
     concept: state.concept,
     documentNumber: receiver.documentNumber,
     documentType: receiver.documentType,

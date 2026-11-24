@@ -1,4 +1,5 @@
 import { DEFAULT_IVA_RATE } from '../billing/billing.amounts';
+import { billingVoucherDefaults } from '../billing/billing.defaults';
 import type { BillingIvaRate } from '../billing/billing.schemas';
 import type { ArcliConfig } from '../config/config.schemas';
 
@@ -9,7 +10,7 @@ type IvaRateConfig = Pick<ArcliConfig, 'alicuotaPorDefecto'>;
  * repetirlo o en una nota sobre el), si hay; si no, la de la config o 21%.
  */
 export function defaultIvaRate(config: IvaRateConfig, deduced?: BillingIvaRate): BillingIvaRate {
-  return deduced ?? config.alicuotaPorDefecto ?? DEFAULT_IVA_RATE;
+  return deduced ?? billingVoucherDefaults(config).defaultIvaRate ?? DEFAULT_IVA_RATE;
 }
 
 /**
@@ -20,5 +21,5 @@ export function explicitIvaRate(
   ivaRate: BillingIvaRate | undefined,
   config: IvaRateConfig,
 ): BillingIvaRate | undefined {
-  return ivaRate === DEFAULT_IVA_RATE && !config.alicuotaPorDefecto ? undefined : ivaRate;
+  return ivaRate === DEFAULT_IVA_RATE && !billingVoucherDefaults(config).defaultIvaRate ? undefined : ivaRate;
 }

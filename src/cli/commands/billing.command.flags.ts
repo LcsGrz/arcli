@@ -7,25 +7,11 @@ import type { BillingJsonInput } from '../../modules/billing/billing.json-input'
 import { resolvePdfFlag } from '../../modules/pdf/pdf-decision';
 
 import { resolveConceptShortcut, resolveDocumentIdentity, resolveIvaShortcut } from './billing.command.shortcuts';
-
-type FlagOptions = Record<string, unknown>;
-
-function pickString(...values: unknown[]): string | undefined {
-  return values.find((value): value is string => typeof value === 'string');
-}
-
-function pickNumber(...values: unknown[]): number | undefined {
-  return values.find((value): value is number => typeof value === 'number');
-}
-
-/** `true` si se escribió; `undefined` si no, para que decida el archivo. */
-function pickSwitch(value: unknown): true | undefined {
-  return value === true ? true : undefined;
-}
+import { type OptionValues, pickNumber, pickString, pickSwitch } from './option-values';
 
 const ASSOCIATED_FLAGS = ['ac', 'acuit', 'afecha', 'apv', 'ar', 'asociadoPuntoVenta', 'at'] as const;
 
-function readAssociatedVoucher(options: FlagOptions): BillingJsonInput {
+function readAssociatedVoucher(options: OptionValues): BillingJsonInput {
   if (typeof options.ac === 'string' && typeof options.at === 'number') {
     throw new InputValidationError(
       'Usá `--ac` o `--at` para identificar el comprobante asociado, pero no ambos a la vez.',
@@ -50,7 +36,7 @@ function readAssociatedVoucher(options: FlagOptions): BillingJsonInput {
 }
 
 /** El concepto, el documento y el IVA del receptor, que tienen flags cortos. */
-function readIdentification(options: FlagOptions): BillingJsonInput {
+function readIdentification(options: OptionValues): BillingJsonInput {
   const conceptShortcut = resolveConceptShortcut(options);
   const { documentNumber, documentType } = resolveDocumentIdentity(options);
   const ivaShortcut = resolveIvaShortcut(options);
@@ -79,7 +65,7 @@ function readIdentification(options: FlagOptions): BillingJsonInput {
   };
 }
 
-function readCurrency(options: FlagOptions): BillingJsonInput {
+function readCurrency(options: OptionValues): BillingJsonInput {
   const cotizacionMoneda = pickNumber(options.cotizacionMoneda, options.cm);
   const mismaMoneda = pickSwitch(options.mismaMoneda);
 
@@ -106,7 +92,7 @@ function parseRateAmount(flagValue: string, raw: string): number {
  * `--alicuota` acepta una tasa sola ("reducida", "10.5") o, repetido, pares TASA:MONTO con el importe
  * de cada alicuota IVA incluido. No se pueden mezclar las dos formas.
  */
-function readIvaRates(options: FlagOptions): BillingJsonInput {
+function readIvaRates(options: OptionValues): BillingJsonInput {
   const values = options.alicuota as string[] | undefined;
 
   if (!values || values.length === 0) {
@@ -138,7 +124,7 @@ function readIvaRates(options: FlagOptions): BillingJsonInput {
   };
 }
 
-function readSaleCondition(options: FlagOptions): BillingJsonInput {
+function readSaleCondition(options: OptionValues): BillingJsonInput {
   const condicionVenta = pickString(options.condicionVenta, options.cv);
 
   if (options.sinCondicionVenta !== true) {
@@ -152,7 +138,7 @@ function readSaleCondition(options: FlagOptions): BillingJsonInput {
   return { condicionVenta: null };
 }
 
-function readPdf(options: FlagOptions): BillingJsonInput {
+function readPdf(options: OptionValues): BillingJsonInput {
   return {
     pdf: resolvePdfFlag({
       exportPdf: options.exportarPdf === true || options.pdf === true,
@@ -161,7 +147,7 @@ function readPdf(options: FlagOptions): BillingJsonInput {
   };
 }
 
-const FLAG_GROUPS: Readonly<Record<BillingFlagGroup, (options: FlagOptions) => BillingJsonInput>> = {
+const FLAG_GROUPS: Readonly<Record<BillingFlagGroup, (options: OptionValues) => BillingJsonInput>> = {
   alicuota: readIvaRates,
   asociado: readAssociatedVoucher,
   condicionVenta: readSaleCondition,
@@ -170,7 +156,7 @@ const FLAG_GROUPS: Readonly<Record<BillingFlagGroup, (options: FlagOptions) => B
   pdf: readPdf,
 };
 
-function readAssociatedPeriod(options: FlagOptions): BillingJsonInput['periodoAsociado'] {
+function readAssociatedPeriod(options: OptionValues): BillingJsonInput['periodoAsociado'] {
   const desde = pickString(options.periodoDesde, options.pd);
   const hasta = pickString(options.periodoHasta, options.ph);
 
@@ -178,7 +164,7 @@ function readAssociatedPeriod(options: FlagOptions): BillingJsonInput['periodoAs
 }
 
 /** Los que no chocan con otros, y `--emitir` con `--previsualizar`, que controla `resolveEmitDecision`. */
-function readOtherFlags(command: Command, options: FlagOptions): BillingJsonInput {
+function readOtherFlags(command: Command, options: OptionValues): BillingJsonInput {
   const fromCli = (name: 'emitir' | 'previsualizar') =>
     command.getOptionValueSource(name) === 'cli' ? options[name] === true : undefined;
 
@@ -207,7 +193,7 @@ function readOtherFlags(command: Command, options: FlagOptions): BillingJsonInpu
 
 /** Traduce los flags de A, B, C y FCE a la forma de `--cargar`; los incompatibles quedan en `errors`. */
 export function readBillingFlags(command: Command): BillingFlags {
-  const options = command.optsWithGlobals<FlagOptions>();
+  const options = command.optsWithGlobals<OptionValues>();
   const errors: Partial<Record<BillingFlagGroup, AppError>> = {};
   const flags = readOtherFlags(command, options);
 

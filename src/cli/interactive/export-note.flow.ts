@@ -1,7 +1,7 @@
 import { formatArcaDateAsArgentineDate, formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { asQuery } from '../../lib/errors/query-error';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
-import { creditNoteOverTotalHint } from '../../modules/billing/billing.associated-lookup';
+import { creditNoteOverTotalHint, isCreditNoteOverTotal } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import { assertExportNoteMatchesAssociated } from '../../modules/export/export.notes';
@@ -213,7 +213,11 @@ export function exportNoteSteps(
         const invoice = requireStepValue(state.invoice, 'invoice');
 
         // Como el CLI: el tope solo vale si la NC no ajusta otra NC.
-        if (kind !== 'credito' || invoice.arcaType === EXPORT_CREDIT_NOTE_KIND.arcaType || total <= invoice.total) {
+        if (
+          kind !== 'credito' ||
+          invoice.arcaType === EXPORT_CREDIT_NOTE_KIND.arcaType ||
+          !isCreditNoteOverTotal(total, invoice.total)
+        ) {
           return true;
         }
 
