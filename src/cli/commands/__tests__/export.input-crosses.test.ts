@@ -9,8 +9,7 @@ import {
 import { exportInput, type Json, pick, type Written } from './input-precedence.fixtures';
 
 /**
- * REV-52: los cruces entre niveles en la factura E y sus notas. Cada uno va dos veces: como está hoy (esa
- * caracterización se borra en la tanda 4) y, en `it.fails`, como quedó aprobado.
+ * REV-52: los cruces entre niveles en la factura E y sus notas, como en A, B y C (`billing.input-crosses.test.ts`).
  */
 
 const KINDS = [
@@ -22,7 +21,6 @@ const KINDS = [
 interface CrossCase {
   readonly approved: Json;
   readonly name: string;
-  readonly today: Json;
   readonly written: Written;
 }
 
@@ -33,36 +31,27 @@ describe.each(KINDS)('cruce 1 en %s: la cotización del archivo con otra moneda 
     {
       approved: { currencyCode: 'EUR', exchangeRate: undefined },
       name: '--moneda EUR sobre USD del archivo',
-      today: { currencyCode: 'EUR', exchangeRate: 1400 },
       written: { args: ['--moneda', 'EUR'], json: { ...rate, codigoMoneda: 'USD' } },
     },
     {
       approved: { currencyCode: '060', exchangeRate: undefined },
       name: 'sin `codigoMoneda`, la del archivo es DOL: --mda 060',
-      today: { currencyCode: '060', exchangeRate: 1400 },
       written: { args: ['--mda', '060'], json: rate },
     },
     {
       // La moneda de la config es de A, B y C.
       approved: { currencyCode: 'EUR', exchangeRate: undefined },
       name: 'la moneda de la config no es la del archivo',
-      today: { currencyCode: 'EUR', exchangeRate: 1400 },
       written: { args: ['--moneda', 'EUR'], config: { monedaPorDefecto: 'EUR' }, json: rate },
     },
     {
       approved: { currencyCode: 'ARS', exchangeRate: undefined },
       name: '--moneda ARS sobre USD del archivo',
-      today: { currencyCode: 'ARS', exchangeRate: 1400 },
       written: { args: ['--moneda', 'ARS'], json: { ...rate, codigoMoneda: 'USD' } },
     },
   ];
 
-  it.each(cases)('cruce 1, hoy (cambia en la tanda 4): $name', ({ today, written }) => {
-    expect(pick(exportInput(written, kind), today)).toEqual(today);
-  });
-
-  // Tests primero (REV-52): pasa a it() al implementarlo.
-  it.fails.each(cases)('cruce 1, aprobado: $name', ({ approved, written }) => {
+  it.each(cases)('cruce 1: $name', ({ approved, written }) => {
     expect(pick(exportInput(written, kind), approved)).toEqual(approved);
   });
 
@@ -96,12 +85,7 @@ describe('cruce 7: --cm y `mismaMoneda` en niveles distintos', () => {
   const cmOverFile = { args: ['--cm', '1500'], json: { mismaMoneda: true } };
   const sameOverFile = { args: ['--misma-moneda'], json: rate };
 
-  it.each(KINDS)('cruce 7, hoy (cambia en la tanda 4): --cm convive con `mismaMoneda` en %s', (_name, kind) => {
-    expect(exportInput(cmOverFile, kind)).toMatchObject({ exchangeRate: 1500, sameCurrency: true });
-  });
-
-  // Tests primero (REV-52): pasa a it() al implementarlo.
-  it.fails.each(KINDS)('cruce 7, aprobado: --cm descarta `mismaMoneda` en %s', (_name, kind) => {
+  it.each(KINDS)('cruce 7: --cm descarta `mismaMoneda` en %s', (_name, kind) => {
     const input = exportInput(cmOverFile, kind);
 
     expect(input.exchangeRate).toBe(1500);
@@ -109,12 +93,7 @@ describe('cruce 7: --cm y `mismaMoneda` en niveles distintos', () => {
     expect(input.sameCurrency).not.toBe(true);
   });
 
-  it('cruce 7, hoy (cambia en la tanda 4): --misma-moneda convive con `cotizacionMoneda`', () => {
-    expect(exportInput(sameOverFile)).toMatchObject({ exchangeRate: 1400, sameCurrency: true });
-  });
-
-  // Tests primero (REV-52): pasa a it() al implementarlo.
-  it.fails('cruce 7, aprobado: --misma-moneda descarta `cotizacionMoneda`', () => {
+  it('cruce 7: --misma-moneda descarta `cotizacionMoneda`', () => {
     const input = exportInput(sameOverFile);
 
     expect(input.sameCurrency).toBe(true);
@@ -134,41 +113,105 @@ describe('cruce 7: --cm y `mismaMoneda` en niveles distintos', () => {
   });
 });
 
-/** Cruces que no están en la tabla del diseño: cómo están hoy, sin decidir nada. */
-describe('cruces sin decidir en la E (hoy)', () => {
-  it('D: `--pais-destino` con `cuitPais` en el archivo informa el CUIT del otro país', () => {
-    expect(
-      exportInput({ args: ['--pais-destino', '203'], json: { cuitPais: 55000002126, paisDestino: 212 } }),
-    ).toMatchObject({ clientCountryCuit: 55000002126, destinationCountry: '203' });
+it('la cotización del archivo no va con otra moneda aunque el archivo diga `mismaMoneda`', () => {
+  expect(
+    exportInput({ args: ['--moneda', 'EUR'], json: { ...rate, codigoMoneda: 'USD', mismaMoneda: true } }),
+  ).toMatchObject({ currencyCode: 'EUR', exchangeRate: undefined, sameCurrency: true });
+});
+
+describe('cruces D, E y F: el destino, el cliente y el incoterm', () => {
+  const COUNTRY = { cuitPais: 55000002126, paisDestino: 212 };
+  const CLIENT = {
+    cliente: 'Archivo LLC',
+    domicilioCliente: 'Main St 1',
+    idImpositivo: 'A-1',
+    paisDestino: 212,
+  };
+  const INCOTERM = { descripcionIncoterm: 'Free on board', incoterm: 'FOB' };
+
+  it.each<[string, Written, Json]>([
+    [
+      'D: otro --pais-destino descarta `cuitPais`',
+      { args: ['--pais-destino', '203'], json: COUNTRY },
+      { clientCountryCuit: undefined, destinationCountry: '203' },
+    ],
+    [
+      'D: otro país por nombre',
+      { args: ['--pais-destino', 'Chile'], json: { ...COUNTRY, paisDestino: 'Brasil' } },
+      { clientCountryCuit: undefined },
+    ],
+    [
+      'D: con --cuit-pais va el del flag',
+      { args: ['--pais-destino', '203', '--cuit-pais', '50000000016'], json: COUNTRY },
+      { clientCountryCuit: 50000000016 },
+    ],
+    ['D: el mismo código no', { args: ['--pais-destino', '212'], json: COUNTRY }, { clientCountryCuit: 55000002126 }],
+    [
+      'D: el mismo nombre, con otras mayúsculas y tildes, no',
+      { args: ['--pais-destino', 'MEXICO'], json: { ...COUNTRY, paisDestino: 'México' } },
+      { clientCountryCuit: 55000002126 },
+    ],
+    [
+      'D: un archivo sin país no contradice nada',
+      { args: ['--pais-destino', '203'], json: { cuitPais: 55000002126 } },
+      { clientCountryCuit: 55000002126 },
+    ],
+    [
+      'E: otro --cliente descarta el domicilio y el ID impositivo, y conserva el país',
+      { args: ['--cliente', 'Flag LLC'], json: CLIENT },
+      { clientAddress: undefined, clientName: 'Flag LLC', clientTaxId: undefined, destinationCountry: '212' },
+    ],
+    [
+      'E: el mismo cliente no',
+      { args: ['--cliente', 'Archivo LLC '], json: CLIENT },
+      { clientAddress: 'Main St 1', clientTaxId: 'A-1' },
+    ],
+    [
+      'E: un archivo sin cliente no contradice nada',
+      { args: ['--cliente', 'Flag LLC'], json: { ...CLIENT, cliente: undefined } },
+      { clientAddress: 'Main St 1', clientTaxId: 'A-1' },
+    ],
+    [
+      'F: otro --incoterm descarta su descripción',
+      { args: ['--incoterm', 'CIF'], json: INCOTERM },
+      { incoterm: 'CIF', incotermDescription: undefined },
+    ],
+    [
+      'F: el mismo incoterm no',
+      { args: ['--incoterm', 'fob'], json: INCOTERM },
+      { incotermDescription: 'Free on board' },
+    ],
+    [
+      'F: con --incoterms-desc va la del flag',
+      { args: ['--incoterm', 'CIF', '--incoterms-desc', 'Puerto'], json: INCOTERM },
+      { incotermDescription: 'Puerto' },
+    ],
+  ])('%s', (_name, written, expected) => {
+    expect(pick(exportInput(written), expected)).toEqual(expected);
   });
+});
 
-  it('E: `--cliente` conserva el domicilio, el ID impositivo y el país del cliente del archivo', () => {
-    const json = { cliente: 'Archivo LLC', domicilioCliente: 'Main St 1', idImpositivo: 'A-1', paisDestino: 212 };
-
-    expect(exportInput({ args: ['--cliente', 'Flag LLC'], json })).toMatchObject({
-      clientAddress: 'Main St 1',
-      clientName: 'Flag LLC',
-      clientTaxId: 'A-1',
-      destinationCountry: '212',
-    });
-  });
-
-  it('F: `--incoterm` conserva la descripción del incoterm del archivo', () => {
-    expect(
-      exportInput({ args: ['--incoterm', 'CIF'], json: { descripcionIncoterm: 'Free on board', incoterm: 'FOB' } }),
-    ).toMatchObject({ incoterm: 'CIF', incotermDescription: 'Free on board' });
-  });
-
+describe.each(KINDS.slice(1))('cruces A y G en %s: el comprobante asociado', (_name, kind) => {
   it.each<[string[], Json, Json]>([
-    [['--ac', 'nde'], { tipo: 19 }, { arcaType: 19, shortcut: 'nde' }],
-    [['--at', '20'], { atajo: 'fe' }, { arcaType: 20, shortcut: 'fe' }],
-  ])('G: %j no descarta el tipo del archivo en la nota, como sí en A, B y C', (args, associated, expected) => {
-    expect(
-      exportInput({ args, json: { comprobanteAsociado: associated } }, EXPORT_CREDIT_NOTE_KIND).associatedVoucher,
-    ).toEqual(expected);
+    [['--ac', 'nde'], { tipo: 19 }, { shortcut: 'nde' }],
+    [['--at', '20'], { atajo: 'fe' }, { arcaType: 20 }],
+    // Lo del comprobante del archivo no va con otro.
+    [['--ac', 'nde'], { atajo: 'fe', cuit: '20111111112', numero: 1 }, { number: 1, shortcut: 'nde' }],
+    [['--ar', '9'], { atajo: 'fe', cuit: '20111111112', numero: 1 }, { number: 9, shortcut: 'fe' }],
+    [
+      ['--apv', '9'],
+      { cuit: '20111111112', fecha: '01/09/2026', puntoVenta: 1 },
+      { date: '01/09/2026', pointOfSale: 9 },
+    ],
+    [['--at', '19'], { atajo: 'fe', cuit: '20111111112' }, { arcaType: 19, cuit: '20111111112' }],
+    [['--ar', '1'], { cuit: '20111111112', numero: 1 }, { cuit: '20111111112', number: 1 }],
+  ])('%j con %j en el archivo', (args, associated, expected) => {
+    expect(exportInput({ args, json: { comprobanteAsociado: associated } }, kind).associatedVoucher).toEqual(expected);
   });
+});
 
-  it('H: `--tipo-expo 2` conserva permisos e incoterm del archivo (son de bienes)', () => {
+describe('cruce que queda así (decidido)', () => {
+  it('H (decidido: queda así): `--tipo-expo 2` conserva permisos e incoterm del archivo (son de bienes)', () => {
     const json = { incoterm: 'FOB', permisoExistente: true, permisos: ['P1'], tipoExpo: 1 };
 
     expect(exportInput({ args: ['--tipo-expo', '2'], json })).toMatchObject({

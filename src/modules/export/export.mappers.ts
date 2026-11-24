@@ -444,7 +444,7 @@ const COUNTRY_CUIT_ENTITY_PREFERENCE = [
 ];
 
 /** Para comparar nombres de las dos tablas: sin tipo de entidad, sin acentos, sin mayusculas y con un solo espacio. */
-function normalizeCountryName(value: string): string {
+export function normalizeCountryName(value: string): string {
   return value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')

@@ -1,7 +1,9 @@
 import { resolveRelativeDateInput } from '../../lib/dates/relative-date';
 import { type AppError, InputValidationError } from '../../lib/errors/app-error';
 import { resolveEmitDecision } from '../billing/billing.emit-decision';
+import { mergeAssociatedVoucher } from '../vouchers/associated-voucher.merge';
 
+import { discardExportOverridden } from './export.input-overrides';
 import { type ExportJsonInput, exportJsonInputWarnings, mapExportJsonItems } from './export.json-input';
 import {
   EXPORT_VOUCHER_KIND,
@@ -9,6 +11,7 @@ import {
   type ExportModeSource,
   type ExportVoucherInput,
   type ExportVoucherKind,
+  getExportVoucherKindByShortcut,
   isExportNote,
 } from './export.types';
 
@@ -54,7 +57,7 @@ function written<K extends keyof ExportJsonInput>({ file, flags }: ExportInputLa
   return flags[key] ?? file[key];
 }
 
-/** Campo por campo. En la factura, los flags del asociado no se usan y el del archivo es un error. */
+/** En la factura, los flags del asociado no se usan y el del archivo es un error. */
 function resolveExportAssociatedVoucher(
   layers: ExportInputLayers,
   voucherKind: ExportVoucherKind,
@@ -70,16 +73,19 @@ function resolveExportAssociatedVoucher(
     return undefined;
   }
 
-  const fromFile = layers.file.comprobanteAsociado ?? {};
-  const fromFlags = layers.flags.comprobanteAsociado ?? {};
+  const fromFile = layers.file.comprobanteAsociado;
+  const fromFlags = layers.flags.comprobanteAsociado;
+  const voucher =
+    mergeAssociatedVoucher(fromFlags, fromFile, (shortcut) => getExportVoucherKindByShortcut(shortcut)?.arcaType) ?? {};
 
   return {
-    arcaType: fromFlags.tipo ?? fromFile.tipo,
-    cuit: fromFlags.cuit ?? fromFile.cuit,
-    date: resolveRelativeDateInput(fromFlags.fecha ?? fromFile.fecha, 'day', now),
-    number: fromFlags.numero ?? fromFile.numero,
-    pointOfSale: fromFlags.puntoVenta ?? fromFile.puntoVenta,
-    shortcut: fromFlags.atajo ?? fromFile.atajo,
+    arcaType: voucher.tipo,
+    cuit: voucher.cuit,
+    // En la E la fecha sale de ARCA: la del archivo se conserva siempre, para avisar que no se usa.
+    date: resolveRelativeDateInput(fromFlags?.fecha ?? fromFile?.fecha, 'day', now),
+    number: voucher.numero,
+    pointOfSale: voucher.puntoVenta,
+    shortcut: voucher.atajo,
   };
 }
 
@@ -113,7 +119,7 @@ export function resolveExportInput({
   now,
   voucherKind = EXPORT_VOUCHER_KIND,
 }: ExportInputOptions): ExportInputPlan {
-  const layers: ExportInputLayers = { file, flags };
+  const layers: ExportInputLayers = discardExportOverridden({ file, flags });
   // Las fechas relativas (`hoy`, `+10`...) se resuelven aca, para flags y `--cargar`. En la E todas son de un dia.
   const day = (value: string | undefined) => resolveRelativeDateInput(value, 'day', now);
   const { emit, source: modeSource } = resolveEmitDecision({
