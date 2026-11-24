@@ -1,6 +1,7 @@
 import { asArray } from '../../lib/arrays/as-array';
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
+import { readResponseText } from '../../modules/billing/emission-response';
 import {
   DEFAULT_EXPORT_UNIT_CODE,
   type ExportActivity,
@@ -266,7 +267,7 @@ export class ArcaExportGateway implements ExportGateway {
 
     if (!voucher) {
       const { number, pointOfSale } = query;
-      const exists = readNumber(row?.Cbte_nro) === number && Boolean(readText(row?.Cae));
+      const exists = readNumber(row?.Cbte_nro) === number && readResponseText(row?.Cae) !== null;
 
       throw voucherQueryError({ errors: [], exists, number, pointOfSale });
     }

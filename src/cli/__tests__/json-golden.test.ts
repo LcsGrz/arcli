@@ -1060,12 +1060,13 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     expect(json.eventos).toEqual([HELLO]);
   });
 
-  it('fe, un error de texto junto con un CAE: se ve, sin cambiar el estado', async () => {
+  it('fe, un error de texto junto con un CAE: observado, como con código (ERR-20)', async () => {
     sdk.wsfex.authorize.mockImplementation(approvedExport({}, { FEXErr: 'hola' }));
 
     const json = await showsCae(FE_APPROVABLE, CAE_E);
 
-    expect(json).toMatchObject({ cae: CAE_E, estado: 'aprobado' });
+    expect(json).toMatchObject({ cae: CAE_E, estado: 'observado' });
+    expect(json.sugerencias).toEqual([expect.stringContaining('El comprobante está emitido')]);
     expect(json.errores).toEqual([HELLO]);
   });
 
@@ -1200,6 +1201,65 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
         'ARCA contestó sin CAE, sin resultado y con errores: 500; 501 Error interno de base de datos',
       ],
     ];
+
+    const ZEROS = ['0', '00000000000000', ' 0 ', 0];
+    const NO_DIGITS = ['NULL', 'sin CAE', '-', 'N0'];
+
+    it.each(ZEROS)('un CAE %j es "sin CAE": incierta si está aprobada, rechazada si es R', async (zero) => {
+      const reject = async (args: string[]) => {
+        prepareConfig({});
+        process.exitCode = undefined;
+
+        const rejected = await runCli([...args, '--emitir', '--json']);
+
+        expect(rejected.code).toBe(2);
+        expect(JSON.parse(rejected.stdout)).toMatchObject({ cae: null, estado: 'rechazado' });
+      };
+
+      sdk.wsfe.createVoucher.mockImplementation(approvedWith({}, { CAE: zero }, { cae: zero }));
+      sdk.wsfex.authorize.mockImplementation(approvedExport({ Cae: zero }));
+      await uncertainCause(FC, result('A'));
+      await uncertainCause(FE_APPROVABLE, result('A'), { idSolicitud: 42, numero: 8 });
+
+      sdk.wsfe.createVoucher.mockImplementation(approvedWith({}, { CAE: zero, Resultado: 'R' }, { cae: zero }));
+      sdk.wsfex.authorize.mockImplementation(approvedExport({ Cae: zero, Resultado: 'R' }));
+      await reject(FC);
+      await reject(FE_APPROVABLE);
+    });
+
+    it.each(NO_DIGITS)('un CAE %j no se puede leer: incierta, y en un R, sin CAE', async (text) => {
+      const causa = 'el CAE de la respuesta no se puede leer';
+
+      sdk.wsfe.createVoucher.mockImplementation(approvedWith({}, { CAE: text }, { cae: text }));
+      sdk.wsfex.authorize.mockImplementation(approvedExport({ Cae: text }));
+      await uncertainCause(FC, causa);
+      await uncertainCause(FE_APPROVABLE, causa, { idSolicitud: 42, numero: 8 });
+
+      sdk.wsfe.createVoucher.mockImplementation(approvedWith({}, { CAE: text, Resultado: 'R' }, { cae: text }));
+      sdk.wsfex.authorize.mockImplementation(approvedExport({ Cae: text, Resultado: 'R' }));
+
+      for (const args of [FC, FE_APPROVABLE]) {
+        prepareConfig({});
+        process.exitCode = undefined;
+
+        const rejected = await runCli([...args, '--emitir', '--json']);
+
+        expect(rejected.code).toBe(2);
+        expect(JSON.parse(rejected.stdout)).toMatchObject({ cae: null, estado: 'rechazado' });
+      }
+    });
+
+    it('un CAE en ceros y un error de validación: rechazada', async () => {
+      sdk.wsfe.createVoucher.mockImplementation(
+        approvedWith({ Errors: { Err: [VALIDATION] } }, { CAE: '0', Resultado: '' }, { cae: '0' }),
+      );
+      prepareConfig({});
+
+      expect(JSON.parse((await runCli([...FC, '--emitir', '--json'])).stdout)).toMatchObject({
+        cae: null,
+        estado: 'rechazado',
+      });
+    });
 
     const fex = (FEXErr?: unknown, FEXResultAuth?: unknown) => ({ FEXAuthorizeResult: { FEXErr, FEXResultAuth } });
 
@@ -1446,10 +1506,11 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     });
 
     // Lo que no cambia: los rechazos y las aprobaciones de siempre.
+    const GENERIC_HINT = 'Revisá observaciones y errores de ARCA antes de volver a emitir.';
     const REJECTED: ReadonlyArray<readonly [string, unknown, Record<string, unknown>]> = [
       ['R sin CAE ni errores', withDetail({ Resultado: 'R' }), { resultado: 'R' }],
       ['R con un error interno', withDetail({ Resultado: 'R' }, { Errors: { Err: [INTERNAL] } }), { resultado: 'R' }],
-      ['600, sin detalle', withErrors({ Code: 600, Msg: 'x' }), { resultado: null, sugerencias: [] }],
+      ['600, sin detalle', withErrors({ Code: 600, Msg: 'x' }), { resultado: null, sugerencias: [GENERIC_HINT] }],
       ['602, sin detalle', withErrors({ Code: 602, Msg: 'x' }), { resultado: null }],
       ['10016, sin detalle', withErrors(VALIDATION), { resultado: null }],
       ['11002, sin detalle', withErrors({ Code: 11002, Msg: 'x' }), { resultado: null }],
@@ -1486,14 +1547,23 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
       expect(JSON.parse(rejected.stdout)).toMatchObject({ cae: null, estado: 'rechazado' });
     });
 
-    it('fc, la cabecera en R sin detalle ni errores: rechazado, como un R del detalle', async () => {
-      sdk.wsfe.createVoucher.mockResolvedValue(empty({ FeCabResp: { Resultado: 'R' } }));
+    it.each<[string, Record<string, unknown>, string[]]>([
+      ['ni errores', {}, [GENERIC_HINT]],
+      ['y con un 500', { Errors: { Err: [{ Code: 500, Msg: 'x' }] } }, [GENERIC_HINT]],
+      ['y con un 501', { Errors: { Err: [INTERNAL] } }, [expect.stringContaining('error transitorio') as string]],
+    ])('fc, la cabecera en R sin detalle %s: rechazado, como un R del detalle', async (_name, root, sugerencias) => {
+      sdk.wsfe.createVoucher.mockResolvedValue(empty({ FeCabResp: { Resultado: 'R' }, ...root }));
       prepareConfig({});
 
       const rejected = await runCli([...FC, '--emitir', '--json']);
 
       expect(rejected).toMatchObject({ code: 2, stderr: '' });
-      expect(JSON.parse(rejected.stdout)).toMatchObject({ cae: null, estado: 'rechazado' });
+      expect(JSON.parse(rejected.stdout)).toMatchObject({
+        cae: null,
+        estado: 'rechazado',
+        resultado: null,
+        sugerencias,
+      });
     });
 
     it.each<[string, Answer, Record<string, unknown>]>([
@@ -1515,12 +1585,25 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
     });
 
     // Caracterización: ARCA se contradice. Queda como estaba, con el CAE a la vista.
-    it('sin cambios, R con un CAE legible: rechazado, exit 2, con el CAE', async () => {
-      sdk.wsfe.createVoucher.mockImplementation(approvedWith({}, { Resultado: 'R' }));
+    it('sin cambios, fc con R y un CAE legible en el detalle: rechazado, exit 2, sin el CAE', async () => {
+      // El SDK solo devuelve el CAE con `A` (`arca-sdk.emission.test.ts`), y en un R el del detalle no se lee.
+      sdk.wsfe.createVoucher.mockImplementation(approvedWith({}, { CAE, Resultado: 'R' }, { cae: '', caeFchVto: '' }));
+      prepareConfig({});
+
+      const rejected = await runCli([...FC, '--emitir', '--json']);
+
+      expect(rejected).toMatchObject({ code: 2, stderr: '' });
+      expect(JSON.parse(rejected.stdout)).toMatchObject({
+        cae: null,
+        caeVencimiento: null,
+        estado: 'rechazado',
+        resultado: 'R',
+      });
+    });
+
+    it('sin cambios, fe con R y un CAE legible: rechazado, exit 2, con el CAE', async () => {
       sdk.wsfex.authorize.mockImplementation(approvedExport({ Resultado: 'R' }));
 
-      expect(await showsCae(FC, CAE, 2)).toMatchObject({ cae: CAE, estado: 'rechazado', resultado: 'R' });
-      process.exitCode = undefined;
       expect(await showsCae(FE_APPROVABLE, CAE_E, 2)).toMatchObject({ cae: CAE_E, estado: 'rechazado' });
     });
   });
@@ -2188,6 +2271,10 @@ describe('otros comandos que van a ARCA', () => {
     it.each<[string, unknown]>([
       ['un 1020', NOT_FOUND],
       ['una con CAE y un tipo que no conocemos', fexResult({ ...EXPORT_VOUCHER, Cbte_nro: 6, Tipo_expo: 3 })],
+      [
+        'una con el CAE como número y sin moneda',
+        fexResult({ ...EXPORT_VOUCHER, Cae: 76463926585300, Cbte_nro: 6, Moneda_Id: '' }),
+      ],
       ['una con CAE y sin moneda', fexResult({ ...EXPORT_VOUCHER, Cbte_nro: 6, Moneda_Id: '' })],
     ])('sin cambios: ultimos fe saltea %s', async (_name, answer) => {
       sdk.wsfex.getCmp.mockImplementation(answering({ 6: answer }));

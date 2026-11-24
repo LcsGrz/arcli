@@ -472,7 +472,7 @@ Ejemplo:
 - ARCLI puede devolver:
   - `estado: "aprobado"` si no hay observaciones
   - `estado: "observado"` si hubo observaciones, o si ARCA dio el CAE y además informó un error (va en `errores`)
-- Sin CAE, `estado: "rechazado"` si `resultado` es `"R"` o si ARCA no mandó resultado y contestó con un error de validación (en ese caso `resultado` es `null`)
+- Sin CAE, `estado: "rechazado"` si `resultado` es `"R"`, si ARCA rechazó en la cabecera sin el detalle o si no mandó resultado y contestó con un error de validación (en los dos últimos, `resultado` es `null`)
 - Sin CAE y sin nada de eso no hay resultado que mostrar: sale el error [`EMISSION_UNCERTAIN`](#emisión-sin-confirmar)
 - En la vista previa no se emite: `estado: "previsualizacion"` y `resultado: null`
 
@@ -1097,9 +1097,9 @@ Con el certificado del entorno vencido, los comandos que van a ARCA cortan antes
 
 ### Emisión sin confirmar
 
-Si falla la llamada que emite en ARCA (red, timeout, transacción activa) o de lo que contestó no se puede saber si hay CAE, no se sabe si el comprobante quedó autorizado: pudo emitirse y perderse la respuesta. **No reintentes sin verificar**, porque se duplicaría.
+Si falla la llamada que emite en ARCA (red, timeout, transacción activa) o de lo que contestó no se puede saber si se emitió, no se sabe si el comprobante quedó autorizado: pudo emitirse y perderse la respuesta. **No reintentes sin verificar**, porque se duplicaría.
 
-También sale si ARCA contesta y no dice si emitió: sin CAE, sin resultado y sin errores; con un resultado que no es un rechazo y sin CAE; o con un error interno (500 o 501), sin CAE y sin rechazo. `error` y `detalles.causa` dicen qué contestó, por ejemplo `ARCA contestó sin CAE, sin resultado y con errores: 501 Error interno de base de datos`. Un error de validación sin CAE es un rechazo, aunque venga junto con uno interno.
+También sale si ARCA contesta y no dice si emitió: con un CAE que no se puede leer; sin CAE (también en ceros), sin resultado y sin errores; con un resultado que no es un rechazo y sin CAE; o con un error interno (500 o 501), sin CAE y sin rechazo. `error` y `detalles.causa` dicen qué contestó, por ejemplo `ARCA contestó sin CAE, sin resultado y con errores: 501 Error interno de base de datos`. Un error de validación sin CAE es un rechazo, aunque venga junto con uno interno.
 
 Si el CAE se lee, no es este caso: el comprobante se muestra con su CAE aunque ARCA informe también un error (`estado: "observado"`, exit code `0`, con el error en `errores`) o aunque un evento, una observación o el vencimiento vengan con otra forma (`caeVencimiento` es `null` si no es una fecha; un texto suelto en `errores` o `eventos` sale como `{"codigo": null, "mensaje": "…"}`).
 

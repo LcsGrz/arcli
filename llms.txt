@@ -13,7 +13,8 @@
   irreversible** (tiene validez fiscal y solo se compensa con una nota de crédito); en testing no tiene validez fiscal.
 - **Se emitió si y solo si** `previsualizacion` es `false` y `cae` no es `null`. En la vista previa, `estado` es
   `previsualizacion`. La excepción es el error `EMISSION_UNCERTAIN`: no trae `cae` y puede haberse emitido.
-  Con `cae` está emitido aunque haya `errores` (`estado` es `observado`): no lo repitas.
+  Con `cae` está emitido aunque haya `errores` (`estado` es `observado`): no lo repitas. Si en la E viene `cae` con
+  `estado` `rechazado`, ARCA se contradice: verificalo con `arcli consultar` antes de repetirlo.
 - Reintentos:
   - Se puede reintentar igual: `TRANSIENT_ERROR`, `ARCA_LAST_VOUCHER_ERROR` (salvo un punto de venta no habilitado)
     y `UNEXPECTED_ERROR` de red. No se emitió nada.

@@ -138,6 +138,19 @@ describe('el SDK ante una respuesta rara a la emisión', () => {
     await expect(emit({ FECAESolicitarResult: result })).resolves.toEqual({ cae: '', caeFchVto: '', response: result });
   });
 
+  it.each(['R', 'P', 'O', ''])(
+    'con el resultado %j no devuelve el CAE, aunque esté en el detalle',
+    async (Resultado) => {
+      const result = { FeDetResp: { FECAEDetResponse: [{ ...DETAIL, Resultado }] } };
+
+      await expect(emit({ FECAESolicitarResult: result })).resolves.toEqual({
+        cae: '',
+        caeFchVto: '',
+        response: result,
+      });
+    },
+  );
+
   it('con una lista, lo lee y deja pasar lo accesorio como vino', async () => {
     const result = {
       FeDetResp: { FECAEDetResponse: [{ ...DETAIL, Observaciones: { Obs: [null] } }] },

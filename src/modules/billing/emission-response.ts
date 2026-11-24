@@ -33,6 +33,11 @@ export interface EmissionAnswerError {
   readonly message?: string | null;
 }
 
+/** Sin CAE ni resultado, este error dice que ARCA no emitio: cualquiera que no sea interno, tambien sin codigo. */
+function isRejectionError({ code }: EmissionAnswerError): boolean {
+  return !INTERNAL_ARCA_ERRORS.has(Number(code));
+}
+
 /**
  * El estado de lo que contesto ARCA a la llamada que emite, para todas las familias (ERR-20). Manda el CAE: con CAE
  * esta emitido, aunque haya un error. Sin CAE es un rechazo si ARCA lo dice (`R`) o si hay un error que no es interno
@@ -46,7 +51,7 @@ export function resolveEmissionStatus(answer: {
   /** `R` en el resultado del comprobante o, sin el, en la cabecera. */
   readonly rejected: boolean;
   readonly result: string | null;
-  /** Textos que no cuentan como error, pero explican el motivo. */
+  /** Errores de texto que, sin CAE, no dicen que ARCA rechazo; van en el motivo. Con CAE cuentan como un error. */
   readonly texts?: readonly string[];
 }): EmissionStatus {
   const { cae, errors, hasObservations, rejected, result, texts = [] } = answer;
@@ -56,10 +61,10 @@ export function resolveEmissionStatus(answer: {
   }
 
   if (cae !== null) {
-    return result === 'A' && !hasObservations && errors.length === 0 ? 'aprobado' : 'observado';
+    return result === 'A' && !hasObservations && errors.length + texts.length === 0 ? 'aprobado' : 'observado';
   }
 
-  if (result === null && errors.some(({ code }) => !INTERNAL_ARCA_ERRORS.has(Number(code)))) {
+  if (result === null && errors.some(isRejectionError)) {
     return 'rechazado';
   }
 
@@ -132,19 +137,39 @@ export function readResponseText(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null;
 }
 
-/** El CAE, o `null` si ARCA no lo dio. Si vino algo que no es un CAE, falla: no se sabe si hay. */
+/**
+ * El CAE, o `null` si ARCA no lo dio (vacio, nulo o en ceros). Si vino algo que no es un CAE, falla: no se sabe si hay.
+ * No controla el largo.
+ */
 export function readCae(value: unknown): string | null {
-  if (value === undefined || value === null || value === 0) {
+  if (value === undefined || value === null) {
     return null;
   }
 
-  const text = readResponseText(value);
+  const text = readResponseText(value)?.trim();
 
-  if (text === null && typeof value !== 'string') {
+  if (text === undefined && typeof value !== 'string') {
     throw new Error('el CAE de la respuesta no es un texto ni un número');
   }
 
-  return text?.trim() ?? null;
+  if (!text || /^0+$/.test(text)) {
+    return null;
+  }
+
+  if (!/[1-9]/.test(text)) {
+    throw new Error('el CAE de la respuesta no se puede leer');
+  }
+
+  return text;
+}
+
+/** El CAE de un rechazo: algo que no se puede leer no lo vuelve incierto. */
+export function readRejectedCae(value: unknown): string | null {
+  try {
+    return readCae(value);
+  } catch {
+    return null;
+  }
 }
 
 /** El vencimiento del CAE en `yyyymmdd`; si no es una fecha, `null`: no es motivo para perder el CAE. */

@@ -8,6 +8,7 @@ import {
   NO_DETAIL_TEXT,
   readCae,
   readCaeExpiration,
+  readRejectedCae,
   readResponseText,
   resolveEmissionStatus,
 } from './emission-response';
@@ -53,7 +54,7 @@ export function mapBillingResponse(response: CreateVoucherResultDto): BillingRes
   const resultado = readResponseText(detail?.Resultado);
   const rejected = resultado === 'R';
   // El SDK devuelve "" en un rechazo; el JSON publico promete null.
-  const cae = readCae(response.cae) ?? (rejected ? null : readCae(detail?.CAE));
+  const cae = rejected ? readRejectedCae(response.cae) : (readCae(response.cae) ?? readCae(detail?.CAE));
   // Sin el resultado del comprobante vale el de la cabecera, que con uno solo es el mismo; con CAE, no: manda el CAE.
   const rejectedByHeader =
     cae === null && resultado === null && readResponseText(response.response?.FeCabResp?.Resultado) === 'R';
@@ -74,7 +75,7 @@ export function mapBillingResponse(response: CreateVoucherResultDto): BillingRes
     observacion: observaciones.join(' | ') || null,
     raw: response,
     resultado,
-    suggestions: buildResponseSuggestions({ emitted: status !== 'rechazado', errors, observations, resultado }),
+    suggestions: buildResponseSuggestions({ emitted: status !== 'rechazado', errors, observations }),
     status,
   };
 }
@@ -101,7 +102,6 @@ function buildResponseSuggestions(options: {
   readonly emitted: boolean;
   readonly errors: readonly unknown[];
   readonly observations: readonly unknown[];
-  readonly resultado: string | null;
 }): string[] {
   const emittedWithError = options.emitted && options.errors.length > 0;
   const items = emittedWithError ? options.observations : [...options.errors, ...options.observations];
@@ -109,7 +109,7 @@ function buildResponseSuggestions(options: {
   const messages = items.map(readMessage).filter(Boolean).join(' | ');
   const suggestions = findArcaRejections(codes, messages).map(formatArcaRejection);
 
-  if (options.resultado === 'R' && suggestions.length === 0) {
+  if (!options.emitted && suggestions.length === 0) {
     suggestions.push('Revisá observaciones y errores de ARCA antes de volver a emitir.');
   }
 

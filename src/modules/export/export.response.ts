@@ -6,6 +6,7 @@ import {
   NO_DETAIL_TEXT,
   readCae,
   readCaeExpiration,
+  readRejectedCae,
   readResponseText,
   resolveEmissionStatus,
 } from '../billing/emission-response';
@@ -107,7 +108,7 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
   const authorization = asArray(result?.FEXResultAuth)[0];
   // Nada de esto puede costar el CAE: se acepta suelto, en lista, nulo o de otro tipo (ERR-16).
   const codedErrors = asArray(result?.FEXErr).flatMap((error) => toEntry(error?.ErrCode, error?.ErrMsg));
-  // Sin codigo no se sabe si es un error (`ErrCode: 0` es "OK"): se muestra, pero no rechaza.
+  // Sin codigo no se sabe si es un error (`ErrCode: 0` es "OK"): se muestra, y sin CAE no rechaza.
   const textErrors = asArray(result?.FEXErr).flatMap(toTextEntry);
   const errors = [...codedErrors, ...textErrors];
   const events = asArray(result?.FEXEvents).flatMap((event) => [
@@ -118,9 +119,7 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
     (motivo) => readResponseText(motivo)?.trim() ?? [],
   );
   const resultado = readResponseText(authorization?.Resultado)?.trim() ?? null;
-  // En un rechazo, algo ilegible en lugar del CAE no lo vuelve incierto. Lo que se lee (el CAE, el vencimiento) sale como
-  // vino, igual que siempre.
-  const cae = resultado === 'R' ? (readResponseText(authorization?.Cae)?.trim() ?? null) : readCae(authorization?.Cae);
+  const cae = (resultado === 'R' ? readRejectedCae : readCae)(authorization?.Cae);
   const status = resolveEmissionStatus({
     cae,
     errors: codedErrors,
@@ -129,7 +128,7 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
     result: resultado,
     texts: textErrors.map((error) => error.message),
   });
-  const emittedWithError = status !== 'rechazado' && codedErrors.length > 0;
+  const emittedWithError = status !== 'rechazado' && errors.length > 0;
   const messages = [...observaciones, ...(emittedWithError ? [] : errors.map((error) => error.message))].join(' | ');
 
   return {
