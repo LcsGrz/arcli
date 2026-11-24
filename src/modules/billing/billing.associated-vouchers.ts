@@ -53,6 +53,19 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
   const associatedVoucherKind = resolveAssociatedVoucherKind(associatedVoucher, requireVoucherKind);
 
   if (!associatedVoucher?.numero || !associatedVoucher.puntoVenta || !associatedVoucherType) {
+    const missing = [
+      ...(associatedVoucherType ? [] : ['el tipo (`--ac` o `--at`)']),
+      ...(associatedVoucher?.puntoVenta ? [] : ['el punto de venta (`--apv`)']),
+      ...(associatedVoucher?.numero ? [] : ['el número (`--ar`)']),
+    ];
+
+    // Con alguno de los tres, decir que falta el comprobante entero confundiria.
+    if (missing.length < 3) {
+      throw new InputValidationError(
+        `El comprobante asociado de ${formatVoucherWithArticle(voucherKind)} está incompleto: le falta ${missing.join(' y ')}.`,
+      );
+    }
+
     throw new InputValidationError(
       `${formatVoucherSubject(voucherKind)} requiere comprobante asociado. Usá \`--ac\` o \`--at\`, junto con \`--apv\` o \`--asociado-punto-venta\` y \`--ar\`${voucherKind.isElectronicCredit ? '' : ' (y `--acuit` si es de otro CUIT), o un período con `--periodo-desde` y `--periodo-hasta`'}.`,
     );

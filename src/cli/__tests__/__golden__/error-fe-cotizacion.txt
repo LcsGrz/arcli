@@ -7,7 +7,7 @@ exit: 1
 {
   "codigo": "ARCA_QUOTATION_ERROR",
   "detalles": null,
-  "error": "ARCA no informó la cotización de DOL para el 16/11/2026. Informá la cotización con --cotizacion-moneda.",
+  "error": "ARCA no informó la cotización de DOL para el 16/11/2026. Informá la cotización con `--cotizacion-moneda`.",
   "sugerencia": null
 }
 

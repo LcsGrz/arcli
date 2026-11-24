@@ -54,7 +54,7 @@ describe.skipIf(process.platform === 'win32')('permisos de las carpetas del perf
 
     expect(buildRuntimeChecks(arcliConfigSchema.parse(config))[0]).toMatchObject({
       environment: 'testing',
-      error: 'Falta la ruta de la clave privada para testing. Configurá "key.testing".',
+      error: 'Falta la ruta de la clave privada para testing. Configurá `key.testing`.',
     });
     expect(folders.map(mode)).toEqual([0o755, 0o755]);
   });

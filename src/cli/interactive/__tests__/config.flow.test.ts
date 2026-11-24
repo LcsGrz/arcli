@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConfigurationError, InputValidationError } from '../../../lib/errors/app-error';
+import { AppError, ConfigurationError, InputValidationError } from '../../../lib/errors/app-error';
 import { parseConfigValue } from '../../../modules/config/config-value-parser';
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
@@ -397,7 +397,7 @@ describe('runConfigMenu', () => {
 
     let printed = '';
 
-    vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
       printed += String(chunk);
       return true;
     });
@@ -405,6 +405,39 @@ describe('runConfigMenu', () => {
     await runConfigMenu();
 
     expect(stripAnsi(printed)).toContain('No se encontró el escritorio.');
+    expect(chooseOne).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    [
+      'con su sugerencia',
+      new AppError('No se pudo crear el acceso directo.', {
+        code: 'DESKTOP_SHORTCUT_ERROR',
+        suggestion: 'Revisá que tengas permisos en esa carpeta.',
+      }),
+      'Revisá que tengas permisos en esa carpeta.',
+    ],
+    [
+      'un error del sistema de archivos',
+      Object.assign(new Error('EPERM: operation not permitted, mkdir'), { code: 'EPERM', syscall: 'mkdir' }),
+      'EPERM',
+    ],
+  ])('si no se puede crear el acceso directo, lo muestra %s y sigue en el menu', async (_name, error, expected) => {
+    createShortcut.mockImplementationOnce(() => {
+      throw error;
+    });
+    vi.mocked(chooseOne).mockResolvedValueOnce('acceso-directo').mockResolvedValueOnce('volver');
+
+    let printed = '';
+
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      printed += String(chunk);
+      return true;
+    });
+
+    await runConfigMenu();
+
+    expect(stripAnsi(printed)).toContain(expected);
     expect(chooseOne).toHaveBeenCalledTimes(2);
   });
 

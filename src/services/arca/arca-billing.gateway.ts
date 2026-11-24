@@ -4,7 +4,7 @@ import type { BillingGateway } from '../../modules/billing/billing.types.interna
 
 import { toDetailErrors, withDeprecatedErrors } from './arca-error-details';
 import type { Arca, CreateVoucherResultDto, IVoucher } from './arca-sdk.types';
-import { getLastAuthorizedNumber, rethrowIfWsfeNotAuthorized } from './last-voucher';
+import { getLastAuthorizedNumber, rethrowIfWsfeNotAuthorizedToEmit } from './last-voucher';
 
 /** Tope de numeracion de ARCA; el SDK lo valida igual en `createNextVoucher`. */
 const MAX_VOUCHER_NUMBER = 99_999_999;
@@ -17,7 +17,8 @@ export class ArcaBillingGateway implements BillingGateway {
    * Si falla, no se envio nada a ARCA. Como el SDK, sin comprobantes previos arranca en 1.
    */
   public async getNextVoucherNumber(pointOfSale: number, voucherType: number): Promise<number> {
-    const nextNumber = (await getLastAuthorizedNumber(this.arca, pointOfSale, voucherType)) + 1;
+    const nextNumber =
+      (await getLastAuthorizedNumber(this.arca, pointOfSale, voucherType, rethrowIfWsfeNotAuthorizedToEmit)) + 1;
 
     if (nextNumber > MAX_VOUCHER_NUMBER) {
       throw new Error(`Número de comprobante no puede ser mayor a ${MAX_VOUCHER_NUMBER}.`);
@@ -34,7 +35,7 @@ export class ArcaBillingGateway implements BillingGateway {
   public async getCurrencyCodes(): Promise<string[]> {
     const result = (await this.arca.electronicBillingService
       .getCurrencyTypes()
-      .catch(rethrowIfWsfeNotAuthorized)) as RawCurrencyTypesResult;
+      .catch(rethrowIfWsfeNotAuthorizedToEmit)) as RawCurrencyTypesResult;
     const errors = result.errors?.err ?? [];
 
     if (errors.length > 0) {
@@ -54,7 +55,7 @@ export class ArcaBillingGateway implements BillingGateway {
 
     const result = await this.arca.electronicBillingService
       .getQuotation(currencyCode)
-      .catch(rethrowIfWsfeNotAuthorized);
+      .catch(rethrowIfWsfeNotAuthorizedToEmit);
     const exchangeRate = result.resultGet?.monCotiz;
 
     if (typeof exchangeRate !== 'number' || exchangeRate <= 0) {
@@ -80,7 +81,7 @@ export class ArcaBillingGateway implements BillingGateway {
     for (let attempt = 0; attempt < QUOTATION_LOOKBACK_DAYS; attempt += 1) {
       const response = (await this.arca.genericService
         .call('wsfe', 'FEParamGetCotizacion', { FchCotiz: date, MonId: currencyCode })
-        .catch(rethrowIfWsfeNotAuthorized)) as RawQuotationResponse | undefined;
+        .catch(rethrowIfWsfeNotAuthorizedToEmit)) as RawQuotationResponse | undefined;
       const result = response?.FEParamGetCotizacionResult;
       const exchangeRate = Number(result?.ResultGet?.MonCotiz);
 

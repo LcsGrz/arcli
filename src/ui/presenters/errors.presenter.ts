@@ -1,4 +1,6 @@
 import { AppError, HELP_SUGGESTION } from '../../lib/errors/app-error';
+import { ISSUES_URL } from '../../lib/links';
+import { saysWhatToDo } from '../../lib/text/says-what-to-do';
 import { normalizeSearchText } from '../../lib/text/search';
 import { errorPanel } from '../components/errorPanel';
 import { renderJson } from '../primitives/renderJson';
@@ -60,9 +62,11 @@ function formatErrorHint(error: AppError): string | null {
 
   switch (error.code) {
     case 'CONFIGURATION_ERROR':
-      return 'Revisá la configuración con `arcli config` o corré `arcli config revisar`.';
+      return saysWhatToDo(error.message)
+        ? null
+        : 'Revisá la configuración con `arcli config` o corré `arcli config revisar`.';
     case 'INPUT_VALIDATION_ERROR':
-      return HELP_SUGGESTION;
+      return saysWhatToDo(error.message) ? null : HELP_SUGGESTION;
     case 'BATCH_VALIDATION_ERROR':
       return 'Corregí esos comprobantes en el archivo y volvé a correr el lote completo.';
     case 'BATCH_EMISSION_ERROR':
@@ -70,6 +74,16 @@ function formatErrorHint(error: AppError): string | null {
     default:
       return null;
   }
+}
+
+/** Lo que dicen Node y los clientes HTTP cuando no hubo conexion o se corto. */
+const NETWORK_ERROR =
+  /\b(?:EAI_AGAIN|ECONNABORTED|ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENETUNREACH|ENOTFOUND|ETIMEDOUT)\b|socket hang up|fetch failed/;
+
+function formatUnexpectedErrorHint(message: string): string {
+  return NETWORK_ERROR.test(message)
+    ? 'Revisá tu conexión a internet y probá de nuevo en unos minutos. Con `arcli estado` ves si ARCA responde.'
+    : `Si el problema persiste, revisá la configuración con \`arcli config revisar\` o avisanos en ${ISSUES_URL}.`;
 }
 
 function detectTransientError(message: string): {
@@ -174,6 +188,6 @@ export function formatAppError(error: unknown, useJson: boolean): string {
     transientError?.title ?? 'Error inesperado',
     message,
     [],
-    transientError?.sugerencia ?? 'Si el problema persiste, revisá la configuración o reintentá con más contexto.',
+    transientError?.sugerencia ?? formatUnexpectedErrorHint(message),
   );
 }

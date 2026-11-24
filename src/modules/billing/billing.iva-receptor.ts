@@ -4,6 +4,11 @@ import { formatVoucherSubject } from './billing.mappers';
 import type { BillingIvaCondition } from './billing.schemas';
 import type { VoucherKindDefinition, VoucherLetter } from './billing.types';
 
+/** Falta el IVA receptor, con el mismo que hacer en todos lados. `reason`: por que el padron no lo completo. */
+export function missingIvaReceiverMessage(reason?: string): string {
+  return `Falta IVA receptor. ${reason ? `${reason}. ` : ''}Usá \`--ir <tipo>\` o un flag \`--ir-*\`, o configurá uno por defecto con \`arcli config establecer ivaReceptor <tipo>\`.`;
+}
+
 /**
  * Condiciones IVA del receptor admitidas por letra, segun la tabla del manual (WSFEv1 v4.7, p. 203), que marca
  * consumidor final en B, C y 49. ARCA rechaza las demas combinaciones con el error 10243. `yarn test:arca` la compara

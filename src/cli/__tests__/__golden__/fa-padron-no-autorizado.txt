@@ -5,7 +5,7 @@ exit: 0
 {
   "atajo": "fa",
   "avisos": [
-    "No se pudo consultar el padrón de ARCA (El certificado no está autorizado para el servicio ws_sr_constancia_inscripcion (padrón). Autorizalo igual que wsfe: en testing desde WSASS (\"Crear autorizacion a servicio\") y en producción desde el Administrador de Relaciones). Se usa el IVA receptor de la config: Responsable inscripto. Para no consultarlo al facturar: `arcli config establecer consultarPadron false`."
+    "No se pudo consultar el padrón de ARCA (El certificado no está autorizado para el servicio ws_sr_constancia_inscripcion (padrón). Autorizalo igual que wsfe: en testing desde WSASS (\"Crear autorización a servicio\") y en producción desde el Administrador de Relaciones). Se usa el IVA receptor de la config: Responsable inscripto. Para no consultarlo al facturar: `arcli config establecer consultarPadron false`."
   ],
   "cae": null,
   "caeVencimiento": null,

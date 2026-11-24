@@ -108,7 +108,7 @@ describe('sesion de ARCA del asistente (createInteractiveSession)', () => {
     [
       'sin certificado',
       { cuit: PROFILE_CUIT },
-      'Falta la ruta del certificado para testing. Configurá "cert.testing".',
+      'Falta la ruta del certificado para testing. Configurá `cert.testing`.',
     ],
   ])('con la config incompleta (%s) da el error de configuracion de siempre', (_case, config, message) => {
     profile.writeConfig(config);
@@ -299,7 +299,7 @@ describe('config revisar: validacion de cada entorno (buildRuntimeChecks)', () =
 
   it('valida el entorno por defecto aunque no tenga nada cargado', () => {
     expect(checks({ cuit: PROFILE_CUIT })).toEqual([
-      { environment: 'testing', error: 'Falta la ruta del certificado para testing. Configurá "cert.testing".' },
+      { environment: 'testing', error: 'Falta la ruta del certificado para testing. Configurá `cert.testing`.' },
     ]);
   });
 
@@ -318,7 +318,7 @@ describe('config revisar: validacion de cada entorno (buildRuntimeChecks)', () =
       { environment: 'testing' },
       {
         environment: 'produccion',
-        error: 'Falta la ruta de la clave privada para produccion. Configurá "key.produccion".',
+        error: 'Falta la ruta de la clave privada para producción. Configurá `key.produccion`.',
       },
     ]);
   });
@@ -373,6 +373,6 @@ describe('config revisar: validacion de cada entorno (buildRuntimeChecks)', () =
 
     await createProgram().parseAsync(['node', 'arcli', 'config', 'revisar', '--json']);
 
-    expect(profile.stdout).toContain('Falta la ruta del certificado para testing. Configurá \\"cert.testing\\".');
+    expect(profile.stdout).toContain('Falta la ruta del certificado para testing. Configurá `cert.testing`.');
   });
 });

@@ -60,13 +60,13 @@ describe('credentialPaths', () => {
 
   it('no usa las del otro entorno', () => {
     expect(() => credentialPaths(config, 'produccion')).toThrow(
-      'Falta la ruta del certificado para produccion. Configurá "cert.produccion".',
+      'Falta la ruta del certificado para producción. Configurá `cert.produccion`.',
     );
   });
 
   it('sin la clave, nombra la clave de la config', () => {
     expect(() => credentialPaths({ ...config, key: {} }, 'testing')).toThrow(
-      'Falta la ruta de la clave privada para testing. Configurá "key.testing".',
+      'Falta la ruta de la clave privada para testing. Configurá `key.testing`.',
     );
   });
 });

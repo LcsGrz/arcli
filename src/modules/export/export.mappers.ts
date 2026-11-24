@@ -13,7 +13,11 @@ import { roundToCents } from '../../lib/numbers/argentine-amount';
 import { assertRules } from '../../lib/rules/rules';
 import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
-import type { ArcliConfig } from '../config/config.schemas';
+import {
+  type ArcliConfig,
+  INVALID_POINT_OF_SALE_MESSAGE,
+  MISSING_POINT_OF_SALE_MESSAGE,
+} from '../config/config.schemas';
 
 import { exportTextLengthError, MAX_EXPORT_ITEM_DESCRIPTION_LENGTH } from './export.items';
 import type { ExportRule } from './export.rules';
@@ -310,7 +314,7 @@ export function resolveExportQuotation(
   throw new AppError(
     `ARCA no informó la cotización de ${code} para el ${formatArcaDateAsArgentineDate(voucherDate)}.${
       available ? ` Las monedas con cotización son ${available}.` : ''
-    } Informá la cotización con --cotizacion-moneda.`,
+    } Informá la cotización con \`--cotizacion-moneda\`.`,
     { code: 'ARCA_QUOTATION_ERROR' },
   );
 }
@@ -666,13 +670,11 @@ export function resolveExportPointOfSale(value: number | undefined, config: Expo
   const pointOfSale = value ?? config.puntoVentaPorDefecto;
 
   if (pointOfSale === undefined) {
-    throw new InputValidationError(
-      'Falta el punto de venta. Usá `--pv <numero>` o configuralo con `arcli config establecer puntoVenta <numero>`.',
-    );
+    throw new InputValidationError(MISSING_POINT_OF_SALE_MESSAGE);
   }
 
   if (!Number.isInteger(pointOfSale) || pointOfSale < 1) {
-    throw new InputValidationError('El punto de venta tiene que ser un número entero positivo.');
+    throw new InputValidationError(INVALID_POINT_OF_SALE_MESSAGE);
   }
 
   assertExportPointOfSaleRange(pointOfSale, 'El punto de venta');

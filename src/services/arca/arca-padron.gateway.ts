@@ -11,8 +11,9 @@ import {
   type TaxpayerTax,
 } from '../../modules/padron/padron';
 
-const NOT_AUTHORIZED_MESSAGE =
-  'El certificado no está autorizado para el servicio ws_sr_constancia_inscripcion (padrón). Autorizalo igual que wsfe: en testing desde WSASS ("Crear autorizacion a servicio") y en producción desde el Administrador de Relaciones.';
+import { isNotAuthorized, notAuthorizedMessage } from './not-authorized';
+
+const NOT_AUTHORIZED_MESSAGE = notAuthorizedMessage('ws_sr_constancia_inscripcion', 'padrón');
 
 /** La respuesta real trae mas de lo que tipa el SDK: se lee de forma defensiva. */
 type UnknownRecord = Record<string, unknown>;
@@ -158,7 +159,7 @@ export class ArcaPadronGateway implements PadronGateway {
     try {
       details = await this.arca.registerInscriptionProofService.getTaxpayerDetails(cuit);
     } catch (error) {
-      if (error instanceof Error && error.message.includes('notAuthorized')) {
+      if (isNotAuthorized(error)) {
         throw new AppError(NOT_AUTHORIZED_MESSAGE, { code: 'PADRON_SERVICE_NOT_AUTHORIZED' });
       }
 

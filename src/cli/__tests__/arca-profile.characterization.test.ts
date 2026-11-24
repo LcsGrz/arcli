@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CertificateExpiredError } from '../../modules/config/certificate-expiry';
-import { MISSING_CUIT_MESSAGE } from '../../modules/config/config.schemas';
+import { formatEnvironmentLabel, MISSING_CUIT_MESSAGE } from '../../modules/config/config.schemas';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { stripAnsi } from '../../ui';
 import { resolveArcaRuntime } from '../arca-runtime';
@@ -181,7 +181,7 @@ describe('rutas del certificado y la clave', () => {
     expect(() => resolveArcaRuntime({})).toThrow(
       expect.objectContaining({
         code: 'CONFIGURATION_ERROR',
-        message: `Falta la ruta del certificado para ${environment}. Configurá "cert.${environment}".`,
+        message: `Falta la ruta del certificado para ${formatEnvironmentLabel(environment)}. Configurá \`cert.${environment}\`.`,
       }),
     );
   });
@@ -192,7 +192,7 @@ describe('rutas del certificado y la clave', () => {
     expect(() => resolveArcaRuntime({})).toThrow(
       expect.objectContaining({
         code: 'CONFIGURATION_ERROR',
-        message: 'Falta la ruta de la clave privada para testing. Configurá "key.testing".',
+        message: 'Falta la ruta de la clave privada para testing. Configurá `key.testing`.',
       }),
     );
   });
