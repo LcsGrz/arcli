@@ -1,0 +1,81 @@
+$ arcli rb -m 12100 --cs --cfinal
+--- SDK ---
+{
+  "CantReg": 1,
+  "CbteFch": "20261110",
+  "CbteTipo": 9,
+  "Concepto": 2,
+  "CondicionIVAReceptorId": 5,
+  "DocTipo": 99,
+  "FchServDesde": "20261110",
+  "FchServHasta": "20261110",
+  "FchVtoPago": "20261110",
+  "ImpIVA": 2100,
+  "ImpNeto": 10000,
+  "ImpOpEx": 0,
+  "ImpTotConc": 0,
+  "ImpTotal": 12100,
+  "ImpTrib": 0,
+  "MonCotiz": 1,
+  "MonId": "PES",
+  "PtoVta": 3,
+  "Iva": [
+    {
+      "BaseImp": 10000,
+      "Id": 5,
+      "Importe": 2100
+    }
+  ],
+  "DocNro": 0,
+  "CbteDesde": 42,
+  "CbteHasta": 42
+}
+--- SOAP ---
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  xmlns:tns="http://ar.gov.afip.dif.FEV1/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/">
+<soap:Body>
+<FECAESolicitar xmlns="http://ar.gov.afip.dif.FEV1/">
+<Auth>
+<Token>token</Token>
+<Sign>firma</Sign>
+<Cuit>1</Cuit>
+</Auth>
+<FeCAEReq>
+<FeCabReq>
+<CantReg>1</CantReg>
+<PtoVta>3</PtoVta>
+<CbteTipo>9</CbteTipo>
+</FeCabReq>
+<FeDetReq>
+<FECAEDetRequest>
+<Concepto>2</Concepto>
+<DocTipo>99</DocTipo>
+<DocNro>0</DocNro>
+<CbteDesde>42</CbteDesde>
+<CbteHasta>42</CbteHasta>
+<CbteFch>20261110</CbteFch>
+<ImpTotal>12100</ImpTotal>
+<ImpTotConc>0</ImpTotConc>
+<ImpNeto>10000</ImpNeto>
+<ImpOpEx>0</ImpOpEx>
+<ImpTrib>0</ImpTrib>
+<ImpIVA>2100</ImpIVA>
+<FchServDesde>20261110</FchServDesde>
+<FchServHasta>20261110</FchServHasta>
+<FchVtoPago>20261110</FchVtoPago>
+<MonId>PES</MonId>
+<MonCotiz>1</MonCotiz>
+<CondicionIVAReceptorId>5</CondicionIVAReceptorId>
+<Iva>
+<AlicIva>
+<Id>5</Id>
+<BaseImp>10000</BaseImp>
+<Importe>2100</Importe>
+</AlicIva>
+</Iva>
+</FECAEDetRequest>
+</FeDetReq>
+</FeCAEReq>
+</FECAESolicitar>
+</soap:Body>
+</soap:Envelope>

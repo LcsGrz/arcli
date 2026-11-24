@@ -1,0 +1,61 @@
+$ arcli fc -m 1000,5 --cp --cfinal -f 08/11/2026
+--- SDK ---
+{
+  "CantReg": 1,
+  "CbteFch": "20261108",
+  "CbteTipo": 11,
+  "Concepto": 1,
+  "CondicionIVAReceptorId": 5,
+  "DocTipo": 99,
+  "ImpIVA": 0,
+  "ImpNeto": 1000.5,
+  "ImpOpEx": 0,
+  "ImpTotConc": 0,
+  "ImpTotal": 1000.5,
+  "ImpTrib": 0,
+  "MonCotiz": 1,
+  "MonId": "PES",
+  "PtoVta": 3,
+  "DocNro": 0,
+  "CbteDesde": 42,
+  "CbteHasta": 42
+}
+--- SOAP ---
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  xmlns:tns="http://ar.gov.afip.dif.FEV1/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/">
+<soap:Body>
+<FECAESolicitar xmlns="http://ar.gov.afip.dif.FEV1/">
+<Auth>
+<Token>token</Token>
+<Sign>firma</Sign>
+<Cuit>1</Cuit>
+</Auth>
+<FeCAEReq>
+<FeCabReq>
+<CantReg>1</CantReg>
+<PtoVta>3</PtoVta>
+<CbteTipo>11</CbteTipo>
+</FeCabReq>
+<FeDetReq>
+<FECAEDetRequest>
+<Concepto>1</Concepto>
+<DocTipo>99</DocTipo>
+<DocNro>0</DocNro>
+<CbteDesde>42</CbteDesde>
+<CbteHasta>42</CbteHasta>
+<CbteFch>20261108</CbteFch>
+<ImpTotal>1000.5</ImpTotal>
+<ImpTotConc>0</ImpTotConc>
+<ImpNeto>1000.5</ImpNeto>
+<ImpOpEx>0</ImpOpEx>
+<ImpTrib>0</ImpTrib>
+<ImpIVA>0</ImpIVA>
+<MonId>PES</MonId>
+<MonCotiz>1</MonCotiz>
+<CondicionIVAReceptorId>5</CondicionIVAReceptorId>
+</FECAEDetRequest>
+</FeDetReq>
+</FeCAEReq>
+</FECAESolicitar>
+</soap:Body>
+</soap:Envelope>

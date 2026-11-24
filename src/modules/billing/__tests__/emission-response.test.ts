@@ -41,6 +41,15 @@ describe('lo que ARCA contesta a la emisión (ERR-16)', () => {
     });
   });
 
+  // Es lo que sale con `--bruto`: el objeto que devolvio el SDK, sin copiar ni tocar.
+  it('la respuesta cruda es la misma que devolvió el SDK', async () => {
+    const answer = Object.freeze({ cae: '1', caeFchVto: '', response: Object.freeze({}) });
+    const output = Object.freeze({ FEXAuthorizeResult: Object.freeze({ FEXResultAuth: { Cae: '1' } }) });
+
+    expect((await readBillingAnswer(answer)).raw).toBe(answer);
+    expect((await readExportAnswer(output)).raw).toBe(output);
+  });
+
   it('un texto suelto se lee en la terminal', () => {
     expect(formatArcaMessages([{ codigo: null, mensaje: 'hola' }])).toBe('1. hola');
   });

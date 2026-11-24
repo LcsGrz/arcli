@@ -1,0 +1,95 @@
+$ arcli fa --cp --cuit 30709965812 --ir-ri --alicuota 21:12100 --alicuota 10.5:11050 --alicuota 0:500 --exento 300 --nogravado 200,55
+--- SDK ---
+{
+  "CantReg": 1,
+  "CbteFch": "20261110",
+  "CbteTipo": 1,
+  "Concepto": 1,
+  "CondicionIVAReceptorId": 1,
+  "DocTipo": 80,
+  "ImpIVA": 3150,
+  "ImpNeto": 20500,
+  "ImpOpEx": 300,
+  "ImpTotConc": 200.55,
+  "ImpTotal": 24150.55,
+  "ImpTrib": 0,
+  "MonCotiz": 1,
+  "MonId": "PES",
+  "PtoVta": 3,
+  "Iva": [
+    {
+      "BaseImp": 10000,
+      "Id": 5,
+      "Importe": 2100
+    },
+    {
+      "BaseImp": 10000,
+      "Id": 4,
+      "Importe": 1050
+    },
+    {
+      "BaseImp": 500,
+      "Id": 3,
+      "Importe": 0
+    }
+  ],
+  "DocNro": 30709965812,
+  "CbteDesde": 42,
+  "CbteHasta": 42
+}
+--- SOAP ---
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  xmlns:tns="http://ar.gov.afip.dif.FEV1/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/">
+<soap:Body>
+<FECAESolicitar xmlns="http://ar.gov.afip.dif.FEV1/">
+<Auth>
+<Token>token</Token>
+<Sign>firma</Sign>
+<Cuit>1</Cuit>
+</Auth>
+<FeCAEReq>
+<FeCabReq>
+<CantReg>1</CantReg>
+<PtoVta>3</PtoVta>
+<CbteTipo>1</CbteTipo>
+</FeCabReq>
+<FeDetReq>
+<FECAEDetRequest>
+<Concepto>1</Concepto>
+<DocTipo>80</DocTipo>
+<DocNro>30709965812</DocNro>
+<CbteDesde>42</CbteDesde>
+<CbteHasta>42</CbteHasta>
+<CbteFch>20261110</CbteFch>
+<ImpTotal>24150.55</ImpTotal>
+<ImpTotConc>200.55</ImpTotConc>
+<ImpNeto>20500</ImpNeto>
+<ImpOpEx>300</ImpOpEx>
+<ImpTrib>0</ImpTrib>
+<ImpIVA>3150</ImpIVA>
+<MonId>PES</MonId>
+<MonCotiz>1</MonCotiz>
+<CondicionIVAReceptorId>1</CondicionIVAReceptorId>
+<Iva>
+<AlicIva>
+<Id>5</Id>
+<BaseImp>10000</BaseImp>
+<Importe>2100</Importe>
+</AlicIva>
+<AlicIva>
+<Id>4</Id>
+<BaseImp>10000</BaseImp>
+<Importe>1050</Importe>
+</AlicIva>
+<AlicIva>
+<Id>3</Id>
+<BaseImp>500</BaseImp>
+<Importe>0</Importe>
+</AlicIva>
+</Iva>
+</FECAEDetRequest>
+</FeDetReq>
+</FeCAEReq>
+</FECAESolicitar>
+</soap:Body>
+</soap:Envelope>
