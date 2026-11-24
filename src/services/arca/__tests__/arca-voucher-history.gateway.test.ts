@@ -233,6 +233,16 @@ describe('ArcaVoucherHistoryGateway', () => {
     },
   );
 
+  it('un código 0 sin mensaje dice lo mismo en el texto y en detalles', async () => {
+    await expect(
+      consulting(undefined, { Errors: { Err: { Code: 0 } } }).gateway.getVoucher(999, 3, 11),
+    ).rejects.toMatchObject({
+      details: { errores: [{ codigo: 0, mensaje: '' }] },
+      message: 'ARCA devolvió un error al consultar el comprobante 00003-00000999 y no se sabe si existe: 0',
+      reason: '0',
+    });
+  });
+
   it('un error junto con los datos del comprobante también corta', async () => {
     const { gateway } = consulting({ CbteFch: '20261105' }, { Errors: { Err: [INVALID_TOKEN] } });
 

@@ -1661,7 +1661,9 @@ describe('flujos del modo interactivo', () => {
             associatedVoucher: { fecha: '10/11/2026', numero: 15, puntoVenta: 50, shortcut: 'fc' },
             totalAmount: 50000,
           });
-          expect(noteWarnings(state as NonNullable<typeof state>)[0]).toContain('no es de web service');
+          expect(noteWarnings(state as NonNullable<typeof state>)).toEqual([
+            `No se pudo consultar la factura C 00050-00000015 en ARCA (${code} Error de ARCA) y el punto de venta 50 no es de web service: si es de Comprobantes en línea, de un controlador fiscal o de otro sistema, está bien; si no, revisá \`--ar\`, \`--apv\` y \`--ac\`. No se pudo controlar que la nota de crédito no lo supere.`,
+          ]);
         });
 
         it('en uno propio muestra el error y sigue en la lista, sin perder lo respondido', async () => {

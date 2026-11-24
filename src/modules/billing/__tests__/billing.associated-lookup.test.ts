@@ -294,24 +294,55 @@ describe('checkAssociatedInArca: NC no mayor que el asociado (REV-45)', () => {
       });
     });
 
-    it('en un PV de otro sistema sigue como con el 602: avisos y --afecha (REGLAS-1)', async () => {
-      for (const input of [
-        note({ associatedVoucher: at50('fc') }),
-        note({ associatedVoucher: at50('fc', '10/03/2026'), shortcut: 'ndc' }),
-        fceNote({ associatedVoucher: at50('fcea', '05/03/2026') }),
-      ]) {
-        await expect(checkWithError(input)).resolves.toEqual(
-          await check(input, undefined, { salesPoints: [3, 9] }).result,
-        );
+    it('en un PV de otro sistema sigue el camino del 602, con el motivo del error (REGLAS-1)', async () => {
+      const rest =
+        'y el punto de venta 50 no es de web service: si es de Comprobantes en línea, de un controlador fiscal o de otro sistema, está bien; si no, revisá `--ar`, `--apv` y `--ac`.';
+
+      for (const [input, label, more] of [
+        [
+          note({ associatedVoucher: at50('fc') }),
+          'la factura C',
+          ' No se pudo controlar que la nota de crédito no lo supere. Si es de un controlador fiscal o de FactuWeb, ARCA pide su fecha (error 10211): pasala con `--afecha`.',
+        ],
+        [note({ associatedVoucher: at50('fc', '10/03/2026'), shortcut: 'ndc' }), 'la factura C', ''],
+        [
+          fceNote({ associatedVoucher: at50('fcea', '05/03/2026') }),
+          'la factura de crédito electrónica A',
+          ' No se pudo controlar que la nota de crédito no lo supere.',
+        ],
+      ] as const) {
+        await expect(checkWithError(input)).resolves.toEqual({
+          input: (await check(input, undefined, { salesPoints: [3, 9] }).result).input,
+          warnings: [`No se pudo consultar ${label} 00050-00000015 en ARCA (${code} ${msg}) ${rest}${more}`],
+        });
       }
     });
 
-    it('en un PV de otro sistema, una nota FCE sin --afecha frena con la misma sugerencia que con el 602', async () => {
+    it('en un PV de otro sistema, una nota FCE sin --afecha frena con el motivo y la sugerencia del 602', async () => {
       await expect(checkWithError(fceNote({ associatedVoucher: at50('fcea') }))).rejects.toMatchObject({
-        message:
-          'No se encontró la factura de crédito electrónica A 00050-00000015 en ARCA, así que no se puede tomar su fecha.',
+        code: 'INPUT_VALIDATION_ERROR',
+        message: `No se pudo consultar la factura de crédito electrónica A 00050-00000015 en ARCA (${code} ${msg}) y el punto de venta 50 no es de web service, así que no se puede tomar su fecha.`,
         suggestion:
           'Si es de Comprobantes en línea o de un controlador fiscal, pasá su fecha con `--afecha <fecha>`. Si no, revisá `--ar`, `--apv` y `--ac`.',
+      });
+    });
+
+    it('en un PV propio, con la lista vacía y el último número en 0, gana el error original', async () => {
+      const gateway = { ...history, getLastNumber: async () => 0 };
+      const salesPoints = { getSalesPoints: async () => [] };
+      const service = new BillingService({ clock: systemClock });
+
+      await expect(
+        checkAssociatedInArca({ gateway, input: note(), runtime, salesPoints, service }),
+      ).resolves.toMatchObject({
+        warnings: [
+          `No se pudo verificar en ARCA que la nota de crédito no supere la factura C 00003-00000012: ${code} ${msg}`,
+        ],
+      });
+      await expect(
+        checkAssociatedInArca({ gateway, input: fceNote(), runtime, salesPoints, service }),
+      ).rejects.toMatchObject({
+        suggestion: 'Probá de nuevo en un rato o pasá la fecha del asociado con `--afecha <fecha>`.',
       });
     });
 

@@ -651,22 +651,26 @@ describe('A, B y C', () => {
   it('ncc sobre un asociado de otro sistema, con un error que no es el 602 (REGLAS-1, ERR-1)', () => {
     sdk.generic.call.mockImplementation(failingQuery());
     sdk.wsfe.getSalesPoints.mockResolvedValue({
-      resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 4 }] },
+      resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 3 }] },
     });
 
-    return golden('ncc-asociado-otro-sistema', [...NCC, '--previsualizar', '--json']);
+    return golden('ncc-asociado-otro-sistema', [
+      ...NCC.map((arg, index) => (NCC[index - 1] === '--apv' ? '50' : arg)),
+      '--previsualizar',
+      '--json',
+    ]);
   });
   it('ncc por --cargar sobre un asociado de otro sistema, con un error que no es el 602', () => {
     sdk.generic.call.mockImplementation(failingQuery());
     sdk.wsfe.getSalesPoints.mockResolvedValue({
-      resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 4 }] },
+      resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 3 }] },
     });
 
     return golden('ncc-cargar-otro-sistema', [
       'ncc',
       '--cargar',
       writeInput('nota.json', {
-        comprobanteAsociado: { atajo: 'fc', cuit: String(CUIT), numero: 12, puntoVenta: 3 },
+        comprobanteAsociado: { atajo: 'fc', cuit: String(CUIT), numero: 12, puntoVenta: 50 },
         concepto: 'servicios',
         ivaReceptor: 'consumidor-final',
         montoTotal: 1000,

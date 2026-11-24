@@ -1,11 +1,11 @@
-$ arcli ncc -m 1000 --cs --cfinal --ac fc --apv 3 --ar 12 --acuit 20111111112 --previsualizar --json
+$ arcli ncc -m 1000 --cs --cfinal --ac fc --apv 50 --ar 12 --acuit 20111111112 --previsualizar --json
 exit: 0
 --- stdout ---
 
 {
   "atajo": "ncc",
   "avisos": [
-    "No se encontró la factura C 00003-00000012 en ARCA y el punto de venta 3 no es de web service: si es de Comprobantes en línea, de un controlador fiscal o de otro sistema, está bien; si no, revisá `--ar`, `--apv` y `--ac`. No se pudo controlar que la nota de crédito no lo supere. Si es de un controlador fiscal o de FactuWeb, ARCA pide su fecha (error 10211): pasala con `--afecha`."
+    "No se pudo consultar la factura C 00050-00000012 en ARCA (600 ValidacionDeToken: No aparecio CUIT.) y el punto de venta 50 no es de web service: si es de Comprobantes en línea, de un controlador fiscal o de otro sistema, está bien; si no, revisá `--ar`, `--apv` y `--ac`. No se pudo controlar que la nota de crédito no lo supere. Si es de un controlador fiscal o de FactuWeb, ARCA pide su fecha (error 10211): pasala con `--afecha`."
   ],
   "cae": null,
   "caeVencimiento": null,
@@ -42,7 +42,7 @@ exit: 0
       {
         "Cuit": "20111111112",
         "Nro": 12,
-        "PtoVta": 3,
+        "PtoVta": 50,
         "Tipo": 11
       }
     ]

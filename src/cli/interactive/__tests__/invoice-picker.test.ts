@@ -294,6 +294,34 @@ describe('pickInvoice', () => {
     expect(script.chooseStep.mock.calls[1]?.[2]).toMatchObject({ number: 2 });
   });
 
+  it('si mientras reintenta marcaste otra opción, el cursor queda ahí y no en una factura', async () => {
+    const session = createSession([1, 2, 3].map(invoice));
+
+    failQueryOf(session, 3, { once: true });
+    whileLoading.typing = () => ({ term: '', value: 'a-mano' });
+    script = createScript([
+      [/Cuál/, 'Volver a cargar'],
+      [/Cuál/, BACK],
+    ]);
+    await pickInvoice(session, { ...options, previous: { number: 2, pointOfSale: 3 } });
+
+    expect(script.chooseStep.mock.calls[1]?.[2]).toBe('a-mano');
+  });
+
+  it('si mientras reintenta quedó marcado el botón de volver a cargar, no cuenta como elección', async () => {
+    const session = createSession([1, 2, 3].map(invoice));
+
+    failQueryOf(session, 3, { once: true });
+    whileLoading.typing = () => ({ term: '', value: 'cargar-mas' });
+    script = createScript([
+      [/Cuál/, 'Volver a cargar'],
+      [/Cuál/, BACK],
+    ]);
+    await pickInvoice(session, { ...options, previous: { number: 2, pointOfSale: 3 } });
+
+    expect(script.chooseStep.mock.calls[1]?.[2]).toMatchObject({ number: 2 });
+  });
+
   it('si falla el último número, el error sale como siempre', async () => {
     const session = createSession([invoice(1)]);
 
@@ -432,8 +460,16 @@ describe('pickNoteInvoice', () => {
         origin: 'other',
         otherSystem: true,
         pointOfSale: 50,
+        queryReason: `${code} ValidacionDeToken`,
       });
       expect(shownErrors()).toBe('');
+
+      const shown = stripAnsi(output).replace(/[│┃╏\s]+/g, ' ');
+
+      expect(shown).toContain(
+        `No se pudo consultar la factura C N° 00050-00000015 en ARCA (${code} ValidacionDeToken) y el punto de venta 50 no es de web service. Si es de Comprobantes en línea`,
+      );
+      expect(shown).not.toContain('ARCA no tiene');
     });
 
     it('en un PV propio muestra el error y vuelve a la lista', async () => {
@@ -445,6 +481,17 @@ describe('pickNoteInvoice', () => {
       expect(await pickNoteInvoice(session, options)).toBe(BACK);
       expect(shownErrors()).toContain(`${code} ValidacionDeToken`);
       expect(stripAnsi(output)).not.toMatch(/No existe|ARCA no tiene/);
+    });
+
+    it('en un PV propio, con la lista vacía y el último número en 0, muestra el error y vuelve a la lista', async () => {
+      const session = createSession([]);
+
+      getSalesPoints.mockResolvedValueOnce([]);
+      failQueryOf(session, 15, { code });
+      script = createScript([...searchByHand('3'), [/Cuál/, BACK]]);
+
+      expect(await pickNoteInvoice(session, options)).toBe(BACK);
+      expect(shownErrors()).toContain(`${code} ValidacionDeToken`);
     });
 
     it('si no se puede clasificar el PV, muestra el error original y vuelve a la lista', async () => {
