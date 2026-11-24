@@ -13,7 +13,7 @@ import {
   writeTerminalOutput,
 } from '../ui';
 
-import { describeOutputFailure, OUTPUT_WRITE_ERROR_CODE, type OutputFailures } from './closed-output';
+import { describeOutputFailure, type OutputFailures } from './closed-output';
 import { EmissionCancelledError } from './emission-cancelled';
 import { describeEmittedInThisRun } from './emitted-vouchers';
 import { readJsonDefault } from './global-options';
@@ -202,9 +202,7 @@ export function reportOutputFailure(
     if (options.json) {
       const suggestion = emitted.join(' ') || undefined;
 
-      writeTerminalJsonError(
-        formatAppError(new AppError(message, { code: OUTPUT_WRITE_ERROR_CODE, suggestion }), true),
-      );
+      writeTerminalJsonError(formatAppError(new AppError(message, { code: 'OUTPUT_WRITE_ERROR', suggestion }), true));
     } else {
       writeTerminalError(formatNotice);
     }

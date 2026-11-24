@@ -557,7 +557,7 @@ describe('con stdout que no se puede escribir', () => {
     expect(emitted()).toEqual(['42']);
     expect(result.code).toBe(1);
     expect(JSON.parse(result.stderr)).toEqual({
-      codigo: 'UNEXPECTED_ERROR',
+      codigo: 'OUTPUT_WRITE_ERROR',
       detalles: null,
       error: UNWRITTEN,
       sugerencia: SINGLE,
@@ -569,7 +569,7 @@ describe('con stdout que no se puede escribir', () => {
 
     expect(result.code).toBe(1);
     expect(JSON.parse(result.stderr)).toEqual({
-      codigo: 'UNEXPECTED_ERROR',
+      codigo: 'OUTPUT_WRITE_ERROR',
       detalles: null,
       error: UNWRITTEN,
       sugerencia: null,
@@ -580,7 +580,7 @@ describe('con stdout que no se puede escribir', () => {
     const result = await runFailing(['fc', '--ayuda', '--json']);
 
     expect(result.code).toBe(1);
-    expect(JSON.parse(result.stderr)).toMatchObject({ codigo: 'UNEXPECTED_ERROR', error: UNWRITTEN });
+    expect(JSON.parse(result.stderr)).toMatchObject({ codigo: 'OUTPUT_WRITE_ERROR', error: UNWRITTEN });
   });
 
   it('con --json y un lote cortado, stderr sigue siendo un solo JSON: el error del lote', async () => {

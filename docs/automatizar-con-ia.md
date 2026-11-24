@@ -26,7 +26,7 @@ ARCLI está pensado para que un asistente con acceso a la terminal (Claude, Chat
 
 Un `0` no garantiza que alguien haya leído la salida: si se cortó al emitir, buscá el comprobante antes de reintentar ([más](input-output.md#formato-de-errores)).
 
-Si la salida no se puede escribir (por ejemplo, el disco lleno), ARCLI termina de emitir y, si el sistema informa el error, sale con `1`, o con `2` si ARCA rechazó alguno: con los dos puede haber comprobantes emitidos, y el error de stderr dice cuáles en `sugerencia`. Esos no se vuelven a emitir. Un código distinto de `0` sin ningún error en stderr, o un JSON cortado, tampoco dice que no se emitió: verificá antes de reintentar.
+Si la salida no se puede escribir (por ejemplo, el disco lleno), ARCLI termina de emitir y, si el sistema informa el error, sale con `1`, o con `2` si ARCA rechazó alguno: con los dos puede haber comprobantes emitidos, y el error de stderr (`OUTPUT_WRITE_ERROR`) dice cuáles en `sugerencia`. Esos no se vuelven a emitir. Un código distinto de `0` sin ningún error en stderr, o un JSON cortado, tampoco dice que no se emitió: verificá antes de reintentar.
 
 ## Un pedido de ejemplo
 

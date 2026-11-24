@@ -12,9 +12,6 @@ export interface OutputState {
   readonly failures: Map<OutputName, NodeJS.ErrnoException>;
 }
 
-/** El `codigo` del aviso con `--json`. */
-export const OUTPUT_WRITE_ERROR_CODE = 'UNEXPECTED_ERROR';
-
 /** El estado de las salidas del proceso. */
 export const outputState: OutputState = { closed: new Map(), failures: new Map() };
 

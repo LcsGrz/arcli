@@ -81,7 +81,7 @@ describe('reportOutputFailure', () => {
     reportOutputFailure(failures('stdout'), { commandError: undefined, json: true });
 
     expect(stdout).toBe('');
-    expect(JSON.parse(stderr)).toEqual({ codigo: 'UNEXPECTED_ERROR', detalles: null, error: FULL, sugerencia });
+    expect(JSON.parse(stderr)).toEqual({ codigo: 'OUTPUT_WRITE_ERROR', detalles: null, error: FULL, sugerencia });
   });
 
   it('stderr, en texto: por stdout, con lo emitido y el error del comando', () => {
