@@ -96,7 +96,13 @@ describe.each(['wsfe', 'wsfex'] as const)('%s: lo que contesta ARCA no es SOAP',
       () => undefined,
       (reason: unknown) => reason,
     );
-    const error = new EmissionUncertainError({ cause, environment: 'testing', pointOfSale: 3, shortcut: 'fc' });
+    const error = new EmissionUncertainError({
+      arcaType: 11,
+      cause,
+      environment: 'testing',
+      pointOfSale: 3,
+      shortcut: 'fc',
+    });
 
     expect(error.message).not.toContain('[object Object]');
 

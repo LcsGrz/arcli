@@ -889,6 +889,7 @@ describe('códigos en el lote y causa del error (ERR-5 y ERR-6)', () => {
 
     expect(entry).toEqual({
       codigo: alone.codigo,
+      codigoCausa: (alone.detalles as { codigoCausa?: string } | null)?.codigoCausa,
       error: expect.any(String),
       indice: 1,
       sugerencia: alone.sugerencia,
@@ -1118,7 +1119,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
 
     expect(await uncertain(FC)).toEqual({
       codigo: 'EMISSION_UNCERTAIN',
-      detalles: { causa },
+      detalles: { causa, entorno: 'testing', puntoVenta: 3, tipoArca: 11 },
       error: `No se pudo confirmar la emisión: ${causa}`,
       sugerencia: expect.stringContaining('`arcli ultimos fc --pv 3 --testing`'),
     });
@@ -1232,7 +1233,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
 
     expect(await uncertain(FE_APPROVABLE)).toEqual({
       codigo: 'EMISSION_UNCERTAIN',
-      detalles: { causa, idSolicitud: 42, numero: 8 },
+      detalles: { causa, entorno: 'testing', idSolicitud: 42, numero: 8, puntoVenta: 4, tipoArca: 19 },
       error: `No se pudo confirmar la emisión: ${causa}`,
       sugerencia: expect.stringContaining('`arcli consultar fe 8 --pv 4 --testing`'),
     });
@@ -1515,12 +1516,32 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
       ['con un error de texto', fex('hola'), 'ARCA contestó sin CAE, sin resultado y con errores: hola'],
     ];
 
+    const ARCA_TYPES: Record<string, number> = {
+      fa: 1,
+      fb: 6,
+      fc: 11,
+      ndc: 12,
+      ncc: 13,
+      rc: 15,
+      fe: 19,
+      nde: 20,
+      nce: 21,
+      fcea: 201,
+      ncea: 203,
+    };
+
     async function uncertainCause(args: readonly string[], causa: string, extra: Record<string, unknown> = {}) {
       const error = await uncertain(args);
 
       expect(error).toEqual({
         codigo: 'EMISSION_UNCERTAIN',
-        detalles: { causa, ...extra },
+        detalles: {
+          causa,
+          entorno: 'testing',
+          puntoVenta: 'idSolicitud' in extra ? 4 : 3,
+          tipoArca: ARCA_TYPES[args[0]!],
+          ...extra,
+        },
         error: `No se pudo confirmar la emisión: ${causa}`,
         sugerencia: expect.stringContaining('Puede haberse emitido igual.'),
       });
@@ -3465,8 +3486,7 @@ describe('lo que suma el JSON de error (REV-49)', () => {
     ['nce', NCE, { idSolicitud: 42, numero: 8, puntoVenta: 4, tipoArca: 21 }],
   ];
 
-  // Tests primero (REV-49): pasa a it() al implementarlo.
-  it.fails.each(UNCERTAIN)('EMISSION_UNCERTAIN, %s: entorno, puntoVenta y tipoArca', async (_name, args, details) => {
+  it.each(UNCERTAIN)('EMISSION_UNCERTAIN, %s: entorno, puntoVenta y tipoArca', async (_name, args, details) => {
     sdk.wsfe.createVoucher.mockRejectedValue(new Error('socket hang up'));
     sdk.wsfex.authorize.mockRejectedValue(new Error('socket hang up'));
 
@@ -3477,8 +3497,7 @@ describe('lo que suma el JSON de error (REV-49)', () => {
     });
   });
 
-  // Tests primero (REV-49): pasa a it() al implementarlo.
-  it.fails.each<[string, string[], Record<string, unknown>]>([
+  it.each<[string, string[], Record<string, unknown>]>([
     ['fc', FC, { puntoVenta: 3, tipoArca: 11 }],
     ['fe', FE, { idSolicitud: 42, numero: 8, puntoVenta: 3, tipoArca: 19 }],
   ])('EMISSION_UNCERTAIN, %s en producción: entorno produccion', async (_name, args, details) => {
@@ -3505,8 +3524,7 @@ describe('lo que suma el JSON de error (REV-49)', () => {
     tipoDocumento: 'cuit',
   };
 
-  // Tests primero (REV-49): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['la red caída', 'connect ETIMEDOUT', 'UNEXPECTED_ERROR'],
     ['un error pasajero', 'ns1:coe.alreadyAuthenticated: ya posee un TA', 'TRANSIENT_ERROR'],
     ['sin autorizar', 'ns1:cms.cert.notAuthorized', 'PADRON_SERVICE_NOT_AUTHORIZED'],
@@ -3528,8 +3546,7 @@ describe('lo que suma el JSON de error (REV-49)', () => {
     ]);
   });
 
-  // Tests primero (REV-49): pasa a it() al implementarlo.
-  it.fails('BATCH_VALIDATION_ERROR: codigoCausa solo en los que lo tienen', async () => {
+  it('BATCH_VALIDATION_ERROR: codigoCausa solo en los que lo tienen', async () => {
     sdk.padron.getTaxpayerDetails.mockRejectedValue(new Error('connect ETIMEDOUT'));
 
     const { detalles } = await jsonError([
@@ -3545,8 +3562,7 @@ describe('lo que suma el JSON de error (REV-49)', () => {
     ]);
   });
 
-  // Tests primero (REV-49): pasa a it() al implementarlo.
-  it.fails('lote cortado si además falló stdout: su sugerencia y, al final, la de la salida', async () => {
+  it('lote cortado si además falló stdout: su sugerencia y, al final, la de la salida', async () => {
     sdk.wsfe.createVoucher.mockImplementationOnce(wsfeAnswer('A')).mockRejectedValueOnce(new Error('socket hang up'));
 
     const { sugerencia } = await jsonError(

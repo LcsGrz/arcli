@@ -4,6 +4,7 @@ import { describeEmissionFailure } from './emission-response';
 
 /** A, B y C: el numero lo pone ARCA, asi que se verifica con `arcli ultimos`. */
 interface WsfeUncertainTarget {
+  readonly arcaType: number;
   readonly environment: 'produccion' | 'testing';
   readonly pointOfSale: number;
   readonly shortcut: string;
@@ -14,6 +15,7 @@ interface WsfeUncertainTarget {
  * y numero, asi que reintentar con los mismos numeros no puede duplicarla. Tambien se verifica con `arcli consultar`.
  */
 interface WsfexUncertainTarget {
+  readonly arcaType: number;
   readonly environment: 'produccion' | 'testing';
   readonly pointOfSale: number;
   readonly requestId: number;
@@ -27,6 +29,10 @@ type EmissionUncertainDetails = {
   readonly causa: string;
   readonly idSolicitud?: number;
   readonly numero?: number;
+  /** Con estos tres y el numero se concilia sin leer la `sugerencia`. */
+  readonly entorno: 'produccion' | 'testing';
+  readonly puntoVenta: number;
+  readonly tipoArca: number;
 };
 
 /**
@@ -52,9 +58,13 @@ export class EmissionUncertainError extends AppError {
 
     super(`No se pudo confirmar la emisión: ${reason}`, {
       code: 'EMISSION_UNCERTAIN',
-      details: ('voucherNumber' in options
-        ? { causa: reason, idSolicitud: options.requestId, numero: options.voucherNumber }
-        : { causa: reason }) satisfies EmissionUncertainDetails,
+      details: {
+        causa: reason,
+        ...('voucherNumber' in options ? { idSolicitud: options.requestId, numero: options.voucherNumber } : {}),
+        entorno: options.environment,
+        puntoVenta: options.pointOfSale,
+        tipoArca: options.arcaType,
+      } satisfies EmissionUncertainDetails,
       suggestion:
         'voucherNumber' in options
           ? `Puede haberse emitido igual. Verificalo con \`${verifyCommand}\`: si figura, ya está emitido. Si reintentás, usá el mismo número y la misma solicitud (\`--numero ${options.voucherNumber} --id-solicitud ${options.requestId} --pv ${options.pointOfSale} --${options.environment}\`): si ya se había emitido, ARCA no lo autoriza dos veces.`

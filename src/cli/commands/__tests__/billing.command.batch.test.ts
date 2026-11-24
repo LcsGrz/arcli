@@ -131,8 +131,14 @@ describe('emitBatch', () => {
     await expect(run).rejects.toThrow(BatchEmissionError);
     await run.catch((error: BatchEmissionError) => {
       expect(error.message).toContain('El lote se interrumpió en el comprobante #3: Transacción Activa');
-      expect(error.message).toContain('Procesados: 2 de 4. Sin procesar: #3, #4.');
-      expect(error.details).toEqual({ fallo: 3, procesados: 2, sinProcesar: [3, 4], total: 4 });
+      expect(error.message).toContain('Procesados: 2 de 4.\nSin procesar: #3, #4.');
+      expect(error.details).toEqual({
+        codigoCausa: 'TRANSIENT_ERROR',
+        fallo: 3,
+        procesados: 2,
+        sinProcesar: [3, 4],
+        total: 4,
+      });
     });
     expect(onPartialResults).toHaveBeenCalledWith(['CAE-a', 'CAE-b']);
   });
@@ -180,6 +186,7 @@ describe('emitBatch', () => {
 
   it('si la emision quedo sin confirmar, pide verificar el que fallo', async () => {
     const cause = new EmissionUncertainError({
+      arcaType: 11,
       cause: new Error('timeout'),
       environment: 'produccion',
       pointOfSale: 3,

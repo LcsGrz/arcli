@@ -215,6 +215,7 @@ export class BillingService {
       response = mapBillingResponse(raw);
     } catch (error) {
       throw new EmissionUncertainError({
+        arcaType: voucherKind.arcaType,
         cause: error,
         environment: options.runtime.environment,
         pointOfSale: payload.PtoVta,

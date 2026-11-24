@@ -31,6 +31,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - Si no se puede escribir stdout, con `--json` sale el código nuevo `OUTPUT_WRITE_ERROR`, que puede traer comprobantes ya emitidos en `sugerencia`: no los reemitas. Un rechazo con el disco lleno sale con `2`, antes `1`.
 > - Con otra clave inválida en el `config.json`, `config establecer` y `config eliminar` guardan el cambio y salen con `0`, sin las claves rotas en el JSON y con `avisos`; antes, `INPUT_VALIDATION_ERROR` y `1` sin guardar.
 > - Sin permiso para leer el pedido pendiente, `certificado generar` sin `--reemplazar` sale con `UNEXPECTED_ERROR` y `1`; antes lo pisaba y salía con `0`.
+> - En `BATCH_EMISSION_ERROR`, `sugerencia` es siempre un texto, antes `null`, y en `error` "Sin procesar" va en su propia línea, como rango desde tres (`#3 a #100 (98)`). La lista completa sigue en `detalles.sinProcesar`.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
 
@@ -84,6 +85,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Facturas:** en un lote inválido, cada comprobante de `detalles.comprobantes` trae su `codigo` y su `sugerencia` (#275).
 - **Errores:** si falta un dato porque falló una consulta a ARCA, `detalles.codigoCausa` dice cuál fue la falla (#275).
 - **Factura E:** los errores de `--cargar` dicen qué llegó y sugieren la clave parecida, como en A, B y C (#275).
+- **Facturas:** el error de un lote cortado trae `detalles.codigoCausa` y la misma `sugerencia` que el panel, que dice qué reintentar (#280).
+- **Facturas:** `EMISSION_UNCERTAIN` trae `entorno`, `puntoVenta` y `tipoArca` en `detalles`, para conciliar sin leer la sugerencia (#280).
 - **Errores:** en `--cargar`, una clave `constructor` ya no sugiere un texto interno de JavaScript (#275).
 
 <details><summary>Detalle</summary>
@@ -130,7 +133,11 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 **Salida cortada.** Si quien lee la salida la cerraba antes de tiempo (`| head`, o `less` y `q`), ARCLI mostraba `Error: write EPIPE` con el detalle interno de Node y salía con 1. Ahora el comando termina sin ese error y, con la salida cortada, el código de salida pasa de 1 al del comando (0, 1 o 2), también si lo que se cerró es stderr: un 0 no garantiza que alguien haya leído la salida, así que si se cortó al emitir conviene buscar el comprobante antes de reintentar. Una emisión, su PDF o un lote se completan igual que con la salida abierta: antes podían cortarse ahí, por ejemplo con el comprobante ya autorizado y sin PDF. La salida y el `--json` no cambian.
 
-**Lote: código y sugerencia de cada comprobante.** En `BATCH_VALIDATION_ERROR`, cada elemento de `detalles.comprobantes` traía solo `error` e `indice`. Ahora suma `codigo` y `sugerencia` (texto o `null`), con los valores que daría ese comprobante solo. `error`, `indice` y el texto del panel no cambian. El ítem no trae `codigoCausa`: si un `INPUT_VALIDATION_ERROR` sale de una consulta a ARCA que falló, lo sigue diciendo `error`.
+**Lote: código y sugerencia de cada comprobante.** En `BATCH_VALIDATION_ERROR`, cada elemento de `detalles.comprobantes` traía solo `error` e `indice`. Ahora suma `codigo` y `sugerencia` (texto o `null`), con los valores que daría ese comprobante solo. `error`, `indice` y el texto del panel no cambian. Si el error de ese comprobante trae `detalles.codigoCausa`, el ítem suma `codigoCausa` con el mismo valor (#280).
+
+**Lote cortado: causa y sugerencia.** En `BATCH_EMISSION_ERROR`, `sugerencia` era `null` y el panel mostraba la suya. Ahora las dos dicen lo mismo, según haya procesados, pendientes o uno sin confirmar, y `detalles` suma `codigoCausa` (el `codigo` del que falló; `UNEXPECTED_ERROR`, por ejemplo, sin red). "Sin procesar" pasa a su propia línea, en `error` y en el panel, y desde tres comprobantes es un rango con la cantidad. `detalles.sinProcesar` sigue con la lista completa.
+
+**Emisión sin confirmar.** En A, B, C, FCE, recibos, la `E` y sus notas, `detalles` suma `entorno`, `puntoVenta` y `tipoArca`. `codigo`, `error`, `sugerencia` y el panel no cambian.
 
 **Qué falló al consultar a ARCA.** Al facturar a un CUIT sin IVA receptor con el padrón caído, y en una nota FCE sin `--afecha` si falla la consulta del asociado, el error es `INPUT_VALIDATION_ERROR` y no decía si era la red, ARCA o el certificado. Ahora `detalles`, antes `null`, es `{ "codigoCausa": "…" }` con el código de la falla, por ejemplo `UNEXPECTED_ERROR` o `WSFE_SERVICE_NOT_AUTHORIZED`. `codigo`, `error`, `sugerencia` y el panel no cambian, y si ARCA contestó que no figura o no lo tiene, `detalles` sigue en `null`.
 

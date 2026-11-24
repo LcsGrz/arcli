@@ -169,15 +169,15 @@ describe('la sugerencia del lote cortado, según lo que pasó (ERR-3)', () => {
   it('sin ninguno procesado no habla de ya emitidos ni contradice el mensaje', async () => {
     expect(await runBatch(['login', 'A'])).toBe(1);
     expect(plain(stderr)).toContain('Procesados: 0 de 2');
-    expect(plain(stderr)).toContain('El #1 no se emitió. Reintentá los que quedaron sin procesar.');
+    expect(plain(stderr)).toContain('No se emitió ninguno: podés reintentar los que quedaron sin procesar.');
     expect(plain(stderr)).not.toMatch(/ya se emitieron|de arriba|No se procesó/);
   });
 
   it('con procesados, solo los que tienen CAE están emitidos', async () => {
     await runBatch(['A', 'R', 'login', 'A']);
 
-    expect(plain(stderr)).toContain('Los procesados con CAE ya se emitieron: no los vuelvas a cargar.');
-    expect(plain(stderr)).toContain('El #3 no se emitió. Reintentá los que quedaron sin procesar.');
+    expect(plain(stderr)).toContain('Los procesados con CAE ya se emitieron: recordá no volver a cargarlos.');
+    expect(plain(stderr)).toContain('El resto no se emitió: reintentá únicamente los que quedaron sin procesar.');
   });
 
   it('con una emisión sin confirmar no repite la verificación del mensaje', async () => {
@@ -186,7 +186,7 @@ describe('la sugerencia del lote cortado, según lo que pasó (ERR-3)', () => {
     expect(plain(stderr)).toContain('arcli ultimos fc --pv 3 --testing');
     expect(plain(stderr).match(/arcli ultimos/g)).toHaveLength(1);
     expect(plain(stderr)).toContain('Los procesados con CAE ya se emitieron');
-    expect(plain(stderr)).toContain('Después reintentá los que quedaron sin procesar');
+    expect(plain(stderr)).toContain('Después reintentá únicamente los que quedaron sin procesar');
     expect(plain(stderr)).not.toContain('no se emitió');
   });
 
@@ -203,11 +203,12 @@ describe('la sugerencia del lote cortado, según lo que pasó (ERR-3)', () => {
     expect(plain(stderr)).not.toContain('sin procesar');
   });
 
-  it('sin confirmar el único: el mensaje ya dice todo, sin sugerencia', async () => {
+  it('sin confirmar el único: solo manda a verificarlo', async () => {
     await runBatch(['incierta']);
 
     expect(plain(stderr)).toContain('El #1 puede haberse emitido');
-    expect(plain(stderr)).not.toContain('Sugerencia');
+    expect(plain(stderr)).toContain('Verificá el #1 antes de reintentarlo.');
+    expect(plain(stderr)).not.toMatch(/ya se emitieron|sin procesar/);
   });
 
   it('no repite en "Detalles" lo que ya dice el mensaje (H21)', async () => {
@@ -216,16 +217,24 @@ describe('la sugerencia del lote cortado, según lo que pasó (ERR-3)', () => {
     expect(plain(stderr)).not.toMatch(/Detalles|procesados:|sinConfirmar|fallo:|total:/);
   });
 
-  it('en JSON no cambian código, detalles ni sugerencia', async () => {
+  it('en JSON, el código, los detalles y la misma sugerencia que el panel', async () => {
     expect(await runBatch(['A', 'incierta', 'A'], { json: true })).toBe(1);
 
     const error = JSON.parse(stderr) as Record<string, unknown>;
 
     expect({ ...error, error: undefined }).toEqual({
       codigo: 'BATCH_EMISSION_ERROR',
-      detalles: { fallo: 2, procesados: 1, sinConfirmar: 2, sinProcesar: [3], total: 3 },
+      detalles: {
+        codigoCausa: 'EMISSION_UNCERTAIN',
+        fallo: 2,
+        procesados: 1,
+        sinConfirmar: 2,
+        sinProcesar: [3],
+        total: 3,
+      },
       error: undefined,
-      sugerencia: null,
+      sugerencia:
+        'Los procesados con CAE ya se emitieron: recordá no volver a cargarlos. Verificá el #2 antes de reintentarlo. Después reintentá únicamente los que quedaron sin procesar.',
     });
   });
 });
@@ -312,7 +321,11 @@ describe('si falla la entrega de los ya procesados (ERR-14)', () => {
     await runBatch(['A', 'login'], { json: true });
 
     expect(stdout).toBe('');
-    expect(JSON.parse(stderr)).toMatchObject({ codigo: 'BATCH_EMISSION_ERROR', sugerencia: null });
+    expect(JSON.parse(stderr)).toMatchObject({
+      codigo: 'BATCH_EMISSION_ERROR',
+      sugerencia:
+        'Los procesados con CAE ya se emitieron: recordá no volver a cargarlos. El resto no se emitió: reintentá únicamente los que quedaron sin procesar.',
+    });
   });
 
   it('un certificado sin autorizar a mitad del lote no dice que no se emitió nada', async () => {
@@ -352,13 +365,11 @@ describe('el lote cortado dice qué hacer, igual en el panel y en el JSON (REV-4
     ['sin confirmar el único', ['incierta'], verify(1)],
   ];
 
-  // Tests primero (REV-49): pasa a it() al implementarlo.
-  it.fails.each(SUGGESTIONS)('sugerencia del JSON, %s', async (_name, steps, suggestion) => {
+  it.each(SUGGESTIONS)('sugerencia del JSON, %s', async (_name, steps, suggestion) => {
     expect((await jsonError(steps)).sugerencia).toBe(suggestion);
   });
 
-  // Tests primero (REV-49): pasa a it() al implementarlo.
-  it.fails.each(SUGGESTIONS)('sugerencia del panel, %s', async (_name, steps, suggestion) => {
+  it.each(SUGGESTIONS)('sugerencia del panel, %s', async (_name, steps, suggestion) => {
     await runBatch(steps);
 
     // Entera: lo que sigue al título de la sugerencia hasta el borde de abajo.
@@ -385,13 +396,11 @@ describe('el lote cortado dice qué hacer, igual en el panel y en el JSON (REV-4
     ],
   ];
 
-  // Tests primero (REV-49): pasa a it() al implementarlo.
-  it.fails.each(PENDING)('sin procesar, %s: en su línea del error', async (_name, steps, lines) => {
+  it.each(PENDING)('sin procesar, %s: en su línea del error', async (_name, steps, lines) => {
     expect((await jsonError(steps)).error).toBe(lines.join('\n'));
   });
 
-  // Tests primero (REV-49): pasa a it() al implementarlo.
-  it.fails.each(PENDING)('sin procesar, %s: en su línea del panel', async (_name, steps, [, , pending]) => {
+  it.each(PENDING)('sin procesar, %s: en su línea del panel', async (_name, steps, [, , pending]) => {
     await runBatch(steps);
 
     const lines = stripAnsi(stderr)
@@ -422,8 +431,7 @@ describe('el lote cortado dice qué hacer, igual en el panel y en el JSON (REV-4
     ['sin confirmar', 'incierta', { codigoCausa: 'EMISSION_UNCERTAIN', sinConfirmar: 2, sinProcesar: [] }],
   ];
 
-  // Tests primero (REV-49): pasa a it() al implementarlo.
-  it.fails.each(CAUSES)('detalles.codigoCausa, %s', async (_name, step, expected) => {
+  it.each(CAUSES)('detalles.codigoCausa, %s', async (_name, step, expected) => {
     expect((await jsonError(['A', step])).detalles).toEqual({
       fallo: 2,
       procesados: 1,

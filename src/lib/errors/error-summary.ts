@@ -63,6 +63,11 @@ export function summarizeError(error: unknown): ErrorSummary {
 /** Los `detalles` de un error que paso por otro: el `codigo` de la causa. */
 type CauseDetails = { readonly codigoCausa: ErrorCode };
 
+/** El `codigoCausa` de un error que lo trae en sus `detalles`. */
+export function causeCodeOf(error: unknown): ErrorCode | undefined {
+  return error instanceof AppError ? (error.details as Partial<CauseDetails> | undefined)?.codigoCausa : undefined;
+}
+
 export function causeDetails(cause: unknown): CauseDetails {
   return { codigoCausa: summarizeError(cause).code };
 }

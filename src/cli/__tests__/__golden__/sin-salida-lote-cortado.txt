@@ -58,9 +58,10 @@ exit: 1
     "fallo": 2,
     "sinProcesar": [],
     "sinConfirmar": 2,
-    "total": 2
+    "total": 2,
+    "codigoCausa": "EMISSION_UNCERTAIN"
   },
   "error": "El lote se interrumpió en el comprobante #2: No se pudo confirmar la emisión: socket hang up\nProcesados: 1 de 2.\nEl #2 puede haberse emitido: verificalo con `arcli ultimos fc --pv 3 --testing` antes de reintentarlo.",
-  "sugerencia": "No se pudo escribir toda la salida: no queda espacio en el disco. Se emitió: fc del punto de venta 3, 42. Verificalo con `arcli ultimos fc --pv 3 --cantidad 2 --testing`."
+  "sugerencia": "Los procesados con CAE ya se emitieron: recordá no volver a cargarlos. Verificá el #2 antes de reintentarlo. No se pudo escribir toda la salida: no queda espacio en el disco. Se emitió: fc del punto de venta 3, 42. Verificalo con `arcli ultimos fc --pv 3 --cantidad 2 --testing`."
 }
 

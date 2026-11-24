@@ -29,31 +29,8 @@ const ERROR_HINTS: Readonly<Partial<Record<ErrorCode, string>>> = {
   INPUT_VALIDATION_ERROR: HELP_SUGGESTION,
 };
 
-/**
- * Que hacer con un lote cortado. Los procesados pueden incluir rechazados, que no se emitieron: manda el CAE. Con uno
- * sin confirmar, el mensaje ya trae el comando para verificarlo; sin eso, fallo antes de la llamada que emite (ERR-16).
- */
-function formatInterruptedBatchHint(details: Record<string, unknown> = {}): string | null {
-  const { fallo, procesados, sinConfirmar, sinProcesar } = details;
-  const uncertain = sinConfirmar !== undefined;
-  const pending = Array.isArray(sinProcesar) && sinProcesar.length > 0;
-  const steps = [
-    ...(procesados ? ['Los procesados con CAE ya se emitieron: no los vuelvas a cargar.'] : []),
-    ...(!uncertain && fallo !== undefined ? [`El #${String(fallo)} no se emitió.`] : []),
-    ...(pending ? [`${uncertain ? 'Después reintentá' : 'Reintentá'} los que quedaron sin procesar.`] : []),
-  ];
-
-  return steps.length > 0 ? steps.join(' ') : null;
-}
-
 function formatErrorHint(error: AppError): string | null {
-  if (error.suggestion) {
-    return error.suggestion;
-  }
-
-  return error.code === 'BATCH_EMISSION_ERROR'
-    ? formatInterruptedBatchHint(error.details)
-    : (ERROR_HINTS[error.code] ?? null);
+  return error.suggestion || (ERROR_HINTS[error.code] ?? null);
 }
 
 /** Lo que dicen Node y los clientes HTTP cuando no hubo conexion o se corto. */
@@ -86,6 +63,11 @@ const DETAIL_LABELS: Readonly<Record<string, string>> = {
 /** Datos para quien lee el JSON: en el panel ya los dicen el mensaje y la sugerencia. */
 const JSON_ONLY_DETAILS: ReadonlySet<string> = new Set(['codigoCausa']);
 
+/** Los que son solo para el JSON en un codigo y en otros se muestran. */
+const JSON_ONLY_DETAILS_BY_CODE: Readonly<Partial<Record<ErrorCode, ReadonlySet<string>>>> = {
+  EMISSION_UNCERTAIN: new Set(['entorno', 'puntoVenta', 'tipoArca']),
+};
+
 /** Si el texto ya trae el valor, entero: un `7` no cuenta como dicho por un `17`. */
 function alreadySaid(text: string, value: unknown): boolean {
   const target = normalizeSearchText(String(value)).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -94,7 +76,7 @@ function alreadySaid(text: string, value: unknown): boolean {
 }
 
 /** Los detalles que el panel suma: sin repetir lo que ya dicen el mensaje o la sugerencia. */
-function formatErrorDetails(details: Record<string, unknown> | undefined, said: string): string[] {
+function formatErrorDetails({ code, details }: AppError, said: string): string[] {
   if (!details) {
     return [];
   }
@@ -102,7 +84,7 @@ function formatErrorDetails(details: Record<string, unknown> | undefined, said: 
   // Arrays y objetos (por ejemplo, la lista de items de un lote) solo van en el JSON:
   // en texto se verian como "[object Object]" y ya estan en el mensaje.
   return Object.entries(details)
-    .filter(([key]) => !JSON_ONLY_DETAILS.has(key))
+    .filter(([key]) => !JSON_ONLY_DETAILS.has(key) && !JSON_ONLY_DETAILS_BY_CODE[code]?.has(key))
     .filter(([, value]) => value !== null && value !== undefined && value !== '' && typeof value !== 'object')
     .filter(
       ([key, value]) =>
@@ -115,7 +97,7 @@ function formatErrorDetails(details: Record<string, unknown> | undefined, said: 
 export function formatAppError(error: unknown): string {
   if (error instanceof AppError) {
     const hint = formatErrorHint(error);
-    const details = formatErrorDetails(error.details, `${error.message}\n${hint ?? ''}`);
+    const details = formatErrorDetails(error, `${error.message}\n${hint ?? ''}`);
 
     return errorPanel(ERROR_TITLES[error.code] ?? 'Error', error.message, details, hint ?? undefined);
   }

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
-import { renderJson } from '../../../ui/primitives';
 import { mapExportResponse } from '../export.response';
 import { serializeExportResult } from '../export.serialize';
 import {
@@ -232,11 +231,5 @@ describe('serializeExportResult', () => {
     expect(serializeExportResult(preview, { raw: true }).respuesta).toEqual({
       mensaje: 'Sin emisión real. Usá `--emitir` para obtener una respuesta de ARCA.',
     });
-  });
-
-  it('el comando lo escribe como JSON con dos espacios', () => {
-    const text = renderJson(serializeExportResult(result()));
-
-    expect(text).toBe(JSON.stringify(serializeExportResult(result()), null, 2));
   });
 });

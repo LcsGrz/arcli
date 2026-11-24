@@ -59,9 +59,10 @@ exit: 1
     "sinProcesar": [
       2
     ],
-    "total": 2
+    "total": 2,
+    "codigoCausa": "UNEXPECTED_ERROR"
   },
-  "error": "El lote se interrumpió en el comprobante #2: ECONNRESET\nProcesados: 1 de 2. Sin procesar: #2.",
-  "sugerencia": null
+  "error": "El lote se interrumpió en el comprobante #2: ECONNRESET\nProcesados: 1 de 2.\nSin procesar: #2.",
+  "sugerencia": "Los procesados con CAE ya se emitieron: recordá no volver a cargarlos. El resto no se emitió: reintentá únicamente los que quedaron sin procesar."
 }
 
