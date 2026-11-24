@@ -218,8 +218,11 @@ function formatPath(path: readonly PropertyKey[]): string {
     .join('');
 }
 
-function describeExpected(expected: string): string {
+/** Como se nombra en un error el tipo que espera un esquema. */
+export function describeExpected(expected: string): string {
   switch (expected) {
+    case 'int':
+      return 'un entero';
     case 'number':
       return 'un número';
     case 'string':

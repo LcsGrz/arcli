@@ -212,13 +212,12 @@ describe('formatCliError: errores de config establecer', () => {
   it('mejora el mensaje sin cambiar la forma de `detalles` del --json (contrato)', () => {
     expect(jsonError('entornoPorDefecto', 'demo', 'entorno')).toEqual({
       codigo: 'INPUT_VALIDATION_ERROR',
-      // Igual que en la 2.5.0, cuando el error salia directo de zod.
-      detalles: [{ mensaje: 'Entrada tiene un valor no soportado. Valores válidos: testing, produccion.', ruta: [] }],
+      detalles: [{ mensaje: 'El valor no está entre los soportados. Valores válidos: testing, produccion.', ruta: [] }],
       error: '`entorno` no acepta "demo". Valores válidos: testing, produccion.',
       sugerencia: null,
     });
     expect(jsonError('monedaPorDefecto', '', 'moneda').detalles).toEqual([
-      { mensaje: 'MonedaPorDefecto debe ser mayor a 3.', ruta: ['monedaPorDefecto'] },
+      { mensaje: '`monedaPorDefecto` tiene que tener 3 caracteres.', ruta: ['monedaPorDefecto'] },
     ]);
   });
 

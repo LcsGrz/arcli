@@ -1,8 +1,8 @@
-import type { ZodError } from 'zod';
+import { type output, ZodError, type ZodType } from 'zod';
 
 import type { InputIssue } from '../../lib/errors/input-issue';
 
-import { BILLING_JSON_KEY_BY_INTERNAL_KEY } from './billing.json-input';
+import { BILLING_JSON_KEY_BY_INTERNAL_KEY, describeExpected } from './billing.json-input';
 
 const ZOD_PATH_LABELS: Record<string, string> = {
   associatedPeriod: 'período asociado',
@@ -21,7 +21,11 @@ const ZOD_PATH_LABELS: Record<string, string> = {
   ivaRate: 'alícuota de IVA',
   ivaCondition: 'IVA receptor',
   paymentDueDate: 'vencimiento de pago',
+  pdfDescription: 'descripción',
   pointOfSale: 'punto de venta',
+  receiverAddress: 'domicilio del receptor',
+  receiverName: 'nombre del receptor',
+  saleCondition: 'condición de venta',
   sameCurrency: 'misma moneda',
   serviceEndDate: 'servicio hasta',
   serviceStartDate: 'servicio desde',
@@ -31,34 +35,91 @@ const ZOD_PATH_LABELS: Record<string, string> = {
 };
 
 function formatZodIssuePath(path: PropertyKey[]): string {
-  if (path.length === 0) {
-    return 'Entrada';
-  }
-
   return path.map((segment) => String(segment)).join('.');
 }
 
-function humanizeZodIssue(issue: ZodError['issues'][number], label: string): string {
-  if (issue.code === 'invalid_type' && issue.input === undefined) {
-    return `Falta el dato: ${label}.`;
+type ZodInputIssue = ZodError['issues'][number] & { readonly received?: string };
+
+/**
+ * Valida una entrada y, si no pasa, lanza un `ZodError` en el que cada problema dice de que tipo era lo que llego
+ * (`received`), o nada si faltaba: zod no lo dice, y sin eso un tipo equivocado se lee como un dato que falta. El
+ * valor no queda en el error (puede ser un CBU o una ruta), y tampoco en su `message`, que es el JSON de los problemas.
+ */
+export function parseZodInput<T extends ZodType>(schema: T, value: unknown): output<T> {
+  const result = schema.safeParse(value, { reportInput: true });
+
+  if (result.success) {
+    return result.data;
+  }
+
+  throw new ZodError(
+    result.error.issues.map(({ input, ...issue }) =>
+      input === undefined ? issue : { ...issue, received: typeof input },
+    ) as ZodError['issues'],
+  );
+}
+
+/** De que habla el mensaje: la etiqueta, la clave como se escribe, o "El valor" si el problema no trae ruta. */
+function describeSubject(issue: ZodInputIssue): string {
+  if (issue.path.length === 0) {
+    return 'El valor';
+  }
+
+  const label = ZOD_PATH_LABELS[formatZodIssuePath(issue.path)];
+
+  return label
+    ? `${label[0]?.toUpperCase() ?? ''}${label.slice(1)}`
+    : `\`${formatPublicIssuePath(issue.path).join('.')}\``;
+}
+
+const SIZE_UNITS: Readonly<Record<string, readonly [one: string, many: string]>> = {
+  array: ['elemento', 'elementos'],
+  string: ['carácter', 'caracteres'],
+};
+
+type ZodSizeIssue = Extract<ZodInputIssue, { code: 'too_big' | 'too_small' }>;
+
+/** El limite que no se cumple: el largo de un texto o de una lista, o el valor de un numero. */
+function describeLimit(issue: ZodSizeIssue, limit: number): string {
+  const unit = SIZE_UNITS[issue.origin];
+  const minimum = issue.code === 'too_small';
+
+  if (unit) {
+    const bound = issue.exact ? '' : minimum ? 'al menos ' : 'hasta ';
+
+    return `tiene que tener ${bound}${limit} ${limit === 1 ? unit[0] : unit[1]}.`;
+  }
+
+  if (issue.inclusive) {
+    return `debe ser ${limit} o ${minimum ? 'más' : 'menos'}.`;
+  }
+
+  return `debe ser ${minimum ? 'mayor' : 'menor'} a ${limit}.`;
+}
+
+function humanizeZodIssue(issue: ZodInputIssue, label: string): string {
+  if (issue.code === 'invalid_type') {
+    return issue.received === undefined
+      ? `Falta el dato: ${label}.`
+      : `${describeSubject(issue)} tiene que ser ${describeExpected(issue.expected)}.`;
   }
 
   if (issue.code === 'too_small' && typeof issue.minimum === 'number') {
-    if (formatZodIssuePath(issue.path) === 'totalAmount') {
-      return 'El monto debe ser mayor a 0.';
-    }
+    return formatZodIssuePath(issue.path) === 'totalAmount'
+      ? 'El monto debe ser mayor a 0.'
+      : `${describeSubject(issue)} ${describeLimit(issue, issue.minimum)}`;
+  }
 
-    return `${label[0]?.toUpperCase() ?? ''}${label.slice(1)} debe ser mayor a ${issue.minimum}.`;
+  // El maximo de ARCA de un numero trae su mensaje en el esquema; los demas, el de zod, en ingles.
+  if (issue.code === 'too_big' && typeof issue.maximum === 'number' && issue.message.startsWith('Too big')) {
+    return `${describeSubject(issue)} ${describeLimit(issue, issue.maximum)}`;
   }
 
   if (issue.code === 'invalid_value') {
     const allowedValues = issue.values.map((value) => String(value)).join(', ');
+    const problem = issue.path.length === 0 ? 'no está entre los soportados' : 'tiene un valor no soportado';
 
-    return `${label[0]?.toUpperCase() ?? ''}${label.slice(1)} tiene un valor no soportado. Valores válidos: ${allowedValues}.`;
-  }
-
-  if (issue.code === 'invalid_type') {
-    return `${label[0]?.toUpperCase() ?? ''}${label.slice(1)} tiene un formato inválido.`;
+    return `${describeSubject(issue)} ${problem}. Valores válidos: ${allowedValues}.`;
   }
 
   return issue.message;
@@ -74,7 +135,7 @@ function formatPublicIssuePath(path: PropertyKey[]): string[] {
 export function describeZodIssues(error: ZodError): InputIssue[] {
   return error.issues.map((issue) => {
     const pathKey = formatZodIssuePath(issue.path);
-    const label = ZOD_PATH_LABELS[pathKey] ?? pathKey;
+    const label = ZOD_PATH_LABELS[pathKey] ?? (pathKey || 'Valor');
 
     return { label, mensaje: humanizeZodIssue(issue, label), ruta: formatPublicIssuePath(issue.path) };
   });

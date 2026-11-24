@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 
 import { ConfigurationError, InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
 import { parseCbu } from '../../lib/identity/cbu';
-import { describeZodIssues } from '../billing/billing.zod-errors';
+import { describeZodIssues, parseZodInput } from '../billing/billing.zod-errors';
 
 import {
   type ArcliConfig,
@@ -204,20 +204,18 @@ export class ConfigService {
   }
 
   public getConfig(): ArcliConfig {
-    const result = arcliConfigSchema.safeParse(this.store.store);
+    try {
+      return parseZodInput(arcliConfigSchema, this.store.store);
+    } catch (error) {
+      const savedCbu: unknown = (this.store.store as Record<string, unknown>).cbu;
+      const cbuResult = typeof savedCbu === 'string' ? parseCbu(savedCbu) : undefined;
 
-    if (result.success) {
-      return result.data;
+      if (cbuResult && !cbuResult.ok) {
+        throw invalidSavedCbuError(cbuResult.reason);
+      }
+
+      throw error;
     }
-
-    const savedCbu: unknown = (this.store.store as Record<string, unknown>).cbu;
-    const cbuResult = typeof savedCbu === 'string' ? parseCbu(savedCbu) : undefined;
-
-    if (cbuResult && !cbuResult.ok) {
-      throw invalidSavedCbuError(cbuResult.reason);
-    }
-
-    throw result.error;
   }
 
   public getPath(): string {
@@ -300,7 +298,7 @@ export class ConfigService {
 
     change(draft);
 
-    const config = arcliConfigSchema.parse(draft);
+    const config = parseZodInput(arcliConfigSchema, draft);
     this.store.store = config;
 
     return config;

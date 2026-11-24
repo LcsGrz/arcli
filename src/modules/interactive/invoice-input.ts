@@ -2,6 +2,7 @@ import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { BILLING_RULES, type BillingRuleContext } from '../billing/billing.rules';
 import { type BillingCommandInput, billingCommandSchema } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
+import { parseZodInput } from '../billing/billing.zod-errors';
 import { discriminatesIva, isFceInvoice } from '../billing/voucher-kind-map';
 import type { ArcliConfig } from '../config/config.schemas';
 
@@ -54,7 +55,7 @@ export const isFceInvoiceState = (state: Pick<InvoiceState, 'voucherKind'>): boo
  * la solicitud a ARCA.
  */
 export function buildInvoiceInput(state: InvoiceState, env: InvoiceInputEnv): BillingCommandInput {
-  return billingCommandSchema.parse(invoiceInputFields(state, env));
+  return parseZodInput(billingCommandSchema, invoiceInputFields(state, env));
 }
 
 /**
