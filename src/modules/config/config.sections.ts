@@ -63,7 +63,7 @@ export const CONFIG_LABELS: Record<ConfigPublicKey, string> = {
   concepto: 'Concepto',
   condicionVenta: 'Condición de venta (PDF de A, B y C)',
   cotizacion: 'Cotización (deprecada)',
-  cuenta: 'Cuenta (CBU y alias)',
+  cuenta: 'Cuenta bancaria (CBU y alias)',
   cuit: 'CUIT del emisor',
   'emisor.condicionIva': 'Condición de IVA',
   'emisor.domicilio': 'Domicilio comercial',

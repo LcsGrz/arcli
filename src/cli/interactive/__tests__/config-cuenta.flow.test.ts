@@ -198,6 +198,7 @@ describe('"Cuenta" en "Modificar configuración"', () => {
     await changeAccount('-');
 
     expect(question(0).message).toContain('"-" para borrar');
+    expect(stripAnsi(output)).toContain('Se borró también el alias');
     expect(saved()).toEqual({ aliasCbu: undefined, cbu: undefined });
     expect(stripAnsi(output)).toContain('Dato borrado.');
   });

@@ -406,6 +406,17 @@ describe('filasPorLista y la clave deprecada comprobantesPorLista', () => {
     }
   });
 
+  it.each(['cuit', 'cbu', 'aliasCbu'])('un alias con `%s` se rechaza: es solo de `cuenta`', (key) => {
+    const service = createService();
+
+    try {
+      expect(() => service.setValue(key, '20123456786', 'mi.alias')).toThrow(/solo se guarda con `cuenta`/);
+      expect(service.getConfig().cuit).toBeUndefined();
+    } finally {
+      service.close();
+    }
+  });
+
   it('establecer comprobantesPorLista valida el rango como filasPorLista', () => {
     const service = createService();
 

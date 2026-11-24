@@ -321,11 +321,11 @@ arcli config                              # ver config actual (agregar --json)
 arcli config revisar                      # revisa la config de los dos entornos localmente, sin ir a ARCA (agregar --json)
 arcli config ruta [--json]                # path del archivo de config ({"ruta": ...})
 arcli config establecer <clave> <valor>
-arcli config establecer cuenta <CBU> [ALIAS]   # los dos juntos; sin alias, borra el guardado y lo avisa
+arcli config establecer cuenta <CBU> [ALIAS]   # los dos juntos; sin alias, borra el guardado y lo avisa; un alias con guion adelante va tras `--`: `config establecer -- cuenta <CBU> -mi.alias`
 arcli config eliminar <clave>
 ```
 
-Claves válidas: `cuit`, `cuenta` (CBU y alias, solo facturas FCE; en el archivo y en `--json` son `cbu` y `aliasCbu`, que como claves de `config establecer` y `config eliminar` están deprecadas hasta la 3.0.0 y avisan en stderr; `config eliminar cbu` borra también el alias), `verificarFce`, `consultarPadron` (por defecto `true`), `alicuota`, `puntoVenta`, `filasPorLista` (1 a 50, por defecto 15: filas de `ultimos` y de las listas del modo interactivo; `comprobantesPorLista` es su nombre viejo, deprecado: se lee y `config establecer` la guarda como `filasPorLista`, hasta la 3.0.0), `concepto`, `ivaReceptor`, `moneda`, `cotizacion` (deprecada: se saca en la 3.0.0; mejor `--cm` o la oficial),
+Claves válidas: `cuit`, `cuenta` (CBU y alias, solo facturas FCE; en el archivo y en `--json` son `cbu` y `aliasCbu`, que como claves de `config establecer` y `config eliminar` están deprecadas hasta la 3.0.0 y avisan en stderr; `config eliminar cuenta` o `cbu` borra también el alias y lo avisa), `verificarFce`, `consultarPadron` (por defecto `true`), `alicuota`, `puntoVenta`, `filasPorLista` (1 a 50, por defecto 15: filas de `ultimos` y de las listas del modo interactivo; `comprobantesPorLista` es su nombre viejo, deprecado: se lee y `config establecer` la guarda como `filasPorLista`, hasta la 3.0.0), `concepto`, `ivaReceptor`, `moneda`, `cotizacion` (deprecada: se saca en la 3.0.0; mejor `--cm` o la oficial),
 `entorno` (`testing`/`produccion`), `emitir`, `json`, `bruto` (booleanos: `true/false`,
 `si/no`, `1/0`), `cert.testing`, `cert.produccion`, `key.testing`, `key.produccion`
 (rutas a archivos PEM, se validan al guardar), `exportacion.cert.testing`, `exportacion.cert.produccion`,

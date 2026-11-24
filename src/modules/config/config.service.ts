@@ -302,6 +302,10 @@ export class ConfigService {
       return this.planAccount(rawValue, alias);
     }
 
+    if (alias !== undefined) {
+      throw new InputValidationError(`El alias solo se guarda con \`cuenta\`, no con \`${rawKey.trim()}\`.`);
+    }
+
     const canonicalKey = CONFIG_KEY_ALIASES[key];
     const parsedValue = withConfigHelp(() => parseConfigValue(canonicalKey, rawValue, key));
     const aliasChange = key === 'cbu' ? cbuAliasChange(this.readSaved(), rawValue) : undefined;
@@ -353,7 +357,7 @@ export class ConfigService {
         keys.forEach((canonicalKey) => deleteAtPath(draft, canonicalKey));
       },
       keys,
-      warning: key === 'cbu' ? cbuRemovalWarning(this.readSaved()) : undefined,
+      warning: keys.length > 1 ? cbuRemovalWarning(this.readSaved()) : undefined,
     };
   }
 

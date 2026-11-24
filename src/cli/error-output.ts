@@ -18,6 +18,7 @@ import { EmissionCancelledError } from './emission-cancelled';
 import { describeEmittedInThisRun } from './emitted-vouchers';
 import { readJsonDefault } from './global-options';
 import { isPromptCancellation } from './interactive/prompts';
+import { UsageErrorWithSuggestion } from './usage-error';
 
 /** Cualquier error, como panel. Los de un esquema los describe billing: la UI no conoce sus campos. */
 export function formatCliError(error: unknown): string {
@@ -104,7 +105,7 @@ function toUsageError(error: CommanderError): AppError {
 
   return new AppError(message, {
     code: 'INPUT_VALIDATION_ERROR',
-    suggestion: HELP_SUGGESTION,
+    suggestion: error instanceof UsageErrorWithSuggestion ? error.suggestion : HELP_SUGGESTION,
   });
 }
 

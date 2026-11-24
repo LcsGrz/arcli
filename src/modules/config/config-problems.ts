@@ -16,7 +16,7 @@ export function invalidSavedCbuError(reason: string, suggestion?: string): Input
     `El CBU guardado en la config no es válido: ${reason}.`,
     [{ label: 'CBU', mensaje: `${reason[0]?.toUpperCase() ?? ''}${reason.slice(1)}.`, ruta: ['cbu'] }],
     suggestion ??
-      'Cambialo por el correcto con `arcli config establecer cuenta <CBU> [ALIAS]`; copialo desde el home banking o la constancia del banco.',
+      'Cambialo por el correcto con `arcli config establecer cuenta <CBU> [ALIAS]` (sin el alias, se borra el guardado); copialo desde el home banking o la constancia del banco.',
   );
 }
 
@@ -122,18 +122,20 @@ export function suggestConfigFix(saved: ZodError, configPath: string): string {
 
   const steps = keys.map(
     ({ canDelete, key, needsFile }) =>
-      `\`arcli config establecer ${key} ${valueHint(key)}\`${canDelete ? ` o \`arcli config eliminar ${key}\`` : ''}${needsFile ? ` o a mano en ${configPath}` : ''}`,
+      `${setCommand(key)}${canDelete ? ` o \`arcli config eliminar ${key}\`` : ''}${needsFile ? ` o a mano en ${configPath}` : ''}`,
   );
 
   return `Corregilos de a uno: ${steps.join('; ')}.`;
 }
 
-function valueHint(key: ConfigPublicKey): string {
-  return key === 'cuenta' ? '<CBU> [ALIAS]' : '<valor>';
+function setCommand(key: ConfigPublicKey): string {
+  return key === 'cuenta'
+    ? '`arcli config establecer cuenta <CBU> [ALIAS]` (sin el alias, se borra el guardado)'
+    : `\`arcli config establecer ${key} <valor>\``;
 }
 
 function suggestKeyFix({ canDelete, key, needsFile }: SavedKey, configPath: string): string {
-  const set = `Corregilo con \`arcli config establecer ${key} ${valueHint(key)}\``;
+  const set = `Corregilo con ${setCommand(key)}`;
 
   if (needsFile) {
     return `${set} o a mano en ${configPath}.`;

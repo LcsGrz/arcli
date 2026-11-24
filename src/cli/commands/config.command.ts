@@ -24,6 +24,7 @@ import { checkProfileFromConfig } from '../arca-runtime';
 import { registerJsonOption, resolveOutputJson } from '../global-options';
 import { configureSpanishHelp, createConfigHelp, createConfigSetHelp } from '../help';
 import { startSpinner } from '../spinner';
+import { UsageErrorWithSuggestion } from '../usage-error';
 
 function createConfigService(): ConfigService {
   const service = new ConfigService();
@@ -78,10 +79,18 @@ function rejectExcessArguments(key: string, command: Command): void {
   const expected = acceptsAlias(key) ? 3 : 2;
 
   if (command.args.length > expected) {
-    command.error(
-      `error: too many arguments for '${command.name()}'. Expected ${expected} arguments but got ${command.args.length}: ${command.args.join(', ')}.`,
-      { code: 'commander.excessArguments' },
-    );
+    const code = 'commander.excessArguments';
+    const message = `error: too many arguments for '${command.name()}'. Expected ${expected} arguments but got ${command.args.length}: ${command.args.join(', ')}.`;
+
+    if (key.trim() === 'cbu') {
+      throw new UsageErrorWithSuggestion(
+        code,
+        message,
+        'Para guardar el CBU con su alias, usá `arcli config establecer cuenta <CBU> <ALIAS>`.',
+      );
+    }
+
+    command.error(message, { code });
   }
 }
 

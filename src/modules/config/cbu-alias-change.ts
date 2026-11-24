@@ -66,7 +66,7 @@ export function accountAliasRemovedWarning({ aliasCbu }: SavedCbu): string | und
     : `Se borró el ${aliasLabel(aliasCbu)} de la config: la cuenta quedó sin alias. Si lo tiene, guardá los dos con \`arcli config establecer cuenta <CBU> <ALIAS>\`.`;
 }
 
-/** El aviso de `config eliminar cbu` (deprecada), que borra tambien el alias. */
+/** El aviso de `config eliminar cuenta` y `config eliminar cbu` (deprecada): con el CBU se borra su alias. */
 export function cbuRemovalWarning({ aliasCbu }: SavedCbu): string | undefined {
   return aliasCbu === undefined
     ? undefined

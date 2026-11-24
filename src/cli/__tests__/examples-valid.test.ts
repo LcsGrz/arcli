@@ -10,6 +10,7 @@ import type { VoucherShortcut } from '../../modules/billing/billing.types';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
 import { VOUCHER_FAMILIES, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
 import { ConfigService } from '../../modules/config/config.service';
+import { acceptsAlias } from '../../modules/config/config-keys';
 import { renderExamples } from '../../modules/examples/examples';
 import { ExportService } from '../../modules/export/export.service';
 import {
@@ -278,7 +279,11 @@ function examplesFromBashBlock(block: CodeBlock, file: string): Example[] {
     const args = arcliArgs(line);
 
     if (args?.[0] === 'config' && args[1] === 'establecer' && args.length >= 4) {
-      // `cuenta` lleva ademas el alias.
+      // `cuenta` lleva ademas el alias; con otra clave, el CLI lo rechaza. Un `<11 dígitos>` no es un valor.
+      if (!line.includes('<') && args.length > (acceptsAlias(args[2] as string) ? 5 : 4)) {
+        throw new Error(`${file}:${block.line + first}: sobran argumentos en \`${line.trim()}\`.`);
+      }
+
       config.push([args[2] as string, args[3] as string, args[4]]);
     } else if (isBilling(args)) {
       examples.push({ args, config: [...config], source: `${file}:${block.line + first}` });

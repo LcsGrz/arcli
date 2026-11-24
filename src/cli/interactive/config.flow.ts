@@ -18,7 +18,7 @@ import {
   uninstallCompletion,
 } from '../../modules/completion/installer';
 import { COMPLETION_SHELLS, type CompletionShell } from '../../modules/completion/shell-scripts';
-import { accountAliasRemovedWarning } from '../../modules/config/cbu-alias-change';
+import { accountAliasRemovedWarning, cbuRemovalWarning } from '../../modules/config/cbu-alias-change';
 import { formatConfigAsText, formatConfigDoctorAsText } from '../../modules/config/config.presenter';
 import {
   type ArcliConfig,
@@ -291,6 +291,12 @@ async function askAccount(config: ArcliConfig): Promise<'borrado' | 'guardado' |
 
   if (isClear(cbu)) {
     withConfigService((service) => service.unsetValue('cuenta'));
+
+    const removed = cbuRemovalWarning(config);
+
+    if (removed) {
+      writeTerminalOutput(noticePanel(removed, 'warning'));
+    }
 
     return 'borrado';
   }

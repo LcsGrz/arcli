@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { HELP_SUGGESTION } from '../../../lib/errors/app-error';
 import { stripAnsi } from '../../../ui';
 import { reportCliError } from '../../error-output';
 import { createProgram } from '../../program';
@@ -17,6 +18,7 @@ const OTHER_ALIAS = 'otro.alias';
 const ACCOUNT = { aliasCbu: ALIAS, cbu: CBU };
 const REMOVED =
   'Se borró el alias mi.alias.cbu de la config: la cuenta quedó sin alias. Si lo tiene, guardá los dos con `arcli config establecer cuenta <CBU> <ALIAS>`.';
+const ALSO_REMOVED = 'Se borró también el alias mi.alias.cbu de la config: sin el CBU no se usa.';
 
 let directory = '';
 let stdout = '';
@@ -187,6 +189,20 @@ describe('config establecer cuenta', () => {
     expect(saved()).toEqual(ACCOUNT);
   });
 
+  it('con `cbu` y un alias, la sugerencia nombra `cuenta`; con las demás claves es la de siempre', async () => {
+    expect((await runError('establecer', 'cbu', CBU, ALIAS)).sugerencia).toBe(
+      'Para guardar el CBU con su alias, usá `arcli config establecer cuenta <CBU> <ALIAS>`.',
+    );
+    expect((await runError('establecer', 'cuit', '20123456786', 'x')).sugerencia).toBe(HELP_SUGGESTION);
+    expect((await runError('establecer', 'aliasCbu', ALIAS, 'x')).sugerencia).toBe(HELP_SUGGESTION);
+  });
+
+  it('un alias que empieza con guion va después de `--`', async () => {
+    await run('establecer', '--', 'cuenta', CBU, '-Ventas.sa');
+
+    expect(saved()).toEqual({ aliasCbu: '-Ventas.sa', cbu: CBU });
+  });
+
   it('sin CBU falta el argumento', async () => {
     expect(await runError('establecer', 'cuenta')).toMatchObject({
       codigo: 'INPUT_VALIDATION_ERROR',
@@ -196,12 +212,12 @@ describe('config establecer cuenta', () => {
 });
 
 describe('config eliminar', () => {
-  it('cuenta borra los dos, sin avisos', async () => {
+  it('cuenta borra los dos y avisa del alias', async () => {
     save(ACCOUNT);
 
     await run('eliminar', 'cuenta', '--json');
 
-    expect(json()).not.toHaveProperty('avisos');
+    expect(json().avisos).toEqual([ALSO_REMOVED]);
     expect(saved()).toEqual({ aliasCbu: undefined, cbu: undefined });
     expect(stderr).toBe('');
   });
@@ -211,17 +227,17 @@ describe('config eliminar', () => {
 
     await run('eliminar', 'cbu', '--json');
 
-    expect(json().avisos).toEqual(['Se borró también el alias mi.alias.cbu de la config: sin el CBU no se usa.']);
+    expect(json().avisos).toEqual([ALSO_REMOVED]);
     expect(saved()).toEqual({ aliasCbu: undefined, cbu: undefined });
     expect(stripAnsi(stderr).trim()).toBe(
       'La clave "cbu" está deprecada y se va a sacar en la 3.0.0: usá `arcli config eliminar cuenta`.',
     );
   });
 
-  it('cbu sin alias guardado no avisa de un alias', async () => {
+  it.each(['cbu', 'cuenta'])('%s sin alias guardado no avisa de un alias', async (key) => {
     save({ cbu: CBU });
 
-    await run('eliminar', 'cbu', '--json');
+    await run('eliminar', key, '--json');
 
     expect(json()).not.toHaveProperty('avisos');
   });
@@ -243,7 +259,7 @@ describe('config eliminar', () => {
 
     await run('eliminar', 'cuenta', '--json');
 
-    expect(json().avisos).toEqual([expect.stringContaining('Sigue habiendo un dato inválido')]);
+    expect(json().avisos).toEqual([ALSO_REMOVED, expect.stringContaining('Sigue habiendo un dato inválido')]);
     expect(stored()).toEqual({ cuit: '123' });
   });
 });
@@ -285,7 +301,7 @@ describe('arcli config con la cuenta', () => {
 
     await run();
 
-    expect(flat(stdout)).toContain(`Cuenta (CBU y alias) ${text} `);
+    expect(flat(stdout)).toContain(`Cuenta bancaria (CBU y alias) ${text} `);
   });
 
   it.each([
@@ -296,13 +312,28 @@ describe('arcli config con la cuenta', () => {
 
     await run('establecer', 'puntoVenta', '3');
 
-    expect(flat(stdout)).toContain('Cuenta (CBU y alias) dato inválido');
+    expect(flat(stdout)).toContain('Cuenta bancaria (CBU y alias) dato inválido');
     expect(flat(stderr)).toContain('`arcli config establecer cuenta <CBU> [ALIAS]`');
     // Con solo el alias mal, eliminar la cuenta borraría también un CBU sano.
     expect(flat(stderr).includes('arcli config eliminar cuenta')).toBe(broken === 'cbu');
+
+    // Antes de pegar el comando: sin el alias, se pierde el guardado.
+    expect(flat(stderr)).toContain('cuenta <CBU> [ALIAS]` (sin el alias, se borra el guardado)');
 
     stdout = '';
     await run('establecer', 'puntoVenta', '4', '--json');
     expect(json()).not.toHaveProperty(broken);
   });
+});
+
+it('con el CBU guardado inválido, el error dice antes que sin el alias se borra el guardado', async () => {
+  save({ ...ACCOUNT, cbu: '123' });
+  expect((await runError()).sugerencia).toContain(
+    '`arcli config establecer cuenta <CBU> [ALIAS]` (sin el alias, se borra el guardado)',
+  );
+
+  save({ ...ACCOUNT, cbu: '123', cuit: '123' });
+  expect((await runError()).sugerencia).toContain(
+    '`arcli config establecer cuenta <CBU> [ALIAS]` (sin el alias, se borra el guardado) o `arcli config eliminar cuenta`',
+  );
 });
