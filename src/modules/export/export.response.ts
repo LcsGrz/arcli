@@ -1,6 +1,14 @@
 import { asArray } from '../../lib/arrays/as-array';
 import type { IFEXAuthorizeOutput } from '../../services/arca/arca-sdk.types';
-import { NO_DETAIL_TEXT, readCae, readCaeExpiration, readResponseText } from '../billing/emission-response';
+import {
+  type EmissionStatus,
+  EMITTED_WITH_ERROR_SUGGESTION,
+  NO_DETAIL_TEXT,
+  readCae,
+  readCaeExpiration,
+  readResponseText,
+  resolveEmissionStatus,
+} from '../billing/emission-response';
 
 import type { ExportResponseError, ExportResponseSummary } from './export.types';
 
@@ -27,7 +35,9 @@ function toTextEntry(item: unknown): ExportResponseError[] {
 
 function buildSuggestions(options: {
   readonly messages: string;
-  readonly status: 'aprobado' | 'observado' | 'previsualizacion' | 'rechazado';
+  /** Hay CAE y ademas un error: el mensaje del error no esta en `messages`. */
+  readonly emittedWithError: boolean;
+  readonly status: EmissionStatus;
 }): string[] {
   const suggestions = new Set<string>();
 
@@ -68,6 +78,10 @@ function buildSuggestions(options: {
     suggestions.add('Revisá observaciones y errores de ARCA antes de volver a emitir.');
   }
 
+  if (options.emittedWithError) {
+    suggestions.add(EMITTED_WITH_ERROR_SUGGESTION);
+  }
+
   return [...suggestions];
 }
 
@@ -94,7 +108,8 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
   // Nada de esto puede costar el CAE: se acepta suelto, en lista, nulo o de otro tipo (ERR-16).
   const codedErrors = asArray(result?.FEXErr).flatMap((error) => toEntry(error?.ErrCode, error?.ErrMsg));
   // Sin codigo no se sabe si es un error (`ErrCode: 0` es "OK"): se muestra, pero no rechaza.
-  const errors = [...codedErrors, ...asArray(result?.FEXErr).flatMap(toTextEntry)];
+  const textErrors = asArray(result?.FEXErr).flatMap(toTextEntry);
+  const errors = [...codedErrors, ...textErrors];
   const events = asArray(result?.FEXEvents).flatMap((event) => [
     ...toEntry(event?.EventCode, event?.EventMsg),
     ...toTextEntry(event),
@@ -106,13 +121,16 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
   // En un rechazo, algo ilegible en lugar del CAE no lo vuelve incierto. Lo que se lee (el CAE, el vencimiento) sale como
   // vino, igual que siempre.
   const cae = resultado === 'R' ? (readResponseText(authorization?.Cae)?.trim() ?? null) : readCae(authorization?.Cae);
-  const status =
-    resultado === 'R' || codedErrors.length > 0
-      ? 'rechazado'
-      : resultado === 'A' && observaciones.length === 0
-        ? 'aprobado'
-        : 'observado';
-  const messages = [...observaciones, ...errors.map((error) => error.message)].join(' | ');
+  const status = resolveEmissionStatus({
+    cae,
+    errors: codedErrors,
+    hasObservations: observaciones.length > 0,
+    rejected: resultado === 'R',
+    result: resultado,
+    texts: textErrors.map((error) => error.message),
+  });
+  const emittedWithError = status !== 'rechazado' && codedErrors.length > 0;
+  const messages = [...observaciones, ...(emittedWithError ? [] : errors.map((error) => error.message))].join(' | ');
 
   return {
     cae,
@@ -124,6 +142,6 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
     raw: output,
     resultado,
     status,
-    suggestions: buildSuggestions({ messages, status }),
+    suggestions: buildSuggestions({ emittedWithError, messages, status }),
   };
 }

@@ -3,7 +3,7 @@ import { addDaysToArcaDate } from '../../lib/dates/arca-date';
 /*
  * Lo que contesta ARCA a la llamada que emite, A, B, C y E: si hay CAE, el resultado se muestra aunque un dato accesorio
  * (un evento, una observacion, el vencimiento) venga con otra forma. Solo si no se puede saber si hay CAE falla, y sale
- * `EmissionUncertainError` (ERR-16).
+ * `EmissionUncertainError` (ERR-16, ERR-20).
  */
 
 /** No dice que ARCA contestó ni que se mando: pudo fallar antes, al armar la solicitud. */
@@ -14,6 +14,71 @@ const MAX_REASON_LENGTH = 200;
 
 /** Lo que dice la fila de un error o un evento que ARCA mando sin texto. */
 export const NO_DETAIL_TEXT = 'ARCA no informó el detalle.';
+
+/** Lo que se sugiere si hay CAE y ademas un error: las sugerencias del error pueden proponer emitir de nuevo. */
+export const EMITTED_WITH_ERROR_SUGGESTION =
+  'El comprobante está emitido: ARCA dio el CAE, aunque también informó un error. No lo repitas: revisá el error.';
+
+/**
+ * Errores internos de ARCA (500 de aplicacion, 501 de base de datos): no son validaciones y no dicen si se emitio. Sin
+ * fuente en el repo (el manual no esta); son los que decidio quien mantiene el proyecto en ERR-20.
+ */
+const INTERNAL_ARCA_ERRORS: ReadonlySet<number> = new Set([500, 501]);
+
+export type EmissionStatus = 'aprobado' | 'observado' | 'rechazado';
+
+/** Un error de la respuesta: el codigo, si se puede leer, y lo que se cita en el motivo. */
+export interface EmissionAnswerError {
+  readonly code?: number;
+  readonly message?: string | null;
+}
+
+/**
+ * El estado de lo que contesto ARCA a la llamada que emite, para todas las familias (ERR-20). Manda el CAE: con CAE
+ * esta emitido, aunque haya un error. Sin CAE es un rechazo si ARCA lo dice (`R`) o si hay un error que no es interno
+ * y ningun resultado. Lo demas (vacia, aprobada sin CAE, un error interno) no dice si se emitio: falla, y quien llama
+ * lo convierte en `EmissionUncertainError`.
+ */
+export function resolveEmissionStatus(answer: {
+  readonly cae: string | null;
+  readonly errors: readonly EmissionAnswerError[];
+  readonly hasObservations: boolean;
+  /** `R` en el resultado del comprobante o, sin el, en la cabecera. */
+  readonly rejected: boolean;
+  readonly result: string | null;
+  /** Textos que no cuentan como error, pero explican el motivo. */
+  readonly texts?: readonly string[];
+}): EmissionStatus {
+  const { cae, errors, hasObservations, rejected, result, texts = [] } = answer;
+
+  if (rejected) {
+    return 'rechazado';
+  }
+
+  if (cae !== null) {
+    return result === 'A' && !hasObservations && errors.length === 0 ? 'aprobado' : 'observado';
+  }
+
+  if (result === null && errors.some(({ code }) => !INTERNAL_ARCA_ERRORS.has(Number(code)))) {
+    return 'rechazado';
+  }
+
+  const reasons = [
+    ...errors.map(({ code, message }) => [code ?? '', message ?? ''].join(' ').trim() || NO_DETAIL_TEXT),
+    ...texts,
+  ].join('; ');
+
+  throw new Error(
+    shortenReason(
+      `ARCA contestó sin CAE, ${result === null ? 'sin resultado' : `con el resultado ${result}`} y ${reasons ? `con errores: ${reasons}` : 'sin errores'}`,
+    ),
+  );
+}
+
+/** Una linea, sin pasarse del largo. */
+function shortenReason(text: string): string {
+  return text.replace(/\s+/g, ' ').trim().slice(0, MAX_REASON_LENGTH);
+}
 
 /**
  * Un error propio de JavaScript (`Cannot read properties of undefined`): el SDK o ARCLI leyeron algo que no estaba. Los
@@ -53,7 +118,7 @@ export function describeEmissionFailure(cause: unknown): Error {
     return new Error(cause, { cause });
   }
 
-  const reason = readReason(cause)?.replace(/\s+/g, ' ').trim().slice(0, MAX_REASON_LENGTH);
+  const reason = shortenReason(readReason(cause) ?? '');
 
   return new Error(`${UNEXPECTED_EMISSION_ERROR}${reason ? ` (${reason})` : ''}`, { cause });
 }

@@ -132,9 +132,14 @@ describe('mapExportResponse', () => {
     expect(byFexErr.suggestions).toEqual([generic]);
   });
 
-  it('sin Resultado ni FEXErr no sugiere volver a emitir, a proposito por paridad con A/B/C (UI-32)', () => {
-    // Queda `observado`; A/B/C solo dan la sugerencia generica con Resultado R (billing-response.ts).
-    expect(mapExportResponse(authorization({ Resultado: '', Cae: '' })).suggestions).toEqual([]);
+  it('sin Resultado, CAE ni FEXErr no se sabe si se emitio (ERR-20)', () => {
+    expect(() => mapExportResponse(authorization({ Resultado: '', Cae: '' }))).toThrow(
+      'ARCA contestó sin CAE, sin resultado y sin errores',
+    );
+  });
+
+  it('con CAE y sin Resultado no sugiere volver a emitir (UI-32)', () => {
+    expect(mapExportResponse(authorization({ Resultado: '' })).suggestions).toEqual([]);
   });
 
   it('el estado sale de Resultado y las observaciones (TEST-16)', () => {

@@ -12,7 +12,8 @@
 - Primero `--previsualizar`, y `--emitir` cuando la persona confirmó ese comprobante: **en producción emitir es
   irreversible** (tiene validez fiscal y solo se compensa con una nota de crédito); en testing no tiene validez fiscal.
 - **Se emitió si y solo si** `previsualizacion` es `false` y `cae` no es `null`. En la vista previa, `estado` es
-  `previsualizacion`.
+  `previsualizacion`. La excepción es el error `EMISSION_UNCERTAIN`: no trae `cae` y puede haberse emitido.
+  Con `cae` está emitido aunque haya `errores` (`estado` es `observado`): no lo repitas.
 - Reintentos:
   - Se puede reintentar igual: `TRANSIENT_ERROR`, `ARCA_LAST_VOUCHER_ERROR` (salvo un punto de venta no habilitado)
     y `UNEXPECTED_ERROR` de red. No se emitió nada.
@@ -279,14 +280,14 @@ solo elemento; con un objeto o con flags, un objeto. Con `--bruto` se agrega `re
 cruda del SDK; el resto de los campos no cambia.
 
 `"estado": "rechazado"` es una respuesta válida, no un error (exit code `2`, ver "Exit codes"). `observado` es
-aprobado (tiene CAE). `previsualizacion` = vista previa: no se emitió nada.
+aprobado (tiene CAE), con observaciones o con un error en `errores`. `previsualizacion` = vista previa: no se emitió nada.
 
 ## Salida de error
 
 Sin `--json` (ni `json=true` en la config): panel de texto en stderr. Con `--json` o `json=true`: JSON en stderr con la forma
 `{"codigo": "...", "detalles": {...} | [{mensaje, ruta}] | null, "error": "mensaje", "sugerencia": "..." | null}`. `detalles` es un array solo en los errores de validación de esquema.
 `codigo` es `CONFIGURATION_ERROR`, `INPUT_VALIDATION_ERROR`, `EMISSION_UNCERTAIN` (falló la llamada
-que emite o de su respuesta no se puede saber si hay CAE, no el login ni el pedido del último número: puede haberse emitido igual; antes de reintentar, verificar con el `arcli ultimos <tipo> --pv <n> --<entorno>`
+que emite o de su respuesta no se puede saber si se emitió (ilegible, vacía, aprobada sin CAE o con un error interno 500/501 y sin CAE), no el login ni el pedido del último número: puede haberse emitido igual; antes de reintentar, verificar con el `arcli ultimos <tipo> --pv <n> --<entorno>`
 que viene en `sugerencia`), `TRANSIENT_ERROR` (WSAA o ARCA ocupados, en los comandos que usan ARCA menos `estado` (ahí es `ARCA_UNAVAILABLE`); en un lote va adentro de `BATCH_VALIDATION_ERROR` o `BATCH_EMISSION_ERROR`: esperar (un par de minutos con `coe.alreadyAuthenticated`, unos segundos con una transacción activa) y reintentar sin cambios; en facturación sale antes de emitir), `WSFE_SERVICE_NOT_AUTHORIZED` (facturación, `ultimos`, `consultar` o `parametros`: el certificado no está autorizado a facturar; al facturar, ese comprobante no se emitió; avisale a la persona), `ARCA_LAST_VOUCHER_ERROR` (facturación o `ultimos`: ARCA rechazó el pedido del último número, por ejemplo con un punto de venta no habilitado; no se emitió nada), `CERTIFICATE_EXPIRED` (el certificado del entorno venció: se corta antes
 de ARCA, no se envió nada; `detalles.entorno` y `detalles.vencimiento`, la guía en `sugerencia`; también en `certificado importar` si el `.crt` ya venció), `UNEXPECTED_ERROR` (sin código propio: red, login en WSAA rechazado como `cms.cert.untrusted` o `LoginFault`, respuesta inesperada; en facturación sale antes de la llamada que emite, así que no se emitió nada. Si `error` habla del certificado, no reintentes), `VOUCHER_NOT_FOUND` (`consultar`), `ARCA_VOUCHER_QUERY_ERROR` (`ultimos` y `consultar` de A, B, C, FCE y recibos: ARCA contestó con un error o una respuesta inesperada y no se sabe si el comprobante existe, no es que no exista; `detalles.errores`, con `codigo` en `null` si ARCA no lo mandó; en una nota sale como aviso), o en un lote
 (`--cargar` con un array, aunque tenga un solo elemento) `BATCH_VALIDATION_ERROR` (no se emitió ninguno; `detalles.comprobantes` lista cada

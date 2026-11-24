@@ -33,7 +33,7 @@ function createSession(
 ): InteractiveSession & {
   readonly createVoucher: ReturnType<typeof vi.fn>;
 } {
-  const createVoucher = vi.fn(async () => ({ response: {} }) as never);
+  const createVoucher = vi.fn(async () => ({ cae: '86400940834693', response: {} }) as never);
   const runtime = {
     config: { cert: {}, entornoPorDefecto: environment, key: {}, output: {}, pdf },
     context: { cuit: 20333333334 },
@@ -372,6 +372,44 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
     });
     expect(session.createVoucher).toHaveBeenCalledTimes(1);
     expect(offerPdf).not.toHaveBeenCalled();
+  });
+
+  it('si ARCA contesta vacío, el menú recibe "sin confirmar" y no se ofrece el PDF (ERR-20)', async () => {
+    const session = createSession('testing');
+
+    session.createVoucher.mockResolvedValueOnce({ cae: '', caeFchVto: '', response: {} });
+    chooseOneMock.mockResolvedValueOnce('emitir');
+
+    await expect(previewAndEmit(session, input)).rejects.toMatchObject({
+      code: 'EMISSION_UNCERTAIN',
+      details: { causa: 'ARCA contestó sin CAE, sin resultado y sin errores' },
+      verifyCommand: 'arcli ultimos fc --pv 3 --testing',
+    });
+    expect(session.createVoucher).toHaveBeenCalledTimes(1);
+    expect(offerPdf).not.toHaveBeenCalled();
+  });
+
+  it('con CAE y un error: se muestra el CAE, se da por emitido y se ofrece el PDF (ERR-20)', async () => {
+    const session = createSession('testing');
+
+    session.createVoucher.mockResolvedValueOnce({
+      cae: '86400940834693',
+      caeFchVto: '20261130',
+      response: {
+        Errors: { Err: [{ Code: 501, Msg: 'Error interno' }] },
+        FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] },
+      },
+    });
+    chooseOneMock.mockResolvedValueOnce('emitir');
+
+    await expect(previewAndEmit(session, input)).resolves.toBe(true);
+
+    const shown = vi.mocked(process.stdout.write).mock.calls.join('');
+
+    expect(shown).toContain('86400940834693');
+    expect(shown).toContain('OBSERVADO');
+    expect(shown).toContain('501');
+    expect(offerPdf).toHaveBeenCalledTimes(1);
   });
 
   it('un evento suelto no pierde el CAE: se muestra y se ofrece el PDF (ERR-16)', async () => {

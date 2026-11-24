@@ -45,7 +45,7 @@ function pickByName(...names: string[]): string[] {
 }
 
 function createSession(environment: 'produccion' | 'testing') {
-  const createVoucher = vi.fn(async () => ({ response: {} }) as never);
+  const createVoucher = vi.fn(async () => ({ cae: '86400940834693', response: {} }) as never);
   const runtime = {
     config: { cert: {}, entornoPorDefecto: environment, key: {}, output: {}, pdf: 'nunca' },
     context: { cuit: 20333333334 },
