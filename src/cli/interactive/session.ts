@@ -232,10 +232,12 @@ async function previewBilling(
 ) {
   const { runtime, service } = session;
   // Lo mismo que con flags: padron, cotizacion oficial ("me pagan en dolares") y sus avisos, antes de la vista previa.
-  const prepared = await prepareBillingInput(service, entry, {
-    billing: session.billingGateway,
-    padron: new ArcaPadronGateway(session.arca),
-  });
+  const prepared = await prepareBillingInput(
+    service,
+    entry,
+    { billing: session.billingGateway, padron: new ArcaPadronGateway(session.arca) },
+    runtime,
+  );
   const input: BillingCommandInput = { ...prepared.input, dryRun: true, emit: false };
   const fceWarnings = runtime.config.verificarFce
     ? await resolveFceWarningsInOrder(service, [input], new ArcaFceObligationGateway(session.arca))

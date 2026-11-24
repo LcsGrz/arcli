@@ -299,7 +299,7 @@ arcli fc ayuda
 ### `wsfe` no autorizado
 
 - **Severidad:** frecuente, la primera vez
-- **Síntoma:** error `WSFE_SERVICE_NOT_AUTHORIZED` ("El certificado no está autorizado para facturar (servicio wsfe).") al facturar o con `ultimos` y `consultar`.
+- **Síntoma:** error `WSFE_SERVICE_NOT_AUTHORIZED` ("El certificado no está autorizado para facturar (servicio wsfe).") al facturar o con `ultimos`, `consultar` y `parametros`. Con `estado` es `ARCA_UNAVAILABLE` con el mismo texto.
 - **Causa:** sacaste e importaste el certificado, pero falta autorizarlo a facturar en ARCA.
 - **Solución:** en testing, WSASS → "Crear autorización a servicio" con el mismo nombre del certificado y el servicio `wsfe`; en producción, el Administrador de Relaciones de Clave Fiscal. Con un solo comprobante no se emitió nada: después de autorizarlo, reintentá igual. En un lote, mirá [El lote se interrumpió a mitad](#el-lote-se-interrumpió-a-mitad).
 - **Documentación relacionada:** [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web)
@@ -350,7 +350,7 @@ arcli fc ayuda
 
 - **Severidad:** crítico
 - **Síntoma:** "No se pudo confirmar la emisión: …" al emitir.
-- **Causa:** falló la llamada que emite en ARCA (red, timeout, transacción activa). ARCA pudo haber autorizado el comprobante y perderse la respuesta. Si el error es del login en WSAA (certificado no autorizado; uno vencido corta antes con `CERTIFICATE_EXPIRED`) o del pedido del último número, no sale este error sino el original: ahí no se emitió nada y alcanza con corregir y reintentar.
+- **Causa:** falló la llamada que emite en ARCA (red, timeout, transacción activa) o de lo que contestó no se puede saber si hay CAE. ARCA pudo haber autorizado el comprobante y perderse la respuesta. Si el error es del login en WSAA (certificado no autorizado; uno vencido corta antes con `CERTIFICATE_EXPIRED`) o del pedido del último número, no sale este error sino el original: ahí no se emitió nada y alcanza con corregir y reintentar.
 - **Solución:** **no reintentes todavía**. Corré el `arcli ultimos <tipo> --pv <n> --<entorno>` que muestra la sugerencia, con el entorno incluido (sin él, se consulta el de la config): si el comprobante figura, ya está emitido y no hay que repetirlo; si no figura, reintentá. En la `E` (`fe`, `nce`, `nde`) la sugerencia verifica con `arcli consultar <tipo> <número> --pv <n> --<entorno>`; si no figura, reintentá con el mismo `--numero` e `--id-solicitud` que muestra la sugerencia: ARCA no autoriza dos veces el mismo número.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#emisión-sin-confirmar)
 
@@ -463,7 +463,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor (si 
 ### Factura E: el certificado no está autorizado a `wsfex`
 
 - **Severidad:** frecuente, la primera vez
-- **Síntoma:** error `WSFEX_SERVICE_NOT_AUTHORIZED` ("El certificado no está autorizado para el servicio wsfex"), incluso con `--previsualizar`.
+- **Síntoma:** error `WSFEX_SERVICE_NOT_AUTHORIZED` ("El certificado no está autorizado para el servicio wsfex"), incluso con `--previsualizar`, y con `ultimos` y `consultar` de `fe`, `nce` y `nde`.
 - **Causa:** la vista previa ya consulta las tablas de WSFEX, y el certificado no tiene la relación con el servicio `wsfex`.
 - **Solución:** autorizá el certificado a `wsfex` igual que a `wsfe` (WSASS en testing, Administrador de Relaciones en producción), o configurá uno propio con `exportacion.cert.*` y `exportacion.key.*`.
 - **Documentación relacionada:** [Configuración](configuration.md#certificados-de-exportación-wsfex), [Obtención de certificados](obtencion-certificados.md)
@@ -508,7 +508,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor (si 
 - **Severidad:** crítico
 - **Síntoma:** se ven los resultados de algunos comprobantes (con su PDF, si corresponde) y después `BATCH_EMISSION_ERROR` ("El lote se interrumpió en el comprobante #3…").
 - **Causa:** la emisión falló a mitad del lote (red, ARCA, transacción activa).
-- **Solución:** **no vuelvas a cargar los que ya se emitieron** (los procesados con CAE; un rechazado no se emitió), porque se duplicarían. Si el JSON trae `sinConfirmar`, el que falló puede haberse emitido igual: verificalo con el comando que trae el mensaje (`arcli ultimos <tipo> --pv <n> --<entorno>`) y sumalo solo si no figura. Si no lo trae, está en "Sin procesar" (`sinProcesar`): antes de reintentarlo, fijate que no figure emitido con `arcli ultimos <tipo> --pv <n>`, en el mismo entorno. Armá un lote con los de `sinProcesar` (y el sin confirmar, si no figura) y reintentá. Si el que falló fue por "Transacción Activa", esperá unos segundos.
+- **Solución:** **no vuelvas a cargar los que ya se emitieron** (los procesados con CAE; un rechazado no se emitió), porque se duplicarían. Si el JSON trae `sinConfirmar`, el que falló puede haberse emitido igual: verificalo con el comando que trae el mensaje (`arcli ultimos <tipo> --pv <n> --<entorno>`) y sumalo solo si no figura. Si no lo trae, no se emitió y está en "Sin procesar" (`sinProcesar`). Armá un lote con los de `sinProcesar` (y el sin confirmar, si no figura) y reintentá. Si el que falló fue por "Transacción Activa", esperá unos segundos.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#validación-y-errores-del-lote)
 
 ## Terminal

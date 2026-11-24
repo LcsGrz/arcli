@@ -60,6 +60,7 @@ import {
   type ExportGateway,
   type ExportIssuedVoucher,
   type ExportQuotation,
+  type ExportResponseSummary,
   type ExportType,
   type ExportVoucherInput,
   type ExportVoucherKind,
@@ -312,6 +313,9 @@ export class ExportService {
       isNote: isExportNote(voucherKind),
     });
 
+    // La ultima de las locales, antes de consultar las tablas (ERR-11). En una nota con asociado ya se valido al buscarlo.
+    const pointOfSale = resolveExportPointOfSale(input.pointOfSale, config);
+
     const countryList = await gateway.getDestinationCountries();
     const destinationCountry = resolveExportDestinationCountry(input.destinationCountry, countryList);
     const countryCuits = await gateway.getDestinationCountryCuits();
@@ -383,7 +387,6 @@ export class ExportService {
       });
     }
     const exchangeRate = quotation?.rate ?? currency.fields.Moneda_ctz;
-    const pointOfSale = resolveExportPointOfSale(input.pointOfSale, config);
     // WSFEX numera por punto de venta y tipo. Sin `--numero`, el siguiente al ultimo que tiene ARCA: es una lectura.
     const voucherNumber = resolveExportNumber({
       code: 1520,
@@ -501,10 +504,13 @@ export class ExportService {
     readonly warnings?: readonly string[];
   }): Promise<ExportExecutionResult> {
     const { payload } = options.resolved;
-    let raw: Awaited<ReturnType<ExportGateway['authorize']>>;
+    let response: ExportResponseSummary;
 
     try {
-      raw = await options.gateway.authorize(payload);
+      const raw = await options.gateway.authorize(payload);
+
+      // Adentro del try: lo que no se puede leer es una emision sin confirmar (ERR-16).
+      response = mapExportResponse(raw);
     } catch (error) {
       throw new EmissionUncertainError({
         cause: error,
@@ -521,7 +527,7 @@ export class ExportService {
       dryRun: false,
       environment: options.runtime.environment,
       payload: options.resolved.payload,
-      response: mapExportResponse(raw),
+      response,
       voucherKind: options.resolved.voucherKind,
       warnings: options.warnings,
     };

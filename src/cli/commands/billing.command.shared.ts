@@ -180,7 +180,7 @@ export async function executeBillingCommand(
       // El asociado de una nota se consulta aca, una vez: la vista previa ya muestra su fecha y el tope de la NC,
       // y la emision usa la entrada completada sin volver a consultar.
       resolve: async (input) => {
-        const entry = await prepareBillingInput(service, input, gateways);
+        const entry = await prepareBillingInput(service, input, gateways, runtime);
         const checked = await checkAssociatedInArca({
           gateway: gateways.history,
           input: entry.input,

@@ -12,6 +12,7 @@ import type {
 } from '../../modules/parameters/parameters';
 
 import { toDetailErrors, withDeprecatedErrors } from './arca-error-details';
+import { rethrowIfWsfeNotAuthorized } from './last-voucher';
 
 interface ArcaParameterRow {
   readonly cmp_Clase?: string;
@@ -54,6 +55,7 @@ function toEntry(row: ArcaParameterRow): ParameterEntry {
 export class ArcaParametersGateway implements ParametersGateway {
   public constructor(private readonly arca: Arca) {}
 
+  /** `FEDummy` no autentica: no puede salir "sin autorizar". */
   public async getServerStatus(): Promise<ServerStatus> {
     const status = await this.arca.electronicBillingService.getServerStatus();
 
@@ -61,7 +63,9 @@ export class ArcaParametersGateway implements ParametersGateway {
   }
 
   public async getSalesPoints(): Promise<SalesPoint[]> {
-    const result = (await this.arca.electronicBillingService.getSalesPoints()) as ArcaListResult;
+    const result = (await this.arca.electronicBillingService
+      .getSalesPoints()
+      .catch(rethrowIfWsfeNotAuthorized)) as ArcaListResult;
     const rows = readRows<{ bloqueado: string; emisionTipo: string; fechaBaja?: string; nro: number }>(
       result,
       'ptoVenta',
@@ -78,7 +82,7 @@ export class ArcaParametersGateway implements ParametersGateway {
 
   public async getQuotation(currency: string): Promise<Quotation> {
     const code = resolveBillingCurrencyCode(currency);
-    const result = await this.arca.electronicBillingService.getQuotation(code);
+    const result = await this.arca.electronicBillingService.getQuotation(code).catch(rethrowIfWsfeNotAuthorized);
     const rate = result.resultGet?.monCotiz;
 
     if (typeof rate !== 'number' || rate <= 0) {
@@ -103,7 +107,7 @@ export class ArcaParametersGateway implements ParametersGateway {
       opcionales: async () => [await service.getOptionalTypes(), 'opcionalTipo'],
       tributos: async () => [await service.getTaxTypes(), 'tributoTipo'],
     };
-    const [result, key] = await sources[table]();
+    const [result, key] = await sources[table]().catch(rethrowIfWsfeNotAuthorized);
 
     return readRows<ArcaParameterRow>(result, key, table).map(toEntry);
   }

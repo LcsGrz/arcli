@@ -1,3 +1,4 @@
+import { asArray } from '../../lib/arrays/as-array';
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
 import {
@@ -39,15 +40,6 @@ interface FexEvent {
 interface FexResult {
   readonly FEXErr?: FexError;
   readonly FEXEvents?: FexEvent;
-}
-
-/** El XML de ARCA a veces trae un solo elemento donde el WSDL promete un array. */
-function asArray<T>(value: T | T[] | undefined): T[] {
-  if (value === undefined || value === null) {
-    return [];
-  }
-
-  return Array.isArray(value) ? value : [value];
 }
 
 function readText(value: unknown): string {
@@ -357,11 +349,15 @@ export class ArcaExportGateway implements ExportGateway {
       });
     }
 
-    const auth = await this.authenticate();
+    const { authenticate } = this;
     const data = (
-      await this.call((service) =>
-        service.getLastCmp({ Auth: { ...auth, Cbte_Tipo: arcaType, Pto_venta: pointOfSale } } as IFEXGetLast_CMPInput),
-      )
+      await this.call(async (service) => {
+        const auth = await authenticate();
+
+        return service.getLastCmp({
+          Auth: { ...auth, Cbte_Tipo: arcaType, Pto_venta: pointOfSale },
+        } as IFEXGetLast_CMPInput);
+      })
     ).FEXGetLast_CMPResult;
 
     assertNoError(data, 'el último número');

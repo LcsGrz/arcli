@@ -76,7 +76,10 @@ function formatExportBlock(result: ExportExecutionResult): Record<string, unknow
 }
 
 function withSpanishKeys(item: ExportResponseError): Record<string, unknown> {
-  return { ...item, codigo: item.code, mensaje: item.message };
+  // Un texto suelto, sin codigo, no arrastra las claves deprecadas.
+  return item.code === undefined
+    ? { codigo: null, mensaje: item.message }
+    : { ...item, codigo: item.code, mensaje: item.message };
 }
 
 /** @internal Exportado para los tests. */

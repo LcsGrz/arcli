@@ -1,0 +1,68 @@
+$ arcli fc --cargar <config>/lote.json --emitir --json
+exit: 1
+--- stdout ---
+
+[
+  {
+    "atajo": "fc",
+    "indice": 1,
+    "comprobante": "Factura C",
+    "avisos": [],
+    "cae": "76463926585341",
+    "caeVencimiento": "20261127",
+    "entorno": "testing",
+    "errores": [],
+    "estado": "aprobado",
+    "eventos": [],
+    "observaciones": [],
+    "observacion": null,
+    "numero": 42,
+    "puntoVenta": 3,
+    "solicitud": {
+      "CantReg": 1,
+      "CbteFch": "20261117",
+      "CbteTipo": 11,
+      "Concepto": 2,
+      "CondicionIVAReceptorId": 5,
+      "DocTipo": 99,
+      "FchServDesde": "20261117",
+      "FchServHasta": "20261117",
+      "FchVtoPago": "20261117",
+      "ImpIVA": 0,
+      "ImpNeto": 1000,
+      "ImpOpEx": 0,
+      "ImpTotConc": 0,
+      "ImpTotal": 1000,
+      "ImpTrib": 0,
+      "MonCotiz": 1,
+      "MonId": "PES",
+      "PtoVta": 3,
+      "DocNro": 0,
+      "CbteDesde": 42,
+      "CbteHasta": 42
+    },
+    "previsualizacion": false,
+    "resultado": "A",
+    "sugerencias": [],
+    "tipoArca": 11
+  }
+]
+
+
+--- stderr ---
+
+{
+  "codigo": "BATCH_EMISSION_ERROR",
+  "detalles": {
+    "procesados": 1,
+    "fallo": 2,
+    "sinProcesar": [
+      3
+    ],
+    "sinConfirmar": 2,
+    "total": 3
+  },
+  "error": "El lote se interrumpió en el comprobante #2: No se pudo confirmar la emisión: hubo un error inesperado al emitir (Cannot read properties of undefined (reading 'FeDetResp'))\nProcesados: 1 de 3. Sin procesar: #3.\nEl #2 puede haberse emitido: verificalo con `arcli ultimos fc --pv 3 --testing` antes de reintentarlo.",
+  "sugerencia": null
+}
+

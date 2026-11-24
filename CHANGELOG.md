@@ -15,6 +15,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - En el mismo caso, `ultimos` sale con `ARCA_VOUCHER_QUERY_ERROR` y exit code `1`, antes `0` con la lista vacía o incompleta.
 > - En el mismo caso, una nota A, B, C o FCE que frenaba con "ARCA no tiene…" sigue con un aviso y, con `--emitir`, se emite. Si el punto de venta es de otro sistema ya seguía: cambia el texto del aviso.
 > - Una falla con "no existe" en el texto (`El dominio no existe`) ya no es `VOUCHER_NOT_FOUND`: sale con su error, por ejemplo `UNEXPECTED_ERROR`. Por el asociado de una nota es un aviso, y en FCE sin `--afecha` frena.
+> - Si de lo que ARCA contestó al emitir no se puede saber si hay CAE (la `E` sin respuesta, o un CAE que no es texto ni número), sale `EMISSION_UNCERTAIN`, antes `UNEXPECTED_ERROR`. Si A, B y C contestan vacío ya era `EMISSION_UNCERTAIN`: cambia el texto de `error` y `detalles.causa`, también si contesta HTML o XML cortado (antes `[object Object]`).
+> - `caeVencimiento` es `null` si ARCA no mandó una fecha, en A, B y C también; antes salía tal cual.
+> - Con el certificado sin autorizar, `parametros` sale con `WSFE_SERVICE_NOT_AUTHORIZED` y `ultimos` de una `E` con `WSFEX_SERVICE_NOT_AUTHORIZED`, antes `UNEXPECTED_ERROR`. `estado` sigue en `ARCA_UNAVAILABLE`, con otro texto.
+> - Un documento del receptor o un punto de venta inválido sale con `INPUT_VALIDATION_ERROR` antes de consultar a ARCA: si además fallaba la red o el padrón, antes salía ese error.
 > - Si no se puede escribir stdout, con `--json` sale el código nuevo `OUTPUT_WRITE_ERROR`, que puede traer comprobantes ya emitidos en `sugerencia`: no los reemitas. Un rechazo con el disco lleno sale con `2`, antes `1`.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
@@ -43,12 +47,15 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### 🐛 Corregido
 
+- **Facturas:** un evento u observación con otra forma ya no pierde el CAE; si no se sabe si lo hay, sale `EMISSION_UNCERTAIN` (#272).
 - **Consultas:** `consultar` y `ultimos` dan `ARCA_VOUCHER_QUERY_ERROR` si ARCA contesta con un error, en vez de decir que no existe (#268).
 - **Notas:** si ARCA contesta con un error por el asociado, A, B, C y FCE ya no dicen que no existe (#268).
 - **Asistente:** si ARCA contesta con un error al listar A, B, C, FCE o recibos, lo muestra y podés reintentar o buscar a mano (#268).
 - **Facturas:** Ctrl+C en "¿Emitimos?" dice que se canceló y que no se emitió nada, en vez de "Error inesperado" (#270).
 - **Facturas:** la sugerencia de un lote cortado dice lo que pasó y no repite la verificación de una emisión sin confirmar (#270).
 - **Errores:** una sugerencia propia para los errores de red, detalles que no se repiten y el mismo texto para la misma regla (#270).
+- **Facturas:** un CUIT mal escrito o un punto de venta inválido da error antes de consultar a ARCA (#272).
+- **Consultas:** con el certificado sin autorizar, `parametros` y `ultimos` de una `E` dicen qué autorizar (#272).
 - **Asistente:** con los opcionales o la fecha de pago abiertos al pasar la medianoche, las fechas se validan con el día nuevo (#269).
 - **Errores:** en `--cargar` y la config, el tipo equivocado ya no dice "Falta el dato", y los largos y máximos salen en castellano (#269).
 - **Salida:** con el disco lleno al escribir la salida, la emisión, su PDF y el lote terminan, y un aviso dice qué se emitió (#271).
@@ -65,6 +72,12 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **Ctrl+C en una pregunta.** Cortar "¿Emitimos?" en A, B, C, FCE, recibos, notas, la `E` o un lote mostraba `User force closed the prompt` como error inesperado. Ahora dice "Cancelado. No se emitió nada." y sale con 1, como antes. En la `E`, cortar la pregunta de instalar el componente de PDF, con el comprobante ya emitido, también mostraba ese texto: ahora cuenta como "No", igual que en A, B y C, y sale con 0.
 
 **Lote cortado.** La sugerencia decía siempre que "los comprobantes de arriba ya se emitieron", aunque no hubiera ninguno o alguno fuera un rechazo, y repetía la verificación de una emisión sin confirmar sin el punto de venta. Ahora depende de lo que pasó. Si falla la entrega de los ya procesados, por ejemplo la pregunta del PDF, un aviso dice los números que se emitieron y con qué comando verlos, y después sale el error del lote. Con `--json` no hay aviso.
+
+**Respuesta con otra forma.** Si en la respuesta a la emisión venía un dato suelto donde va una lista (un evento, una observación), uno nulo o de otro tipo, o el vencimiento del CAE no era una fecha, el comando terminaba en `UNEXPECTED_ERROR` con un texto interno de JavaScript y sin mostrar el CAE, o lo mostraba mal. Ahora el comprobante se muestra con su CAE, en texto, `--json`, lote y asistente, en A, B, C, FCE, recibos, notas y la `E`; en A, B y C también si el detalle viene suelto, donde antes salía sin CAE. Un texto suelto en `errores` o `eventos` sale como `{codigo: null, mensaje}`. Un error suelto junto con un CAE da `rechazado`, como da una lista con un error, con el CAE a la vista. Sin el vencimiento no hay PDF, y `pdf.error` lo dice. Solo si no se puede saber si hay CAE sale `EMISSION_UNCERTAIN`, con el comando para verificarlo, y un lote se corta ahí, con `sinConfirmar`. Un rechazo sigue siendo un rechazo, con exit code `2`; un error del login o del último número, y los de red al emitir, salen como antes. En un lote cortado sin `sinConfirmar`, el que falló no se emitió, y la sugerencia lo dice en vez de mandar a revisar `arcli ultimos`.
+
+**Validar antes de ir a ARCA.** El documento del receptor (A, B, C, FCE, recibos y notas) y el punto de venta (también en la `E` y sus notas) se controlan antes del login en WSAA, el padrón, la cotización y las tablas, con flags, `--cargar` y en el asistente. Antes, un CUIT con un dígito mal terminaba en un error del padrón o de la red. En un lote, el ítem inválido no consulta y los demás sí: el error sigue listando todos. Con dos datos mal en A, B y C, el del documento o el punto de venta sale ahora antes que el de fechas, asociado, moneda o IVA. La config incompleta y el certificado vencido siguen saliendo primero.
+
+**Certificado sin autorizar.** `arcli parametros` y `arcli ultimos fe` (o `nce`, `nde`) mostraban el texto de WSAA (`coe.notAuthorized`) como error inesperado; ahora dan el mismo código y texto que facturar. También en el asistente: "Estado de ARCA", las consultas de tablas y la lista de comprobantes `E` muestran qué autorizar; la barra de estado no cambia. `estado` sigue en `ARCA_UNAVAILABLE`, y solo cambia lo que sigue a "ARCA no respondió:". Otros errores de WSAA o de red no cambian.
 
 **Textos de los errores.** El panel no repite en "Detalles" lo que ya dijo, y un error de red manda a revisar la conexión. `--pv 0` dice que el punto de venta no es válido, igual al facturar y al consultar, y sin autorización a `wsfe` el error ya no dice "No se emitió nada", que en un lote podía ser falso. La falta del punto de venta o del IVA receptor dice lo mismo en todos los comandos. A una nota con el asociado incompleto se le dice qué dato falta y con qué flag (`--apv`, `--ar`, `--ac`), y a quien le falta la ruta del certificado o la clave, el comando para configurarla. Los importes van en formato argentino, las claves entre backticks y `producción` con tilde. En el asistente, si falla el acceso directo se ve la sugerencia y seguís en el menú. En `--json` cambian textos, no claves ni formas: `error`, `detalles[].mensaje`, `detalles.comprobantes[].error` de un lote, `detalle` de `config revisar` y `avisos`. `codigo`, `sugerencia` y el código de salida no cambian.
 

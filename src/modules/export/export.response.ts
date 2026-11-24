@@ -1,25 +1,28 @@
+import { asArray } from '../../lib/arrays/as-array';
 import type { IFEXAuthorizeOutput } from '../../services/arca/arca-sdk.types';
+import { NO_DETAIL_TEXT, readCae, readCaeExpiration, readResponseText } from '../billing/emission-response';
 
 import type { ExportResponseError, ExportResponseSummary } from './export.types';
 
 const POINT_OF_SALE_HINT = 'Revisá los puntos de venta habilitados para WSFEX con `arcli parametros puntos-venta`.';
 
-function normalizeArcaDate(value: string | undefined): string | null {
-  const digits = (value ?? '').replace(/\D/g, '').slice(0, 8);
-
-  return /^\d{8}$/.test(digits) ? digits : null;
-}
-
 /**
  * WSFEX informa los errores en `FEXErr` y los avisos en `FEXEvents`, con el codigo en 0 cuando no hay nada que
  * decir: en la autorizacion exitosa manda `ErrCode: 0` con `ErrMsg: "OK"`, que no es un error.
  */
-function toEntry(code: number | undefined, message: string | undefined): ExportResponseError[] {
+function toEntry(code: number | undefined, message: unknown): ExportResponseError[] {
   if (!code) {
     return [];
   }
 
-  return [{ code, message: message?.trim() || 'ARCA no informó el detalle.' }];
+  return [{ code, message: readResponseText(message)?.trim() || NO_DETAIL_TEXT }];
+}
+
+/** Un texto donde va un bloque: se muestra, sin codigo. */
+function toTextEntry(item: unknown): ExportResponseError[] {
+  const message = typeof item === 'object' ? null : readResponseText(item)?.trim();
+
+  return message ? [{ message }] : [];
 }
 
 function buildSuggestions(options: {
@@ -87,15 +90,24 @@ export function createDryRunExportResponse(): ExportResponseSummary {
 /** WSFEX informa el rechazo en `Resultado` y los errores duros en `FEXErr`, sin lanzar excepcion. */
 export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSummary {
   const result = output.FEXAuthorizeResult;
-  const authorization = result?.FEXResultAuth;
-  const errors = toEntry(result?.FEXErr?.ErrCode, result?.FEXErr?.ErrMsg);
-  const events = toEntry(result?.FEXEvents?.EventCode, result?.FEXEvents?.EventMsg);
-  const motivo = authorization?.Motivos_Obs?.trim();
-  const observaciones = motivo ? [motivo] : [];
-  const resultado = authorization?.Resultado?.trim() || null;
-  const cae = authorization?.Cae?.trim() || null;
+  const authorization = asArray(result?.FEXResultAuth)[0];
+  // Nada de esto puede costar el CAE: se acepta suelto, en lista, nulo o de otro tipo (ERR-16).
+  const codedErrors = asArray(result?.FEXErr).flatMap((error) => toEntry(error?.ErrCode, error?.ErrMsg));
+  // Sin codigo no se sabe si es un error (`ErrCode: 0` es "OK"): se muestra, pero no rechaza.
+  const errors = [...codedErrors, ...asArray(result?.FEXErr).flatMap(toTextEntry)];
+  const events = asArray(result?.FEXEvents).flatMap((event) => [
+    ...toEntry(event?.EventCode, event?.EventMsg),
+    ...toTextEntry(event),
+  ]);
+  const observaciones = asArray<unknown>(authorization?.Motivos_Obs).flatMap(
+    (motivo) => readResponseText(motivo)?.trim() ?? [],
+  );
+  const resultado = readResponseText(authorization?.Resultado)?.trim() ?? null;
+  // En un rechazo, algo ilegible en lugar del CAE no lo vuelve incierto. Lo que se lee (el CAE, el vencimiento) sale como
+  // vino, igual que siempre.
+  const cae = resultado === 'R' ? (readResponseText(authorization?.Cae)?.trim() ?? null) : readCae(authorization?.Cae);
   const status =
-    resultado === 'R' || errors.length > 0
+    resultado === 'R' || codedErrors.length > 0
       ? 'rechazado'
       : resultado === 'A' && observaciones.length === 0
         ? 'aprobado'
@@ -104,7 +116,7 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
 
   return {
     cae,
-    caeVencimiento: normalizeArcaDate(authorization?.Fch_venc_Cae),
+    caeVencimiento: readCaeExpiration(authorization?.Fch_venc_Cae),
     errors,
     events,
     observacion: observaciones.join(' | ') || null,
