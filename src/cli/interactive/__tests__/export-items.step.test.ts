@@ -461,7 +461,7 @@ describe('exportItemsStep (NAV-10)', () => {
     expect(printed).toContain('Cambiaste la moneda a pesos: revisá los importes de los ítems.');
   });
 
-  it('9: con la misma moneda (por ejemplo, otro "¿Te pagan en dólares?") no avisa nada', async () => {
+  it('9: con la misma moneda (por ejemplo, otro "¿Cómo te pagan?") no avisa nada', async () => {
     const write = vi.mocked(process.stdout.write);
 
     await run(

@@ -1,19 +1,22 @@
 import { formatDateAsArcaDate } from '../../../lib/dates/arca-date';
 import { formatExchangeRate } from '../../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../../lib/numbers/strict-integer';
-import { toIsoCurrencyCode } from '../../../modules/billing/currency-codes';
+import { isForeignCurrency } from '../../../modules/billing/billing.currency';
+import { toArcaCurrencyCode, toIsoCurrencyCode } from '../../../modules/billing/currency-codes';
 import { exportActivityProblem } from '../../../modules/export/export.mappers';
 import { EXPORT_RULES } from '../../../modules/export/export.rules';
 import type {
   ExportActivity,
   ExportCountry,
   ExportCountryCuit,
+  ExportCurrency,
   ExportGateway,
   ExportType,
 } from '../../../modules/export/export.types';
-import { EXPORT_TYPES_WITH_PAYMENT_DATE } from '../../../modules/export/export.types';
+import { DEFAULT_EXPORT_CURRENCY_CODE, EXPORT_TYPES_WITH_PAYMENT_DATE } from '../../../modules/export/export.types';
 import { parseExchangeRateInput } from '../../../modules/interactive/amount-input';
 import type { ExchangeRateSuggestion } from '../../../modules/interactive/billing-optionals';
+import { exportCurrencyChoices } from '../../../modules/interactive/choices';
 import type { ExportRuleEnv } from '../../../modules/interactive/export-input';
 import type { ExportOptions, ExportRuleScope } from '../../../modules/interactive/export-optionals';
 import { scopedRuleValidator } from '../../../modules/interactive/rule-validator';
@@ -23,15 +26,19 @@ import {
   exportFixedExchangeRate,
 } from '../../../modules/interactive/steps/currency';
 import type { Lens } from '../../../modules/interactive/steps/lens';
-import { validateExchangeRate, validatePositiveInteger } from '../../../modules/interactive/validators';
+import {
+  validateCurrencyCode,
+  validateExchangeRate,
+  validatePositiveInteger,
+} from '../../../modules/interactive/validators';
 import { BACK, type WizardDependency, type WizardStep } from '../../../modules/interactive/wizard';
 import { formatTableRows, noticePanel, writeTerminalOutput } from '../../../ui';
 import { withSpinner } from '../../spinner';
 import { validateExportPaymentDate } from '../export-options';
 import type { FilterListRow } from '../filter-list';
-import { chooseOrTypeStep } from '../prompts';
+import { chooseOrTypeStep, chooseStep } from '../prompts';
 
-import { exchangeRateStep } from './currency';
+import { askPaymentCurrency, exchangeRateStep } from './currency';
 import { dateStep } from './date';
 
 /**
@@ -189,6 +196,93 @@ export function exportPaymentDateStep<S extends { readonly options?: ExportOptio
     validate: (state, retry) => validateExportPaymentDate(state.options?.voucherDate, { undecided: !retry }),
     writes: ['paymentDate'],
   });
+}
+
+/**
+ * La tabla de monedas de WSFEX, una vez por flujo y al preguntar la moneda. Vacia si ARCA no la devolvio o la consulta
+ * fallo: la pregunta deja escribir el codigo y la vista previa vuelve a consultarla.
+ */
+export function currenciesLoader(
+  gateway: Pick<ExportGateway, 'getCurrencies'>,
+): () => Promise<readonly ExportCurrency[]> {
+  let loaded: Promise<readonly ExportCurrency[]> | undefined;
+
+  return () => {
+    loaded ??= withSpinner('Consultando las monedas de WSFEX...', () => gateway.getCurrencies()).catch(() => []);
+
+    return loaded;
+  };
+}
+
+export interface ExportCurrencyStepDef<S> {
+  /** El codigo de ARCA de la moneda. */
+  readonly currency: Lens<S, string>;
+  /** La tabla de WSFEX (`currenciesLoader`): se consulta al preguntar. */
+  readonly currencies: () => Promise<readonly ExportCurrency[]>;
+}
+
+/**
+ * La moneda de una E: la misma pregunta y las mismas monedas que en A, B y C, con los dolares primero y marcados. Sin la
+ * tabla de WSFEX, dolares, pesos o el codigo escrito.
+ */
+export function exportCurrencyStep<S>(def: ExportCurrencyStepDef<S>): WizardStep<S> {
+  return {
+    name: 'moneda',
+    run: async (state, { previous }) => {
+      const typed = previous ? def.currency.get(previous as S) : undefined;
+      const table = await def.currencies();
+      const choices = exportCurrencyChoices(table);
+      const message = 'Moneda del comprobante:';
+      const answer =
+        table.length > 0
+          ? await chooseStep(message, choices, typed ?? DEFAULT_EXPORT_CURRENCY_CODE)
+          : await chooseOrTypeStep<string>(
+              message,
+              choices.map(({ name, value, ...choice }) => ({ ...choice, label: name, value })),
+              {
+                help: 'ARCA no devolvió la lista: elegí una o escribí el código, por ejemplo EUR.',
+                parse: toArcaCurrencyCode,
+                previous: typed,
+                validate: validateCurrencyCode,
+              },
+            );
+
+      return answer === BACK ? BACK : def.currency.set(answer, state);
+    },
+  };
+}
+
+export interface ExportPaymentStepDef<S> {
+  /** Si te pagan en la moneda del comprobante (`--misma-moneda`). */
+  readonly sameCurrency: Lens<S, boolean>;
+  readonly voucher: (state: S) => ExportExchangeRateCase;
+  /** Los pasos de donde salen la moneda y el tipo: la pregunta los nombra. */
+  readonly dependsOn: readonly WizardDependency[];
+}
+
+/**
+ * "¿Cómo te pagan?" de una E en moneda extranjera, la de A, B y C (`askPaymentCurrency`): sin otra cosa, en pesos, como
+ * `arcli fe` sin `--misma-moneda`. Arranca en lo que haya en el estado: "Repetir" propone lo que informo la factura. La
+ * comparten "Emitir factura E" y "Repetir" E.
+ */
+export function exportPaymentStep<S>(def: ExportPaymentStepDef<S>): WizardStep<S> {
+  return {
+    dependsOn: def.dependsOn,
+    name: 'pago',
+    run: async (state, { previous }) => {
+      const voucher = def.voucher(state);
+      const answered = previous ? def.sameCurrency.get(previous as S) : undefined;
+      const sameCurrency = await askPaymentCurrency(
+        voucher.currencyCode,
+        answered ?? def.sameCurrency.get(state) ?? false,
+        // En servicios la cotizacion tampoco se puede cambiar cobrando en pesos.
+        { fixedExchangeRate: exportFixedExchangeRate({ ...voucher, sameCurrency: false }) !== undefined },
+      );
+
+      return sameCurrency === BACK ? BACK : def.sameCurrency.set(sameCurrency, state);
+    },
+    skip: (state) => !isForeignCurrency({ currencyCode: def.voucher(state).currencyCode }),
+  };
 }
 
 export interface ExportExchangeRateStepDef<S> {

@@ -149,8 +149,8 @@ describe('runExportFlow', () => {
       [/País de destino/, 'estados unidos'],
       [/ID impositivo/, '12-3456789'],
       [/Qué exportás/, 'Servicios'],
-      [/moneda/, 'Dólares'],
-      [/Te pagan en dólares/, 'Sí'],
+      [/Moneda del comprobante/, 'Dólares'],
+      [/Cómo te pagan/, 'En dólares'],
       ...singleExportItem('1.500', 'Consultoría de software'),
       [/Forma de pago/, 'Transferencia Internacional'],
       [/Actividad de WSFEX/, '620100'],
@@ -182,8 +182,8 @@ describe('runExportFlow', () => {
       [/País de destino/, 'estados unidos'],
       [/ID impositivo/, '12-3456789'],
       [/Qué exportás/, 'Servicios'],
-      [/moneda/, 'Dólares'],
-      [/Te pagan en dólares/, 'Sí'],
+      [/Moneda del comprobante/, 'Dólares'],
+      [/Cómo te pagan/, 'En dólares'],
       ...singleExportItem('1.500', 'Consultoría de software'),
       [/Forma de pago/, 'Transferencia Internacional'],
       [/Actividad de WSFEX/, '620100'],
@@ -225,7 +225,7 @@ describe('runExportFlow', () => {
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Servicios'],
-      [/moneda/, 'Pesos'],
+      [/Moneda del comprobante/, 'Pesos'],
       ...singleExportItem('100'),
       [/Forma de pago/, 'Transferencia Internacional'],
       [/Actividad de WSFEX/, ''],
@@ -248,7 +248,7 @@ describe('runExportFlow', () => {
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Bienes'],
-      [/moneda/, 'Pesos'],
+      [/Moneda del comprobante/, 'Pesos'],
       ...singleExportItem('800'),
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, '26001EC01000123A, 26001EC01000124B'],
@@ -274,8 +274,8 @@ describe('runExportFlow', () => {
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Bienes'],
-      [/moneda/, 'Dólares'],
-      [/Te pagan en dólares/, 'No'],
+      [/Moneda del comprobante/, 'Dólares'],
+      [/Cómo te pagan/, 'En pesos'],
       [/Cotización de USD \(la oficial de ARCA es 1\.174,60\)/, '1.200,5'],
       // Sin "Monto total": el total es la suma de los ítems (NAV-10).
       [/Descripción del ítem 1/, 'Bienes varios'],
@@ -343,7 +343,7 @@ describe('runExportFlow', () => {
       [/ARCA no tiene un CUIT publicado para ATLANTIDA/, 'otros'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Servicios'],
-      [/moneda/, 'Pesos'],
+      [/Moneda del comprobante/, 'Pesos'],
       ...singleExportItem('100'),
       [/Forma de pago/, 'Transferencia Internacional'],
       [/Fecha de pago/, ''],
@@ -368,7 +368,7 @@ describe('runExportFlow', () => {
       [/ARCA no tiene un CUIT publicado para ATLANTIDA/, ''],
       [/ID impositivo del cliente en su país \(sin CUIT del país, ARCA lo pide\)/, 'IE1234567T'],
       [/Qué exportás/, 'Servicios'],
-      [/moneda/, 'Pesos'],
+      [/Moneda del comprobante/, 'Pesos'],
       ...singleExportItem('100'),
       [/Forma de pago/, 'Transferencia Internacional'],
       [/Fecha de pago/, ''],
@@ -407,7 +407,7 @@ describe('runExportFlow', () => {
         [/País de destino/, '212'],
         [/ID impositivo/, rejecting('', ['a'.repeat(51), /50 caracteres/])],
         [/Qué exportás/, 'Servicios'],
-        [/moneda/, 'Pesos'],
+        [/Moneda del comprobante/, 'Pesos'],
         [
           /Descripción del ítem 1/,
           rejecting('Consultoría', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1770/]),
@@ -442,7 +442,7 @@ describe('runExportFlow', () => {
         [/País de destino/, '212'],
         [/ID impositivo/, ''],
         [/Qué exportás/, 'Servicios'],
-        [/moneda/, 'Pesos'],
+        [/Moneda del comprobante/, 'Pesos'],
         ...singleExportItem('100'),
         [/Forma de pago/, 'Transferencia Internacional'],
         [
@@ -480,8 +480,8 @@ describe('runExportFlow', () => {
         [/País de destino/, '212'],
         [/ID impositivo/, ''],
         [/Qué exportás/, 'Servicios'],
-        [/moneda/, 'Dólares'],
-        [/Te pagan en dólares/, 'No'],
+        [/Moneda del comprobante/, 'Dólares'],
+        [/Cómo te pagan/, 'En pesos'],
         ...singleExportItem('100'),
         [/Forma de pago/, 'Transferencia Internacional'],
         // Anterior a hoy pero no a la más temprana posible: vale al preguntarla.
@@ -516,7 +516,7 @@ describe('runExportFlow', () => {
         [/País de destino/, '212'],
         [/ID impositivo/, ''],
         [/Qué exportás/, 'Servicios'],
-        [/moneda/, 'Pesos'],
+        [/Moneda del comprobante/, 'Pesos'],
         ...singleExportItem('100'),
         [/Forma de pago/, 'Transferencia Internacional'],
         // Válida contra la más temprana posible (13/11), pero sin elegir la fecha del comprobante va la de hoy.
@@ -549,7 +549,7 @@ describe('runExportFlow', () => {
         [/País de destino/, '212'],
         [/ID impositivo/, ''],
         [/Qué exportás/, 'Servicios'],
-        [/moneda/, 'Pesos'],
+        [/Moneda del comprobante/, 'Pesos'],
         ...singleExportItem('100'),
         [/Forma de pago/, 'Transferencia Internacional'],
         [/Fecha de pago/, ''],
@@ -574,7 +574,7 @@ describe('runExportFlow', () => {
         [/País de destino/, '212'],
         [/ID impositivo/, ''],
         [/Qué exportás/, 'Bienes'],
-        [/moneda/, 'Pesos'],
+        [/Moneda del comprobante/, 'Pesos'],
         ...singleExportItem('800'),
         [/Incoterm/, 'EXW'],
         [/Permisos de embarque/, ''],
@@ -598,8 +598,8 @@ describe('runExportFlow', () => {
         [/País de destino/, '212'],
         [/ID impositivo/, ''],
         [/Qué exportás/, 'Servicios'],
-        [/moneda/, 'Dólares'],
-        [/Te pagan en dólares/, 'No'],
+        [/Moneda del comprobante/, 'Dólares'],
+        [/Cómo te pagan/, 'En pesos'],
         ...singleExportItem('100'),
         [/Forma de pago/, 'Transferencia Internacional'],
         [/Fecha de pago/, ''],
@@ -623,8 +623,8 @@ describe('runExportFlow', () => {
         [/País de destino/, '212'],
         [/ID impositivo/, ''],
         [/Qué exportás/, 'Bienes'],
-        [/moneda/, 'Dólares'],
-        [/Te pagan en dólares/, 'Sí'],
+        [/Moneda del comprobante/, 'Dólares'],
+        [/Cómo te pagan/, 'En dólares'],
         ...singleExportItem('100'),
         [/Incoterm/, 'FOB'],
         [/Permisos de embarque/, ''],
@@ -655,7 +655,7 @@ describe('runExportFlow', () => {
         [/País de destino/, '212'],
         [/ID impositivo/, ''],
         [/Qué exportás/, 'Servicios'],
-        [/moneda/, 'Pesos'],
+        [/Moneda del comprobante/, 'Pesos'],
         ...singleExportItem('100', 'Consultoría'),
         [/Forma de pago/, 'Transferencia Internacional'],
         [/Fecha de pago/, ''],
@@ -699,8 +699,8 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Servicios'],
-      [/moneda/, 'Dólares'],
-      [/Te pagan en dólares/, 'Sí'],
+      [/Moneda del comprobante/, 'Dólares'],
+      [/Cómo te pagan/, 'En dólares'],
       ...singleExportItem('1.500'),
       [/Forma de pago/, ''],
       [/Fecha de pago/, ''],
@@ -716,8 +716,8 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/ARCA no tiene un CUIT publicado/, '55000002126'],
       [/ID impositivo/, '12-3456789'],
       [/Qué exportás/, 'Bienes'],
-      [/moneda/, 'Dólares'],
-      [/Te pagan en dólares/, 'No'],
+      [/Moneda del comprobante/, 'Dólares'],
+      [/Cómo te pagan/, 'En pesos'],
       [/Cotización de USD/, '1.180'],
       ...singleExportItem('800', 'Café'),
       [/Incoterm/, 'FOB'],
@@ -732,8 +732,8 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       // Con ítems cargados arranca en el editor; Esc ahí vuelve al paso anterior (NAV-10).
       [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Cotización de USD/, BACK],
-      [/Te pagan en dólares/, BACK],
-      [/moneda/, BACK],
+      [/Cómo te pagan/, BACK],
+      [/Moneda del comprobante/, BACK],
       [/Qué exportás/, BACK],
       [/ID impositivo/, BACK],
       [/ARCA no tiene un CUIT publicado/, BACK],
@@ -779,7 +779,7 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       'Nombre o razón social del cliente del exterior:': 'ACME LLC',
       'Permisos de embarque ya existentes, separados por coma': '26001EC01000123A',
     });
-    expect(marked).toEqual(['FOB', false, 'DOL', 1]);
+    expect(marked).toEqual(['FOB', 'pesos', 'DOL', 1]);
   });
 
   it('pasar de bienes a servicios no deja el incoterm ni los permisos elegidos', async () => {
@@ -789,7 +789,7 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Bienes'],
-      [/moneda/, 'Pesos'],
+      [/Moneda del comprobante/, 'Pesos'],
       ...singleExportItem('1.500'),
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, '26001EC01000123A'],
@@ -797,9 +797,9 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/Permisos de embarque/, BACK],
       [/Incoterm/, BACK],
       [/^Ítems de .*: modificá o eliminá ítems/, BACK],
-      [/moneda/, BACK],
+      [/Moneda del comprobante/, BACK],
       [/Qué exportás/, 'Servicios'],
-      [/moneda/, 'Pesos'],
+      [/Moneda del comprobante/, 'Pesos'],
       // Con la misma moneda, los ítems siguen: arranca en el editor.
       [/^Ítems de .*: modificá o eliminá ítems/, editing({})],
       [/Importe total/, 'Confirmar'],
@@ -827,7 +827,7 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Servicios'],
-      [/moneda/, 'Pesos'],
+      [/Moneda del comprobante/, 'Pesos'],
       ...singleExportItem('100'),
       [/Forma de pago/, ''],
       [
@@ -850,7 +850,7 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Servicios'],
-      [/moneda/, 'Pesos'],
+      [/Moneda del comprobante/, 'Pesos'],
       ...singleExportItem('100'),
       [/Forma de pago/, ''],
       [/Actividad de WSFEX/, '999999'],
@@ -874,7 +874,7 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Bienes'],
-      [/moneda/, 'Pesos'],
+      [/Moneda del comprobante/, 'Pesos'],
       ...singleExportItem('100'),
       [/Incoterm \(ARCA no devolvió la lista\)/, rejecting('fob', ['', /obligatorio/])],
       [/Permisos de embarque/, ''],
@@ -958,8 +958,8 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Servicios'],
-      [/moneda/, 'Dólares'],
-      [/Te pagan en dólares/, 'Sí'],
+      [/Moneda del comprobante/, 'Dólares'],
+      [/Cómo te pagan/, 'En dólares'],
       ...singleExportItem('1.500'),
       [/Forma de pago/, ''],
       [/Actividad de WSFEX/, '620100'],
@@ -1068,11 +1068,11 @@ describe('runExportFlow: la cotización después de la moneda (NAV-9)', () => {
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Bienes'],
-      [/moneda/, currency],
+      [/Moneda del comprobante/, currency],
       ...(rate === undefined
         ? []
         : ([
-            [/Te pagan en dólares/, 'No'],
+            [/Cómo te pagan/, 'En pesos'],
             [/^Cotización de USD/, rate],
           ] as const)),
       ...singleExportItem('1.500'),
@@ -1143,16 +1143,16 @@ describe('runExportFlow: la cotización después de la moneda (NAV-9)', () => {
   /** Lo impreso en una línea: los avisos se cortan al ancho del panel. */
   const flat = () => printed().replace(/\s+/g, ' ');
 
-  /** Una E en dólares de `kind`, hasta emitir, con "¿Te pagan en dólares?" en `paid`. */
-  function fixedRate(kind: 'Bienes' | 'Servicios', paid: 'No' | 'Sí') {
+  /** Una E en dólares de `kind`, hasta emitir, con "¿Cómo te pagan?" en `paid`. */
+  function fixedRate(kind: 'Bienes' | 'Servicios', paid: 'En dólares' | 'En pesos') {
     return createScript([
       [/cliente del exterior/, 'ACME LLC'],
       [/Domicilio/, '123 Main St'],
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, kind],
-      [/moneda/, 'Dólares'],
-      [/Te pagan en dólares/, paid],
+      [/Moneda del comprobante/, 'Dólares'],
+      [/Cómo te pagan/, paid],
       ...singleExportItem('1.500'),
       ...(kind === 'Bienes'
         ? ([
@@ -1168,7 +1168,7 @@ describe('runExportFlow: la cotización después de la moneda (NAV-9)', () => {
   }
 
   it('en servicios no la pregunta: la muestra después de la moneda, la misma que va a ARCA (2053)', async () => {
-    script = fixedRate('Servicios', 'No');
+    script = fixedRate('Servicios', 'En pesos');
     vi.spyOn(gateway, 'getQuotations').mockResolvedValue([{ code: 'DOL', date: '20261029', rate: 1174.605 }]);
 
     await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
@@ -1182,8 +1182,8 @@ describe('runExportFlow: la cotización después de la moneda (NAV-9)', () => {
     expect(printed()).not.toContain('--cm');
   });
 
-  it('con "¿Te pagan en dólares? Sí" tampoco: la muestra con el motivo (1604)', async () => {
-    script = fixedRate('Bienes', 'Sí');
+  it('con "¿Cómo te pagan? En dólares" tampoco: la muestra con el motivo (1604)', async () => {
+    script = fixedRate('Bienes', 'En dólares');
 
     await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
 
@@ -1195,13 +1195,179 @@ describe('runExportFlow: la cotización después de la moneda (NAV-9)', () => {
   });
 
   it('sin red avisa que va la de ARCA y sigue; la vista previa la vuelve a consultar', async () => {
-    script = fixedRate('Servicios', 'Sí');
+    script = fixedRate('Servicios', 'En dólares');
     vi.spyOn(gateway, 'getQuotations').mockRejectedValueOnce(new Error('Sin conexión'));
 
     await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
 
     expect(flat()).toContain('No se pudo consultar la cotización: va la de ARCA del día hábil anterior.');
     expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1174.6 }));
+  });
+});
+
+// ARQ-22: el cobro y la moneda, como en A, B y C.
+describe('runExportFlow: el cobro y la moneda (ARQ-22)', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.mocked(gateway.authorize).mockClear();
+    vi.spyOn(gateway, 'getCurrencies').mockResolvedValue([
+      { code: 'PES', name: 'Pesos Argentinos' },
+      { code: '012', name: 'Real' },
+      { code: 'DOL', name: 'Dólar Estadounidense' },
+      { code: '060', name: 'Euro' },
+      { code: 'ZZZ', name: 'Solo en WSFEX' },
+    ]);
+    vi.spyOn(gateway, 'getQuotations').mockResolvedValue([
+      { code: 'DOL', date: '20261029', rate: 1174.6 },
+      { code: '060', date: '20261029', rate: 1350.25 },
+    ]);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  function exportOf(kind: 'Bienes' | 'Servicios', payment: ReadonlyArray<readonly [RegExp, ScriptedAnswer]>) {
+    return createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, kind],
+      ...payment,
+      ...singleExportItem('1.500'),
+      ...(kind === 'Bienes'
+        ? ([
+            [/Incoterm/, 'FOB'],
+            [/Permisos de embarque/, ''],
+          ] as const)
+        : []),
+      [/Forma de pago/, ''],
+      ...(kind === 'Servicios' ? ([[/Fecha de pago/, '']] as const) : []),
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+  }
+
+  const emit = () => runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+  const listOf = (message: RegExp) => script.chooseStep.mock.calls.find(([question]) => message.test(question));
+
+  it('"¿Cómo te pagan?" arranca en pesos: con Enter va N y el comando sin `--misma-moneda`', async () => {
+    script = exportOf('Servicios', [
+      [/Moneda del comprobante/, 'Dólares'],
+      [/Cómo te pagan/, 'En pesos'],
+    ]);
+
+    await emit();
+
+    const [, choices, marked] = listOf(/Cómo te pagan/) ?? [];
+
+    expect(choices).toMatchObject([
+      { description: 'El comprobante va en dólares y lo cobrás en pesos', name: 'En pesos', value: 'pesos' },
+      { name: 'En dólares', value: 'moneda' },
+    ]);
+    expect(marked).toBe('pesos');
+    expect(gateway.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ CanMisMonExt: 'N', Moneda_ctz: 1174.6, Moneda_Id: 'DOL' }),
+    );
+    expect(printed()).not.toContain('--misma-moneda');
+  });
+
+  it('ofrece las monedas de A, B y C que están en la tabla de WSFEX, con los dólares primero y marcados', async () => {
+    script = exportOf('Servicios', [[/Moneda del comprobante/, 'Pesos']]);
+
+    await emit();
+
+    const [, choices, marked] = listOf(/Moneda del comprobante/) ?? [];
+
+    expect(onlyChoices(choices ?? []).map((choice) => choice.name)).toEqual([
+      'Dólares estadounidenses (USD)',
+      'Pesos',
+      'Euros (EUR)',
+      'Reales (BRL)',
+    ]);
+    expect(marked).toBe('DOL');
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1, Moneda_Id: 'PES' }));
+    expect(vi.mocked(gateway.authorize).mock.calls[0]?.[0]).not.toHaveProperty('CanMisMonExt');
+  });
+
+  it('en euros cobrados en pesos: la cotización arranca con la de aduana de los euros y se puede escribir otra', async () => {
+    script = exportOf('Bienes', [
+      [/Moneda del comprobante/, 'Euros'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/^Cotización de EUR \(la oficial de ARCA es 1\.350,25\):$/, '1.360'],
+    ]);
+
+    await emit();
+
+    expect(listOf(/Cómo te pagan/)?.[1]).toMatchObject([
+      { description: 'El comprobante va en euros y lo cobrás en pesos: confirmás o cambiás la cotización' },
+      { name: 'En euros' },
+    ]);
+    expect(gateway.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ CanMisMonExt: 'N', Imp_total: 1500, Moneda_ctz: 1360, Moneda_Id: '060' }),
+    );
+    expect(printed()).toContain('--moneda 060 --cm 1360 --incoterm');
+  });
+
+  it('en euros cobrados en euros: S, con la cotización oficial, que no se pregunta', async () => {
+    script = exportOf('Bienes', [
+      [/Moneda del comprobante/, 'Euros'],
+      [/Cómo te pagan/, 'En euros'],
+    ]);
+
+    await emit();
+
+    expect(gateway.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ CanMisMonExt: 'S', Moneda_ctz: 1350.25, Moneda_Id: '060' }),
+    );
+    expect(printed()).toContain('--moneda 060 --misma-moneda');
+  });
+
+  it('volver a la moneda la muestra marcada, y con otra "¿Cómo te pagan?" arranca de nuevo en pesos', async () => {
+    script = exportOf('Servicios', [
+      [/Moneda del comprobante/, 'Euros'],
+      [/Cómo te pagan/, 'En euros'],
+      [/^Descripción del ítem 1/, BACK],
+      [/Cómo te pagan/, BACK],
+      [/Moneda del comprobante/, 'Dólares'],
+      [/Cómo te pagan/, 'En pesos'],
+    ]);
+
+    await emit();
+
+    const marked = (message: RegExp) =>
+      script.chooseStep.mock.calls.filter(([question]) => message.test(question)).map((call) => call[2]);
+
+    expect(marked(/Moneda del comprobante/)).toEqual(['DOL', '060']);
+    expect(marked(/Cómo te pagan/)).toEqual(['pesos', 'moneda', 'pesos']);
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ CanMisMonExt: 'N', Moneda_Id: 'DOL' }));
+  });
+
+  it.each([
+    ['vacía', () => vi.mocked(gateway.getCurrencies).mockResolvedValue([])],
+    ['que falla', () => vi.mocked(gateway.getCurrencies).mockRejectedValueOnce(new Error('Sin conexión'))],
+  ])('con la tabla de monedas %s ofrece dólares, pesos o escribir el código', async (_case, fail) => {
+    fail();
+    script = exportOf('Servicios', [
+      [/Moneda del comprobante/, rejecting('eur', ['euros', /código de tres caracteres/])],
+      [/Cómo te pagan/, 'En euros'],
+    ]);
+
+    await emit();
+
+    const [, rows, options] =
+      script.chooseOrTypeStep.mock.calls.find(([message]) => /Moneda del comprobante/.test(message)) ?? [];
+
+    expect(rows?.map((row) => [row.label, row.value])).toEqual([
+      ['Dólares estadounidenses (USD)', 'DOL'],
+      ['Pesos', 'PES'],
+    ]);
+    expect(options?.help).toContain('ARCA no devolvió la lista');
+    expect(gateway.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ CanMisMonExt: 'S', Moneda_ctz: 1350.25, Moneda_Id: '060' }),
+    );
   });
 });
 
@@ -1228,7 +1394,7 @@ describe('runExportFlow: el país y el CUIT del país de una lista donde tambié
       [/Domicilio/, '123 Main St'],
       ...destination,
       [/Qué exportás/, 'Servicios'],
-      [/moneda/, 'Pesos'],
+      [/Moneda del comprobante/, 'Pesos'],
       ...singleExportItem('100'),
       [/Forma de pago/, ''],
       [/Fecha de pago/, ''],
@@ -1348,7 +1514,7 @@ describe('runExportFlow: el país y el CUIT del país de una lista donde tambié
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Bienes'],
-      [/moneda/, 'Pesos'],
+      [/Moneda del comprobante/, 'Pesos'],
       ...singleExportItem('100'),
       [/Incoterm \(ARCA no devolvió la lista\)/, rejecting('fob', ['', /obligatorio/])],
       [/Permisos de embarque/, ''],

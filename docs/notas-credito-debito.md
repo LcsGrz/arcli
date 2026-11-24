@@ -4,7 +4,7 @@
 
 Una nota de crédito resta y una de débito suma sobre un comprobante ya emitido (el **asociado**), o sobre un período. Vale para las letras A, B y C con los atajos `nca`, `ncb`, `ncc`, `nda`, `ndb` y `ndc`, y para FCE (`ncea`…`ndec`). Las notas de la factura de exportación están en [exportación](exportacion.md).
 
-En el [modo interactivo](modo-interactivo.md) elegís la factura de una lista y la nota toma de ahí el receptor, la moneda y la alícuota. Si la factura está en moneda extranjera, te pregunta si la nota va en esa moneda o en pesos (por ejemplo, una nota de débito por diferencia de cambio).
+En el [modo interactivo](modo-interactivo.md) elegís la factura de una lista y la nota toma de ahí el receptor, la moneda y la alícuota. Si la factura está en moneda extranjera, te pregunta si la nota va en esa moneda o en pesos (por ejemplo, una nota de débito por diferencia de cambio). Vale también para las notas `E`.
 
 ## Nota de crédito con comprobante asociado
 

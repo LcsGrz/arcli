@@ -52,6 +52,7 @@ import {
 import {
   createBillingSession,
   createExportGateway,
+  EXPORT_EURO_QUOTATION_RATE,
   EXPORT_QUOTATION_RATE,
   NOW,
   OFFICIAL_RATE,
@@ -562,13 +563,15 @@ function fieldAt(input: Record<string, unknown>, path: string): unknown {
 /**
  * La cotizacion que arranco escrita con la oficial de ARCA y quedo sin tocar: en A, B y C (#15) y en la E, con la de
  * aduana de WSFEX (NAV-9). Como el CLI sin `--cm`, la entrada no la lleva y la vista previa la consulta. Las respuestas
- * al azar nunca son `1450` ni `1174,6`, asi que solo pasa si se dejo lo escrito. La de la config (`cotizacion`) sin
+ * al azar nunca son `1450`, `1174,6` ni `1350,25`, asi que solo pasa si se dejo lo escrito. La de la config (`cotizacion`) sin
  * tocar si llega a la entrada, marcada como de la config.
  */
 function untouchedOfficialRate(event: Extract<PromptEvent, { kind: 'text' }>): boolean {
   return (
     /^Cotización de .*\(la oficial de ARCA es/.test(event.message) &&
-    [OFFICIAL_RATE, EXPORT_QUOTATION_RATE].map((rate) => amountInputText(rate)).includes(event.answer as string)
+    [OFFICIAL_RATE, EXPORT_QUOTATION_RATE, EXPORT_EURO_QUOTATION_RATE]
+      .map((rate) => amountInputText(rate))
+      .includes(event.answer as string)
   );
 }
 

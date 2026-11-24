@@ -171,7 +171,7 @@ describe.each([
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Servicios'],
-      [/moneda/, 'Pesos'],
+      [/Moneda del comprobante/, 'Pesos'],
       ...singleExportItem('100', 'Soporte'),
       [/Forma de pago/, 'Transferencia Internacional'],
       [/Fecha de pago/, ''],

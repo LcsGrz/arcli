@@ -1,4 +1,4 @@
-import { ARCA_DOLLAR_CODE, ARCA_LOCAL_CURRENCY_CODE } from '../../modules/billing/currency-codes';
+import { isForeignCurrency } from '../../modules/billing/billing.currency';
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import { EXPORT_PAYMENT_TERMS_SUGGESTIONS } from '../../modules/export/export.mappers';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
@@ -9,6 +9,7 @@ import {
   DEFAULT_EXPORT_TYPE,
   EXPORT_VOUCHER_KIND,
   type ExportActivity,
+  type ExportCurrency,
   type ExportGateway,
   type ExportType,
   type ExportVoucherInput,
@@ -54,8 +55,11 @@ import {
 import {
   activitiesLoader,
   activityStep,
+  currenciesLoader,
+  exportCurrencyStep,
   exportExchangeRateStep,
   exportPaymentDateStep,
+  exportPaymentStep,
   exportRuleEnv,
   type ExportTables,
   loadExportTables,
@@ -65,6 +69,7 @@ import { SKIP_HINT } from './text-hints';
 
 interface ExportFlowLoaders {
   readonly activities: () => Promise<readonly ExportActivity[]>;
+  readonly currencies: () => Promise<readonly ExportCurrency[]>;
   /** La cotizacion de aduana con la que arranca la pregunta (`exportExchangeRateLoader`). */
   readonly exchangeRate: ReturnType<typeof exportExchangeRateLoader>;
   readonly incoterms: () => Promise<ReadonlyArray<{ readonly code: string; readonly name: string }>>;
@@ -102,6 +107,15 @@ function exportSteps(
   loaders: ExportFlowLoaders,
 ): Array<WizardStep<ExportFlowState>> {
   const ruleEnv = exportRuleEnv(configuredActivity);
+  const exchangeRateCase = (state: ExportFlowState) => ({
+    currencyCode: state.currencyCode ?? DEFAULT_EXPORT_CURRENCY_CODE,
+    exportType: requireStepValue(state.exportType, 'exportType'),
+    sameCurrency: state.sameCurrency,
+  });
+  const currencyStep = exportCurrencyStep<ExportFlowState>({
+    currencies: loaders.currencies,
+    currency: fieldLens('currencyCode'),
+  });
 
   return [
     {
@@ -210,59 +224,29 @@ function exportSteps(
     // La moneda antes del monto: la pregunta del monto la nombra (REV-74, #12) y, si cambia, el monto se vuelve a
     // escribir.
     {
-      name: 'moneda',
-      run: async (_state, { previous }) => {
-        const currencyCode = await chooseStep<typeof ARCA_DOLLAR_CODE | typeof ARCA_LOCAL_CURRENCY_CODE>(
-          '¿En qué moneda facturás?',
-          [
-            {
-              description: 'Con la cotización de aduana que publica ARCA',
-              name: 'Dólares (USD)',
-              value: ARCA_DOLLAR_CODE,
-            },
-            { name: 'Pesos', value: ARCA_LOCAL_CURRENCY_CODE },
-          ],
-          previous?.currencyCode === ARCA_LOCAL_CURRENCY_CODE ? ARCA_LOCAL_CURRENCY_CODE : DEFAULT_EXPORT_CURRENCY_CODE,
-        );
+      ...currencyStep,
+      // Otra moneda descarta como pagan; en pesos no se pregunta.
+      run: async (state, options) => {
+        const answer = await currencyStep.run(state, options);
 
-        return currencyCode === BACK
+        return answer === BACK
           ? BACK
-          : { currencyCode, sameCurrency: currencyCode === ARCA_LOCAL_CURRENCY_CODE ? false : undefined };
+          : { ...answer, sameCurrency: isForeignCurrency({ currencyCode: answer.currencyCode }) ? undefined : false };
       },
     },
-    {
-      name: 'misma-moneda',
-      run: async (_state, { previous }) => {
-        const sameCurrency = await chooseStep(
-          '¿Te pagan en dólares?',
-          [
-            { description: 'ARCA lo registra como cancelación en la misma moneda', name: 'Sí', value: true },
-            { name: 'No, en pesos', value: false },
-          ],
-          previous?.sameCurrency,
-        );
-
-        return sameCurrency === BACK ? BACK : { sameCurrency };
-      },
-      skip: (state) => state.currencyCode === ARCA_LOCAL_CURRENCY_CODE,
-    },
+    exportPaymentStep<ExportFlowState>({
+      dependsOn: ['tipo', 'moneda'],
+      sameCurrency: fieldLens('sameCurrency'),
+      voucher: exchangeRateCase,
+    }),
     // Despues de la moneda, arrancando con la de aduana de ARCA, como "En pesos" en A, B y C (NAV-9).
     exportExchangeRateStep<ExportFlowState>({
-      dependsOn: ['tipo', 'moneda', 'misma-moneda'],
+      dependsOn: ['tipo', 'moneda', 'pago'],
       exchangeRate: fieldLens('exchangeRate'),
       rules: (state) => exportRuleScope(state, ruleEnv),
       suggestion: (state) =>
-        loaders.exchangeRate({
-          currencyCode: state.currencyCode ?? DEFAULT_EXPORT_CURRENCY_CODE,
-          exportType: requireStepValue(state.exportType, 'exportType'),
-          sameCurrency: state.sameCurrency,
-          voucherDate: state.options.voucherDate,
-        }),
-      voucher: (state) => ({
-        currencyCode: state.currencyCode ?? DEFAULT_EXPORT_CURRENCY_CODE,
-        exportType: requireStepValue(state.exportType, 'exportType'),
-        sameCurrency: state.sameCurrency,
-      }),
+        loaders.exchangeRate({ ...exchangeRateCase(state), voucherDate: state.options.voucherDate }),
+      voucher: exchangeRateCase,
     }),
     // Sin "Monto total": el total es la suma de los items, que ARCA exige (NAV-10). Los precios van en la moneda: si
     // cambia, los items se conservan y el paso avisa que hay que revisar los importes.
@@ -471,6 +455,7 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
     withFinalizeNotice(
       exportSteps(tables, configuredActivity, {
         activities: activitiesLoader(gateway),
+        currencies: currenciesLoader(gateway),
         exchangeRate: exportExchangeRateLoader(gateway),
         incoterms: () => gateway.getIncoterms(),
         languages: () => gateway.getLanguages(),

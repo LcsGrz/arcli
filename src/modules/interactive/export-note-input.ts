@@ -1,3 +1,4 @@
+import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { applyExportAssociatedDefaults, exportAssociatedRuleContext } from '../export/export.notes';
 import { EXPORT_RULES, type ExportRuleContext } from '../export/export.rules';
 import {
@@ -12,6 +13,7 @@ import {
 
 import { exportItemsEntry } from './export-items';
 import type { ExportOptions, ExportRuleScope } from './export-optionals';
+import { type NoteCurrency, resolveNoteCurrency } from './note-currency';
 import { rulesFinalize } from './rule-validator';
 import { requireStepValue, type WizardFinalize } from './wizard';
 
@@ -19,6 +21,8 @@ import { requireStepValue, type WizardFinalize } from './wizard';
 export interface ExportNoteState {
   /** Que ajusta la nota, elegido en el selector de comprobantes: la factura E u otra nota E (`--ac nde` o `--ac nce`). */
   readonly associatedKind?: ExportVoucherKind;
+  /** Sobre un comprobante en moneda extranjera: en esa moneda o en pesos (diferencia de cambio). */
+  readonly currency?: NoteCurrency;
   /** La cotizacion escrita a mano; sin ella, la del asociado, como el CLI sin `--cm`. */
   readonly exchangeRate?: number;
   readonly invoice?: ExportIssuedVoucher;
@@ -44,6 +48,8 @@ export function buildExportNoteInput(state: ExportNoteState, env: ExportNoteInpu
 
   return {
     ...state.options,
+    // En la moneda del asociado no va `--moneda` (la nota la toma de el); en pesos, si, y con cotizacion 1 (2051, 1600).
+    ...resolveNoteCurrency({ exchangeRate: state.exchangeRate }, state.currency),
     // El total es la suma de los items (1610 por construccion), en la forma rapida si es un solo renglon (NAV-10).
     ...exportItemsEntry(state.items),
     associatedVoucher: {
@@ -52,10 +58,16 @@ export function buildExportNoteInput(state: ExportNoteState, env: ExportNoteInpu
       shortcut: associatedKind === EXPORT_VOUCHER_KIND ? undefined : associatedKind.shortcut,
     },
     emit: false,
-    exchangeRate: state.exchangeRate,
     permits: state.permits,
     voucherKind: env.kind === 'credito' ? EXPORT_CREDIT_NOTE_KIND : EXPORT_DEBIT_NOTE_KIND,
   };
+}
+
+/** La moneda de la nota: pesos si se eligieron, o la del asociado. */
+export function exportNoteCurrencyCode(state: ExportNoteState): string {
+  return state.currency === 'pesos'
+    ? ARCA_LOCAL_CURRENCY_CODE
+    : requireStepValue(state.invoice, 'invoice').currencyCode;
 }
 
 /**

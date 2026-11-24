@@ -38,7 +38,7 @@ import { repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
 
 import { captured, comparableInput, parseWithProgram } from './equivalent-command.parse';
-import { createScript, KEEP_EXPORT_ITEMS, noteExportItem, type ScriptedAnswer } from './script';
+import { createScript, KEEP_EXPORT_ITEMS, noteExportItem, type ScriptedAnswer, singleExportItem } from './script';
 
 /**
  * Cada flujo del asistente termina mostrando el comando equivalente. Ese comando, pegado en la terminal, tiene que
@@ -918,13 +918,16 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
     const goodsGateway: ExportGateway = { ...exportGateway, getVoucher: goodsVoucher };
 
     /** El comando equivalente arma la misma solicitud: devuelve el comando y la cotización que va a ARCA. */
-    async function expectSameGoodsRequest(input: ExportVoucherInput): Promise<{ line: string; sent: number }> {
+    async function expectSameGoodsRequest(
+      input: ExportVoucherInput,
+      gateway: ExportGateway = goodsGateway,
+    ): Promise<{ line: string; sent: number }> {
       const service = new ExportService({ clock: { now: () => NOW } });
-      const expected = await service.resolve(input, goodsGateway, exportRuntime);
+      const expected = await service.resolve(input, gateway, exportRuntime);
       const line = buildExportEquivalentCommand(input, { activity: 620100, environment: 'testing', platform: 'linux' });
       const call = await parseWithProgram(line, 'linux');
       const plan = parseExportCommandPlan(call.command, { voucherKind: call.exportKind });
-      const resolved = await service.resolve(plan.input, goodsGateway, exportRuntime);
+      const resolved = await service.resolve(plan.input, gateway, exportRuntime);
 
       expect(resolved.payload, line).toEqual(expected.payload);
 
@@ -938,6 +941,7 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       script = createScript([
         [/Punto de venta de la factura E/, '4'],
         [/Número de la factura E/, '1'],
+        [/En qué moneda va la nota/, 'En USD'],
         [/^Cotización de USD \(la de la factura E es 1\.400\):$/, typed],
         ...noteExportItem('500'),
         [/Permisos de embarque/, ''],
@@ -959,6 +963,34 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       }
     });
 
+    // ARQ-22: la nota en pesos sobre una factura en dólares (2051), con su propio monto y cotización 1.
+    it.each([1, 2] as const)('nota de crédito E en pesos, tipo de exportación %s', async (exportType) => {
+      script = createScript([
+        [/Punto de venta de la factura E/, '4'],
+        [/Número de la factura E/, '1'],
+        [/En qué moneda va la nota/, 'En pesos'],
+        ...singleExportItem('250.000', 'Diferencia de cambio'),
+        ...(exportType === 1 ? ([[/Permisos de embarque/, '']] as const) : []),
+        [/Agregamos/, []],
+      ]);
+
+      const notesGateway: ExportGateway = {
+        ...exportGateway,
+        getVoucher: async (query) => ({
+          ...(await goodsVoucher(query)),
+          exportType,
+          incoterm: exportType === 1 ? 'FOB' : undefined,
+        }),
+      };
+      const state = await runWizard(exportNoteSteps('credito', notesGateway, 4), {});
+      const input = buildExportNoteInput(state as NonNullable<typeof state>, { kind: 'credito' });
+      const request = await expectSameGoodsRequest(input, notesGateway);
+
+      expect(request.line).toContain('--moneda PES');
+      expect(request.line).not.toContain('--cm');
+      expect(request.sent).toBe(1);
+    });
+
     it.each([
       ['sin tocar', '1450', undefined, 1450],
       ['editada', '1.300', 1300, 1300],
@@ -966,6 +998,7 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       script = createScript([
         [/Cuál repetimos/, '00004-00000001'],
         ...KEEP_EXPORT_ITEMS,
+        [/Cómo te pagan/, 'En pesos'],
         [/^Cotización de USD \(la oficial de ARCA es 1\.450\):$/, typed],
         [/Permisos de embarque/, ''],
         [/Agregamos/, []],

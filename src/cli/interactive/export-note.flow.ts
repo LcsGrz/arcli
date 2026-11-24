@@ -18,10 +18,13 @@ import {
 import { copyExportItems } from '../../modules/interactive/export-copy';
 import {
   buildExportNoteInput,
+  exportNoteCurrencyCode,
   exportNoteFinalize,
   exportNoteRuleScope,
   type ExportNoteState,
 } from '../../modules/interactive/export-note-input';
+import { canChooseNoteCurrency, noteCurrencyChoices } from '../../modules/interactive/note-currency';
+import { exportAsksExchangeRate } from '../../modules/interactive/steps/currency';
 import { fieldLens } from '../../modules/interactive/steps/lens';
 import { validatePositiveInteger } from '../../modules/interactive/validators';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
@@ -34,7 +37,7 @@ import { askPermitsStep, emitExportVoucher } from './export.flow';
 import { exportOptionalsStep } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
 import { orShowQueryError } from './invoice-picker';
-import { askTextStep } from './prompts';
+import { askTextStep, chooseStep } from './prompts';
 import { emissionStep, type InteractiveSession, requirePointOfSale } from './session';
 import { exportExchangeRateStep } from './steps/export';
 import { exportItemsStep } from './steps/export-items';
@@ -88,13 +91,22 @@ function validateAssociated(
   }
 }
 
+/** Como en "Repetir" E: por que los items arrancan con un renglon por el total. */
+function showItemsLimitation(invoice: ExportIssuedVoucher): void {
+  const { limitation } = copyExportItems(invoice);
+
+  if (limitation) {
+    writeTerminalOutput(noticePanel(limitation, 'warning'));
+  }
+}
+
 /** Lo que las reglas de la nota E toman de la sesion, con hoy leido cada vez que se pide (ARQ-19). */
 const noteRuleEnv = (kind: 'credito' | 'debito') => () => ({ kind, today: formatDateAsArcaDate(new Date()) });
 
 /**
  * Pasos de la nota E sobre `associatedKind` (la factura E u otra nota E, elegido en el selector de comprobantes): el
- * comprobante que ajusta (se busca en ARCA y de ahi salen cliente, destino y moneda), los items (arrancan con los del
- * asociado), en bienes los permisos de embarque, y los opcionales. Cada uno se puede deshacer con "Volver".
+ * comprobante que ajusta (se busca en ARCA y de ahi salen cliente y destino), la moneda si la suya no es pesos (esa
+ * o pesos), los items (arrancan con los del asociado, salvo en pesos), en bienes los permisos de embarque, y los opcionales. Cada uno se puede deshacer con "Volver".
  *
  * @internal Exportado para los tests.
  */
@@ -168,23 +180,54 @@ export function exportNoteSteps(
           const valid = validateAssociated(voucherKind, invoice);
 
           if (valid === true) {
-            // Como en "Repetir" E: por que los items arrancan con un renglon por el total.
-            const { limitation } = copyExportItems(invoice);
-
-            if (limitation) {
-              writeTerminalOutput(noticePanel(limitation, 'warning'));
+            // Si se puede elegir la moneda, recien ahi se sabe si se copian.
+            if (!canChooseNoteCurrency({ currency: invoice.currencyCode })) {
+              showItemsLimitation(invoice);
             }
 
-            return { invoice };
+            return { currency: undefined, invoice };
           }
 
           writeTerminalOutput(noticePanel(valid, 'warning'));
         }
       },
     },
-    // Despues del asociado, que da la moneda: sin tocarla va la suya, como el CLI sin `--cm` (NAV-9).
-    exportExchangeRateStep<ExportNoteState>({
+    {
+      // Las opciones son la moneda del asociado y pesos, como en las notas A, B y C.
       dependsOn: ['factura'],
+      name: 'moneda',
+      run: async (state, { previous }) => {
+        const invoice = requireStepValue(state.invoice, 'invoice');
+        const currency = await chooseStep(
+          '¿En qué moneda va la nota?',
+          noteCurrencyChoices(
+            { currency: invoice.currencyCode },
+            {
+              asksExchangeRate: exportAsksExchangeRate({
+                currencyCode: invoice.currencyCode,
+                exportType: invoice.exportType,
+              }),
+            },
+          ),
+          previous?.currency ?? state.currency,
+        );
+
+        if (currency === BACK) {
+          return BACK;
+        }
+
+        // En pesos no se copian: se cargan.
+        if (currency === 'asociado') {
+          showItemsLimitation(invoice);
+        }
+
+        return { currency };
+      },
+      skip: (state) => !canChooseNoteCurrency({ currency: state.invoice?.currencyCode }),
+    },
+    // Despues del asociado y de la moneda: en la suya, sin tocarla va la suya, como el CLI sin `--cm` (NAV-9).
+    exportExchangeRateStep<ExportNoteState>({
+      dependsOn: ['factura', 'moneda'],
       exchangeRate: fieldLens('exchangeRate'),
       rules: (state) => exportNoteRuleScope(state, ruleEnv),
       suggestion: async (state) => {
@@ -197,16 +240,18 @@ export function exportNoteSteps(
       voucher: (state) => {
         const invoice = requireStepValue(state.invoice, 'invoice');
 
-        return { currencyCode: invoice.currencyCode, exportType: invoice.exportType };
+        return { currencyCode: exportNoteCurrencyCode(state), exportType: invoice.exportType };
       },
     }),
     // Arranca en el editor con los items del asociado; el total de la nota es su suma (NAV-10), y en la NC con el
-    // total del asociado como tope. Con otro asociado, arranca con los de ese.
+    // total del asociado como tope. Con otro asociado, arranca con los de ese. En pesos sobre un comprobante en otra
+    // moneda los importes no son los suyos: se cargan, y no hay tope.
     exportItemsStep<ExportNoteState>({
       // Como en "Repetir" E, la moneda por su ISO (REV-74, #12).
-      currency: (state) => requireStepValue(state.invoice, 'invoice').currencyCode,
-      dependsOn: ['factura'],
-      initial: (state) => copyExportItems(requireStepValue(state.invoice, 'invoice')).items,
+      currency: exportNoteCurrencyCode,
+      dependsOn: ['factura', 'moneda'],
+      initial: (state) =>
+        state.currency === 'pesos' ? [] : copyExportItems(requireStepValue(state.invoice, 'invoice')).items,
       items: fieldLens('items'),
       units: () => gateway.getUnits(),
       validateTotal: (state) => (total) => {
@@ -215,6 +260,7 @@ export function exportNoteSteps(
         // Como el CLI: el tope solo vale si la NC no ajusta otra NC.
         if (
           kind !== 'credito' ||
+          state.currency === 'pesos' ||
           invoice.arcaType === EXPORT_CREDIT_NOTE_KIND.arcaType ||
           !isCreditNoteOverTotal(total, invoice.total)
         ) {
@@ -244,7 +290,7 @@ export function exportNoteSteps(
           // El incoterm es el del asociado: con otro, su descripcion arranca como la primera vez. El idioma elegido no
           // depende del asociado.
           associated: `${invoice.arcaType}:${invoice.pointOfSale}:${invoice.number}`,
-          currencyCode: invoice.currencyCode,
+          currencyCode: exportNoteCurrencyCode(state),
           defaultLanguage: `el de ${name}`,
           exportType: invoice.exportType,
           incoterm: invoice.incoterm ? { code: invoice.incoterm, description: invoice.incotermDescription } : undefined,

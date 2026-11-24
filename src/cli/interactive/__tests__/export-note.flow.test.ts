@@ -18,7 +18,7 @@ import { serializeCliError } from '../../error-output';
 import { exportNoteSteps, runExportNoteFlow } from '../export-note.flow';
 import type { InteractiveSession } from '../session';
 
-import { createScript, editing, noteExportItem, rejecting } from './script';
+import { createScript, editing, noteExportItem, rejecting, singleExportItem } from './script';
 
 let script = createScript([]);
 
@@ -155,6 +155,7 @@ describe('runExportNoteFlow', () => {
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '9'],
       [/Número de la factura E/, '1'],
+      [/En qué moneda va la nota/, 'En USD'],
       ...noteExportItem('500', 'Descuento por volumen'),
       [/Agregamos algún opcional/, []],
       [/Emitimos la nota de crédito de exportación E en testing/, 'Sí, emitir ahora'],
@@ -184,6 +185,7 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
+      [/En qué moneda va la nota/, 'En USD'],
       ...noteExportItem('500'),
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
@@ -202,6 +204,7 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
+      [/En qué moneda va la nota/, 'En USD'],
       [/^Ítems de .*: modificá o eliminá ítems/, editing({ edit: ['Según detalle'] })],
       [/Descripción del ítem 1/, rejecting('Descuento', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1770/])],
       [/Cantidad/, ''],
@@ -226,6 +229,7 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
+      [/En qué moneda va la nota/, 'En USD'],
       [/Cotización de USD \(la de la factura E es 1\.174,605\)/, '1174,605'],
       ...noteExportItem('100'),
       [/Permisos de embarque/, '26001EC01000123A'],
@@ -244,6 +248,7 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
+      [/En qué moneda va la nota/, 'En USD'],
       // Sin "Monto de la nota" ni "Detalle": el renglón de la factura, para modificar (NAV-10).
       [ITEMS, editing({ edit: ['Según detalle'] })],
       [/Descripción del ítem 1/, ''],
@@ -286,7 +291,9 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
+      [/En qué moneda va la nota/, 'En USD'],
       [/^Ítems de .*: modificá o eliminá ítems/, BACK],
+      [/En qué moneda va la nota/, BACK],
       [/Número de la factura E/, BACK],
       [/Punto de venta de la factura E/, BACK],
     ]);
@@ -346,6 +353,7 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la nota de débito E/, '4'],
       [/Número de la nota de débito E/, '3'],
+      [/En qué moneda va la nota/, 'En USD'],
       ...noteExportItem('200'),
       [/Agregamos algún opcional/, ['Observaciones']],
       [/^Observaciones \(/, 'Ajuste de la ND'],
@@ -372,6 +380,7 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
+      [/En qué moneda va la nota/, 'En USD'],
       ...noteExportItem('100'),
       [/Agregamos algún opcional/, ['Fecha del comprobante']],
       [
@@ -404,6 +413,7 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
+      [/En qué moneda va la nota/, 'En USD'],
       [/Cotización de USD/, '1174,605'],
       ...noteExportItem('100'),
       [/Permisos de embarque/, ''],
@@ -460,6 +470,7 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
+      [/En qué moneda va la nota/, 'En USD'],
       [/Cotización de USD/, '1174,605'],
       ...noteExportItem('100'),
       [/Permisos de embarque/, ''],
@@ -467,6 +478,7 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
       [/Permisos de embarque/, BACK],
       [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Cotización de USD/, BACK],
+      [/En qué moneda va la nota/, BACK],
       [/Número de la factura E/, BACK],
       [/Punto de venta de la factura E/, BACK],
     ]);
@@ -482,6 +494,7 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
     script = createScript([
       [/Punto de venta de la factura E/, rejecting('7', ['0', /punto de venta/i], ['abc', /punto de venta/i])],
       [/Número de la factura E/, '1'],
+      [/En qué moneda va la nota/, 'En USD'],
       ...noteExportItem('50', 'Ajuste'),
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
@@ -502,6 +515,7 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
     script = createScript([
       [/Punto de venta de la nota de crédito E/, '4'],
       [/Número de la nota de crédito E/, '1'],
+      [/En qué moneda va la nota/, 'En USD'],
       [/^Cotización de USD \(la de la nota de crédito E es 1\.174,605\):$/, '1174,605'],
       ...noteExportItem('5.000'),
       [/Permisos de embarque/, ''],
@@ -525,6 +539,7 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
+      [/En qué moneda va la nota/, 'En USD'],
       [/Cotización de USD/, '1.200'],
       ...noteExportItem('100'),
       [/Permisos de embarque/, ''],
@@ -567,6 +582,130 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
   });
 });
 
+// ARQ-22: la moneda de la nota, como en A, B y C.
+describe('runExportNoteFlow: la moneda de la nota (ARQ-22)', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.mocked(gateway.authorize).mockClear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  const NOTE_CURRENCY = /En qué moneda va la nota/;
+  const currencyCalls = () => script.chooseStep.mock.calls.filter(([message]) => NOTE_CURRENCY.test(message));
+
+  it('en pesos sobre una factura en dólares: va con cotización 1, sin tope, y el comando la repite con `--moneda PES`', async () => {
+    vi.mocked(gateway.getVoucher).mockResolvedValue(INVOICE);
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [NOTE_CURRENCY, 'En pesos'],
+      // Los ítems de la factura son en dólares: no se copian. El total en pesos pasa el de la factura en dólares.
+      ...singleExportItem('250.000', 'Diferencia de cambio'),
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+
+    await runExportNoteFlow(createSession(), 'credito');
+
+    expect(currencyCalls()[0]?.[1]).toMatchObject([
+      { description: 'Con la misma cotización', name: 'En USD, como el comprobante' },
+      { description: 'Por ejemplo, para ajustar una diferencia de cambio', name: 'En pesos' },
+    ]);
+    expect(gateway.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ Imp_total: 250_000, Moneda_ctz: 1, Moneda_Id: 'PES' }),
+    );
+    expect(vi.mocked(gateway.authorize).mock.calls[0]?.[0]).not.toHaveProperty('CanMisMonExt');
+    expect(script.asked.some((message) => message.startsWith('Cotización'))).toBe(false);
+    expect(printed()).not.toContain('Cotización: 1.174,605');
+    expect(printed()).toContain(
+      "arcli nce -m 250000 --ar 1 --apv 4 --descripcion 'Diferencia de cambio' --moneda PES --testing --emitir",
+    );
+  });
+
+  it('en bienes, en la moneda del asociado la cotización se puede cambiar, y la lista lo dice', async () => {
+    vi.mocked(gateway.getVoucher).mockResolvedValue({ ...INVOICE, exportType: 1, incoterm: 'FOB' });
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [NOTE_CURRENCY, 'En USD'],
+      [/Cotización de USD/, BACK],
+      [NOTE_CURRENCY, 'En pesos'],
+      [/^Descripción del ítem 1/, BACK],
+      [NOTE_CURRENCY, 'En USD'],
+      [/Cotización de USD/, '1174,605'],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
+      [/Cotización de USD/, BACK],
+      [NOTE_CURRENCY, BACK],
+      [/Número de la factura E/, BACK],
+      [/Punto de venta de la factura E/, BACK],
+    ]);
+
+    await runExportNoteFlow(createSession(), 'credito');
+
+    expect(currencyCalls()[0]?.[1][0]).toMatchObject({
+      description: 'Confirmás o cambiás la cotización del comprobante',
+    });
+    expect(currencyCalls().map((call) => call[2])).toEqual([undefined, 'asociado', 'pesos', 'asociado']);
+  });
+
+  it('cambiar la moneda después de cargar los ítems arranca de nuevo con los del asociado', async () => {
+    vi.mocked(gateway.getVoucher).mockResolvedValue(INVOICE);
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [NOTE_CURRENCY, 'En pesos'],
+      ...singleExportItem('250.000'),
+      [/Agregamos algún opcional/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
+      [NOTE_CURRENCY, 'En USD'],
+      [/^Ítems de .*: modificá o eliminá ítems/, editing({})],
+      [/Importe total/, 'Confirmar'],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    const state = await runWizard(exportNoteSteps('credito', gateway, 4), {});
+    const input = buildExportNoteInput(state as NonNullable<typeof state>, { kind: 'credito' });
+
+    expect(input).toMatchObject({ amount: 1500, currencyCode: undefined, exchangeRate: undefined });
+  });
+
+  it('en pesos no avisa que los ítems del asociado no se copian', async () => {
+    vi.mocked(gateway.getVoucher).mockResolvedValue({
+      ...INVOICE,
+      items: [{ description: 'Anticipo', discount: 0, quantity: 0, total: 1500, unit: 97, unitPrice: 0 }],
+    });
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [NOTE_CURRENCY, 'En pesos'],
+      ...singleExportItem('100'),
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    await runWizard(exportNoteSteps('debito', gateway, 4), {});
+
+    expect(printed()).not.toContain('sale un renglón con el monto total');
+  });
+
+  it('sobre una factura en pesos no pregunta la moneda', async () => {
+    vi.mocked(gateway.getVoucher).mockResolvedValue({ ...INVOICE, currencyCode: 'PES', exchangeRate: 1 });
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      ...noteExportItem('100'),
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    const state = await runWizard(exportNoteSteps('credito', gateway, 4), {});
+
+    expect(buildExportNoteInput(state as NonNullable<typeof state>, { kind: 'credito' }).currencyCode).toBeUndefined();
+  });
+});
+
 describe('notas E: sin punto de venta y sin asociado elegido', () => {
   beforeEach(() => {
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
@@ -595,6 +734,7 @@ describe('notas E: sin punto de venta y sin asociado elegido', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
+      [/En qué moneda va la nota/, 'En USD'],
       ...noteExportItem('100'),
       [/Agregamos algún opcional/, []],
     ]);
@@ -651,6 +791,7 @@ describe('notas E: opcionales al elegir otro asociado', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '2'],
+      [/En qué moneda va la nota/, 'En USD'],
       [/Cotización de USD/, '1174,605'],
       ...noteExportItem('100'),
       [/Permisos de embarque/, ''],
@@ -662,7 +803,9 @@ describe('notas E: opcionales al elegir otro asociado', () => {
       [/Permisos de embarque/, BACK],
       [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Cotización de USD/, BACK],
+      [/En qué moneda va la nota/, BACK],
       [/Número de la factura E/, '3'],
+      [/En qué moneda va la nota/, 'En USD'],
       [/Cotización de USD/, '1174,605'],
       ...noteExportItem('100'),
       [/Permisos de embarque/, ''],
