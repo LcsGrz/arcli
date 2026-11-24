@@ -105,6 +105,11 @@ En los flags de fecha de la facturación y de `fce-obligado`, y en las claves de
 - `+N` y `-N` van hasta 999 días; `+`, `+abc` o cualquier otra palabra (`mañana`, `semana-pasada`) son `INPUT_VALIDATION_ERROR`.
 - ARCLI resuelve la palabra antes de todo lo demás: las reglas de fechas (ventana de la fecha del comprobante, período, vencimiento) se aplican a la fecha resuelta, y la vista previa y el `--json` muestran la fecha, nunca la palabra.
 
+#### Qué día es "hoy" al emitir
+
+- Si confirmás en "¿Emitimos?" (asistente o comando en una terminal, también un lote), se emite la solicitud que mostró la vista previa, sin armarla ni validarla de nuevo: aunque hayan pasado las 00:00, salen las mismas fechas y solo se pide el número. Si ARCA ya no acepta alguna (la ventana, 10016; en FCE, un vencimiento que ya pasó, 10164), la rechaza como cualquier otra: ARCLI no recalcula ni reintenta. La `E` hace lo mismo.
+- Sin la pregunta (`--emitir`, `emitir true`, `--json`, sin terminal), en A, B, C, FCE, recibos y notas "hoy" es el momento en que se emite cada comprobante: en un lote que pasa la medianoche, los que siguen llevan el día nuevo y se validan con él.
+
 ### Emisión en producción
 
 ARCLI no tiene una regla aparte para producción: emite si `--emitir` lo pide o, sin `--emitir` ni `--previsualizar`, si lo pide `"emitir"` del JSON de `--cargar` o `config.emitir`. Con `entorno produccion` y `emitir true` en la config, un comando sin flags emite en producción sin preguntar. Si nada pide emitir, en una terminal se muestra la vista previa y se pregunta; con `--json` o sin terminal no se emite. Detalle en [Emisión en producción](cli-reference.md#emisión-en-producción).

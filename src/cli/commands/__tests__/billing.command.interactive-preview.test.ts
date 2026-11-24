@@ -185,6 +185,8 @@ describe('runInteractiveBillingPreview', () => {
       confirmedInteractively: true,
       // "Sí, emitir ahora" también decide el PDF: después de emitir no se pregunta.
       inputs: [createInput({ dryRun: false, emit: true, pdf: false })],
+      // Lo que se mostró, para emitirlo sin armarlo de nuevo (ARQ-21).
+      previews: [expect.objectContaining({ dryRun: true, payload: expect.objectContaining({ CbteTipo: 6 }) })],
       previewShown: true,
       proceed: true,
     });

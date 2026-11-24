@@ -92,15 +92,44 @@ export async function approveWsfe(request: WsfeRequest) {
   };
 }
 
-/** `FECompConsultar`: el comprobante que ajusta una nota o que se repite, aprobado. */
-export function answerAssociated(overrides: Record<string, unknown> = {}): void {
-  sdk.generic.call.mockImplementation(async (_service: string, method: string) => {
+/** ARCA rechaza la fecha (10016), sin CAE. */
+export async function rejectWsfe(request: WsfeRequest) {
+  return {
+    cae: '',
+    caeFchVto: '',
+    response: {
+      FeDetResp: {
+        FECAEDetResponse: [
+          {
+            CbteDesde: request.CbteDesde,
+            CbteHasta: request.CbteDesde,
+            Observaciones: { Obs: [{ Code: 10016, Msg: 'Fecha fuera de rango' }] },
+            Resultado: 'R',
+          },
+        ],
+      },
+    },
+  };
+}
+
+/** `FECompConsultar`: el comprobante que ajusta una nota o que se repite, aprobado. El numero `missing` no existe (602). */
+export function answerAssociated(
+  overrides: Record<string, unknown> = {},
+  { missing }: { readonly missing?: number } = {},
+): void {
+  sdk.generic.call.mockImplementation(async (_service: string, method: string, params?: unknown) => {
     if (method === 'FEParamGetCotizacion') {
       return { FEParamGetCotizacionResult: { ResultGet: { FchCotiz: '20261109', MonCotiz: 1450, MonId: 'DOL' } } };
     }
 
     if (method !== 'FECompConsultar') {
       throw new Error(`genericService.call(${method}) sin respuesta falsa`);
+    }
+
+    const { FeCompConsReq } = (params ?? {}) as { FeCompConsReq?: { CbteNro?: number } };
+
+    if (missing !== undefined && FeCompConsReq?.CbteNro === missing) {
+      return { FECompConsultarResult: { Errors: { Err: [{ Code: 602, Msg: 'Sin Resultados' }] } } };
     }
 
     return {
