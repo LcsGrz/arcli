@@ -368,7 +368,7 @@ export interface ExportGateway {
    * `NO`), tal cual. Es una lectura: no emite nada.
    */
   checkPermit(permit: string, destinationCountry: number): Promise<string>;
-  /** Un comprobante E ya emitido (`FEXGetCMP`), o `null` si ARCA no lo tiene. */
+  /** Un comprobante E ya emitido (`FEXGetCMP`), o `null` solo si ARCA dice que no existe; sin sus datos, `VoucherQueryError`. */
   getVoucher(query: ExportVoucherQuery): Promise<ExportIssuedVoucher | null>;
   getCurrencies(): Promise<readonly ExportCurrency[]>;
   getDestinationCountries(): Promise<readonly ExportCountry[]>;

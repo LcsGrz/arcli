@@ -128,9 +128,9 @@ async function askPointOfSaleAndNumber(
 
 /**
  * Con la lista en pantalla, si ARCA contesta con un error (`VoucherQueryError`) se muestra y se sigue en la
- * lista, sin perder lo cargado. Los demas errores salen al menu, como siempre.
+ * lista (o en la pregunta), sin perder lo cargado. Los demas errores salen al menu, como siempre.
  */
-async function orShowQueryError<T>(search: () => Promise<T>): Promise<T | undefined> {
+export async function orShowQueryError<T>(search: () => Promise<T>): Promise<T | undefined> {
   try {
     return await search();
   } catch (error) {

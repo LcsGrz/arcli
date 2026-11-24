@@ -2070,6 +2070,147 @@ describe('otros comandos que van a ARCA', () => {
     return golden('error-ultimos-comprobante', ['ultimos', 'fc', '--cantidad', '3', '--json']);
   });
 
+  describe('la E que ARCA devuelve sin sus datos no es "no existe" (ERR-15)', () => {
+    const EXPORT_VOUCHER: Record<string, unknown> = EXPORT_INVOICE.FEXGetCMPResult.FEXResultGet;
+    const fexResult = (row?: Record<string, unknown> | null, root: Record<string, unknown> = NO_FEX_ERROR) => ({
+      FEXGetCMPResult: { ...root, ...(row === undefined ? {} : { FEXResultGet: row }) },
+    });
+    const NOT_FOUND = fexResult({ Cbte_nro: 0, Tipo_expo: 0 }, { FEXErr: { ErrCode: 1020, ErrMsg: 'No existe' } });
+
+    const NO_DATA: ReadonlyArray<readonly [string, unknown]> = [
+      ['vacía', {}],
+      ['nula', null],
+      ['sin comprobante', fexResult()],
+      ['con el comprobante nulo', fexResult(null)],
+      ['en ceros, sin el 1020', fexResult({ Cbte_nro: 0, Tipo_expo: 0 })],
+      ['sin número', fexResult({ ...EXPORT_VOUCHER, Cbte_nro: undefined })],
+      ['sin tipo de exportación', fexResult({ ...EXPORT_VOUCHER, Tipo_expo: undefined })],
+      ['con un tipo que no conocemos', fexResult({ ...EXPORT_VOUCHER, Tipo_expo: 3 })],
+      ['sin moneda', fexResult({ ...EXPORT_VOUCHER, Moneda_Id: '' })],
+    ];
+
+    /** Cada numero pedido, con su respuesta; los demas, la E de siempre. */
+    function answering(answers: Readonly<Record<number, unknown>>) {
+      return async ({ Cmp: { Cbte_nro: number } }: { Cmp: { Cbte_nro: number } }) =>
+        number in answers ? answers[number] : fexResult({ ...EXPORT_VOUCHER, Cbte_nro: number });
+    }
+
+    function unknownVoucher(number: string) {
+      return {
+        codigo: 'ARCA_VOUCHER_QUERY_ERROR',
+        detalles: { errores: [] },
+        error: `ARCA devolvió una respuesta inesperada al consultar el comprobante 00004-${number} y no se sabe si existe.`,
+        sugerencia:
+          'Volvé a consultar en unos minutos. Si se repite, no insistas. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.',
+      };
+    }
+
+    async function failure(args: readonly string[]): Promise<Record<string, unknown>> {
+      prepareConfig({});
+
+      const result = await runCli([...args, '--json']);
+
+      expect(result).toMatchObject({ code: 1, stdout: '' });
+
+      return JSON.parse(result.stderr) as Record<string, unknown>;
+    }
+
+    it.each(['fe', 'nce', 'nde'].flatMap((kind) => NO_DATA.map(([name, answer]) => [kind, name, answer] as const)))(
+      'consultar %s, %s',
+      async (kind, _name, answer) => {
+        sdk.wsfex.getCmp.mockResolvedValue(answer);
+
+        expect(await failure(['consultar', kind, '8', '--pv', '4'])).toEqual(unknownVoucher('00000008'));
+      },
+    );
+
+    it('consultar fe: el error entero', () => {
+      sdk.wsfex.getCmp.mockResolvedValue(fexResult());
+
+      return golden('error-consultar-fe-sin-datos', ['consultar', 'fe', '8', '--pv', '4', '--json']);
+    });
+
+    it('consultar fe en la terminal', async () => {
+      sdk.wsfex.getCmp.mockResolvedValue(fexResult());
+      prepareConfig({});
+
+      const result = await runCli(['consultar', 'fe', '8', '--pv', '4']);
+
+      expect(result.code).toBe(1);
+      expect(result.stderr.replace(/[│┃\s]+/g, ' ')).toContain('00004-00000008 y no se sabe si existe.');
+    });
+
+    it.each(['fe', 'nce', 'nde'])('ultimos %s: falla uno del medio y falla el comando', async (kind) => {
+      sdk.wsfex.getCmp.mockImplementation(answering({ 6: fexResult({ Cbte_nro: 0, Tipo_expo: 0 }) }));
+
+      expect(await failure(['ultimos', kind, '--pv', '4', '--cantidad', '3'])).toEqual(unknownVoucher('00000006'));
+    });
+
+    it.each(['nce', 'nde'])('%s: el asociado sin datos frena, y no se emite', async (kind) => {
+      sdk.wsfex.getCmp.mockResolvedValue(fexResult());
+
+      expect(await failure([kind, ...NCE.slice(1), '--emitir'])).toEqual(unknownVoucher('00000001'));
+      expect(sdk.wsfex.authorize).not.toHaveBeenCalled();
+    });
+
+    // Lo que no cambia.
+    it.each(['fe', 'nce', 'nde'])('sin cambios: consultar %s con el 1020 es VOUCHER_NOT_FOUND', async (kind) => {
+      sdk.wsfex.getCmp.mockResolvedValue(NOT_FOUND);
+
+      expect(await failure(['consultar', kind, '8', '--pv', '4'])).toMatchObject({ codigo: 'VOUCHER_NOT_FOUND' });
+    });
+
+    it('sin cambios: un asociado con el 1020 frena con "ARCA no tiene"', async () => {
+      sdk.wsfex.getCmp.mockResolvedValue(NOT_FOUND);
+
+      expect(await failure(NCE)).toMatchObject({
+        codigo: 'INPUT_VALIDATION_ERROR',
+        error: expect.stringContaining('ARCA no tiene'),
+      });
+    });
+
+    it('sin cambios: otro error de ARCA sigue en ARCA_EXPORT_ERROR', async () => {
+      sdk.wsfex.getCmp.mockResolvedValue(fexResult(undefined, { FEXErr: { ErrCode: 1510, ErrMsg: 'Punto de venta' } }));
+
+      for (const args of [
+        ['consultar', 'fe', '8', '--pv', '4'],
+        ['ultimos', 'fe', '--pv', '4'],
+      ]) {
+        expect(await failure(args)).toMatchObject({
+          codigo: 'ARCA_EXPORT_ERROR',
+          detalles: { errores: [{ codigo: 1510, mensaje: 'Punto de venta' }] },
+        });
+        process.exitCode = undefined;
+      }
+    });
+
+    // Con su numero y su CAE existe, pero no se entiende: la lista lo saltea, como antes.
+    it.each<[string, unknown]>([
+      ['un 1020', NOT_FOUND],
+      ['una con CAE y un tipo que no conocemos', fexResult({ ...EXPORT_VOUCHER, Cbte_nro: 6, Tipo_expo: 3 })],
+      ['una con CAE y sin moneda', fexResult({ ...EXPORT_VOUCHER, Cbte_nro: 6, Moneda_Id: '' })],
+    ])('sin cambios: ultimos fe saltea %s', async (_name, answer) => {
+      sdk.wsfex.getCmp.mockImplementation(answering({ 6: answer }));
+      prepareConfig({});
+
+      const result = await runCli(['ultimos', 'fe', '--pv', '4', '--cantidad', '3', '--json']);
+
+      expect(result).toMatchObject({ code: 0, stderr: '' });
+      expect(
+        (JSON.parse(result.stdout) as { comprobantes: Array<{ numero: number }> }).comprobantes.map((v) => v.numero),
+      ).toEqual([7, 5]);
+    });
+
+    it.each<[string, Record<string, unknown>]>([
+      ['otro número', { Cbte_nro: 9, Tipo_expo: 3 }],
+      ['sin CAE', { Cae: '', Cbte_nro: 6, Tipo_expo: 3 }],
+    ])('ultimos fe no saltea una que no se sabe si existe: %s', async (_name, row) => {
+      sdk.wsfex.getCmp.mockImplementation(answering({ 6: fexResult({ ...EXPORT_VOUCHER, ...row }) }));
+
+      expect(await failure(['ultimos', 'fe', '--pv', '4', '--cantidad', '3'])).toEqual(unknownVoucher('00000006'));
+    });
+  });
+
   it('ultimos saltea un 602 del medio', () => {
     sdk.generic.call.mockImplementation(
       async (service: string, method: string, params: { FeCompConsReq: { CbteNro: number } }) =>

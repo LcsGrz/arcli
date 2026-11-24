@@ -1,18 +1,16 @@
 import { addDaysToArcaDate } from '../../lib/dates/arca-date';
-import {
-  type IssuedAssociatedVoucher,
-  type IssuedIvaAliquot,
-  type IssuedOptional,
-  type IssuedTax,
-  type IssuedVoucher,
-  type VoucherHistoryGateway,
-  VoucherQueryError,
+import type {
+  IssuedAssociatedVoucher,
+  IssuedIvaAliquot,
+  IssuedOptional,
+  IssuedTax,
+  IssuedVoucher,
+  VoucherHistoryGateway,
 } from '../../modules/vouchers/voucher-history';
-import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 
-import { toDetailErrors } from './arca-error-details';
 import type { Arca } from './arca-sdk.types';
 import { getLastAuthorizedNumber, rethrowIfWsfeNotAuthorized } from './last-voucher';
+import { voucherQueryError } from './voucher-query-error';
 
 type Row = Record<string, unknown>;
 
@@ -64,34 +62,6 @@ type QueryResponse =
   | { readonly FECompConsultarResult?: { readonly Errors?: unknown; readonly ResultGet?: Row } | null }
   | null
   | undefined;
-
-/**
- * ARCA contesto, pero no se sabe si el comprobante existe. No puede parecer "no existe": con esta consulta se
- * verifica una emision incierta, y reintentarla la duplicaria.
- */
-function voucherQueryError(query: {
-  /** Vacio: ARCA contesto otra cosa, sin un error que se pueda leer. */
-  readonly errors: ReadonlyArray<{ readonly code: number | null; readonly msg: string }>;
-  readonly number: number;
-  readonly pointOfSale: number;
-}): VoucherQueryError {
-  const { errors, number, pointOfSale } = query;
-  const voucher = `el comprobante ${formatVoucherNumber(pointOfSale, number)} y no se sabe si existe`;
-  const reasons = errors.map(({ code, msg }) => [code ?? '', msg].join(' ').trim()).join('; ');
-
-  return new VoucherQueryError(
-    reasons
-      ? `ARCA devolvió un error al consultar ${voucher}: ${reasons}`
-      : `ARCA devolvió una respuesta inesperada al consultar ${voucher}.`,
-    { errores: toDetailErrors(errors) },
-    `${
-      reasons
-        ? 'Revisá el mensaje de ARCA: si es pasajero, volvé a consultar en unos minutos; si no, corregí lo que dice.'
-        : 'Volvé a consultar en unos minutos.'
-    } Si se repite, no insistas. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.`,
-    reasons || 'respuesta inesperada',
-  );
-}
 
 /**
  * Un 602 lanzado vale como el 602 de la respuesta; el resto sigue. El SDK ademas mira "no existe" en el texto

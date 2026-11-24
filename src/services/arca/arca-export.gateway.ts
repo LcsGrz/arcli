@@ -21,6 +21,7 @@ import {
 
 import type { Arca, IFEXAuthorizeInput, IFEXAuthorizeOutput, IFEXGetLast_CMPInput } from './arca-sdk.types';
 import { isNotAuthorized, notAuthorizedMessage } from './not-authorized';
+import { voucherQueryError } from './voucher-query-error';
 
 const NOT_AUTHORIZED_MESSAGE = notAuthorizedMessage('wsfex', 'factura de exportación');
 
@@ -114,8 +115,8 @@ function readSameCurrency(value: unknown): boolean | undefined {
   return text === 'S' ? true : text === 'N' ? false : undefined;
 }
 
-/** Sin numero, tipo de exportacion o moneda no sirve como asociado: se trata como que no existe. */
-function mapIssuedVoucher(row: Record<string, unknown> | undefined): ExportIssuedVoucher | null {
+/** `null` sin numero, tipo de exportacion (uno que conocemos) o moneda: no dice si el comprobante existe. */
+function mapIssuedVoucher(row: Record<string, unknown> | null | undefined): ExportIssuedVoucher | null {
   const number = readNumber(row?.Cbte_nro);
   const exportType = readNumber(row?.Tipo_expo);
   const currencyCode = readText(row?.Moneda_Id);
@@ -244,14 +245,15 @@ export class ArcaExportGateway implements ExportGateway {
   /**
    * `FEXGetCMP` devuelve el comprobante completo, aunque el tipo del SDK solo declare la numeracion: se lee como
    * registro tolerante. A diferencia de `FEXGetLast_CMP`, lleva el `Cmp` fuera de `Auth`, asi que el SDK no lo pisa.
-   * Un comprobante que no existe vuelve con el error 1020 y un `FEXResultGet` en ceros (probado en testing).
+   * Un comprobante que no existe vuelve con el error 1020 y un `FEXResultGet` en ceros (probado en testing). Solo el
+   * 1020 es "no existe": sin el y sin los datos es `ARCA_VOUCHER_QUERY_ERROR` (ERR-15), como el 602 en A, B y C.
    */
   public async getVoucher(query: ExportVoucherQuery): Promise<ExportIssuedVoucher | null> {
     const data = (
       await this.call((service) =>
         service.getCmp({ Cmp: { Cbte_nro: query.number, Cbte_tipo: query.arcaType, Punto_vta: query.pointOfSale } }),
       )
-    ).FEXGetCMPResult;
+    )?.FEXGetCMPResult;
 
     if (data?.FEXErr?.ErrCode === VOUCHER_NOT_FOUND_ERROR) {
       return null;
@@ -259,7 +261,17 @@ export class ArcaExportGateway implements ExportGateway {
 
     assertNoError(data, 'el comprobante asociado');
 
-    return mapIssuedVoucher(data?.FEXResultGet as Record<string, unknown> | undefined);
+    const row = data?.FEXResultGet as Record<string, unknown> | null | undefined;
+    const voucher = mapIssuedVoucher(row);
+
+    if (!voucher) {
+      const { number, pointOfSale } = query;
+      const exists = readNumber(row?.Cbte_nro) === number && Boolean(readText(row?.Cae));
+
+      throw voucherQueryError({ errors: [], exists, number, pointOfSale });
+    }
+
+    return voucher;
   }
 
   public async getCurrencies(): Promise<ExportCurrency[]> {

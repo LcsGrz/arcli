@@ -357,9 +357,9 @@ arcli fc ayuda
 ### No se pudo consultar un comprobante (`ARCA_VOUCHER_QUERY_ERROR`)
 
 - **Severidad:** ocasional
-- **Síntoma:** `ARCA devolvió un error al consultar el comprobante 00003-00000099 y no se sabe si existe: …` (o `una respuesta inesperada`) con `ultimos` o `consultar` de A, B, C, FCE o recibos, o en el asistente. En una nota sale como aviso, sin ese código: `No se pudo verificar en ARCA …`.
-- **Causa:** ARCA contestó la consulta con un error que no es el 602 (el que dice que no existe) o con una respuesta inesperada, sin los datos del comprobante. Hasta la 2.6.0, `consultar` daba `VOUCHER_NOT_FOUND` y `ultimos` mostraba una lista vacía o incompleta.
-- **Solución:** leer el mensaje de ARCA: si es pasajero, volver a consultar en unos minutos; si no, corregir lo que dice. Si se repite, no insistir. Si estabas verificando una emisión sin confirmar, **no la reintentes** hasta ver si el comprobante existe: se puede duplicar. En una nota, si el punto de venta del asociado no es de web service, el aviso lo dice y la nota sigue: pasá su fecha con `--afecha`.
+- **Síntoma:** `ARCA devolvió un error al consultar el comprobante 00003-00000099 y no se sabe si existe: …` (o `una respuesta inesperada`) con `ultimos` o `consultar`, con el asociado de una nota `E` o en el asistente. En la `E` solo sale `una respuesta inesperada`: un error de ARCA es `ARCA_EXPORT_ERROR`. En una nota A, B, C o FCE sale como aviso, sin ese código: `No se pudo verificar en ARCA …`.
+- **Causa:** ARCA contestó la consulta con un error que no es el 602 (el que dice que no existe; en la `E`, el 1020) o con una respuesta inesperada, sin los datos del comprobante (en la `E`, número, tipo de exportación o moneda). Hasta la 2.6.0, `consultar` daba `VOUCHER_NOT_FOUND` y `ultimos` mostraba una lista vacía o incompleta.
+- **Solución:** leer el mensaje de ARCA: si es pasajero, volver a consultar en unos minutos; si no, corregir lo que dice. Si se repite, no insistir. Si estabas verificando una emisión sin confirmar, **no la reintentes** hasta ver si el comprobante existe: se puede duplicar. En una nota A, B, C o FCE, si el punto de venta del asociado no es de web service, el aviso lo dice y la nota sigue: pasá su fecha con `--afecha`.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#códigos-de-error)
 
 ### El receptor coincide con el emisor

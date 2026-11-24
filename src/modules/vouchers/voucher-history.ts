@@ -73,6 +73,8 @@ export class VoucherQueryError extends AppError {
     details: Record<string, unknown>,
     suggestion: string,
     public readonly reason: string,
+    /** Existe (tiene numero y CAE), pero no se entiende: una lista lo saltea en vez de fallar entera. */
+    public readonly exists = false,
   ) {
     super(message, { code: 'ARCA_VOUCHER_QUERY_ERROR', details, suggestion });
     this.name = 'VoucherQueryError';
@@ -148,8 +150,15 @@ export async function listVouchersFrom(
   return fetchVouchersBackwards(fromNumber, (number) => gateway.getVoucher(number, pointOfSale, voucherType), options);
 }
 
+function skipUnreadable(error: unknown): undefined {
+  if (!(error instanceof VoucherQueryError && error.exists)) {
+    throw error;
+  }
+}
+
 /**
- * Pide los comprobantes desde `fromNumber` hacia atras, del mas nuevo al mas viejo, y descarta los que no existen.
+ * Pide los comprobantes desde `fromNumber` hacia atras, del mas nuevo al mas viejo, y descarta los que no existen y
+ * los que existen pero no se entienden (`VoucherQueryError.exists`). Si no se sabe si uno existe, falla la lista.
  * Sirve para wsfe y para wsfex: cada uno sabe como pedir uno.
  */
 export async function fetchVouchersBackwards<T>(
@@ -166,7 +175,7 @@ export async function fetchVouchersBackwards<T>(
   for (let start = 0; start < numbers.length; start += concurrency) {
     const batch = numbers.slice(start, start + concurrency);
 
-    vouchers.push(...(await Promise.all(batch.map(fetch))));
+    vouchers.push(...(await Promise.all(batch.map((number) => fetch(number).catch(skipUnreadable)))));
   }
 
   return vouchers.filter((voucher): voucher is T => voucher !== null && voucher !== undefined);
