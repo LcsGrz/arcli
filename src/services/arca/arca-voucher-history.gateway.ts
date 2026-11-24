@@ -1,3 +1,4 @@
+import { addDaysToArcaDate } from '../../lib/dates/arca-date';
 import {
   type IssuedAssociatedVoucher,
   type IssuedIvaAliquot,
@@ -37,21 +38,19 @@ export class ArcaVoucherHistoryGateway implements VoucherHistoryGateway {
       })
       .catch(asNotFoundResponse)) as QueryResponse;
     const result = response?.FECompConsultarResult;
-    const errors = readRows(result?.Errors, 'Err').map((error) => ({
-      code: readNumber(error.Code) ?? 0,
-      msg: readText(error.Msg),
-    }));
+    const rows = readRows(result?.Errors, 'Err') as ReadonlyArray<Row | null>;
+    const errors = rows
+      .map((error) => ({ code: readNumber(error?.Code) ?? null, msg: readText(error?.Msg) }))
+      .filter(({ code, msg }) => code !== null || msg);
     const voucher = mapIssuedVoucher(result?.ResultGet, number);
 
     if (errors.some(({ code }) => code !== NOT_FOUND_ERROR)) {
-      const reasons = errors.map(({ code, msg }) => `${code} ${msg}`).join('; ');
-
-      throw voucherQueryError('un error', { errors, number, pointOfSale }, reasons);
+      throw voucherQueryError({ errors, number, pointOfSale });
     }
 
-    // Sin el 602, que falte el comprobante no dice que no exista (ERR-1).
-    if (!voucher && errors.length === 0) {
-      throw voucherQueryError('una respuesta inesperada', { errors, number, pointOfSale });
+    // Sin el 602, que falte el comprobante no dice que no exista (ERR-1). Un error sin codigo ni mensaje, tampoco.
+    if (errors.length < rows.length || (!voucher && errors.length === 0)) {
+      throw voucherQueryError({ errors: [], number, pointOfSale });
     }
 
     return voucher;
@@ -70,19 +69,27 @@ type QueryResponse =
  * ARCA contesto, pero no se sabe si el comprobante existe. No puede parecer "no existe": con esta consulta se
  * verifica una emision incierta, y reintentarla la duplicaria.
  */
-function voucherQueryError(
-  what: string,
-  query: {
-    readonly errors: ReadonlyArray<{ readonly code: number; readonly msg: string }>;
-    readonly number: number;
-    readonly pointOfSale: number;
-  },
-  reasons?: string,
-): VoucherQueryError {
+function voucherQueryError(query: {
+  /** Vacio: ARCA contesto otra cosa, sin un error que se pueda leer. */
+  readonly errors: ReadonlyArray<{ readonly code: number | null; readonly msg: string }>;
+  readonly number: number;
+  readonly pointOfSale: number;
+}): VoucherQueryError {
+  const { errors, number, pointOfSale } = query;
+  const voucher = `el comprobante ${formatVoucherNumber(pointOfSale, number)} y no se sabe si existe`;
+  const reasons = errors.map(({ code, msg }) => [code, msg].filter(Boolean).join(' ')).join('; ');
+
   return new VoucherQueryError(
-    `ARCA devolvió ${what} al consultar el comprobante ${formatVoucherNumber(query.pointOfSale, query.number)} y no se sabe si existe${reasons ? `: ${reasons}` : '.'}`,
-    { errores: toDetailErrors(query.errors) },
-    'Volvé a consultar en unos minutos. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.',
+    reasons
+      ? `ARCA devolvió un error al consultar ${voucher}: ${reasons}`
+      : `ARCA devolvió una respuesta inesperada al consultar ${voucher}.`,
+    { errores: toDetailErrors(errors) },
+    `${
+      reasons
+        ? 'Revisá el mensaje de ARCA: si es pasajero, volvé a consultar en unos minutos; si no, corregí lo que dice.'
+        : 'Volvé a consultar en unos minutos.'
+    } Si se repite, no insistas. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.`,
+    reasons || 'respuesta inesperada',
   );
 }
 
@@ -98,9 +105,16 @@ function asNotFoundResponse(error: unknown): QueryResponse {
   return rethrowIfWsfeNotAuthorized(error);
 }
 
-/** Sin la fecha no es un comprobante: si existe o no lo dicen los errores de la respuesta. */
+/** Una fecha ARCA (yyyymmdd) que existe: ni `00000000` ni `0`. */
+function readDate(value: unknown): string | undefined {
+  const date = readText(value);
+
+  return /^\d{8}$/.test(date) && addDaysToArcaDate(date, 0) === date ? date : undefined;
+}
+
+/** Sin una fecha real no es un comprobante: si existe o no lo dicen los errores de la respuesta. */
 function mapIssuedVoucher(row: Row | null | undefined, number: number): IssuedVoucher | undefined {
-  const date = readText(row?.CbteFch);
+  const date = readDate(row?.CbteFch);
 
   if (!row || !date) {
     return undefined;

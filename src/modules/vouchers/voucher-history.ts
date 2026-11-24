@@ -66,9 +66,14 @@ export interface IssuedVoucher {
   readonly untaxedAmount?: number;
 }
 
-/** ARCA contesto la consulta de un comprobante y no se sabe si existe. */
+/** ARCA contesto la consulta de un comprobante y no se sabe si existe. `reason` es el motivo solo, para otra frase. */
 export class VoucherQueryError extends AppError {
-  public constructor(message: string, details: Record<string, unknown>, suggestion: string) {
+  public constructor(
+    message: string,
+    details: Record<string, unknown>,
+    suggestion: string,
+    public readonly reason: string,
+  ) {
     super(message, { code: 'ARCA_VOUCHER_QUERY_ERROR', details, suggestion });
     this.name = 'VoucherQueryError';
   }

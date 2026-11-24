@@ -3,7 +3,7 @@ import { InputValidationError } from '../../lib/errors/app-error';
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
 import { FCE_REGISTRY_STATE_LABELS, type FceRegistryGateway, type FceRegistryState } from '../fce/fce-registry';
 import type { ParametersGateway } from '../parameters/parameters';
-import type { IssuedVoucher, VoucherHistoryGateway } from '../vouchers/voucher-history';
+import { type IssuedVoucher, type VoucherHistoryGateway, VoucherQueryError } from '../vouchers/voucher-history';
 import { formatVoucherNumber } from '../vouchers/voucher-number';
 
 import { formatMoneyLabel } from './billing.labels';
@@ -243,11 +243,15 @@ export function missingAssociatedWarning(options: {
 
 export interface CheckedAssociated {
   readonly input: BillingCommandInput;
-  /** Si ARCA no respondio y la nota igual se puede emitir: el asociado y el tope de la NC quedan sin controlar. */
+  /** Si ARCA no respondio, contesto con un error o no tiene el asociado, y la nota igual se puede emitir: el asociado y el tope de la NC quedan sin controlar. */
   readonly warnings: readonly string[];
 }
 
 function reasonOf(error: unknown): string {
+  if (error instanceof VoucherQueryError) {
+    return error.reason;
+  }
+
   return error instanceof Error ? error.message : 'error desconocido';
 }
 
@@ -260,6 +264,10 @@ function reasonOf(error: unknown): string {
  * seguro un numero mal escrito. Si el punto de venta no es de web service (Comprobantes en linea, controlador
  * fiscal), sigue con un aviso; la nota FCE sin fecha frena pidiendo `--afecha`. Si ARCA no responde, la nota FCE sin
  * fecha no se puede armar y frena; el resto sigue con un aviso y ARCA decide al emitir.
+ *
+ * Si ARCA contesta con un error (`VoucherQueryError`) no se sabe si existe: no frena como "ARCA no tiene". Pero no se
+ * sabe con que contesta para un punto de venta de otro sistema, asi que se lo clasifica igual: si no es de web
+ * service sigue como si no estuviera, y si lo es o no se puede saber, como si no respondiera.
  */
 export async function checkAssociatedInArca(options: {
   readonly gateway: Pick<VoucherHistoryGateway, 'getLastNumber' | 'getVoucher'>;
@@ -287,32 +295,39 @@ export async function checkAssociatedInArca(options: {
 
   const label = describeAssociated(reference.Tipo, reference.PtoVta, reference.Nro);
   const needsDate = voucherKind.isElectronicCredit && !associated.fecha;
-  let voucher: IssuedVoucher | undefined;
-
-  try {
-    voucher = await gateway.getVoucher(reference.Nro, reference.PtoVta, reference.Tipo);
-  } catch (error) {
-    if (needsDate) {
-      throw new InputValidationError(
-        `No se pudo consultar en ARCA ${label} para tomar su fecha: ${reasonOf(error)}`,
-        undefined,
-        'Probá de nuevo en un rato o pasá la fecha del asociado con `--afecha <fecha>`.',
-      );
-    }
-
-    const unchecked =
-      noteSide(voucherKind) === 'credito' ? `que la nota de crédito no supere ${label}` : `que exista ${label}`;
-
-    return { input, warnings: [`No se pudo verificar en ARCA ${unchecked}: ${reasonOf(error)}`] };
-  }
-
-  if (!voucher) {
-    const origin = await classifyAssociatedPointOfSale({
+  const classifyPointOfSale = () =>
+    classifyAssociatedPointOfSale({
       history: gateway,
       pointOfSale: reference.PtoVta,
       salesPoints,
       voucherType: reference.Tipo,
     });
+  let voucher: IssuedVoucher | undefined;
+  let knownOrigin: AssociatedPointOfSaleOrigin | undefined;
+
+  try {
+    voucher = await gateway.getVoucher(reference.Nro, reference.PtoVta, reference.Tipo);
+  } catch (error) {
+    knownOrigin = error instanceof VoucherQueryError ? await classifyPointOfSale() : undefined;
+
+    if (knownOrigin !== 'other') {
+      if (needsDate) {
+        throw new InputValidationError(
+          `No se pudo consultar en ARCA ${label} para tomar su fecha: ${reasonOf(error)}`,
+          undefined,
+          'Probá de nuevo en un rato o pasá la fecha del asociado con `--afecha <fecha>`.',
+        );
+      }
+
+      const unchecked =
+        noteSide(voucherKind) === 'credito' ? `que la nota de crédito no supere ${label}` : `que exista ${label}`;
+
+      return { input, warnings: [`No se pudo verificar en ARCA ${unchecked}: ${reasonOf(error)}`] };
+    }
+  }
+
+  if (!voucher) {
+    const origin = knownOrigin ?? (await classifyPointOfSale());
 
     if (origin === 'web-service') {
       throw missingAssociatedVoucherError(label, needsDate ? 'no se puede tomar su fecha' : undefined);

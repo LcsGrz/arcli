@@ -1,14 +1,15 @@
 import { DEPRECATED_DETAILS_ERRORS } from '../../lib/json/deprecations';
 
 interface ArcaError {
-  readonly code: number;
+  /** `null` si ARCA no lo mando o no se puede leer. */
+  readonly code: number | null;
   readonly msg: string;
 }
 
 /** Los errores de ARCA en `detalles.errores`: siempre con `codigo` y `mensaje`. */
 export function toDetailErrors<T extends ArcaError>(
   errors: readonly T[],
-): Array<T & { codigo: number; mensaje: string }> {
+): Array<T & { codigo: T['code']; mensaje: string }> {
   return errors.map((error) => ({ ...error, codigo: error.code, mensaje: error.msg }));
 }
 
