@@ -5,7 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { OPERATIONS, type SurfaceCoverage } from '../../modules/operations/operations';
+import { VOUCHER_KIND_MAP } from '../../modules/billing/voucher-kind-map';
+import { EXPORT_VOUCHER_KINDS } from '../../modules/export/export.types';
+import { type Operation, OPERATIONS, type SurfaceCoverage } from '../../modules/operations/operations';
 import { stripAnsi } from '../../ui';
 import { runInteractiveMode } from '../interactive/interactive-mode';
 import { listSelect } from '../interactive/list-select';
@@ -160,20 +162,39 @@ describe.each([
     expect(Object.keys(coverage).sort()).toEqual([...OPERATIONS].sort());
     expect(
       Object.entries(coverage)
-        .filter(([, { en, excepcion }]) => en.length > 0 === (excepcion !== undefined) || excepcion === '')
+        .filter(([, { en, excepcion }]) => en.length > 0 === (excepcion !== undefined))
         .map(([operation]) => operation),
     ).toEqual([]);
   });
+});
 
-  it('una excepción que cita un doc dice lo que dice el doc', () => {
-    for (const { excepcion } of Object.values(coverage)) {
-      const [, path, quote] = /^(docs\/\S+\.md): (.+)$/.exec(excepcion ?? '') ?? [];
+it('cada motivo cita un doc, textual, o un ticket', () => {
+  const reasons = [
+    ...[COMMAND_COVERAGE, ASSISTANT_COVERAGE].flatMap((coverage) =>
+      Object.values(coverage).flatMap(({ excepcion }) => (excepcion === undefined ? [] : [excepcion])),
+    ),
+    ...Object.values(APP_COMMANDS),
+    ...Object.values(APP_SCREENS),
+  ];
+  const isSupported = (reason: string) => {
+    const [, path, quote] = /^(docs\/\S+\.md): (.+)$/.exec(reason) ?? [];
 
-      if (path) {
-        expect(readFileSync(path, 'utf8')).toContain(quote);
-      }
-    }
+    // El backlog no está en git: del ticket se controla el formato.
+    return path && quote ? readFileSync(path, 'utf8').includes(quote) : /^[A-Z]+\d*-\d+: \S/.test(reason);
+  };
+
+  expect(reasons.filter((reason) => !isSupported(reason))).toEqual([]);
+});
+
+it('sacar una operación de las dos coberturas deja algo sin cubrir: un comando, su flag o una pantalla', () => {
+  const uncovered = ([COMMAND_COVERAGE, ASSISTANT_COVERAGE] as const).map((coverage) => {
+    const all = Object.values(coverage).flatMap(({ en }) => en);
+
+    return (operation: Operation) =>
+      coverage[operation].en.some((place) => all.filter((item) => item === place).length === 1);
   });
+
+  expect(OPERATIONS.filter((operation) => !uncovered.some((check) => check(operation)))).toEqual([]);
 });
 
 it('ninguna operación está exceptuada en todos lados', () => {
@@ -189,6 +210,42 @@ describe('comandos', () => {
 
     expect(commands.paths.length).toBeGreaterThan(40);
     expect(wrong).toEqual([]);
+  });
+
+  /** Los comandos de cada familia: el suyo y sus atajos, con los de la E. */
+  const emission = new Map<string, string[]>();
+
+  for (const { family, shortcut } of [...Object.values(VOUCHER_KIND_MAP), ...EXPORT_VOUCHER_KINDS]) {
+    emission.set(family, [...(emission.get(family) ?? [family]), shortcut]);
+  }
+
+  const all = [...emission.values()].flat();
+  const placesOf = (operation: string) => [...(COMMAND_COVERAGE[operation as Operation]?.en ?? [])].sort();
+  const withFlag = (names: readonly string[], flag: string) => names.map((name) => `${name} ${flag}`).sort();
+
+  it.each([...emission])('%s: todos sus comandos, y solo ellos, en su operación', (family, names) => {
+    expect(placesOf(`emitir-${family}`)).toEqual(withFlag(names, '--emitir'));
+  });
+
+  it.each([
+    ['previsualizar', '--previsualizar', all],
+    ['generar-pdf', '--exportar-pdf', all],
+    // La E emite de a una: su `--cargar` trae un solo comprobante.
+    ['emitir-lote', '--cargar', all.filter((name) => !EXPORT_VOUCHER_KINDS.some(({ shortcut }) => shortcut === name))],
+  ])('%s: todos los comandos de emisión', (operation, flag, names) => {
+    expect(placesOf(operation)).toEqual(withFlag(names, flag));
+  });
+
+  it('un flag de emisión no está en otros comandos', () => {
+    for (const flag of ['--emitir', '--previsualizar', '--exportar-pdf', '--cargar']) {
+      expect(commands.paths.filter((path) => commands.flags.get(path)?.includes(flag)).sort()).toEqual([...all].sort());
+    }
+  });
+
+  it('no hay operaciones de emitir sin familia', () => {
+    const families = [...emission.keys(), 'lote'].map((family) => `emitir-${family}`);
+
+    expect(OPERATIONS.filter((operation) => operation.startsWith('emitir-')).sort()).toEqual(families.sort());
   });
 
   it('cada comando y flag declarado existe', () => {

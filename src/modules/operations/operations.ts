@@ -8,11 +8,11 @@
 export const OPERATIONS = [
   'previsualizar',
   'emitir-factura',
-  'emitir-factura-credito',
+  'emitir-factura-credito-electronica',
   'emitir-nota-credito',
-  'emitir-nota-credito-fce',
+  'emitir-nota-credito-electronica',
   'emitir-nota-debito',
-  'emitir-nota-debito-fce',
+  'emitir-nota-debito-electronica',
   'emitir-recibo',
   'emitir-lote',
   'repetir-comprobante',
@@ -39,12 +39,13 @@ export const OPERATIONS = [
   'pdf-desinstalar',
 ] as const;
 
-type Operation = (typeof OPERATIONS)[number];
+/** @internal Lo lee el test de paridad. */
+export type Operation = (typeof OPERATIONS)[number];
 
 /** Donde la cubre un adaptador: al menos un lugar, o el motivo de no tenerla. */
 interface OperationCoverage {
   readonly en: readonly string[];
-  /** Solo sin lugares. El motivo, con el doc que lo dice, o `sin decidir`. */
+  /** Solo sin lugares. El motivo: `docs/<doc>.md: <cita textual>` o `<ticket>: <motivo>`. */
   readonly excepcion?: string;
 }
 

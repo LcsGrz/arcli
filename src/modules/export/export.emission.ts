@@ -1,5 +1,6 @@
 import type { Clock } from '../../lib/time/clock';
 import { type EmissionOutcome, emitBatch, notifyEmitted, type OnEmitted } from '../billing/billing.batch-run';
+import { shouldEmit } from '../billing/billing.emit-decision';
 
 import { type ExportRuntime, ExportService } from './export.service';
 import type {
@@ -39,19 +40,29 @@ export async function previewExport(options: PreviewExportOptions): Promise<Expo
 export interface EmitExportOptions extends Pick<ExportPreview, 'resolved' | 'warnings'> {
   readonly clock: Clock;
   readonly gateway: ExportEmissionGateway;
+  /** La entrada con la respuesta a "¿Emitimos?", si hubo pregunta: tiene que pedir emitir. */
+  readonly input: Pick<ExportVoucherInput, 'emit'>;
   /** Apenas ARCA responde. Tambien un rechazo. Ver `OnEmitted`. */
   readonly onEmitted?: OnEmitted<ExportExecutionResult>;
   readonly runtime: ExportRuntime;
 }
 
-/** Emite la E y sus notas, siempre de a una. Como `emitBilling`: nunca tira, el error vuelve como dato. */
+/**
+ * Emite la E y sus notas, siempre de a una. Como `emitBilling`: nunca tira, el error vuelve como dato. Tambien el de
+ * una entrada que no pide emitir, que es de quien llama y no de quien factura.
+ */
 export async function emitExport(options: EmitExportOptions): Promise<EmissionOutcome<ExportExecutionResult>> {
-  const { gateway, onEmitted, resolved, runtime, warnings } = options;
+  const { gateway, input, onEmitted, resolved, runtime, warnings } = options;
   const service = new ExportService({ clock: options.clock });
 
   return emitBatch({
-    emit: async (_item, position) =>
-      notifyEmitted(onEmitted, await service.execute({ gateway, resolved, runtime, warnings }), position),
+    emit: async (_item, position) => {
+      if (!shouldEmit(input)) {
+        throw new Error('emitExport recibió una entrada que no pide emitir.');
+      }
+
+      return notifyEmitted(onEmitted, await service.execute({ gateway, resolved, runtime, warnings }), position);
+    },
     items: [{ index: 1 }],
     scope: { isBatch: false, total: 1 },
   });

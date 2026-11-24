@@ -34,7 +34,7 @@ export interface EmitDecisionInput {
 const BOTH_IN_FILE_MESSAGE = 'En el archivo usá "emitir" o "previsualizar", pero no ambos en true.';
 
 /** Se emite solo si la entrada lo pide y no es una vista previa. */
-export function shouldEmit(input: { readonly dryRun: boolean; readonly emit: boolean }): boolean {
+export function shouldEmit(input: { readonly dryRun?: boolean; readonly emit: boolean }): boolean {
   return input.emit && !input.dryRun;
 }
 

@@ -24,25 +24,22 @@ type BillingPdfInput = Pick<
   'pdfDescription' | 'receiverAddress' | 'receiverName' | 'saleCondition'
 >;
 
-function resolveSaleCondition(
-  input: BillingPdfInput | undefined,
-  config: Pick<ArcliConfig, 'condicionVenta'>,
-): string | undefined {
-  return input?.saleCondition === null ? undefined : (input?.saleCondition ?? config.condicionVenta);
+function resolveSaleCondition(input: BillingPdfInput, config: Pick<ArcliConfig, 'condicionVenta'>): string | undefined {
+  return input.saleCondition === null ? undefined : (input.saleCondition ?? config.condicionVenta);
 }
 
 /** Un comprobante A, B, C o FCE con los datos del PDF de su entrada; la condicion de venta puede salir de la config. */
 export function billingPdfVoucher(
   result: BillingExecutionResult,
-  input: BillingPdfInput | undefined,
+  input: BillingPdfInput,
   config: Pick<ArcliConfig, 'condicionVenta'>,
 ): PdfVoucher {
   return {
     extras: {
       condicionVenta: resolveSaleCondition(input, config),
-      descripcion: input?.pdfDescription,
-      receptorDomicilio: input?.receiverAddress,
-      receptorNombre: input?.receiverName,
+      descripcion: input.pdfDescription,
+      receptorDomicilio: input.receiverAddress,
+      receptorNombre: input.receiverName,
     },
     family: 'billing',
     result,

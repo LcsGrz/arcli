@@ -40,7 +40,7 @@ export const COMMAND_COVERAGE: SurfaceCoverage = {
   'certificado-importar': { en: ['certificado importar'] },
   'config-borrar': { en: ['config eliminar'] },
   'config-cambiar': { en: ['config establecer'] },
-  'config-guiada': { en: [], excepcion: 'sin decidir' },
+  'config-guiada': { en: [], excepcion: 'ARQ-22: sin decidir' },
   'config-revisar': { en: ['config revisar'] },
   'config-ruta': { en: ['config ruta'] },
   'config-ver': { en: ['config'] },
@@ -51,13 +51,13 @@ export const COMMAND_COVERAGE: SurfaceCoverage = {
   'consultar-padron': { en: ['padron'] },
   'consultar-parametros': { en: ['parametros'] },
   'emitir-factura': { en: withFlag(INVOICES, '--emitir') },
-  'emitir-factura-credito': { en: withFlag(FCE_INVOICES, '--emitir') },
+  'emitir-factura-credito-electronica': { en: withFlag(FCE_INVOICES, '--emitir') },
   // La E emite de a una: `--cargar` trae un solo comprobante.
   'emitir-lote': { en: withFlag(WSFE, '--cargar') },
   'emitir-nota-credito': { en: withFlag(CREDIT_NOTES, '--emitir') },
-  'emitir-nota-credito-fce': { en: withFlag(FCE_CREDIT_NOTES, '--emitir') },
+  'emitir-nota-credito-electronica': { en: withFlag(FCE_CREDIT_NOTES, '--emitir') },
   'emitir-nota-debito': { en: withFlag(DEBIT_NOTES, '--emitir') },
-  'emitir-nota-debito-fce': { en: withFlag(FCE_DEBIT_NOTES, '--emitir') },
+  'emitir-nota-debito-electronica': { en: withFlag(FCE_DEBIT_NOTES, '--emitir') },
   'emitir-recibo': { en: withFlag(RECEIPTS, '--emitir') },
   'estado-arca': { en: ['estado'] },
   'generar-pdf': { en: withFlag([...WSFE, ...WSFEX], '--exportar-pdf') },
@@ -66,7 +66,7 @@ export const COMMAND_COVERAGE: SurfaceCoverage = {
   'pdf-estado': { en: ['pdf', 'pdf estado'] },
   'pdf-instalar': { en: ['pdf instalar'] },
   previsualizar: { en: withFlag([...WSFE, ...WSFEX], '--previsualizar') },
-  'repetir-comprobante': { en: [], excepcion: 'sin decidir' },
+  'repetir-comprobante': { en: [], excepcion: 'ARQ-22: sin decidir' },
 };
 
 /**
@@ -82,7 +82,7 @@ export const ASSISTANT_COVERAGE: SurfaceCoverage = {
   'config-cambiar': { en: ['Configuración > Modificar configuración'] },
   'config-guiada': { en: ['Configuración > Configuración guiada'] },
   'config-revisar': { en: ['Configuración > Revisar configuración'] },
-  'config-ruta': { en: [], excepcion: 'sin decidir' },
+  'config-ruta': { en: [], excepcion: 'ARQ-22: sin decidir' },
   'config-ver': { en: ['Configuración > Ver configuración'] },
   'consultar-comprobante': { en: ['Consultas > Mis comprobantes'] },
   'consultar-cotizacion': { en: ['Consultas > Monedas y cotizaciones'] },
@@ -91,15 +91,15 @@ export const ASSISTANT_COVERAGE: SurfaceCoverage = {
   'consultar-padron': { en: ['Consultas > Datos de un CUIT'] },
   'consultar-parametros': { en: ['Consultas > Tablas de ARCA'] },
   'emitir-factura': { en: ['Emitir factura'] },
-  'emitir-factura-credito': { en: ['Emitir factura'] },
+  'emitir-factura-credito-electronica': { en: ['Emitir factura'] },
   'emitir-lote': {
     en: [],
     excepcion: 'docs/modo-interactivo.md: Facturas por lote: siguen siendo `--cargar` con un JSON.',
   },
   'emitir-nota-credito': { en: ['Emitir nota de crédito'] },
-  'emitir-nota-credito-fce': { en: ['Emitir nota de crédito'] },
+  'emitir-nota-credito-electronica': { en: ['Emitir nota de crédito'] },
   'emitir-nota-debito': { en: ['Emitir nota de débito'] },
-  'emitir-nota-debito-fce': { en: ['Emitir nota de débito'] },
+  'emitir-nota-debito-electronica': { en: ['Emitir nota de débito'] },
   'emitir-recibo': { en: ['Emitir recibo'] },
   'estado-arca': { en: ['Estado de ARCA'] },
   // Se elige en "¿Emitimos?".
@@ -112,30 +112,33 @@ export const ASSISTANT_COVERAGE: SurfaceCoverage = {
   'repetir-comprobante': { en: ['Repetir un comprobante anterior'] },
 };
 
+const APP_MODULES =
+  'docs/architecture.md: Los módulos que son de la app (`completion`, `desktop-shortcut`, `examples`, `storybook`, `update-check`)';
+
 /**
- * Comandos de la app que no son una operacion del nucleo, con el motivo.
+ * Comandos de la app que no son una operacion del nucleo, con el motivo (como en `excepcion`).
  *
  * @internal Lo lee el test de paridad.
  */
 export const APP_COMMANDS: Readonly<Record<string, string>> = {
-  __completar: 'lo llama el autocompletado del shell en cada Tab',
-  'acceso-directo': 'instala ARCLI en esta computadora',
-  completado: 'instala ARCLI en esta terminal',
-  'completado desinstalar': 'instala ARCLI en esta terminal',
-  'completado instalar': 'instala ARCLI en esta terminal',
-  ejemplos: 'ayuda de los comandos',
-  interactivo: 'abre el asistente',
-  storybook: 'herramienta de desarrollo (docs/development.md)',
+  __completar: APP_MODULES,
+  'acceso-directo': APP_MODULES,
+  completado: APP_MODULES,
+  'completado desinstalar': APP_MODULES,
+  'completado instalar': APP_MODULES,
+  ejemplos: APP_MODULES,
+  interactivo: 'docs/modo-interactivo.md: `arcli` sin argumentos abre un asistente',
+  storybook: APP_MODULES,
 };
 
 /**
- * Opciones del asistente que no son una operacion del nucleo, con el motivo.
+ * Opciones del asistente que no son una operacion del nucleo, con el motivo (como en `excepcion`).
  *
  * @internal Lo lee el test de paridad.
  */
 export const APP_SCREENS: Readonly<Record<string, string>> = {
-  'Actualizar a la versión': 'actualiza ARCLI en esta computadora (docs/modo-interactivo.md)',
-  'Configuración > Acceso directo en el escritorio': 'instala ARCLI en esta computadora',
-  'Configuración > Autocompletado': 'instala ARCLI en esta terminal',
-  Salir: 'cierra el asistente',
+  'Actualizar a la versión': APP_MODULES,
+  'Configuración > Acceso directo en el escritorio': APP_MODULES,
+  'Configuración > Autocompletado': APP_MODULES,
+  Salir: 'docs/modo-interactivo.md: elegir **Salir**, cierra el asistente',
 };

@@ -1,5 +1,6 @@
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
+import { AppError } from '../../../lib/errors/app-error';
 import { exportAnswer } from '../../../testing/arca-answers';
 import { fakeExportGateway } from '../../../testing/arca-gateways';
 import { EmissionUncertainError } from '../../billing/billing.errors';
@@ -115,6 +116,10 @@ describe('previewExport', () => {
     expect(result.warnings).toEqual(warnings);
   });
 
+  it('sin avisos de quien llama ni de la resolución, no hay ninguno', async () => {
+    expect((await preview(INVOICE)).warnings).toEqual([]);
+  });
+
   it('un error de la entrada sale tal cual', async () => {
     await expect(preview({ ...INVOICE, amount: 0 })).rejects.toMatchObject({ code: 'INPUT_VALIDATION_ERROR' });
   });
@@ -125,7 +130,7 @@ describe('emitExport', () => {
     const { resolved } = await preview(input);
     const gateway = gatewayWith('A');
     const onEmitted = vi.fn();
-    const outcome = await emitExport({ clock, gateway, onEmitted, resolved, runtime, warnings: ['aviso'] });
+    const outcome = await emitExport({ clock, gateway, input, onEmitted, resolved, runtime, warnings: ['aviso'] });
 
     expect(gateway.authorize).toHaveBeenCalledExactlyOnceWith(resolved.payload);
     expect(gateway.getLastVoucherNumber).not.toHaveBeenCalled();
@@ -144,9 +149,26 @@ describe('emitExport', () => {
     expect(resolved.payload.Fecha_cbte).toBe('20261203');
   });
 
+  it('una entrada que no pide emitir: error interno, sin llamar a ARCA', async () => {
+    const { resolved, warnings } = await preview(INVOICE);
+    const gateway = gatewayWith('A');
+    const outcome = await emitExport({
+      clock,
+      gateway,
+      input: { ...INVOICE, emit: false },
+      resolved,
+      runtime,
+      warnings,
+    });
+
+    expect(outcome).toEqual({ error: expect.any(Error), results: [] });
+    expect('error' in outcome && outcome.error).not.toBeInstanceOf(AppError);
+    expect(gateway.authorize).not.toHaveBeenCalled();
+  });
+
   it('un rechazo es un resultado, no un error', async () => {
     const { resolved, warnings } = await preview(INVOICE);
-    const outcome = await emitExport({ clock, gateway: gatewayWith('R'), resolved, runtime, warnings });
+    const outcome = await emitExport({ clock, gateway: gatewayWith('R'), input: INVOICE, resolved, runtime, warnings });
 
     expect(outcome).toEqual({
       results: [expect.objectContaining({ response: expect.objectContaining({ status: 'rechazado' }) })],
@@ -159,6 +181,7 @@ describe('emitExport', () => {
     const outcome = await emitExport({
       clock,
       gateway: gatewayWith('A', { authorize: () => Promise.reject(new Error('socket hang up')) }),
+      input: INVOICE,
       onEmitted,
       resolved,
       runtime,
@@ -174,6 +197,7 @@ describe('emitExport', () => {
     const outcome = await emitExport({
       clock,
       gateway: gatewayWith('A'),
+      input: INVOICE,
       onEmitted: () => {
         throw new Error('disco lleno');
       },

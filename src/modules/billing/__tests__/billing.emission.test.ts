@@ -246,7 +246,24 @@ describe('previewBilling', () => {
 
     const result = await preview(planOf([input(entry), input(entry)]), { clock: { now: () => now }, gateways });
 
-    expect(JSON.stringify(result)).toContain('"CbteFch":"20261113"');
+    expect(result.map((item) => item.preview.payload.CbteFch)).toEqual(['20261113', '20261113']);
+  });
+
+  it('uno suelto inválido falla antes de consultar el régimen FCE, como el lote', async () => {
+    const calls: string[] = [];
+    const entry = input({
+      billingDate: '01/01/2026',
+      documentNumber: CLIENT_CUIT,
+      documentType: 'cuit',
+      ivaCondition: 'responsable-inscripto',
+      shortcut: 'fa',
+      totalAmount: 5_000_000,
+    });
+
+    await expect(preview(planOf([entry]), { gateways: previewGateways(calls) })).rejects.toBeInstanceOf(
+      InputValidationError,
+    );
+    expect(calls).toEqual([]);
   });
 
   it('uno suelto falla con su propio error', async () => {
@@ -313,6 +330,33 @@ describe('emitBilling', () => {
     }
 
     expect(sent).toEqual(['20261118', '20261119']);
+  });
+
+  it('sin pregunta, si pasa la medianoche en el medio del lote, se corta en el que dejó de valer', async () => {
+    let now = new Date('2026-11-18T15:00:00.000Z');
+    const entry = toEmit({ billingDate: '13/11/2026', concept: 'productos' });
+    const items = await preview(planOf([entry, entry]));
+    const createVoucher = vi.fn(async () => {
+      now = new Date('2026-11-19T15:00:00.000Z');
+
+      return approved();
+    });
+    const outcome = await emitBilling({
+      clock: { now: () => now },
+      gateway: fakeBillingGateway({ createVoucher }),
+      items: planBillingEmission(items),
+      runtime,
+      scope: { isBatch: true, total: 2 },
+    });
+
+    expect(createVoucher).toHaveBeenCalledTimes(1);
+    expect(outcome).toEqual({
+      error: expect.objectContaining({
+        code: 'BATCH_EMISSION_ERROR',
+        details: { codigoCausa: 'INPUT_VALIDATION_ERROR', fallo: 2, procesados: 1, sinProcesar: [2], total: 2 },
+      }),
+      results: [expect.objectContaining({ dryRun: false })],
+    });
   });
 
   it('en un lote mixto, lo que queda en vista previa ocupa su lugar y no se avisa', async () => {

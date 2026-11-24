@@ -103,7 +103,7 @@ export async function executeExportCommand(
     spinner = null;
 
     let previewShown = false;
-    let pdfInput = plan.input;
+    let { input } = plan;
 
     if (!plan.input.emit) {
       // Sin flags de emision y con terminal: se muestra la vista previa y se pregunta. Con --json o sin
@@ -131,7 +131,7 @@ export async function executeExportCommand(
         return;
       }
 
-      pdfInput = { ...plan.input, pdf: resolvePdfAfterConfirmation(plan.input.pdf, choice) };
+      input = { ...plan.input, emit: true, pdf: resolvePdfAfterConfirmation(plan.input.pdf, choice) };
       previewShown = true;
     }
 
@@ -140,6 +140,7 @@ export async function executeExportCommand(
     const outcome = await emitExport({
       clock: systemClock,
       gateway,
+      input,
       onEmitted: (result) => {
         recordExportEmission(result);
       },
@@ -157,7 +158,7 @@ export async function executeExportCommand(
 
     const result = await attachExportPdf(outcome.results[0], {
       config: runtime.config,
-      input: pdfInput,
+      input,
       interactive,
     });
 
