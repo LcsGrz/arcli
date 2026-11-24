@@ -4,11 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
 
+import { billingDefaultsFromConfig } from '../../../modules/billing/billing.defaults';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../../modules/export/export.types';
 import { parseBillingCommandPlan, registerBillingOptions } from '../billing.command.parser';
-import { resolveBillingCommandDefaults } from '../billing.command.shared';
 import { registerExportOptions } from '../export.command.options';
 import { parseExportCommandPlan } from '../export.command.parser';
 
@@ -55,7 +55,7 @@ export function billingPlan(written: Written, shortcut: VoucherShortcut = 'fb') 
   return parseBillingCommandPlan(
     parseArgs(command, written),
     shortcut,
-    resolveBillingCommandDefaults(configOf(written.config)),
+    billingDefaultsFromConfig(configOf(written.config)),
   );
 }
 

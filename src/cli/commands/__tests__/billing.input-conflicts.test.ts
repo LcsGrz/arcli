@@ -270,8 +270,7 @@ describe('"hoy" al armar la entrada', () => {
     });
   });
 
-  // Tests primero (REV-52): pasa a it() al implementarlo.
-  it.fails('un lote que cruza la medianoche toma el mismo "hoy" en todos (tanda 2)', () => {
+  it('un lote que cruza la medianoche toma el mismo "hoy" en todos', () => {
     crossMidnight();
 
     const plan = billingPlan({

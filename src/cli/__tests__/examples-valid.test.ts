@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { billingDefaultsFromConfig } from '../../modules/billing/billing.defaults';
 import { BillingService } from '../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
@@ -21,7 +22,6 @@ import type { PadronGateway } from '../../modules/padron/padron';
 import { systemClock } from '../../services/time/system-clock';
 import { stripAnsi } from '../../ui';
 import { parseBillingCommandPlan } from '../commands/billing.command.parser';
-import { resolveBillingCommandDefaults } from '../commands/billing.command.shared';
 import { parseExportCommandPlan } from '../commands/export.command.parser';
 import { createExportShortcutHelp, createFamilyHelp, createProgramHelp, createShortcutHelp } from '../help';
 import { createProgram } from '../program';
@@ -435,7 +435,7 @@ async function validate(args: readonly string[], settings: Example['config'] = [
 
   if (!call.shortcut) throw new Error('falta el atajo del comprobante');
 
-  const plan = parseBillingCommandPlan(call.command, call.shortcut, resolveBillingCommandDefaults(config));
+  const plan = parseBillingCommandPlan(call.command, call.shortcut, billingDefaultsFromConfig(config));
 
   if (plan.invalidItems.length > 0) throw new Error(plan.invalidItems.map((item) => item.message).join('; '));
 

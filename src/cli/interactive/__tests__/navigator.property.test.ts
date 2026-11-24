@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { formatArcaDateAsArgentineDate, formatDateAsArcaDate } from '../../../lib/dates/arca-date';
 import { parseDateInputAsArcaDate } from '../../../lib/dates/relative-date';
 import { InputValidationError } from '../../../lib/errors/app-error';
+import { billingDefaultsFromConfig } from '../../../modules/billing/billing.defaults';
 import { prepareBillingInput } from '../../../modules/billing/billing.prepare';
 import { BILLING_RULES } from '../../../modules/billing/billing.rules';
 import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
@@ -30,7 +31,6 @@ import type { PadronGateway } from '../../../modules/padron/padron';
 import { systemClock } from '../../../services/time/system-clock';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { parseBillingCommandPlan } from '../../commands/billing.command.parser';
-import { resolveBillingCommandDefaults } from '../../commands/billing.command.shared';
 import { parseExportCommandPlan } from '../../commands/export.command.parser';
 import { runExportFlow } from '../export.flow';
 import { runExportNoteFlow } from '../export-note.flow';
@@ -473,7 +473,7 @@ async function assertEquivalentRoundtrip(run: Walk): Promise<void> {
       const plan = parseBillingCommandPlan(
         call.command,
         call.shortcut as VoucherShortcut,
-        resolveBillingCommandDefaults(runtime.config),
+        billingDefaultsFromConfig(runtime.config),
       );
       const parsed = plan.inputs[0] as BillingCommandInput;
 

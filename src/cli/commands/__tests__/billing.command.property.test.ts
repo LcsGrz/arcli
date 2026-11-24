@@ -7,17 +7,14 @@ import { ZodError } from 'zod';
 import { AppError } from '../../../lib/errors/app-error';
 import { readJsonFile } from '../../../lib/files/read-json-file';
 import { hasAtMostDecimals } from '../../../lib/numbers/argentine-amount';
+import type { BillingDefaults } from '../../../modules/billing/billing.defaults';
 import { BillingService } from '../../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { getVoucherKindByShortcut, VOUCHER_KIND_MAP } from '../../../modules/billing/voucher-kind-map';
 import { systemClock } from '../../../services/time/system-clock';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { prepareBatch } from '../billing.command.batch';
-import {
-  type BillingCommandDefaults,
-  parseBillingCommandPlan,
-  registerBillingOptions,
-} from '../billing.command.parser';
+import { parseBillingCommandPlan, registerBillingOptions } from '../billing.command.parser';
 
 vi.mock('../../../lib/files/read-json-file', () => ({ readJsonFile: vi.fn() }));
 
@@ -34,7 +31,7 @@ const RUNTIME = {
   pointOfSale: 3,
 } as unknown as CliArcaRuntime;
 
-const DEFAULTS: BillingCommandDefaults = {
+const DEFAULTS: BillingDefaults = {
   defaultConcept: 'servicios',
   defaultCurrencyCode: 'PES',
   defaultIvaCondition: 'consumidor-final',

@@ -1,6 +1,7 @@
 import type { Command } from 'commander';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { billingDefaultsFromConfig } from '../../../modules/billing/billing.defaults';
 import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
@@ -12,7 +13,6 @@ import type { IssuedVoucher } from '../../../modules/vouchers/voucher-history';
 import { systemClock } from '../../../services/time/system-clock';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { parseBillingCommandPlan } from '../../commands/billing.command.parser';
-import { resolveBillingCommandDefaults } from '../../commands/billing.command.shared';
 import { invoiceSteps } from '../invoice.flow';
 import { repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
@@ -155,7 +155,7 @@ async function reparse(input: BillingCommandInput, config: ArcliConfig) {
     platform: 'linux',
   });
   const { command, shortcut } = await parseWithProgram(line, 'linux');
-  const plan = parseBillingCommandPlan(command, shortcut as VoucherShortcut, resolveBillingCommandDefaults(config));
+  const plan = parseBillingCommandPlan(command, shortcut as VoucherShortcut, billingDefaultsFromConfig(config));
 
   return plan.inputs[0] as BillingCommandInput;
 }
