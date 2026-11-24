@@ -1,3 +1,4 @@
+import Conf from 'conf';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -101,6 +102,51 @@ describe('guardar el CBU con un alias de otra cuenta en la config', () => {
     await offerSavingCbu(saved(), { ...STATE, cbuAlias: 'mi.alias.cbu' }, true);
 
     expect(saved()).toEqual({ aliasCbu: 'mi.alias.cbu', cbu: CBU });
+    expect(output).toBe('');
+  });
+
+  it.each([
+    ['el CBU y el alias', { ...STATE, cbuAlias: 'mi.alias.cbu' }],
+    ['el CBU, borrando el alias', STATE],
+  ])('%s se guardan en una sola escritura', async (_name, state) => {
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+    withConfig((service) => service.ensureInitialized());
+
+    const original = Object.getOwnPropertyDescriptor(Conf.prototype, 'store');
+    let writes = 0;
+
+    // La primera escritura pasa: con una por clave, quedaría el CBU sin su alias.
+    const write = vi.spyOn(Conf.prototype, 'store', 'set').mockImplementation(function (this: Conf, value) {
+      writes += 1;
+
+      if (writes > 1) {
+        throw new Error('disco lleno');
+      }
+
+      original?.set?.call(this, value);
+    });
+
+    await offerSavingCbu(saved(), state, true);
+
+    write.mockRestore();
+
+    expect(writes).toBe(1);
+    expect(saved()).toEqual({ aliasCbu: state.cbuAlias, cbu: CBU });
+  });
+
+  it('si el disco falla, queda como estaba y no avisa', async () => {
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+
+    const before = saved();
+    const write = vi.spyOn(Conf.prototype, 'store', 'set').mockImplementation(() => {
+      throw new Error('disco lleno');
+    });
+
+    await expect(offerSavingCbu(before, { ...STATE, cbuAlias: 'mi.alias.cbu' }, true)).rejects.toThrow('disco lleno');
+
+    write.mockRestore();
+
+    expect(saved()).toEqual(before);
     expect(output).toBe('');
   });
 

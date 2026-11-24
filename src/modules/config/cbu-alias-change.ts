@@ -1,3 +1,5 @@
+import { parseCbu } from '../../lib/identity/cbu';
+import { parseCbuAlias } from '../../lib/identity/cbu-alias';
 import { isSameCbu } from '../billing/billing.defaults';
 
 /** Lo guardado que importa al cambiar el CBU. Puede venir de un archivo sin validar. */
@@ -14,14 +16,19 @@ export interface CbuAliasChange {
 
 /**
  * Que pasa con el alias guardado al guardar `cbu`: con otro CBU se borra, porque es el alias de la cuenta anterior. Sin
- * CBU guardado puede ser el del nuevo, cargado primero: queda, con un aviso. Con el mismo CBU no pasa nada.
+ * CBU guardado, o con uno invalido, puede ser el del nuevo: queda, con un aviso. Con el mismo CBU no pasa nada.
  */
 export function cbuAliasChange({ aliasCbu, cbu: savedCbu }: SavedCbu, cbu: string): CbuAliasChange | undefined {
   if (typeof aliasCbu !== 'string') {
     return undefined;
   }
 
-  if (typeof savedCbu !== 'string') {
+  if (typeof savedCbu !== 'string' || !parseCbu(savedCbu).ok) {
+    // Un alias invalido no se usa: frena, y su problema ya se avisa.
+    if (!parseCbuAlias(aliasCbu).ok) {
+      return undefined;
+    }
+
     return {
       removesAlias: false,
       warning: `El alias guardado (${aliasCbu}) se va a usar con este CBU. Si es de otro, cambialo con \`arcli config establecer aliasCbu <alias>\` o borralo con \`arcli config eliminar aliasCbu\`.`,

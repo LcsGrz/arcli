@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
+import { resolveExportPayload } from '../../../modules/export/__tests__/export-note.fixture';
 import {
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_DEBIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
+  type ExportVoucherKind,
 } from '../../../modules/export/export.types';
 
-import { exportInput, type Json, pick, type Written } from './input-precedence.fixtures';
+import { exportInput, exportPlan, type Json, pick, type Written } from './input-precedence.fixtures';
 
 /**
  * REV-52: los cruces entre niveles en la factura E y sus notas, como en A, B y C (`billing.input-crosses.test.ts`).
@@ -87,12 +89,47 @@ describe('cruce 1 en la E con un archivo sin `codigoMoneda`', () => {
   it.each(KINDS.slice(1))('en %s cualquier --moneda descarta la cotización', (_name, kind) => {
     expect(exportInput(written, kind).exchangeRate).toBeUndefined();
   });
+});
 
-  it.each(KINDS)('`--moneda ""` no descarta nada en %s', (_name, kind) => {
-    expect(exportInput({ args: ['--moneda', ''], json: rate }, kind).exchangeRate).toBe(1400);
-    expect(exportInput({ args: ['--moneda', ''], json: { ...rate, codigoMoneda: 'EUR' } }, kind).exchangeRate).toBe(
-      1400,
+describe('un flag de moneda vacío en la E, hasta la solicitud', () => {
+  const invoice = {
+    cliente: 'ACME',
+    domicilioCliente: 'Calle 1',
+    incoterm: 'FOB',
+    montoTotal: 500,
+    paisDestino: 203,
+    tipoExpo: 1,
+  };
+  const note = { comprobanteAsociado: { numero: 12 }, montoTotal: 500 };
+  const payloadOf = (args: string[], kind: ExportVoucherKind, json: Json) =>
+    resolveExportPayload(
+      exportPlan({ args, json: { ...(kind === EXPORT_VOUCHER_KIND ? invoice : note), ...json } }, kind).input,
     );
+
+  it.each(
+    KINDS.flatMap(([name, kind]) =>
+      [
+        ['--moneda', ''],
+        ['--moneda', '  '],
+        ['--mda', ''],
+        ['--moneda', '', '--mda', ' '],
+      ].map((args) => [name, args, kind] as const),
+    ),
+  )('%s: %j no pisa la moneda ni la cotización del archivo', async (_name, args, kind) => {
+    expect(await payloadOf([...args], kind, { codigoMoneda: 'EUR', cotizacionMoneda: 1400 })).toMatchObject({
+      Moneda_Id: '060',
+      Moneda_ctz: 1400,
+    });
+  });
+
+  it.each(KINDS)('%s: sin moneda en el archivo, la que iría sin el flag', async (_name, kind) => {
+    expect(await payloadOf(['--moneda', ''], kind, rate)).toEqual(await payloadOf([], kind, rate));
+  });
+
+  it.each(KINDS)('%s: `--moneda "" --mda EUR` es EUR', async (_name, kind) => {
+    expect(
+      await payloadOf(['--moneda', '', '--mda', 'EUR'], kind, { codigoMoneda: 'USD', cotizacionMoneda: 1400 }),
+    ).toMatchObject({ Moneda_Id: '060', Moneda_ctz: kind === EXPORT_VOUCHER_KIND ? 1700 : 1600.5 });
   });
 });
 

@@ -25,10 +25,10 @@ function changes(
 
 /**
  * La cotizacion del archivo es de su moneda. Si no la dice, en la factura es la de la E por defecto; en una nota sale
- * del asociado, asi que no se sabe y no va. Una moneda vacia no elige nada.
+ * del asociado, asi que no se sabe y no va.
  */
 function changesRateCurrency({ file, flags, voucherKind }: Levels): boolean {
-  if (!flags.codigoMoneda?.trim()) {
+  if (flags.codigoMoneda === undefined) {
     return false;
   }
 

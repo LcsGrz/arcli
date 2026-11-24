@@ -85,6 +85,25 @@ describe('config establecer cbu con un alias guardado', () => {
     expect(saved()).toEqual({ aliasCbu: ALIAS, cbu: CBU });
   });
 
+  it('un CBU guardado inválido cuenta como si no hubiera: el alias queda y avisa', async () => {
+    save({ aliasCbu: ALIAS, cbu: '123' });
+
+    await run('establecer', 'cbu', CBU, '--json');
+
+    expect((JSON.parse(stdout) as Record<string, unknown>).avisos).toEqual([expect.stringContaining(KEPT)]);
+    expect(saved()).toEqual({ aliasCbu: ALIAS, cbu: CBU });
+  });
+
+  it('un alias guardado inválido no se va a usar: sale solo el aviso de dato inválido', async () => {
+    save({ aliasCbu: '!', cbu: undefined });
+
+    await run('establecer', 'cbu', CBU, '--json');
+
+    expect((JSON.parse(stdout) as Record<string, unknown>).avisos).toEqual([
+      expect.stringContaining('Sigue habiendo un dato inválido'),
+    ]);
+  });
+
   it.each([
     ['el mismo CBU, con espacios', { aliasCbu: ALIAS, cbu: CBU }, ['establecer', 'cbu', ` ${CBU} `]],
     ['sin alias guardado', { cbu: CBU }, ['establecer', 'cbu', OTHER_CBU]],

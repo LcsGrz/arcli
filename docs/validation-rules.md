@@ -71,7 +71,7 @@ Un flag gana al mismo dato del JSON de `--cargar`. Si además cambia a quién, q
 | `E`: `--pais-destino` con otro país                                         | `cuitPais`. En el archivo, un código y un nombre se toman por distintos                                                                                                                                                                                                                                                           |
 | `E`: `--incoterm` con otro código                                           | `descripcionIncoterm`                                                                                                                                                                                                                                                                                                             |
 
-Los nombres se comparan sin distinguir mayúsculas, tildes ni espacios, y un flag vacío no descarta nada. Una nota `E` tampoco toma de su asociado lo que depende de otro cliente, país, incoterm o moneda: ver [Notas de crédito y débito de exportación](#notas-de-crédito-y-débito-de-exportación-e).
+Los nombres se comparan sin distinguir mayúsculas, tildes ni espacios, y una moneda vacía (`--moneda ""`) o un `--pd`/`--ph` vacío no descarta nada (en A, B y C, la moneda vacía es un error). Una nota `E` tampoco toma de su asociado lo que depende de otro cliente, país, incoterm o moneda: ver [Notas de crédito y débito de exportación](#notas-de-crédito-y-débito-de-exportación-e).
 
 `--acuit` y `--afecha` solos no descartan nada, y dos datos opuestos en el mismo lugar (los dos en flags, o los dos en el archivo sin un flag que elija) siguen siendo un error.
 

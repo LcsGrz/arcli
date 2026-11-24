@@ -13,6 +13,10 @@ import { resolvePdfFlag } from '../../modules/pdf/pdf-decision';
 
 import { type OptionValues, pickNumber, pickString, pickSwitch } from './option-values';
 
+function nonBlank(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
 /** Un flag repetible; sin valores no se escribió. */
 function pickList<T>(value: unknown): T[] | undefined {
   return Array.isArray(value) && value.length > 0 ? (value as T[]) : undefined;
@@ -53,7 +57,8 @@ export function readExportFlags(command: Command, voucherKind: ExportVoucherKind
     ...readPdf(options),
     actividad: pickNumber(options.actividad),
     cliente: pickString(options.cliente),
-    codigoMoneda: pickString(options.moneda, options.mda),
+    // Una moneda vacia no pisa la del archivo ni la del asociado.
+    codigoMoneda: [options.moneda, options.mda].map(nonBlank).find((code) => code !== undefined),
     // Sin `--afecha`, que es de A, B y C: en `arcli nota-credito e` se saltea con un aviso. En `arcli factura e` se
     // saltean todos.
     comprobanteAsociado: {

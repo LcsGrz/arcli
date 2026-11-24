@@ -30,13 +30,8 @@ export async function offerSavingToConfig(
   const service = new ConfigService();
 
   try {
-    if (removes) {
-      service.changeValues({ remove: removes.keys, set: values });
-    } else {
-      for (const [key, value] of values) {
-        service.setValue(key, value);
-      }
-    }
+    // Todo junto: el CBU no puede quedar guardado con un alias que no es el suyo.
+    service.changeValues({ remove: removes?.keys ?? [], set: values });
   } finally {
     service.close();
   }

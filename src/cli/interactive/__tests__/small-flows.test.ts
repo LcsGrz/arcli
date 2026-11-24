@@ -22,7 +22,7 @@ import { runStatusFlow } from '../status.flow';
 import { createScript } from './script';
 
 let script = createScript([]);
-const setValue = vi.fn();
+const changeValues = vi.fn();
 
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
@@ -35,7 +35,7 @@ vi.mock('../prompts', () => ({
 vi.mock('../../../modules/config/config.service', () => ({
   ConfigService: class {
     public close() {}
-    public setValue = setValue;
+    public changeValues = changeValues;
   },
 }));
 
@@ -83,7 +83,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.mocked(confirm).mockReset();
-  setValue.mockClear();
+  changeValues.mockClear();
   expect(script.remaining()).toBe(0);
 });
 
@@ -127,9 +127,16 @@ describe('ofrecer guardar en la config', () => {
     await offerSavingToConfig('¿Guardamos?', [['cbu', '1']]);
     await offerSavingToConfig('¿Guardamos?', [['cbu', '2']]);
 
-    expect(setValue.mock.calls).toEqual([
-      ['cbu', '0110599520000012345678'],
-      ['aliasCbu', 'mi.alias'],
+    expect(changeValues.mock.calls).toEqual([
+      [
+        {
+          remove: [],
+          set: [
+            ['cbu', '0110599520000012345678'],
+            ['aliasCbu', 'mi.alias'],
+          ],
+        },
+      ],
     ]);
   });
 
