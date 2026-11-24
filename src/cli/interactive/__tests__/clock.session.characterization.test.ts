@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CertificateExpiredError } from '../../../modules/config/certificate-expiry';
 import { BACK } from '../../../modules/interactive/wizard';
+import { PdfPlugin } from '../../../services/pdf/pdf-plugin';
 import { stripAnsi } from '../../../ui';
 import {
   AFTER_MIDNIGHT,
@@ -10,6 +11,8 @@ import {
   BEFORE_MIDNIGHT,
   CLIENT_CUIT,
   CLOCK_CONFIG,
+  rejectWsfe,
+  sdk,
   setClock,
   useClockFixture,
   wsfeRequests,
@@ -58,6 +61,7 @@ vi.mock('../prompts', () => {
     };
 
   return {
+    askText: waiting((...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args)),
     askTextStep: waiting((...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args)),
     chooseFromFilterList: waiting((...args: Parameters<typeof script.chooseFromFilterList>) =>
       script.chooseFromFilterList(...args),
@@ -70,11 +74,14 @@ vi.mock('../prompts', () => {
     chooseStep: waiting((...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args)),
     chooseStepWhileLoading: (...args: Parameters<typeof script.chooseStepWhileLoading>) =>
       script.chooseStepWhileLoading(...args),
-    confirm: (message: string, yesLabel: string, noLabel = 'No') =>
-      script.chooseStep(message, [
+    confirm: (message: string, yesLabel: string, noLabel = 'No') => {
+      waitAt(message);
+
+      return script.chooseStep(message, [
         { name: yesLabel, value: true },
         { name: noLabel, value: false },
-      ]),
+      ]);
+    },
     editRowsStep: waiting((...args: Parameters<typeof script.editRowsStep>) => script.editRowsStep(...args)),
     eraseLastAnswer: () => undefined,
     fitPageSize: () => 12,
@@ -141,7 +148,7 @@ beforeEach(() => {
 });
 
 describe('sesión abierta antes de la medianoche', () => {
-  it('la emisión vuelve a leer la fecha: se muestra la del 10/11 y, si se confirma el 11/11, sale con la del 11/11', async () => {
+  it('se muestra la fecha del 10/11 y, aunque se confirme el 11/11, sale con esa (ARQ-21)', async () => {
     const session = createInteractiveSession({});
 
     await run(() => runInvoiceFlow(session), [...INVOICE_C, [/Agregamos/, []], EMIT], /Emitimos/);
@@ -149,10 +156,10 @@ describe('sesión abierta antes de la medianoche', () => {
     expect(stripAnsi(profile.stdout)).toMatch(/Fecha del comprobante\s+10\/11\/2026/);
     expect(wsfeRequests()).toEqual([
       expect.objectContaining({
-        CbteFch: '20261111',
-        FchServDesde: '20261111',
-        FchServHasta: '20261111',
-        FchVtoPago: '20261111',
+        CbteFch: '20261110',
+        FchServDesde: '20261110',
+        FchServHasta: '20261110',
+        FchVtoPago: '20261110',
       }),
     ]);
   });
@@ -316,7 +323,7 @@ describe('sesión abierta antes de la medianoche: exportación', () => {
     expect(wsfexRequests()).toEqual([expect.objectContaining({ Fecha_cbte: '20261111' })]);
   });
 
-  // A diferencia de A, B y C, la E emite lo que se resolvió para la vista previa: no vuelve a leer la fecha.
+  // Como A, B y C (ARQ-21): emite lo que se resolvió para la vista previa.
   it('la E que se confirma pasada la medianoche sale con la fecha de la vista previa', async () => {
     const session = createInteractiveSession({});
 
@@ -345,6 +352,241 @@ describe('sesión abierta antes de la medianoche: exportación', () => {
     );
 
     expect(wsfexRequests()).toEqual([expect.objectContaining({ Fecha_cbte: '20261116', Fecha_pago: '20261130' })]);
+  });
+});
+
+describe('la medianoche pasa en "¿Emitimos?": se emite lo que mostró la vista previa (ARQ-21)', () => {
+  interface FlowCase {
+    readonly after?: Steps;
+    readonly flow: () => Promise<unknown>;
+    readonly optionals?: Steps;
+    readonly prepare?: () => void;
+    readonly steps: Steps;
+  }
+
+  const invoice = (steps: Steps): FlowCase => ({ flow: () => runInvoiceFlow(createInteractiveSession({})), steps });
+  const note = (kind: 'credito' | 'debito', steps: Steps): FlowCase => ({
+    flow: () => runNoteFlow(createInteractiveSession({}), kind),
+    steps,
+  });
+  const over = (label: string): Steps => [
+    [/Sobre qué comprobante/, 'Facturas'],
+    [/Qué factura\?/, label],
+  ];
+  const SERVICES: Steps = [
+    [/Qué estás facturando/, 'Servicios'],
+    [/Monto total/, '12100'],
+  ];
+  const NOTE_DATA: Steps = [
+    [/A quién va la nota/, 'Consumidor final'],
+    [/Qué concepto ajusta la nota/, 'Servicios'],
+    [/Monto de la nota de/, '100'],
+  ];
+  const ONLY_THREE = { resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 3 }] } };
+
+  const CASES: Array<[string, FlowCase]> = [
+    [
+      'Factura A',
+      invoice([
+        [/comprobante/, 'Factura A'],
+        [/A quién/, 'Con CUIT'],
+        [/CUIT del receptor/, String(CLIENT_CUIT)],
+        [/Condición frente al IVA/, 'Responsable inscripto'],
+        ...SERVICES,
+      ]),
+    ],
+    ['Factura B', invoice([[/comprobante/, 'Factura B'], [/A quién/, 'Consumidor final'], ...SERVICES])],
+    ['Factura C', invoice(INVOICE_C)],
+    ['FCE A', { ...invoice(FCE), after: [[/Guardamos el CBU/, 'No']] }],
+    [
+      'Recibo C',
+      {
+        flow: () => runInvoiceFlow(createInteractiveSession({}), true),
+        steps: [
+          [/Qué recibo/, 'Recibo C'],
+          [/A quién le hacés el recibo/, 'Consumidor final'],
+          [/Qué estás cobrando/, 'Servicios'],
+          [/Monto total/, '1000'],
+        ],
+      },
+    ],
+    ['Nota de crédito C por período', note('credito', [...PERIOD_NOTE, [/Período hasta/, 'hoy'], ...NOTE_DATA])],
+    [
+      'Nota de débito C sobre una factura',
+      note('debito', [
+        ...over('Factura C'),
+        [/A qué la asociamos/, 'A una factura'],
+        [/Sobre qué factura C/, '00003-00000041'],
+        [/Monto de la nota de débito/, '100'],
+      ]),
+    ],
+    [
+      'Nota de crédito C sobre una factura de otro sistema',
+      {
+        ...note('credito', [
+          ...over('Factura C'),
+          [/A qué la asociamos/, 'A una factura'],
+          [/Sobre qué factura C/, 'Ingresar el número a mano'],
+          [/Punto de venta/, '50'],
+          [/^Número/, '15'],
+          [/^Fecha de la factura C 00050-00000015/, 'hoy'],
+          ...NOTE_DATA,
+        ]),
+        prepare: () => {
+          sdk.wsfe.getSalesPoints.mockResolvedValue(ONLY_THREE);
+          answerAssociated({}, { missing: 15 });
+        },
+      },
+    ],
+    [
+      'Nota de crédito FCE A',
+      {
+        ...note('credito', [
+          ...over('Factura de crédito electrónica A'),
+          [/Sobre qué factura de crédito electrónica A/, '00003-00000041'],
+          [/Total o parcial/, 'Parcial'],
+          [/Monto de la nota de crédito/, '60,50'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/rechazó la factura/, 'No'],
+        ]),
+        prepare: () => answerAssociated({ DocNro: CLIENT_CUIT, DocTipo: 80, ImpTotal: 5_000_000 }),
+      },
+    ],
+    [
+      'Repetir',
+      {
+        flow: () => runRepeatFlow(createInteractiveSession({})),
+        steps: [
+          [/Qué comprobante querés repetir/, 'Factura C'],
+          [/Cuál repetimos/, '00003-00000041'],
+          [/Mismo monto/, 'Sí'],
+          [/Período del servicio/, 'Un solo día'],
+        ],
+      },
+    ],
+    [
+      'Factura C en dólares, pagada en dólares',
+      {
+        ...invoice(INVOICE_C),
+        optionals: [
+          [/Agregamos/, ['Moneda']],
+          [/Moneda del comprobante/, 'Dólares'],
+          [/Cómo te pagan/, 'En dólares'],
+          [/Monto total en USD/, '1000'],
+          [/Agregamos/, ['Moneda']],
+          [/Moneda del comprobante/, 'Dólares'],
+          [/Cómo te pagan/, 'En dólares'],
+        ],
+      },
+    ],
+  ];
+
+  it.each(CASES)('%s: lo mismo que confirmando antes de la medianoche', async (_name, flowCase) => {
+    const steps: Steps = [
+      ...flowCase.steps,
+      ...(flowCase.optionals ?? ([[/Agregamos/, []]] as Steps)),
+      EMIT,
+      ...(flowCase.after ?? []),
+    ];
+
+    flowCase.prepare?.();
+    await run(flowCase.flow, steps);
+
+    const shownBefore = profile.stdout.length;
+
+    setClock(BEFORE_MIDNIGHT);
+    await run(flowCase.flow, steps, /Emitimos/);
+
+    const [before, after, ...rest] = wsfeRequests();
+
+    expect(rest).toEqual([]);
+    expect(after).toEqual(before);
+    expect(after).toMatchObject({ CbteFch: '20261110' });
+    expect(JSON.stringify(after)).not.toContain('20261111');
+    expect(stripAnsi(profile.stdout.slice(shownBefore))).toMatch(/Fecha del comprobante\s+10\/11\/2026/);
+  });
+
+  it('producción: si pasa en la segunda confirmación, también', async () => {
+    await run(
+      () => runInvoiceFlow(createInteractiveSession({ produccion: true })),
+      [...INVOICE_C, [/Agregamos/, []], EMIT, [/Vas a emitir/, 'Sí, emitir en producción']],
+      /Vas a emitir/,
+    );
+
+    expect(wsfeRequests()).toEqual([expect.objectContaining({ CbteFch: '20261110', FchVtoPago: '20261110' })]);
+  });
+
+  it('"Volver" desde la vista previa, sin cambiar nada: manda la vista previa nueva, la del 11/11', async () => {
+    await run(
+      () => runInvoiceFlow(createInteractiveSession({})),
+      [...INVOICE_C, [/Agregamos/, []], [/Emitimos/, BACK], [/Agregamos/, []], EMIT],
+      /Emitimos/,
+    );
+
+    expect(stripAnsi(profile.stdout)).toMatch(/Fecha del comprobante\s+11\/11\/2026/);
+    expect(wsfeRequests()).toEqual([expect.objectContaining({ CbteFch: '20261111', FchVtoPago: '20261111' })]);
+  });
+
+  it('"Volver" y cambiar el monto y la fecha: nunca se emite la vista previa vieja', async () => {
+    await run(
+      () => runInvoiceFlow(createInteractiveSession({})),
+      [
+        ...INVOICE_C,
+        [/Agregamos/, []],
+        [/Emitimos/, BACK],
+        [/Agregamos/, BACK],
+        [/Monto total/, '2500'],
+        [/Agregamos/, ['Fecha del comprobante']],
+        [/^Fecha del comprobante/, '09/11/2026'],
+        EMIT,
+      ],
+    );
+
+    expect(wsfeRequests()).toEqual([expect.objectContaining({ CbteFch: '20261109', ImpTotal: 2500 })]);
+  });
+
+  it('si ARCA ya no acepta la fecha, sale su rechazo: ni se recalcula ni se reintenta', async () => {
+    sdk.wsfe.createVoucher.mockImplementation(rejectWsfe);
+    await run(
+      () => runInvoiceFlow(createInteractiveSession({})),
+      [...INVOICE_C, [/Agregamos/, ['Fecha del comprobante']], [/^Fecha del comprobante/, '31/10/2026'], EMIT],
+      /Emitimos/,
+    );
+
+    // El 11/11 la ventana de servicios empieza el 01/11.
+    expect(wsfeRequests()).toEqual([expect.objectContaining({ CbteFch: '20261031' })]);
+    expect(stripAnsi(profile.stdout)).toMatch(/RECHAZADO[^]*Fecha fuera de rango/);
+  });
+
+  it('"Sí, emitir y generar el PDF": el PDF lleva las fechas de la vista previa', async () => {
+    const render = vi.fn(async (_data: unknown) => new Uint8Array());
+
+    vi.spyOn(PdfPlugin.prototype, 'load').mockReturnValue({ render } as never);
+    vi.spyOn(PdfPlugin.prototype, 'getStatus').mockReturnValue({ installed: true } as never);
+    profile.writeConfig(
+      profile.configWith(profile.healthy, {
+        ...CLOCK_CONFIG,
+        emisor: { domicilio: 'Calle 1', inicioActividades: '20200301', razonSocial: 'Yo' },
+        pdfCarpeta: profile.temporaryDirectory('arcli-pdf-'),
+      }),
+    );
+    await run(
+      () => runInvoiceFlow(createInteractiveSession({})),
+      [
+        ...INVOICE_C,
+        [/Agregamos/, []],
+        [/Emitimos/, 'Sí, emitir y generar el PDF'],
+        [/Descripción/, ''],
+        [/Nombre o razón social/, ''],
+        [/Domicilio del receptor/, ''],
+        [/Condición de venta/, 'Omitir'],
+      ],
+      /Emitimos/,
+    );
+
+    expect(wsfeRequests()).toEqual([expect.objectContaining({ CbteFch: '20261110' })]);
+    expect(render.mock.calls[0]?.[0]).toMatchObject({ cbteFecha: '20261110' });
+    expect(JSON.stringify(render.mock.calls[0]?.[0])).not.toContain('20261111');
   });
 });
 

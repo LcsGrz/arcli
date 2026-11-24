@@ -1637,6 +1637,73 @@ describe('billing.service', () => {
     expect(result.response).toEqual(mapBillingResponse(arcaResult as never));
   });
 
+  describe('con la vista previa confirmada (ARQ-21)', () => {
+    const emitted = createBillingInput({ documentNumber: 0, dryRun: false, emit: true });
+    const gateway = () => ({
+      createVoucher: vi.fn(async () => ({ cae: '76123456789012', caeFchVto: '20261103', response: {} })),
+      getNextVoucherNumber: vi.fn(async () => 42),
+      getQuotation: async () => 1,
+    });
+
+    it('emite su payload más el número, sin armarlo de nuevo, y lo devuelve', async () => {
+      const service = new BillingService({ clock: systemClock });
+      const preview = await service.execute({
+        gateway: gateway(),
+        input: createBillingInput({ documentNumber: 0 }),
+        runtime: createRuntime(),
+      });
+      const emission = gateway();
+
+      vi.setSystemTime(new Date('2026-03-19T12:00:00Z'));
+      const build = vi.spyOn(service, 'buildVoucherPayload');
+      const result = await service.execute({ gateway: emission, input: emitted, preview, runtime: createRuntime() });
+
+      expect(build).not.toHaveBeenCalled();
+      expect(emission.getNextVoucherNumber).toHaveBeenCalledExactlyOnceWith(3, 6);
+      expect(emission.createVoucher).toHaveBeenCalledExactlyOnceWith({
+        ...preview.payload,
+        CbteDesde: 42,
+        CbteHasta: 42,
+      });
+      expect(result).toMatchObject({ dryRun: false, payload: { CbteFch: '20260318' }, voucherNumber: 42 });
+    });
+
+    it('sin pedir emitir, no emite', async () => {
+      const service = new BillingService({ clock: systemClock });
+      const input = createBillingInput({ documentNumber: 0 });
+      const preview = await service.execute({ gateway: gateway(), input, runtime: createRuntime() });
+      const emission = gateway();
+
+      await expect(
+        service.execute({ gateway: emission, input, preview, runtime: createRuntime() }),
+      ).resolves.toMatchObject({ dryRun: true });
+      expect(emission.createVoucher).not.toHaveBeenCalled();
+    });
+
+    it('una nota FCE sin la fecha del asociado sigue sin llegar a ARCA', async () => {
+      const service = new BillingService({ clock: systemClock });
+      const note = createBillingInput({
+        associatedVoucher: { numero: 7, puntoVenta: 3, shortcut: 'fcea' },
+        documentNumber: 30709965812,
+        documentType: 'cuit',
+        ivaCondition: 'responsable-inscripto',
+        shortcut: 'ncea',
+      });
+      const preview = await service.execute({ gateway: gateway(), input: note, runtime: createRuntime() });
+      const emission = gateway();
+
+      await expect(
+        service.execute({
+          gateway: emission,
+          input: { ...note, dryRun: false, emit: true },
+          preview,
+          runtime: createRuntime(),
+        }),
+      ).rejects.toThrow(/requiere la fecha del comprobante asociado/);
+      expect(emission.getNextVoucherNumber).not.toHaveBeenCalled();
+    });
+  });
+
   it('maps the empty CAE of a rejected voucher to null', () => {
     const summary = mapBillingResponse({
       cae: '',

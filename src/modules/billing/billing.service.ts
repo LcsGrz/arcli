@@ -49,6 +49,11 @@ import { getVoucherKindByShortcut } from './voucher-kind-map';
 export interface BillingExecutionOptions {
   readonly gateway: BillingGateway;
   readonly input: BillingCommandInput;
+  /**
+   * La vista previa que se confirmo: se emite su payload tal cual, sin armarlo de nuevo con la fecha de ahora (ARQ-21),
+   * y solo se pide el numero. Sin ella (`--emitir`, `--json`), se arma al emitir.
+   */
+  readonly preview?: Pick<BillingExecutionResult, 'payload'>;
   readonly runtime: BillingRuntime;
   readonly warnings?: readonly string[];
 }
@@ -173,7 +178,7 @@ export class BillingService {
 
   public async execute(options: BillingExecutionOptions): Promise<BillingExecutionResult> {
     const voucherKind = this.requireVoucherKind(options.input.shortcut);
-    const payload = this.buildVoucherPayload(options.input, options.runtime, voucherKind);
+    const payload = options.preview?.payload ?? this.buildVoucherPayload(options.input, options.runtime, voucherKind);
     const receiver = {
       ivaConditionFromPadron: options.input.ivaConditionSource === 'padron',
       name: options.input.receiverName,

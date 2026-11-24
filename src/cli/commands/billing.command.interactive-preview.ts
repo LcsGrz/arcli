@@ -17,6 +17,8 @@ import { confirmEmissionOrNotify } from './confirm-emission';
 export interface InteractiveBillingPreviewOutcome {
   readonly confirmedInteractively: boolean;
   readonly inputs: BillingCommandInput[];
+  /** Las vistas previas confirmadas, alineadas con `inputs`: es lo que se emite (ARQ-21). Sin pregunta, no hay. */
+  readonly previews?: readonly BillingExecutionResult[];
   readonly previewShown: boolean;
   readonly proceed: boolean;
 }
@@ -105,6 +107,7 @@ export async function runInteractiveBillingPreview(options: {
   return {
     confirmedInteractively: true,
     inputs: applyEmitDecision(options.inputs, choice),
+    previews: previewResults,
     previewShown: true,
     proceed: true,
   };

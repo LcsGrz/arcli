@@ -227,7 +227,7 @@ export async function executeBillingCommand(
       return;
     }
 
-    const { inputs, previewShown } = preview;
+    const { inputs, previews, previewShown } = preview;
 
     const emitting = inputs.some((input) => input.emit);
     const emittedVouchers =
@@ -255,7 +255,15 @@ export async function executeBillingCommand(
     };
     const results = await emitBatch({
       emit: async (input, position) =>
-        recordEmission(await service.execute({ gateway, input, runtime, warnings: warnings[position] })),
+        recordEmission(
+          await service.execute({
+            gateway,
+            input,
+            preview: previews?.[position],
+            runtime,
+            warnings: warnings[position],
+          }),
+        ),
       inputs,
       onPartialResults: async (partial) => {
         spinner?.stop();

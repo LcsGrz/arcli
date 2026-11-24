@@ -257,7 +257,8 @@ async function previewBilling(
 
 /**
  * Paso final comun a todos los flujos: vista previa, comando equivalente, confirmacion y emision.
- * Usa BillingService igual que los comandos con flags, asi que valida y emite exactamente lo mismo.
+ * Usa BillingService igual que los comandos con flags, asi que valida y emite exactamente lo mismo. Lo confirmado sale
+ * con lo que mostro la vista previa, sin armarlo de nuevo (ARQ-21).
  * `flowWarnings` son avisos que solo sabe el flujo, como el de un asociado de otro sistema en una nota. Devuelve si ARCA
  * lo autorizo (`isAuthorized`): lo que se ofrece guardar en la config (el CBU de la FCE) solo se ofrece entonces. Con
  * Esc en "¿Emitimos?", o si la vista previa rechaza la entrada (`rejectedAsBack`), devuelve BACK sin emitir: el flujo lo corre como `confirm` de `runWizard`, que vuelve a la ultima
@@ -317,6 +318,7 @@ export async function previewAndEmit(
       await service.execute({
         gateway: session.billingGateway,
         input: { ...input, dryRun: false, emit: true },
+        preview,
         runtime,
         warnings,
       }),
