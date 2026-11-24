@@ -184,17 +184,20 @@ function noteInputFields(state: NoteState, env: NoteInputEnv): Partial<BillingCo
   };
 }
 
-/** Las reglas desde una pregunta de la nota (`ruleValidator`): la nota que se arma con lo respondido hasta ahi. */
-export function noteRuleScope(state: NoteState, env: NoteRuleEnv): BillingRuleScope {
+/**
+ * Las reglas desde una pregunta de la nota (`ruleValidator`): la nota que se arma con lo respondido hasta ahi. `env` se
+ * lee en cada validacion (hoy).
+ */
+export function noteRuleScope(state: NoteState, env: () => NoteRuleEnv): BillingRuleScope {
   const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
 
   return {
-    context: {
-      emitterCuit: env.issuerCuit,
-      today: env.today,
-      voucherKind: noteKindChoices(state.kind ?? 'credito', invoiceKind),
+    context: () => {
+      const { issuerCuit, today } = env();
+
+      return { emitterCuit: issuerCuit, today, voucherKind: noteKindChoices(state.kind ?? 'credito', invoiceKind) };
     },
-    draft: (patch) => ({ ...noteInputFields(state, env), ...patch }),
+    draft: (patch) => ({ ...noteInputFields(state, env()), ...patch }),
   };
 }
 
@@ -217,7 +220,7 @@ export function noteRuleValidator(
   return (state, retry = false) =>
     ruleValidator<NoteState, BillingCommandInput, BillingRuleContext>({
       context: (current) => ({
-        ...noteRuleScope(current, env()).context,
+        ...noteRuleScope(current, env).context(),
         undecidedBillingDate: !retry && !current.advanced?.billingDate,
       }),
       draft: (current, value) => noteInputFields({ ...current, ...answer(value) }, env()),
@@ -230,7 +233,7 @@ export function noteRuleValidator(
 /** `finalize` de la nota: las reglas sobre la nota final; si una falla, vuelve a la pregunta que escribe el campo. */
 export function noteFinalize(env: () => NoteRuleEnv): WizardFinalize<NoteState> {
   const rules = rulesFinalize<NoteState, BillingCommandInput, BillingRuleContext>({
-    context: (state) => noteRuleScope(state, env()).context,
+    context: (state) => noteRuleScope(state, env).context(),
     draft: (state) => (state.exported || !state.invoiceKind ? undefined : noteInputFields(state, env())),
     rules: BILLING_RULES,
   });

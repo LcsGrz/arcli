@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { validateExportPaymentDate, validateExportText } from '../export-options';
 
@@ -13,7 +13,7 @@ describe('validateExportText', () => {
 });
 
 describe('validateExportPaymentDate (1674)', () => {
-  const now = new Date('2026-11-18T15:00:00Z');
+  const now = () => new Date('2026-11-18T15:00:00Z');
 
   // TUI-22: se pregunta antes de los opcionales, donde se elige la fecha del comprobante.
   it('sin fecha del comprobante todavia, contra la mas temprana que acepta ARCA (hoy - 5): antes de esa, no', () => {
@@ -25,6 +25,17 @@ describe('validateExportPaymentDate (1674)', () => {
     expect(undecided('12/11/2026')).toBe(
       'La fecha de pago no puede ser anterior al 13/11/2026: es la fecha más temprana que ARCA acepta para el comprobante, y un pago anterior a él lo rechaza (error 1674).',
     );
+  });
+
+  it('lee el reloj una vez por validación: la medianoche no puede caer en el medio', () => {
+    const clock = vi.fn(now);
+    const validate = validateExportPaymentDate(undefined, { now: clock });
+
+    expect(clock).not.toHaveBeenCalled();
+    expect(validate('13/11/2026')).toBe(true);
+    expect(clock).toHaveBeenCalledTimes(1);
+    expect(validate('')).toBe(true);
+    expect(clock).toHaveBeenCalledTimes(2);
   });
 
   it('de vuelta desde `finalize`, sin fecha del comprobante elegida, contra hoy: antes, no', () => {

@@ -1,4 +1,3 @@
-import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { ARCA_DOLLAR_CODE, ARCA_LOCAL_CURRENCY_CODE } from '../../modules/billing/currency-codes';
 import { EXPORT_PAYMENT_TERMS_SUGGESTIONS } from '../../modules/export/export.mappers';
@@ -53,6 +52,7 @@ import {
   activityStep,
   exportExchangeRateStep,
   exportPaymentDateStep,
+  exportRuleEnv,
   type ExportTables,
   loadExportTables,
 } from './steps/export';
@@ -97,6 +97,8 @@ function exportSteps(
   configuredActivity: number | undefined,
   loaders: ExportFlowLoaders,
 ): Array<WizardStep<ExportFlowState>> {
+  const ruleEnv = exportRuleEnv(configuredActivity);
+
   return [
     {
       name: 'cliente',
@@ -244,7 +246,7 @@ function exportSteps(
     exportExchangeRateStep<ExportFlowState>({
       dependsOn: ['tipo', 'moneda', 'misma-moneda'],
       exchangeRate: fieldLens('exchangeRate'),
-      rules: (state) => exportRuleScope(state, { configuredActivity, today: formatDateAsArcaDate(new Date()) }),
+      rules: (state) => exportRuleScope(state, ruleEnv),
       suggestion: (state) =>
         loaders.exchangeRate({
           currencyCode: state.currencyCode ?? DEFAULT_EXPORT_CURRENCY_CODE,
@@ -345,7 +347,7 @@ function exportSteps(
           exportType: requireStepValue(state.exportType, 'exportType'),
           incoterm: state.incoterm ? { code: state.incoterm, description: state.incotermName } : undefined,
           languages: loaders.languages,
-          rules: exportRuleScope(state, { configuredActivity, today: formatDateAsArcaDate(new Date()) }),
+          rules: exportRuleScope(state, ruleEnv),
         };
       },
       name: 'opcionales',
@@ -464,7 +466,7 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
     {
       confirm: emission.confirm,
       // Las reglas sobre la factura final: si una falla, vuelve a la pregunta que escribe el campo.
-      finalize: exportFinalize(() => ({ configuredActivity, today: formatDateAsArcaDate(new Date()) })),
+      finalize: exportFinalize(exportRuleEnv(configuredActivity)),
     },
   );
 

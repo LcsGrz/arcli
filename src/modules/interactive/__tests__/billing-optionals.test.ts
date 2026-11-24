@@ -35,7 +35,7 @@ function context(shortcut: string, overrides: Partial<BillingOptionalsContext> =
   return {
     concept: 'servicios',
     defaultIvaRate: '21',
-    rules: { context: { today: '20261118', voucherKind }, draft: (patch) => patch },
+    rules: { context: () => ({ today: '20261118', voucherKind }), draft: (patch) => patch },
     voucherKind,
     ...overrides,
   };

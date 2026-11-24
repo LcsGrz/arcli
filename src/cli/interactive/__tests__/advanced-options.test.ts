@@ -49,7 +49,7 @@ function context(shortcut: string, overrides: Record<string, unknown> = {}): Bil
     defaultIvaRate: '21' as const,
     // Las reglas con el comprobante solo: lo que escribe cada pregunta y lo demas como el CLI sin flags.
     rules: {
-      context: { today: formatDateAsArcaDate(new Date()), voucherKind },
+      context: () => ({ today: formatDateAsArcaDate(new Date()), voucherKind }),
       draft: (patch) => ({ concept: 'servicios', shortcut: voucherKind.shortcut, ...patch }),
     },
     voucherKind,

@@ -36,7 +36,7 @@ function context(overrides: Partial<ExportOptionalsContext> = {}): ExportOptiona
     exportType: 2,
     languageNames: new Map([[2, 'Inglés']]),
     languages: async () => [],
-    rules: { context: { today: '20261118' }, draft: (patch) => patch },
+    rules: { context: () => ({ today: '20261118' }), draft: (patch) => patch },
     ...overrides,
   };
 }

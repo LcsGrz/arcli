@@ -21,7 +21,7 @@ import { runNoteFlow } from '../note.flow';
 import { runRepeatFlow } from '../repeat.flow';
 import { createInteractiveSession } from '../session';
 
-import { createScript, rejecting, type ScriptedAnswer, singleExportItem } from './script';
+import { createScript, KEEP_EXPORT_ITEMS, rejecting, type ScriptedAnswer, singleExportItem } from './script';
 
 /**
  * Caracterizacion del reloj en el asistente (REV-48, tanda 2): una sesion real, abierta antes de la medianoche de
@@ -103,6 +103,20 @@ const INVOICE_E: Steps = [
   ...singleExportItem('100', 'Consultoría'),
   [/Forma de pago/, 'Transferencia Internacional'],
 ];
+/** La ventana de A, B y C de servicios del 11/11: el 10/11, la última válida era el 20/11 y la primera, el 31/10. */
+const NEW_WINDOW = rejecting('21/11/2026', ['31/10/2026', /fuera de rango/], ['22/11/2026', /fuera de rango/]);
+/** La de la E del 11/11: el 10/11, iba del 05/11 al 15/11. */
+const NEW_EXPORT_WINDOW = rejecting('16/11/2026', ['05/11/2026', /error 1500/], ['17/11/2026', /error 1500/]);
+const FCE: Steps = [
+  [/comprobante/, 'Factura de crédito electrónica A'],
+  [/A quién le facturás/, 'Con CUIT'],
+  [/CUIT del receptor/, String(CLIENT_CUIT)],
+  [/Condición frente al IVA/, 'Responsable inscripto'],
+  [/Qué estás facturando/, 'Servicios'],
+  [/Monto total/, '5000000'],
+  [/^CBU/, '0110599520000012345678'],
+  [/Alias del CBU/, ''],
+];
 const PERIOD_NOTE: Steps = [
   [/Sobre qué comprobante/, 'Facturas'],
   [/Qué factura\?/, 'Factura C'],
@@ -174,26 +188,17 @@ describe('sesión abierta antes de la medianoche', () => {
     expect(wsfeRequests()).toEqual([expect.objectContaining({ CbteFch: '20261121' })]);
   });
 
-  // Con los opcionales ya abiertos conviven los dos dias: las reglas del flujo se quedan con el de cuando se abrieron (el
-  // 10/11 acepta hasta el 20/11) y el formato de la fecha se valida con el reloj del momento (desde el 01/11).
-  it('si la medianoche pasa con los opcionales abiertos, valen las dos ventanas', async () => {
+  // ARQ-19: las reglas leen hoy en cada validación, no al abrir los opcionales.
+  it('si la medianoche pasa con los opcionales abiertos, vale el día nuevo', async () => {
     const session = createInteractiveSession({});
 
     await run(
       () => runInvoiceFlow(session),
-      [
-        ...INVOICE_C,
-        [/Agregamos/, ['Fecha del comprobante']],
-        [
-          /^Fecha del comprobante/,
-          rejecting('20/11/2026', ['31/10/2026', /fuera de rango/], ['21/11/2026', /fuera de rango/]),
-        ],
-        EMIT,
-      ],
+      [...INVOICE_C, [/Agregamos/, ['Fecha del comprobante']], [/^Fecha del comprobante/, NEW_WINDOW], EMIT],
       /^Fecha del comprobante/,
     );
 
-    expect(wsfeRequests()).toEqual([expect.objectContaining({ CbteFch: '20261120' })]);
+    expect(wsfeRequests()).toEqual([expect.objectContaining({ CbteFch: '20261121' })]);
   });
 
   it('una fecha relativa se resuelve cuando se responde', async () => {
@@ -214,14 +219,7 @@ describe('sesión abierta antes de la medianoche', () => {
     await run(
       () => runInvoiceFlow(session),
       [
-        [/comprobante/, 'Factura de crédito electrónica A'],
-        [/A quién le facturás/, 'Con CUIT'],
-        [/CUIT del receptor/, String(CLIENT_CUIT)],
-        [/Condición frente al IVA/, 'Responsable inscripto'],
-        [/Qué estás facturando/, 'Servicios'],
-        [/Monto total/, '5000000'],
-        [/^CBU/, '0110599520000012345678'],
-        [/Alias del CBU/, ''],
+        ...FCE,
         [/Agregamos/, ['Vencimiento']],
         [/^Vencimiento/, rejecting('11/11/2026', ['10/11/2026', /no puede ser anterior/])],
         EMIT,
@@ -347,6 +345,178 @@ describe('sesión abierta antes de la medianoche: exportación', () => {
     );
 
     expect(wsfexRequests()).toEqual([expect.objectContaining({ Fecha_cbte: '20261116', Fecha_pago: '20261130' })]);
+  });
+});
+
+describe('la medianoche pasa con los opcionales abiertos: todo usa el día nuevo (ARQ-19)', () => {
+  const NOTE_DATA: Steps = [
+    [/A quién va la nota/, 'Consumidor final'],
+    [/Qué concepto ajusta la nota/, 'Servicios'],
+    [/Monto de la nota de crédito/, '100'],
+  ];
+  const NOTE_E: Steps = [
+    [/Sobre qué comprobante/, 'Facturas'],
+    [/Qué factura\?/, 'Factura de exportación E'],
+    [/Punto de venta de la factura E/, '3'],
+    [/Número de la factura E/, '1'],
+    ...KEEP_EXPORT_ITEMS,
+  ];
+  const REPEAT_C: Steps = [
+    [/Qué comprobante querés repetir/, 'Factura C'],
+    [/Cuál repetimos/, '00003-00000041'],
+    [/Mismo monto/, 'Sí'],
+    [/Período del servicio/, 'Un solo día'],
+  ];
+  const REPEAT_E: Steps = [
+    [/Qué comprobante querés repetir/, 'Factura de exportación E'],
+    [/Cuál repetimos/, '00003-00000001'],
+    ...KEEP_EXPORT_ITEMS,
+    [/Fecha de pago/, ''],
+  ];
+  const withDate = (steps: Steps, date: ScriptedAnswer): Steps => [
+    ...steps,
+    [/Agregamos/, ['Fecha del comprobante']],
+    [/^Fecha del comprobante/, date],
+    EMIT,
+  ];
+  const atDate = /^Fecha del comprobante/;
+
+  it('recibo', async () => {
+    const steps: Steps = [
+      [/Qué recibo/, 'Recibo C'],
+      [/A quién le hacés el recibo/, 'Consumidor final'],
+      [/Qué estás cobrando/, 'Servicios'],
+      [/Monto total/, '1000'],
+    ];
+
+    await run(() => runInvoiceFlow(createInteractiveSession({}), true), withDate(steps, NEW_WINDOW), atDate);
+
+    expect(wsfeRequests()).toEqual([expect.objectContaining({ CbteFch: '20261121' })]);
+  });
+
+  it('FCE: la fecha', async () => {
+    await run(
+      () => runInvoiceFlow(createInteractiveSession({})),
+      [
+        ...withDate(FCE, rejecting('12/11/2026', ['05/11/2026', /fuera de rango/], ['13/11/2026', /fuera de rango/])),
+        [/Guardamos el CBU/, 'No'],
+      ],
+      atDate,
+    );
+
+    expect(wsfeRequests()).toEqual([expect.objectContaining({ CbteFch: '20261112' })]);
+  });
+
+  it('FCE: el vencimiento', async () => {
+    await run(
+      () => runInvoiceFlow(createInteractiveSession({})),
+      [
+        ...FCE,
+        [/Agregamos/, ['Vencimiento']],
+        [/^Vencimiento/, rejecting('11/11/2026', ['10/11/2026', /no puede ser anterior/])],
+        EMIT,
+        [/Guardamos el CBU/, 'No'],
+      ],
+      /^Vencimiento/,
+    );
+
+    expect(wsfeRequests()).toEqual([expect.objectContaining({ FchVtoPago: '20261111' })]);
+  });
+
+  it('nota', async () => {
+    await run(
+      () => runNoteFlow(createInteractiveSession({}), 'credito'),
+      withDate([...PERIOD_NOTE, [/Período hasta/, '10/11/2026'], ...NOTE_DATA], NEW_WINDOW),
+      atDate,
+    );
+
+    expect(wsfeRequests()).toEqual([expect.objectContaining({ CbteFch: '20261121' })]);
+  });
+
+  it('Repetir', async () => {
+    await run(() => runRepeatFlow(createInteractiveSession({})), withDate(REPEAT_C, NEW_WINDOW), atDate);
+
+    expect(wsfeRequests()).toEqual([expect.objectContaining({ CbteFch: '20261121' })]);
+  });
+
+  it('E', async () => {
+    await run(
+      () => runInvoiceFlow(createInteractiveSession({})),
+      withDate([...INVOICE_E, [/Fecha de pago/, '']], NEW_EXPORT_WINDOW),
+      atDate,
+    );
+
+    expect(wsfexRequests()).toEqual([expect.objectContaining({ Fecha_cbte: '20261116' })]);
+  });
+
+  it('E: la fecha de pago, antes de los opcionales', async () => {
+    await run(
+      () => runInvoiceFlow(createInteractiveSession({})),
+      [
+        ...INVOICE_E,
+        [/Fecha de pago/, rejecting('30/11/2026', ['05/11/2026', /06\/11\/2026/])],
+        [/Agregamos/, []],
+        EMIT,
+      ],
+      /Fecha de pago/,
+    );
+
+    expect(wsfexRequests()).toEqual([expect.objectContaining({ Fecha_cbte: '20261111', Fecha_pago: '20261130' })]);
+  });
+
+  it('nota E', async () => {
+    await run(() => runNoteFlow(createInteractiveSession({}), 'credito'), withDate(NOTE_E, NEW_EXPORT_WINDOW), atDate);
+
+    expect(wsfexRequests()).toEqual([expect.objectContaining({ Fecha_cbte: '20261116' })]);
+  });
+
+  it('Repetir E', async () => {
+    await run(() => runRepeatFlow(createInteractiveSession({})), withDate(REPEAT_E, NEW_EXPORT_WINDOW), atDate);
+
+    expect(wsfexRequests()).toEqual([expect.objectContaining({ Fecha_cbte: '20261116' })]);
+  });
+
+  describe('lo respondido antes de la medianoche que deja de valer se avisa y vuelve a su pregunta', () => {
+    it('A, B y C', async () => {
+      await run(
+        () => runInvoiceFlow(createInteractiveSession({})),
+        [
+          ...INVOICE_C,
+          [/Agregamos/, ['Fecha del comprobante', 'Vencimiento']],
+          [/^Fecha del comprobante/, '31/10/2026'],
+          [/^Vencimiento/, '30/11/2026'],
+          [/^Fecha del comprobante/, rejecting('01/11/2026', ['31/10/2026', /fuera de rango/])],
+          [/^Vencimiento/, '30/11/2026'],
+          EMIT,
+        ],
+        /^Vencimiento/,
+      );
+
+      expect(stripAnsi(profile.stdout + profile.stderr)).toMatch(/La fecha 31\/10\/2026 está fuera de rango/);
+      expect(wsfeRequests()).toEqual([expect.objectContaining({ CbteFch: '20261101' })]);
+    });
+
+    it('E', async () => {
+      await run(
+        () => runInvoiceFlow(createInteractiveSession({})),
+        [
+          ...INVOICE_E,
+          [/Fecha de pago/, ''],
+          [/Agregamos/, ['Fecha del comprobante', 'Observaciones']],
+          [/^Fecha del comprobante/, '05/11/2026'],
+          [/^Observaciones \(/, ''],
+          [/^Observaciones comerciales/, ''],
+          [/^Fecha del comprobante/, rejecting('06/11/2026', ['05/11/2026', /error 1500/])],
+          [/^Observaciones \(/, ''],
+          [/^Observaciones comerciales/, ''],
+          EMIT,
+        ],
+        /^Observaciones \(/,
+      );
+
+      expect(stripAnsi(profile.stdout + profile.stderr)).toMatch(/error\s+1500/);
+      expect(wsfexRequests()).toEqual([expect.objectContaining({ Fecha_cbte: '20261106' })]);
+    });
   });
 });
 

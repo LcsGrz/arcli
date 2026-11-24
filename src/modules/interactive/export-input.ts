@@ -70,10 +70,10 @@ export function buildExportInput(state: ExportFlowState, env: ExportInputEnv): E
 export type ExportRuleEnv = ExportInputEnv & { readonly today: string };
 
 /** Las reglas de la E desde una pregunta de la factura: la entrada con lo respondido y hoy. */
-export function exportRuleScope(state: ExportFlowState, env: ExportRuleEnv): ExportRuleScope {
+export function exportRuleScope(state: ExportFlowState, env: () => ExportRuleEnv): ExportRuleScope {
   return {
-    context: { today: env.today },
-    draft: (patch) => ({ ...buildExportInput(state, env), ...patch }),
+    context: () => ({ today: env().today }),
+    draft: (patch) => ({ ...buildExportInput(state, env()), ...patch }),
   };
 }
 

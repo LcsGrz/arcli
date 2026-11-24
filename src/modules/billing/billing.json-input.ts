@@ -124,6 +124,12 @@ export const BILLING_JSON_KEY_BY_INTERNAL_KEY: Readonly<Record<string, BillingJs
     .map(([jsonKey, internalKey]) => [internalKey, jsonKey as BillingJsonKey]),
 );
 
+/** Lo mismo adentro de un objeto del JSON, por el campo interno que lo contiene; las que no estan se llaman igual. */
+export const BILLING_JSON_NESTED_KEY_BY_INTERNAL_KEY: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  associatedVoucher: { shortcut: 'atajo' },
+  ivaRateAmounts: { amount: 'monto', rate: 'tasa' },
+};
+
 /** Claves validas en cada objeto del JSON; las de un array (`alicuotas`) van sin indice. */
 const KEYS_BY_PARENT: Readonly<Record<string, readonly string[]>> = {
   '': Object.keys(billingJsonInputSchema.shape),
@@ -218,8 +224,11 @@ function formatPath(path: readonly PropertyKey[]): string {
     .join('');
 }
 
-function describeExpected(expected: string): string {
+/** Como se nombra en un error el tipo que espera un esquema. */
+export function describeExpected(expected: string): string {
   switch (expected) {
+    case 'int':
+      return 'un entero';
     case 'number':
       return 'un número';
     case 'string':

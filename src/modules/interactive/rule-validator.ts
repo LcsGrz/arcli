@@ -6,10 +6,11 @@ import type { WizardFinalize } from './wizard';
 /**
  * Las reglas de la entrada vistas desde una pregunta: `draft` arma la entrada del CLI con lo respondido hasta ahi mas
  * lo que escribe la pregunta (`patch`), y `context` es el de las reglas (hoy, el comprobante, el CUIT emisor…). Lo que
- * todavia no se pregunto queda como en el CLI sin el flag.
+ * todavia no se pregunto queda como en el CLI sin el flag. `context` se pide en cada validacion: una lista que queda
+ * abierta al pasar la medianoche usa el dia nuevo (ARQ-19).
  */
 export interface RuleScope<I, C> {
-  readonly context: C;
+  readonly context: () => C;
   readonly draft: (patch: Partial<I>) => Partial<I>;
 }
 
@@ -63,7 +64,7 @@ export function scopedRuleValidator<I, C>(
   validate?: (value: string) => string | true,
 ): (value: string) => string | true {
   return ruleValidator<RuleScope<I, C>, I, C>({
-    context: (current) => current.context,
+    context: (current) => current.context(),
     draft: (current, candidate) => current.draft(patch(candidate)),
     field,
     rules,

@@ -86,6 +86,9 @@ function validateAssociated(
   }
 }
 
+/** Lo que las reglas de la nota E toman de la sesion, con hoy leido cada vez que se pide (ARQ-19). */
+const noteRuleEnv = (kind: 'credito' | 'debito') => () => ({ kind, today: formatDateAsArcaDate(new Date()) });
+
 /**
  * Pasos de la nota E sobre `associatedKind` (la factura E u otra nota E, elegido en el selector de comprobantes): el
  * comprobante que ajusta (se busca en ARCA y de ahi salen cliente, destino y moneda), los items (arrancan con los del
@@ -99,6 +102,7 @@ export function exportNoteSteps(
   pointOfSale: number,
 ): Array<WizardStep<ExportNoteState>> {
   const voucherKind = kind === 'credito' ? EXPORT_CREDIT_NOTE_KIND : EXPORT_DEBIT_NOTE_KIND;
+  const ruleEnv = noteRuleEnv(kind);
 
   return withFinalizeNotice([
     {
@@ -171,7 +175,7 @@ export function exportNoteSteps(
     exportExchangeRateStep<ExportNoteState>({
       dependsOn: ['factura'],
       exchangeRate: fieldLens('exchangeRate'),
-      rules: (state) => exportNoteRuleScope(state, { kind, today: formatDateAsArcaDate(new Date()) }),
+      rules: (state) => exportNoteRuleScope(state, ruleEnv),
       suggestion: async (state) => {
         const invoice = requireStepValue(state.invoice, 'invoice');
 
@@ -231,7 +235,7 @@ export function exportNoteSteps(
           incoterm: invoice.incoterm ? { code: invoice.incoterm, description: invoice.incotermDescription } : undefined,
           languages: () => gateway.getLanguages(),
           // Las mismas reglas que con flags: por ejemplo, la fecha no antes de la del asociado.
-          rules: exportNoteRuleScope(state, { kind, today: formatDateAsArcaDate(new Date()) }),
+          rules: exportNoteRuleScope(state, ruleEnv),
         };
       },
       name: 'opcionales',
@@ -265,7 +269,7 @@ export async function runExportNoteFlow(
       emitExportVoucher(session, gateway, buildExportNoteInput(answered, { kind })),
     ).confirm,
     // Las reglas sobre la nota final: si una falla, vuelve a la pregunta que escribe el campo.
-    finalize: exportNoteFinalize(() => ({ kind, today: formatDateAsArcaDate(new Date()) })),
+    finalize: exportNoteFinalize(noteRuleEnv(kind)),
   });
 
   return state ? undefined : BACK;
