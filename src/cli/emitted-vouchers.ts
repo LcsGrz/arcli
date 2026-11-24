@@ -20,6 +20,8 @@ export function listEmittedVouchers(results: readonly BillingExecutionResult[]):
 }
 
 const emittedInThisRun: EmittedVoucher[] = [];
+/** Emitidos con el PDF elegido que se quedaron sin el porque no se pudo preguntar o mostrar. */
+const withoutPdf: EmittedVoucher[] = [];
 /** Cuantos de los primeros ya nombro un aviso en stderr. */
 let announced = 0;
 
@@ -31,6 +33,7 @@ export function markEmissionsAnnounced(): void {
 /** @internal Para los tests: el registro es del proceso. */
 export function resetEmittedInThisRun(): void {
   emittedInThisRun.length = 0;
+  withoutPdf.length = 0;
   announced = 0;
 }
 
@@ -46,18 +49,26 @@ export function recordEmission(result: BillingExecutionResult): BillingExecution
 
 /** La E: su numero va en el payload, porque lo elige quien emite. */
 export function recordExportEmission(result: ExportExecutionResult): ExportExecutionResult {
-  const { dryRun, environment, payload, response, voucherKind } = result;
-
-  if (!dryRun && response.cae) {
-    emittedInThisRun.push({
-      environment,
-      number: payload.Cbte_nro,
-      pointOfSale: payload.Punto_vta,
-      shortcut: voucherKind.shortcut,
-    });
-  }
+  emittedInThisRun.push(...listEmittedExport(result));
 
   return result;
+}
+
+function listEmittedExport(result: ExportExecutionResult): EmittedVoucher[] {
+  const { dryRun, environment, payload, response, voucherKind } = result;
+
+  return !dryRun && response.cae
+    ? [{ environment, number: payload.Cbte_nro, pointOfSale: payload.Punto_vta, shortcut: voucherKind.shortcut }]
+    : [];
+}
+
+/** El PDF que se eligio al emitir no se genero: lo dice el aviso, porque no se puede generar despues. */
+export function recordMissingPdf(result: BillingExecutionResult): void {
+  withoutPdf.push(...listEmittedVouchers([result]));
+}
+
+export function recordMissingExportPdf(result: ExportExecutionResult): void {
+  withoutPdf.push(...listEmittedExport(result));
 }
 
 /**
@@ -65,10 +76,17 @@ export function recordExportEmission(result: ExportExecutionResult): ExportExecu
  * `no-avisado`, sin lo que ya se dijo en stderr: para otro aviso que va ahi mismo.
  */
 export function describeEmittedInThisRun(scope: 'no-avisado' | 'todo' = 'todo'): string[] {
-  return describeEmittedVouchers(scope === 'todo' ? emittedInThisRun : emittedInThisRun.slice(announced));
+  return [
+    ...describeEmittedVouchers(scope === 'todo' ? emittedInThisRun : emittedInThisRun.slice(announced)),
+    ...groupVouchers(withoutPdf).map((group) => `No se generó el PDF: ${formatGroupNumbers(group)}.`),
+  ];
 }
 
 export function describeEmittedVouchers(vouchers: readonly EmittedVoucher[]): string[] {
+  return groupVouchers(vouchers).map(formatEmittedGroup);
+}
+
+function groupVouchers(vouchers: readonly EmittedVoucher[]): EmittedVoucher[][] {
   const groups = new Map<string, EmittedVoucher[]>();
 
   for (const voucher of vouchers) {
@@ -77,7 +95,7 @@ export function describeEmittedVouchers(vouchers: readonly EmittedVoucher[]): st
     groups.set(key, [...(groups.get(key) ?? []), voucher]);
   }
 
-  return [...groups.values()].map(formatEmittedGroup);
+  return [...groups.values()];
 }
 
 /** Numeros ordenados, con los seguidos juntos: `del 42 al 61`, `42 y 43` o `7 y del 10 al 14`. */
@@ -101,6 +119,11 @@ function formatNumberRuns(numbers: readonly number[]): string {
   return labels.length > 1 ? `${labels.slice(0, -1).join(', ')} y ${labels.at(-1)}` : labels.join('');
 }
 
+/** `fc del punto de venta 3, 42 y 43`. */
+function formatGroupNumbers(group: readonly EmittedVoucher[]): string {
+  return `${group[0].shortcut} del punto de venta ${group[0].pointOfSale}, ${formatNumberRuns(group.map(({ number }) => number))}`;
+}
+
 /** Que se emitio en un punto de venta y con que verlo: con mas de los que lista `ultimos`, de a uno. */
 function formatEmittedGroup(group: readonly EmittedVoucher[]): string {
   const { environment, pointOfSale, shortcut } = group[0];
@@ -115,5 +138,5 @@ function formatEmittedGroup(group: readonly EmittedVoucher[]): string {
 
   const [emitted, verify] = numbers.length === 1 ? ['Se emitió', 'Verificalo'] : ['Se emitieron', 'Verificalos'];
 
-  return `${emitted}: ${shortcut} del punto de venta ${pointOfSale}, ${formatNumberRuns(numbers)}. ${verify} con \`${command}\`.`;
+  return `${emitted}: ${formatGroupNumbers(group)}. ${verify} con \`${command}\`.`;
 }

@@ -6,8 +6,10 @@ import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-
 import type { ArcliConfig } from '../../../modules/config/config.schemas';
 import { BACK } from '../../../modules/interactive/wizard';
 import { writeTerminalOutput } from '../../../ui';
+import { outputState } from '../../closed-output';
 import { writePdfOutcomes } from '../../commands/billing.command.output';
 import { attachPdfs } from '../../commands/billing.command.pdf';
+import { describeEmittedInThisRun, resetEmittedInThisRun } from '../../emitted-vouchers';
 import { offerPdf } from '../pdf.flow';
 import { askText, confirm } from '../prompts';
 
@@ -108,6 +110,42 @@ describe('offerPdf', () => {
     await expect(offerPdf(CONFIG, input, result)).resolves.toBeUndefined();
     expect(attachPdfsMock).not.toHaveBeenCalled();
     expect(vi.mocked(writeTerminalOutput)).toHaveBeenCalledWith(expect.stringContaining('ya quedó emitido'));
+  });
+
+  it.each([
+    ['cortado por la salida rota', true, ['No se generó el PDF']],
+    ['cancelado con Ctrl+C', false, []],
+  ])('%s: el aviso de la salida dice que no se generó solo si nadie lo vio (ERR-18)', async (_name, lost, expected) => {
+    confirmMock.mockResolvedValueOnce(true);
+    askTextMock.mockRejectedValueOnce(Object.assign(new Error('x'), { name: 'ExitPromptError' }));
+
+    if (lost) {
+      outputState.failures.set('stdout', new Error('write'));
+    }
+
+    try {
+      await offerPdf(CONFIG, input, { ...result, voucherNumber: 42 });
+      expect(describeEmittedInThisRun()).toEqual(expected.map((text) => expect.stringContaining(text)));
+    } finally {
+      outputState.failures.clear();
+      resetEmittedInThisRun();
+    }
+  });
+
+  it.each([
+    [{ error: { code: 'PDF_PLUGIN_MISSING', message: 'x' } }, 1],
+    [{ path: '/x.pdf' }, 0],
+  ])('con el resultado %j quedan %i sin PDF (ERR-18)', async (pdf, missing) => {
+    confirmMock.mockResolvedValueOnce(true);
+    askTextMock.mockResolvedValue('');
+    attachPdfsMock.mockResolvedValueOnce([{ ...result, pdf }] as never);
+
+    try {
+      await offerPdf(CONFIG, input, { ...result, voucherNumber: 42 });
+      expect(describeEmittedInThisRun()).toHaveLength(missing);
+    } finally {
+      resetEmittedInThisRun();
+    }
   });
 
   it('stops when the user does not want the PDF', async () => {

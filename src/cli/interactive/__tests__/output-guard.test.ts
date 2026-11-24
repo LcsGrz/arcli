@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { stripAnsi } from '../../../ui';
 import { outputState } from '../../closed-output';
-import { assertOutputVisible, isAssistantRunning, withOutputGuard } from '../output-guard';
+import { assertOutputVisible, withOutputGuard } from '../output-guard';
 import { isPromptCancellation } from '../prompts';
 import { showAssistantError } from '../show-assistant-error';
 
@@ -74,7 +74,6 @@ describe('assertOutputVisible', () => {
     outputState.failures.set('stdout', streamError('ENOSPC'));
     await withOutputGuard(() => Promise.reject(new Error('x'))).catch(() => undefined);
 
-    expect(isAssistantRunning()).toBe(false);
     await expect(assertOutputVisible()).resolves.toBeUndefined();
   });
 });

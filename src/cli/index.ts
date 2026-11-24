@@ -10,6 +10,7 @@ import { settleOutput, watchOutputs } from './closed-output';
 import { isInteractiveTerminal } from './commands/interactive.command';
 import { isCommanderExit, reportCliError, reportOutputFailure, shouldPrintErrorAsJson } from './error-output';
 import { normalizeHelpArgv } from './help-argv';
+import { wasAssistantOpened } from './interactive/output-guard';
 import { createProgram } from './program';
 import { CLI_VERSION } from './version';
 
@@ -22,7 +23,9 @@ let errorsAsJson: boolean | undefined;
 let commandError: unknown;
 let outputFailureReported = false;
 // Se decide recien al fallar: puede leer la config.
-const shouldPrintErrorsAsJson = (): boolean => (errorsAsJson ??= shouldPrintErrorAsJson(process.argv));
+// El asistente no tiene salida JSON: una vez abierto, `json=true` de la config no cuenta.
+const shouldPrintErrorsAsJson = (): boolean =>
+  (errorsAsJson ??= shouldPrintErrorAsJson(process.argv, wasAssistantOpened() ? () => false : undefined));
 const program = createProgram();
 // El autocompletado corre en cada Tab: recibe las palabras tal cual y no busca actualizaciones.
 const isCompletion = process.argv[2] === COMPLETE_COMMAND;

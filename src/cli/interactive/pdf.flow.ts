@@ -12,8 +12,10 @@ import { BACK, type Back } from '../../modules/interactive/wizard';
 import { canHavePdf, resolvePdfDecision } from '../../modules/pdf/pdf-decision';
 import { listMissingIssuerKeys } from '../../modules/pdf/pdf-issuer';
 import { noticePanel, writeTerminalOutput } from '../../ui';
+import { isOutputLost } from '../closed-output';
 import { writePdfOutcomes } from '../commands/billing.command.output';
 import { attachPdfs } from '../commands/billing.command.pdf';
+import { recordMissingPdf } from '../emitted-vouchers';
 
 import { askText, chooseOrTypeStep, confirm, isPromptCancellation } from './prompts';
 import { SKIP_HINT } from './text-hints';
@@ -179,9 +181,18 @@ export async function offerPdf(
     });
 
     writePdfOutcomes([result], withPdf);
+
+    if (withPdf[0]?.pdf && 'error' in withPdf[0].pdf) {
+      recordMissingPdf(result);
+    }
   } catch (error) {
     if (!isPromptCancellation(error)) {
       throw error;
+    }
+
+    // Cortado por la salida rota, no por la persona: este aviso no se ve.
+    if (isOutputLost('stdout')) {
+      recordMissingPdf(result);
     }
 
     writeTerminalOutput(noticePanel(PDF_NOT_GENERATED, 'muted'));

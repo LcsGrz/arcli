@@ -10,7 +10,7 @@ import { blockPager } from './block-pager';
 import { filterList, type FilterListRow } from './filter-list';
 import { listSelect, type ListSelectState } from './list-select';
 import { multiSelect } from './multi-select';
-import { assertOutputVisible, isAssistantRunning } from './output-guard';
+import { openPrompt } from './output-guard';
 import { rowActionsList } from './row-actions-list';
 import { SKIP_HINT, SKIP_ROW } from './text-hints';
 
@@ -116,11 +116,7 @@ export async function chooseOne<T>(
   };
 
   if (escapeValue === undefined) {
-    if (isAssistantRunning()) {
-      await assertOutputVisible();
-    }
-
-    return listSelect<T, T>(config);
+    return openPrompt((signal) => (signal ? listSelect<T, T>(config, { signal }) : listSelect<T, T>(config)));
   }
 
   const result = await runStepPrompt(
@@ -152,19 +148,17 @@ export async function askText(
     readonly validate?: (value: string) => string | true;
   } = {},
 ): Promise<string> {
-  if (isAssistantRunning()) {
-    await assertOutputVisible();
-  }
-
-  const answer = await input(
-    {
-      default: options.defaultValue,
-      message: withHint(message, options.hint),
-      theme: TEXT_THEME,
-      validate: options.validate,
-    },
-    // Con aclaracion, la linea de la respuesta se escribe aparte, sin ella.
-    options.hint ? { clearPromptOnDone: true } : {},
+  const answer = await openPrompt((signal) =>
+    input(
+      {
+        default: options.defaultValue,
+        message: withHint(message, options.hint),
+        theme: TEXT_THEME,
+        validate: options.validate,
+      },
+      // Con aclaracion, la linea de la respuesta se escribe aparte, sin ella.
+      { ...(options.hint ? { clearPromptOnDone: true } : {}), ...(signal ? { signal } : {}) },
+    ),
   );
 
   if (options.hint) {
@@ -233,6 +227,8 @@ function writeAnsweredLine(message: string, answer: string): void {
   writeTerminalRaw(`${DONE_PREFIX} ${bold(message)} ${colorize(answer, 'info')}\n`);
 }
 
+type StepPromptResult<T> = { readonly aborted: true } | { readonly answer: Back | T };
+
 /**
  * Corre un prompt de paso que se cierra con Esc (vuelve al paso anterior) o cuando se aborta `signal`.
  * El prompt se borra al cerrarse, asi una pregunta abandonada no queda en pantalla; si se respondio,
@@ -243,12 +239,18 @@ async function runStepPrompt<T>(
   /** Sin linea (`undefined`), el prompt se borra y no deja rastro, como una lista que solo se mira. */
   answeredLine: (answer: T) => { readonly answer: string; readonly message: string } | undefined,
   signal?: AbortSignal,
-): Promise<{ readonly aborted: true } | { readonly answer: Back | T }> {
+): Promise<StepPromptResult<T>> {
   // Antes de escuchar el teclado: con algo escuchando y sin pregunta que lo cierre, el proceso no termina.
-  if (isAssistantRunning()) {
-    await assertOutputVisible();
-  }
+  return openPrompt((lost) =>
+    listenAndRun(run, answeredLine, signal && lost ? AbortSignal.any([signal, lost]) : (lost ?? signal)),
+  );
+}
 
+async function listenAndRun<T>(
+  run: (context: { clearPromptOnDone: boolean; signal: AbortSignal }) => Promise<T>,
+  answeredLine: (answer: T) => { readonly answer: string; readonly message: string } | undefined,
+  signal?: AbortSignal,
+): Promise<StepPromptResult<T>> {
   const controller = new AbortController();
   const onKeypress = (_text: string, key?: { readonly name?: string }) => {
     if (key?.name === 'escape') {

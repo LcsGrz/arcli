@@ -980,6 +980,38 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
     expect(printed()).not.toContain('No se emitió nada');
   });
 
+  const cancelled = Object.assign(new Error('x'), { name: 'ExitPromptError' });
+
+  it.each([
+    ['cortado por la salida rota', true, cancelled, 1],
+    ['cancelado con Ctrl+C', false, cancelled, 0],
+    ['que falló', false, { error: { code: 'PDF_PLUGIN_MISSING', message: 'x' } }, 1],
+    ['generado', false, { path: '/x.pdf' }, 0],
+  ])('un PDF %s: lo que dice el aviso de la salida (ERR-18)', async (_name, lost, outcome, missing) => {
+    vi.mocked(attachExportPdf).mockImplementationOnce(async (result) => {
+      if (outcome instanceof Error) {
+        throw outcome;
+      }
+
+      return { ...result, pdf: outcome } as never;
+    });
+    script = servicesUntilConfirmation('Sí, emitir ahora');
+
+    if (lost) {
+      outputState.failures.set('stdout', new Error('write'));
+    }
+
+    try {
+      await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+      expect(describeEmittedInThisRun().filter((line) => line.startsWith('No se generó el PDF: fe'))).toHaveLength(
+        missing,
+      );
+    } finally {
+      outputState.failures.clear();
+      resetEmittedInThisRun();
+    }
+  });
+
   it('otro error del PDF despues de emitir no se tapa', async () => {
     vi.mocked(attachExportPdf).mockRejectedValueOnce(new Error('disco lleno'));
     script = servicesUntilConfirmation('Sí, emitir ahora');
