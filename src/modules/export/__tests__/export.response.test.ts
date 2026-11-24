@@ -102,6 +102,14 @@ describe('mapExportResponse', () => {
     expect(summary.suggestions.join(' ')).toMatch(/--actividad/);
   });
 
+  it('un rechazo por la actividad no dice que está emitido (ERR-20)', () => {
+    const { suggestions } = mapExportResponse(
+      authorization({ Cae: '', Motivos_Obs: 'La actividad no es valida', Resultado: 'R' }),
+    );
+
+    expect(suggestions).toEqual([expect.stringContaining('--actividad')]);
+  });
+
   it('un comprobante observado conserva el CAE', () => {
     const summary = mapExportResponse(authorization({ Motivos_Obs: 'Observacion informativa' }));
 
