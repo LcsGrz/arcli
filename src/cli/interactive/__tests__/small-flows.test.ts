@@ -201,7 +201,7 @@ describe('datos de la config en el menú', () => {
   });
 
   it('sin valor dice "sin configurar"; las rutas van enmascaradas y las opciones con su nombre', () => {
-    expect(describeConfigValue(getConfigField('aliasCbu'), config)).toBe('sin configurar');
+    expect(describeConfigValue(getConfigField('cuenta'), config)).toBe('sin configurar');
     expect(describeConfigValue(getConfigField('cert.testing'), config)).not.toContain('/Users/ana');
     expect(describeConfigValue(getConfigField('condicionVenta'), config)).toBe('Tarjeta de Débito');
     expect(describeConfigValue(getConfigField('consultarPadron'), config)).toMatch(/^no$/i);

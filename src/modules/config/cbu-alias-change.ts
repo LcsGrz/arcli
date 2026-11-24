@@ -8,6 +8,17 @@ interface SavedCbu {
   readonly cbu?: unknown;
 }
 
+/** El CBU y el alias guardados, como se muestran en `arcli config` y en el asistente. */
+export function formatSavedAccount({
+  aliasCbu,
+  cbu,
+}: {
+  readonly aliasCbu?: string;
+  readonly cbu?: string;
+}): string | undefined {
+  return aliasCbu ? `${cbu ?? 'sin CBU'} (${aliasCbu})` : cbu;
+}
+
 export interface CbuAliasChange {
   /** El alias guardado es de otro CBU: se borra en el mismo cambio. */
   readonly removesAlias: boolean;
@@ -31,7 +42,7 @@ export function cbuAliasChange({ aliasCbu, cbu: savedCbu }: SavedCbu, cbu: strin
 
     return {
       removesAlias: false,
-      warning: `El alias guardado (${aliasCbu}) se va a usar con este CBU. Si es de otro, cambialo con \`arcli config establecer aliasCbu <alias>\` o borralo con \`arcli config eliminar aliasCbu\`.`,
+      warning: `El alias guardado (${aliasCbu}) se va a usar con este CBU. Si es de otro, guardá la cuenta de nuevo con \`arcli config establecer cuenta <CBU> [ALIAS]\`: sin alias, borra el guardado.`,
     };
   }
 
@@ -39,6 +50,25 @@ export function cbuAliasChange({ aliasCbu, cbu: savedCbu }: SavedCbu, cbu: strin
     ? undefined
     : {
         removesAlias: true,
-        warning: `Se borró el alias ${aliasCbu} de la config, que era del CBU anterior. Si el nuevo tiene alias, cargalo con \`arcli config establecer aliasCbu <alias>\`.`,
+        warning: `Se borró el alias ${aliasCbu} de la config, que era del CBU anterior. Si el nuevo tiene alias, guardá los dos con \`arcli config establecer cuenta <CBU> <ALIAS>\`.`,
       };
+}
+
+/** Un alias que no se puede leer se borra igual, sin nombrarlo. */
+function aliasLabel(aliasCbu: unknown): string {
+  return typeof aliasCbu === 'string' && aliasCbu.trim() ? `alias ${aliasCbu}` : 'alias';
+}
+
+/** El aviso de `config establecer cuenta <CBU>`: sin alias, el guardado se borra aunque el CBU sea el mismo. */
+export function accountAliasRemovedWarning({ aliasCbu }: SavedCbu): string | undefined {
+  return aliasCbu === undefined
+    ? undefined
+    : `Se borró el ${aliasLabel(aliasCbu)} de la config: la cuenta quedó sin alias. Si lo tiene, guardá los dos con \`arcli config establecer cuenta <CBU> <ALIAS>\`.`;
+}
+
+/** El aviso de `config eliminar cuenta` y `config eliminar cbu` (deprecada): con el CBU se borra su alias. */
+export function cbuRemovalWarning({ aliasCbu }: SavedCbu): string | undefined {
+  return aliasCbu === undefined
+    ? undefined
+    : `Se borró también el ${aliasLabel(aliasCbu)} de la config: sin el CBU no se usa.`;
 }

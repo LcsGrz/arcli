@@ -37,13 +37,24 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - En una nota, `--ac`, `--at`, `--ar` o `--apv` de otro comprobante que el del JSON descartan su `fecha` y su `cuit`: pasá `--afecha` y `--acuit`.
 > - En la `E`, otro `--cliente` descarta `domicilioCliente` e `idImpositivo` del JSON: pasá `--domicilio-cliente` e `--id-impositivo`. Otro `--pais-destino` descarta `cuitPais` y otro `--incoterm`, `descripcionIncoterm`.
 > - En las notas `E`, con otro cliente, país o incoterm que el asociado, también sin `--cargar`, no se heredan su domicilio e ID impositivo, su CUIT del país o su descripción: pasá `--domicilio-cliente` (sin él, `INPUT_VALIDATION_ERROR`) y los demás. `--moneda` descarta una `cotizacionMoneda` sin `codigoMoneda`.
-> - `config establecer cbu` con otro CBU que el guardado borra `aliasCbu` y lo dice en `avisos`; antes el alias quedaba. Sin CBU guardado, el alias queda, con un aviso.
+> - `config establecer cbu` y `aliasCbu` quedan deprecadas hasta la 3.0.0, con un aviso en stderr: usá `config establecer cuenta <CBU> [ALIAS]`. En `--json` y en el archivo, `cbu` y `aliasCbu` no cambian.
+> - `config establecer cbu` con otro CBU que el guardado borra `aliasCbu` y lo dice en `avisos`; antes el alias quedaba. Sin CBU guardado, el alias queda, con un aviso. `config eliminar cbu` borra también `aliasCbu` y lo dice en `avisos`; antes quedaba.
 > - Ya no son un error y gana el flag: `--ac`, `--at`, `--ar` o `--apv` con `periodoAsociado` en el JSON, `--periodo-desde` o `--periodo-hasta` con `comprobanteAsociado`, `--vto` con `dia` y `--dia` con `vencimientoPago`.
 > - En `BATCH_EMISSION_ERROR`, `sugerencia` es siempre un texto, antes `null`, y en `error` "Sin procesar" va en su propia línea, como rango desde tres (`#3 a #100 (98)`). La lista completa sigue en `detalles.sinProcesar`.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
 
 ---
+
+### ✨ Agregado
+
+- **Config:** `config establecer cuenta <CBU> [ALIAS]` guarda el CBU y su alias juntos, y `config eliminar cuenta` borra los dos (#284).
+
+<details><summary>Detalle</summary>
+
+**La cuenta de la FCE.** El CBU y el alias se guardaban con dos comandos, y el orden importaba. Ahora `arcli config establecer cuenta <CBU> [ALIAS]` guarda los dos o ninguno. Sin alias borra el guardado, aunque el CBU sea el mismo, y lo avisa: en stderr, o en `avisos` con `--json`. `config eliminar cuenta` borra los dos y avisa si había un alias. En la ayuda, el autocompletado y `arcli config`, `cuenta` reemplaza a las dos claves; "Modificar configuración" del asistente tiene una sola opción, que pide el CBU y después el alias: con el mismo CBU, Enter deja el alias guardado y `-` lo borra; con otro, Enter lo omite y borra el anterior, y la pregunta lo dice. El archivo, `arcli config --json`, `--cbu`, `--alias` y `--cargar` no cambian.
+
+</details>
 
 ### 🔧 Cambiado
 
@@ -56,7 +67,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **FCE:** el alias guardado va solo con su CBU, y el asistente siempre pide el alias si pide el CBU (#282).
 - **Factura E:** otro `--cliente`, `--pais-destino`, `--incoterm` o `--moneda` descarta del JSON los datos del anterior, también en sus notas (#282).
 - **Notas:** una nota `E` con otro cliente, país o incoterm que su asociado ya no toma su domicilio, ID impositivo, CUIT ni descripción (#282).
-- **Config:** guardar otro `cbu` borra el `aliasCbu` del anterior y lo avisa, en `config establecer` y en el asistente (#282).
+- **Config:** `config establecer cbu` con otro CBU borra el `aliasCbu` del anterior, y `config eliminar cbu` también; lo avisan (#282, #284).
 - **Notas:** un flag del comprobante o del período asociado gana al otro del JSON, y una punta del período conserva la otra (#282).
 - **Fechas:** en un lote que cruza la medianoche, `hoy` y las demás fechas relativas son del mismo día en todos los comprobantes (#282).
 
@@ -70,9 +81,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 **Flags sobre el JSON de `--cargar`.** Antes un flag cambiaba solo su dato: con `--cuit` de otro cliente salían el nombre, el domicilio y el IVA del que traía el archivo, y con `--moneda EUR` sobre un archivo en dólares, la cotización del dólar. Ahora, si el flag dice algo distinto del archivo, lo que dependía del valor anterior no va. Con otro documento, el IVA sale del padrón o de la config, o es el error de falta de IVA; pasalo con `--ir`, y el nombre y el domicilio con sus flags. Con otra moneda va la cotización oficial de ARCA, aunque la config tenga `cotizacion`; para otra, `--cm`. `--vto` gana a `dia` del archivo y `--dia` a `vencimientoPago`. El mismo valor, o uno que el archivo no trae, no descarta nada; en un lote se decide por comprobante. La lista completa está en [Datos del JSON que un flag descarta](docs/validation-rules.md#datos-del-json-que-un-flag-descarta).
 
-**Alias del CBU.** Con `--cbu` o `cbu` del JSON de otra cuenta se informaba el `aliasCbu` de la config, que es de la guardada. Ahora va solo con su CBU: si el tuyo tiene alias, pasalo con `--alias` o `aliasCbu` del JSON. Un alias guardado sin `cbu` en la config ya no se usa hasta que guardes su CBU con `arcli config establecer cbu`, que avisa qué alias va a usar con él. El asistente, si pide el CBU, pide también el alias (Enter lo omite). Al ofrecer guardar el CBU después de emitir, si lo omitiste y la config tiene un alias de antes, la pregunta dice que se borra; con uno escrito, se guardan los dos.
+**Alias del CBU.** Con `--cbu` o `cbu` del JSON de otra cuenta se informaba el `aliasCbu` de la config, que es de la guardada. Ahora va solo con su CBU: si el tuyo tiene alias, pasalo con `--alias` o `aliasCbu` del JSON. Un alias guardado sin `cbu` en la config ya no se usa hasta que guardes los dos con `arcli config establecer cuenta`. El asistente, si pide el CBU, pide también el alias (Enter lo omite). Al ofrecer guardar el CBU después de emitir, si lo omitiste y la config tiene un alias de antes, la pregunta dice que se borra; con uno escrito, se guardan los dos.
 
-**Cambiar el CBU guardado.** `arcli config establecer cbu` con otro CBU dejaba el `aliasCbu` del anterior. Ahora lo borra en el mismo cambio, también en "Configuración" del asistente, y dice cuál era y cómo cargar el nuevo: en stderr, o en `avisos` con `--json`. Con el mismo CBU no cambia nada; sin CBU guardado antes, el alias queda, porque puede ser el suyo, y el aviso dice que se va a usar. `config eliminar cbu` no cambia.
+**Cambiar el CBU guardado.** `arcli config establecer cbu` con otro CBU dejaba el `aliasCbu` del anterior. Ahora lo borra en el mismo cambio y dice cuál era y cómo guardar el nuevo con `cuenta`: en stderr, o en `avisos` con `--json`. Con el mismo CBU no cambia nada; sin CBU guardado antes, el alias queda, porque puede ser el suyo, y el aviso dice que se va a usar. `config eliminar cbu` dejaba el alias y ahora lo borra y lo avisa; `config eliminar aliasCbu` sigue borrando solo el alias.
 
 **Notas `E` y su asociado.** Una nota con otro `--cliente` que su asociado salía con el domicilio y el ID impositivo del asociado; con otro `--pais-destino`, con su CUIT del país; y con otro `--incoterm`, con su descripción. Ahora no los toma, vengan de flags o del archivo: hay que pasarlos, salvo el CUIT del país, que sale de la tabla de ARCA. El mismo dato, con otras mayúsculas, tildes o espacios, o el país por nombre o por código, hereda como antes. `EUR` y `060` (y los demás equivalentes) son la misma moneda: con `--moneda EUR` sobre una factura en `060` va su cotización; antes iba la oficial, que en servicios es el error 2053. Sin `codigoMoneda` en el archivo, `--moneda` descarta siempre `cotizacionMoneda`. La actividad y el asistente no cambian.
 
@@ -81,6 +92,16 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **Asociado de las notas.** Si `--ac`, `--at`, `--ar` o `--apv` apuntan a otro comprobante que el del archivo, su `fecha` y su `cuit` no van: pasá `--afecha` y `--acuit` si hacen falta. Además descartan `periodoAsociado`, y `--periodo-desde` y `--periodo-hasta` descartan `comprobanteAsociado`; antes, juntos eran un error. `--acuit` o `--afecha` solos no eligen. Con una sola punta del período en los flags, la otra sale del archivo; antes se perdía.
 
 **Moneda y actividad de exportación en la config.** La moneda lista las monedas de ARCA, que se buscan por nombre, código de ARCA o ISO (`usd`), y elegir una guarda el código de ARCA (`DOL`), como el default `PES`. La actividad lista la tabla de WSFEX, consultada como en `arcli fe`: hacen falta el CUIT y el certificado y la clave de facturación del entorno, y el de exportación se usa si está configurado; sin eso o si ARCA no responde, se escribe el código como antes. Sin valor guardado, la lista arranca en "Dejar sin configurar": Enter ya no guarda la primera opción sin elegirla, también en la condición de venta. Lo escrito se valida como `arcli config establecer`, y las claves no cambian.
+
+</details>
+
+### ⏳ Deprecado
+
+- **Config:** `cbu` y `aliasCbu` en `config establecer` y `config eliminar`, hasta la 3.0.0: usá `cuenta` (#284).
+
+<details><summary>Detalle</summary>
+
+**`cbu` y `aliasCbu` por separado.** Siguen guardando y borrando, con un aviso en stderr que muestra el comando nuevo. Ya no salen en la ayuda ni en el autocompletado. Leerlos no avisa: siguen en el archivo y en `arcli config --json`, y una FCE los usa como antes.
 
 </details>
 

@@ -17,12 +17,14 @@ import {
 } from '../../modules/config/config.schemas';
 import { type ConfigChange, ConfigService, deprecatedConfigKeyWarning } from '../../modules/config/config.service';
 import { buildConfigDoctorReport, type ConfigDoctorRuntimeCheck } from '../../modules/config/config-doctor';
+import { acceptsAlias } from '../../modules/config/config-keys';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import { writeTerminalJson, writeTerminalNotice, writeTerminalOutput } from '../../ui';
 import { checkProfileFromConfig } from '../arca-runtime';
 import { registerJsonOption, resolveOutputJson } from '../global-options';
 import { configureSpanishHelp, createConfigHelp, createConfigSetHelp } from '../help';
 import { startSpinner } from '../spinner';
+import { UsageErrorWithSuggestion } from '../usage-error';
 
 function createConfigService(): ConfigService {
   const service = new ConfigService();
@@ -60,12 +62,35 @@ function printConfigChange(
   }
 }
 
-/** Una clave deprecada (`comprobantesPorLista`) se guarda con su reemplazo: se avisa para que la cambien. */
-function warnIfDeprecatedKey(key: string): void {
-  const warning = deprecatedConfigKeyWarning(key);
+/** Una clave deprecada (`comprobantesPorLista`, `cbu`) sigue andando: se avisa para que la cambien. */
+function warnIfDeprecatedKey(key: string, action: 'eliminar' | 'establecer'): void {
+  const warning = deprecatedConfigKeyWarning(key, action);
 
   if (warning) {
     writeTerminalNotice(() => warning);
+  }
+}
+
+/**
+ * Solo `cuenta` lleva un tercer argumento: para las demas claves sobra, con el mismo error de commander que si no
+ * estuviera declarado.
+ */
+function rejectExcessArguments(key: string, command: Command): void {
+  const expected = acceptsAlias(key) ? 3 : 2;
+
+  if (command.args.length > expected) {
+    const code = 'commander.excessArguments';
+    const message = `error: too many arguments for '${command.name()}'. Expected ${expected} arguments but got ${command.args.length}: ${command.args.join(', ')}.`;
+
+    if (key.trim() === 'cbu') {
+      throw new UsageErrorWithSuggestion(
+        code,
+        message,
+        'Para guardar el CBU con su alias, usá `arcli config establecer cuenta <CBU> <ALIAS>`.',
+      );
+    }
+
+    command.error(message, { code });
   }
 }
 
@@ -162,20 +187,24 @@ export function registerConfigCommand(program: Command): void {
     .command('establecer')
     .description('guardar un valor de configuración')
     .argument('<clave>', 'clave pública de configuración')
-    .argument('<valor>', 'valor a guardar')
+    .argument('<valor>', 'valor a guardar; en `cuenta`, el CBU')
+    .argument('[alias]', 'solo en `cuenta`: el alias del CBU; sin él, se borra el guardado')
+    .allowExcessArguments()
     .addHelpText('after', createConfigSetHelp())
-    .action((key: string, value: string, _options: unknown, command: Command) => {
+    .action((key: string, value: string, alias: string | undefined, _options: unknown, command: Command) => {
+      rejectExcessArguments(key, command);
+
       // Sin ensureInitialized: si la config quedo invalida, establecer o eliminar la clave es la forma de arreglarla.
       const service = new ConfigService();
 
       try {
-        const change = service.repairValue(key, value);
+        const change = service.repairValue(key, value, alias);
 
         if (key === 'cotizacion') {
           writeTerminalNotice(() => COTIZACION_DEPRECATION_WARNING);
         }
 
-        warnIfDeprecatedKey(key);
+        warnIfDeprecatedKey(key, 'establecer');
 
         printConfigChange(service, change, command);
       } finally {
@@ -196,7 +225,7 @@ export function registerConfigCommand(program: Command): void {
       try {
         const change = service.repairUnset(key);
 
-        warnIfDeprecatedKey(key);
+        warnIfDeprecatedKey(key, 'eliminar');
         printConfigChange(service, change, command);
       } finally {
         service.close();

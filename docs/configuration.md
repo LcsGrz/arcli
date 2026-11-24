@@ -75,11 +75,30 @@ Valores por defecto, para no repetir flags.
 
 Solo si emitís Factura de Crédito Electrónica.
 
-| Clave          | Tipo    | Valor por defecto | Descripción                                                                                                                          |
-| -------------- | ------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `cbu`          | string  | ninguno           | CBU del emisor (solo facturas FCE). Se validan los 22 dígitos y sus [dos verificadores](validation-rules.md#crédito-electrónico-fce) |
-| `aliasCbu`     | string  | ninguno           | Alias del CBU (solo facturas FCE). Se informa solo si el CBU del comprobante es el de `cbu`, y se borra al guardar otro `cbu`        |
-| `verificarFce` | boolean | `false`           | Consultar el régimen FCE del receptor al facturar                                                                                    |
+| Clave          | Tipo    | Valor por defecto | Descripción                                                                                                                                                                  |
+| -------------- | ------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cuenta`       | string  | ninguno           | CBU del emisor y, si lo tiene, su alias (solo facturas FCE). Ver [Cuenta bancaria](#cuenta-bancaria)                                                                         |
+| `cbu`          | string  | ninguno           | **Para guardarla, deprecada hasta la 3.0.0: usá `cuenta`.** CBU del emisor. Se validan los 22 dígitos y sus [dos verificadores](validation-rules.md#crédito-electrónico-fce) |
+| `aliasCbu`     | string  | ninguno           | **Para guardarla, deprecada hasta la 3.0.0: usá `cuenta`.** Alias del CBU. Se informa solo si el CBU del comprobante es el de `cbu`                                          |
+| `verificarFce` | boolean | `false`           | Consultar el régimen FCE del receptor al facturar                                                                                                                            |
+
+#### Cuenta bancaria
+
+`cuenta` guarda el CBU y su alias juntos. Es la única clave con dos valores: el alias es opcional.
+
+```bash
+arcli config establecer cuenta 0110599520000012345678 mi.alias.cbu
+arcli config establecer cuenta 0110599520000012345678
+arcli config eliminar cuenta
+```
+
+- **Sin alias, borra el guardado** y lo avisa, aunque el CBU sea el mismo.
+- Si el CBU o el alias no son válidos, no se guarda ninguno.
+- `eliminar cuenta` borra los dos, y avisa si había un alias.
+- Un alias que empieza con guion va después de `--`, para que no se lea como una opción: `arcli config establecer -- cuenta 0110599520000012345678 -mi.alias`. Los flags, como `--json`, van antes.
+- En el archivo y en `arcli config --json` siguen siendo `cbu` y `aliasCbu`: leerlos no está deprecado.
+
+`config establecer` y `config eliminar` todavía aceptan `cbu` y `aliasCbu`, con un aviso, hasta la 3.0.0. `establecer cbu` con otro CBU que el guardado borra el alias, que es del anterior, y lo avisa; sin CBU guardado, el alias queda y el aviso dice que se va a usar. `eliminar cbu` borra también el alias, y `eliminar aliasCbu`, solo el alias.
 
 ### Exportación
 
@@ -238,8 +257,11 @@ Con problemas sale igual con exit code `0`. `ok` es `true` solo si todos los che
 
 ```bash
 arcli config establecer puntoVenta 3
+arcli config establecer cuenta 0110599520000012345678 mi.alias.cbu
 arcli config eliminar puntoVenta
 ```
+
+Las claves llevan un valor; `cuenta`, dos: el CBU y su alias (opcional).
 
 Un valor inválido no se guarda y es `INPUT_VALIDATION_ERROR`: el mensaje nombra la clave, el valor recibido y, en las claves con una lista cerrada, los valores válidos (por ejemplo, `` `emisor.condicionIva` no acepta "Inscripto". Valores válidos: … ``), y la sugerencia lleva a `arcli config establecer --ayuda`. Una clave que no existe también es `INPUT_VALIDATION_ERROR`.
 
@@ -274,7 +296,7 @@ No son claves de config. Las de color, `FORCE_HYPERLINK` y `ARCLI_ASCII` cambian
 
 ## Qué conviene guardar
 
-Guardá en config lo que se repite en el uso diario: `cuit`, `puntoVenta`, `concepto`, `ivaReceptor`, `cbu` (si emitís facturas FCE) y `alicuota` (si casi siempre facturás con una alícuota distinta de 21%). Un flag siempre pisa lo guardado. Para una configuración inicial, ver [Configurar](instalar.md#configurar).
+Guardá en config lo que se repite en el uso diario: `cuit`, `puntoVenta`, `concepto`, `ivaReceptor`, `cuenta` (el CBU y su alias, si emitís facturas FCE) y `alicuota` (si casi siempre facturás con una alícuota distinta de 21%). Un flag siempre pisa lo guardado. Para una configuración inicial, ver [Configurar](instalar.md#configurar).
 
 ## Advertencias
 

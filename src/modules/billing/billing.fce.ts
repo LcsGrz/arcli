@@ -71,7 +71,7 @@ export function resolveElectronicCreditOptionals(
 
   if (!input.cbu) {
     throw new InputValidationError(
-      `${subject} requiere el CBU del emisor. Usá \`--cbu\` o configuralo con \`arcli config establecer cbu <22 dígitos>\`.`,
+      `${subject} requiere el CBU del emisor. Usá \`--cbu\` o configuralo con \`arcli config establecer cuenta <CBU> [ALIAS]\`.`,
     );
   }
 

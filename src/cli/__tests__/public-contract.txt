@@ -12,6 +12,7 @@ clave concepto
 clave condicionVenta
 clave consultarPadron
 clave cotizacion
+clave cuenta
 clave cuit
 clave emisor.condicionIva
 clave emisor.domicilio

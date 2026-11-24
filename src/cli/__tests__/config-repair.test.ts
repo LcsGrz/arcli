@@ -156,7 +156,9 @@ describe('varias claves rotas en la config guardada (ERR-22)', () => {
     // El error del CBU es el de siempre; la sugerencia alcanza para las dos.
     expect(first.error).toMatch(/^El CBU guardado en la config no es válido/);
     expect(first.sugerencia).toContain('`arcli config establecer cuit <valor>` o `arcli config eliminar cuit`');
-    expect(first.sugerencia).toContain('`arcli config eliminar cbu`');
+    expect(first.sugerencia).toContain(
+      '`arcli config establecer cuenta <CBU> [ALIAS]` (sin el alias, se borra el guardado) o `arcli config eliminar cuenta`',
+    );
     expect(first.sugerencia).not.toContain(configPath());
 
     expect((await runJson('config', 'eliminar', 'cbu')).avisos).toHaveLength(1);

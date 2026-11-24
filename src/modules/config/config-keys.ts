@@ -1,8 +1,15 @@
-import { type ConfigPublicKey, ROWS_PER_LIST_DEPRECATION_WARNING } from './config.schemas';
+import {
+  accountKeyDeprecationWarning,
+  type ConfigPublicKey,
+  ROWS_PER_LIST_DEPRECATION_WARNING,
+} from './config.schemas';
 import type { CanonicalConfigKey } from './config-value-parser';
 
-/** Donde se guarda cada clave publica en el config.json. */
-export const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
+/** Lo que guarda `cuenta`, cada uno en su clave del archivo. Como claves de `config establecer` estan deprecadas. */
+export type AccountStoredKey = 'aliasCbu' | 'cbu';
+
+/** Donde se guarda cada clave en el config.json. `cuenta` guarda ademas `aliasCbu`. */
+export const CONFIG_KEY_ALIASES: Record<AccountStoredKey | ConfigPublicKey, CanonicalConfigKey> = {
   alicuota: 'alicuotaPorDefecto',
   aliasCbu: 'aliasCbu',
   cbu: 'cbu',
@@ -11,6 +18,7 @@ export const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
   concepto: 'conceptoPorDefecto',
   condicionVenta: 'condicionVenta',
   cotizacion: 'cotizacionPorDefecto',
+  cuenta: 'cbu',
   cuit: 'cuit',
   'emisor.condicionIva': 'emisor.condicionIva',
   'emisor.domicilio': 'emisor.domicilio',
@@ -47,7 +55,37 @@ export const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
  * son claves publicas: no salen en la ayuda, el autocompletado ni `arcli config`. Se sacan en la 3.0.0.
  */
 export const DEPRECATED_CONFIG_KEYS: Readonly<
-  Record<string, { readonly replacement: ConfigPublicKey; readonly warning: string }>
+  Record<
+    string,
+    {
+      /** El aviso de `config eliminar`, si el comando que la reemplaza es otro. */
+      readonly removeWarning?: string;
+      readonly replacement: ConfigPublicKey;
+      /** Todavia guarda solo esta parte de lo que guarda el reemplazo. */
+      readonly storedAs?: AccountStoredKey;
+      readonly warning: string;
+    }
+  >
 > = {
+  aliasCbu: {
+    removeWarning: accountKeyDeprecationWarning(
+      'aliasCbu',
+      '`arcli config establecer cuenta <CBU>`, que deja la cuenta sin alias',
+    ),
+    replacement: 'cuenta',
+    storedAs: 'aliasCbu',
+    warning: accountKeyDeprecationWarning('aliasCbu', '`arcli config establecer cuenta <CBU> [ALIAS]`'),
+  },
+  cbu: {
+    removeWarning: accountKeyDeprecationWarning('cbu', '`arcli config eliminar cuenta`'),
+    replacement: 'cuenta',
+    storedAs: 'cbu',
+    warning: accountKeyDeprecationWarning('cbu', '`arcli config establecer cuenta <CBU> [ALIAS]`'),
+  },
   comprobantesPorLista: { replacement: 'filasPorLista', warning: ROWS_PER_LIST_DEPRECATION_WARNING },
 };
+
+/** `cuenta` es la unica clave con dos valores: el CBU y, si se quiere, su alias. */
+export function acceptsAlias(rawKey: string): boolean {
+  return rawKey.trim() === 'cuenta';
+}

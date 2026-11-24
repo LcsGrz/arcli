@@ -16,10 +16,12 @@ import {
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
+import { formatSavedAccount } from './cbu-alias-change';
 import type { ArcliConfig, ConfigPublicKey } from './config.schemas';
 import { formatEnvironmentLabel, isPadronLookupEnabled, resolveConfiguredRowsPerList } from './config.schemas';
 import { CONFIG_LABELS, CONFIG_SECTIONS } from './config.sections';
 import { CONFIG_DOCTOR_SECTIONS, type ConfigDoctorReport } from './config-doctor';
+import { DEPRECATED_CONFIG_KEYS } from './config-keys';
 import type { PendingConfigProblems } from './config-problems';
 
 interface PublicConfigSnapshot {
@@ -171,12 +173,20 @@ export function formatConfigChangeWarnings(
     : undefined;
 }
 
+/** Una parte de lo que guarda `key`: `cbu` y `aliasCbu`, de `cuenta`. */
+function isPartOf(name: string, key: ConfigPublicKey): boolean {
+  const deprecated = Object.hasOwn(DEPRECATED_CONFIG_KEYS, name) ? DEPRECATED_CONFIG_KEYS[name] : undefined;
+
+  return deprecated?.storedAs !== undefined && deprecated.replacement === key;
+}
+
 function isPending(key: ConfigPublicKey, config: ArcliConfig, pending: PendingConfigProblems | undefined): boolean {
   return (
     pending?.keys.some(
       (name) =>
         key === name ||
         key.startsWith(`${name}.`) ||
+        isPartOf(name, key) ||
         (name === 'comprobantesPorLista' && key === 'filasPorLista' && config.filasPorLista === undefined),
     ) ?? false
   );
@@ -201,14 +211,13 @@ const yesNo = (value: boolean | undefined): string => (value ? 'sí' : 'no');
 /** Como se muestra cada dato en `arcli config`. */
 const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   alicuota: (c) => (c.alicuota ? `${String(c.alicuota).replace('.', ',')}%` : '21% (por defecto)'),
-  aliasCbu: (c) => notSet(c.aliasCbu),
   bruto: (c) => yesNo(c.bruto),
-  cbu: (c) => notSet(c.cbu),
   'cert.produccion': (c) => notSet(c.cert.produccion),
   'cert.testing': (c) => notSet(c.cert.testing),
   concepto: (c) => notSet(c.concepto),
   condicionVenta: (c) => notSet(c.condicionVenta),
   cotizacion: (c) => formatExchangeRate(c.cotizacion ?? 1),
+  cuenta: (c) => notSet(formatSavedAccount(c)),
   cuit: (c) => (c.cuit ? formatCuit(c.cuit) : NOT_SET),
   'emisor.condicionIva': (c) => c.emisor.condicionIva ?? 'según la letra',
   'emisor.domicilio': (c) => notSet(c.emisor.domicilio),

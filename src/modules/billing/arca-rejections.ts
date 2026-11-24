@@ -53,7 +53,7 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
     codes: [10174],
     guide: `${TROUBLESHOOTING_URL}#rechazos-de-arca-por-código`,
     retry: true,
-    todo: 'Usá un CBU propio (`--cbu` o la clave cbu de la config) que esté registrado en ARCA.',
+    todo: 'Usá un CBU propio (`--cbu` o la clave `cuenta` de la config) que esté registrado en ARCA.',
     what: 'El CBU no está registrado a nombre del emisor.',
   },
   {

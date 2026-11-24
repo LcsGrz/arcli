@@ -13,8 +13,9 @@ const CBU = '0110599520000012345678';
 const OTHER_CBU = '0170099220000067797370';
 const ALIAS = 'mi.alias.cbu';
 const REMOVED =
-  'Se borró el alias mi.alias.cbu de la config, que era del CBU anterior. Si el nuevo tiene alias, cargalo con `arcli config establecer aliasCbu <alias>`.';
-const KEPT = 'El alias guardado (mi.alias.cbu) se va a usar con este CBU.';
+  'Se borró el alias mi.alias.cbu de la config, que era del CBU anterior. Si el nuevo tiene alias, guardá los dos con `arcli config establecer cuenta <CBU> <ALIAS>`.';
+const KEPT =
+  'El alias guardado (mi.alias.cbu) se va a usar con este CBU. Si es de otro, guardá la cuenta de nuevo con `arcli config establecer cuenta <CBU> [ALIAS]`: sin alias, borra el guardado.';
 
 let directory = '';
 let stdout = '';
@@ -108,7 +109,6 @@ describe('config establecer cbu con un alias guardado', () => {
     ['el mismo CBU, con espacios', { aliasCbu: ALIAS, cbu: CBU }, ['establecer', 'cbu', ` ${CBU} `]],
     ['sin alias guardado', { cbu: CBU }, ['establecer', 'cbu', OTHER_CBU]],
     ['otra clave', { aliasCbu: ALIAS, cbu: CBU }, ['establecer', 'puntoVenta', '3']],
-    ['eliminar el CBU', { aliasCbu: ALIAS, cbu: CBU }, ['eliminar', 'cbu']],
   ])('%s: ni borra ni avisa', async (_name, config, args) => {
     save(config);
 
