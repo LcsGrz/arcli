@@ -984,7 +984,6 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
 });
 
 describe('el certificado sin autorizar, en las consultas (ERR-7)', () => {
-  // Tests primero: los `it.fails` pasan a `it` con el arreglo.
   const NOT_AUTHORIZED = new Error('ns1:coe.notAuthorized: Computador no autorizado a acceder al servicio');
 
   async function failure(args: readonly string[]): Promise<Record<string, unknown>> {
@@ -997,7 +996,7 @@ describe('el certificado sin autorizar, en las consultas (ERR-7)', () => {
     return JSON.parse(result.stderr) as Record<string, unknown>;
   }
 
-  it.fails.each(['fe', 'nce', 'nde'])(
+  it.each(['fe', 'nce', 'nde'])(
     'ultimos %s: WSFEX_SERVICE_NOT_AUTHORIZED, como el resto de wsfex',
     async (shortcut) => {
       sdk.wsaa.login.mockRejectedValue(NOT_AUTHORIZED);
@@ -1012,7 +1011,7 @@ describe('el certificado sin autorizar, en las consultas (ERR-7)', () => {
     },
   );
 
-  it.fails.each<[string, string[]]>([
+  it.each<[string, string[]]>([
     ['puntos-venta', ['parametros', 'puntos-venta']],
     ['comprobantes', ['parametros', 'comprobantes']],
     ['monedas', ['parametros', 'monedas']],
@@ -1029,6 +1028,15 @@ describe('el certificado sin autorizar, en las consultas (ERR-7)', () => {
       error: 'El certificado no está autorizado para facturar (servicio wsfe).',
       sugerencia: expect.stringContaining('Autorizalo en ARCA'),
     });
+  });
+
+  it('ultimos fe y parametros: el error entero', async () => {
+    sdk.wsaa.login.mockRejectedValue(NOT_AUTHORIZED);
+    sdk.wsfe.getSalesPoints.mockRejectedValue(NOT_AUTHORIZED);
+
+    await golden('error-ultimos-fe-sin-autorizar', ['ultimos', 'fe', '--json']);
+    process.exitCode = undefined;
+    await golden('error-parametros-sin-autorizar', ['parametros', 'puntos-venta', '--json']);
   });
 
   // Caracterización: lo que no cambia.

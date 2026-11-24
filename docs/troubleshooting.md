@@ -299,7 +299,7 @@ arcli fc ayuda
 ### `wsfe` no autorizado
 
 - **Severidad:** frecuente, la primera vez
-- **Síntoma:** error `WSFE_SERVICE_NOT_AUTHORIZED` ("El certificado no está autorizado para facturar (servicio wsfe).") al facturar o con `ultimos` y `consultar`.
+- **Síntoma:** error `WSFE_SERVICE_NOT_AUTHORIZED` ("El certificado no está autorizado para facturar (servicio wsfe).") al facturar o con `ultimos`, `consultar` y `parametros`. Con `estado` es `ARCA_UNAVAILABLE` con el mismo texto.
 - **Causa:** sacaste e importaste el certificado, pero falta autorizarlo a facturar en ARCA.
 - **Solución:** en testing, WSASS → "Crear autorización a servicio" con el mismo nombre del certificado y el servicio `wsfe`; en producción, el Administrador de Relaciones de Clave Fiscal. Con un solo comprobante no se emitió nada: después de autorizarlo, reintentá igual. En un lote, mirá [El lote se interrumpió a mitad](#el-lote-se-interrumpió-a-mitad).
 - **Documentación relacionada:** [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web)
@@ -463,7 +463,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor (si 
 ### Factura E: el certificado no está autorizado a `wsfex`
 
 - **Severidad:** frecuente, la primera vez
-- **Síntoma:** error `WSFEX_SERVICE_NOT_AUTHORIZED` ("El certificado no está autorizado para el servicio wsfex"), incluso con `--previsualizar`.
+- **Síntoma:** error `WSFEX_SERVICE_NOT_AUTHORIZED` ("El certificado no está autorizado para el servicio wsfex"), incluso con `--previsualizar`, y con `ultimos` y `consultar` de `fe`, `nce` y `nde`.
 - **Causa:** la vista previa ya consulta las tablas de WSFEX, y el certificado no tiene la relación con el servicio `wsfex`.
 - **Solución:** autorizá el certificado a `wsfex` igual que a `wsfe` (WSASS en testing, Administrador de Relaciones en producción), o configurá uno propio con `exportacion.cert.*` y `exportacion.key.*`.
 - **Documentación relacionada:** [Configuración](configuration.md#certificados-de-exportación-wsfex), [Obtención de certificados](obtencion-certificados.md)

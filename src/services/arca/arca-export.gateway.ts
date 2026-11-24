@@ -357,11 +357,15 @@ export class ArcaExportGateway implements ExportGateway {
       });
     }
 
-    const auth = await this.authenticate();
+    const { authenticate } = this;
     const data = (
-      await this.call((service) =>
-        service.getLastCmp({ Auth: { ...auth, Cbte_Tipo: arcaType, Pto_venta: pointOfSale } } as IFEXGetLast_CMPInput),
-      )
+      await this.call(async (service) => {
+        const auth = await authenticate();
+
+        return service.getLastCmp({
+          Auth: { ...auth, Cbte_Tipo: arcaType, Pto_venta: pointOfSale },
+        } as IFEXGetLast_CMPInput);
+      })
     ).FEXGetLast_CMPResult;
 
     assertNoError(data, 'el último número');

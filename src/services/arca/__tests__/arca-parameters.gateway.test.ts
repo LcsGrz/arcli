@@ -91,6 +91,40 @@ describe('ArcaParametersGateway', () => {
     });
   });
 
+  it('translates a certificate not authorized for wsfe in every query that logs in (ERR-7)', async () => {
+    const rejected = async () => Promise.reject(new Error('ns1:coe.notAuthorized: Computador no autorizado'));
+    const gateway = createGateway({
+      getAliquotTypes: rejected,
+      getConceptTypes: rejected,
+      getCurrencyTypes: rejected,
+      getDocumentTypes: rejected,
+      getIvaReceptorTypes: rejected,
+      getOptionalTypes: rejected,
+      getQuotation: rejected,
+      getSalesPoints: rejected,
+      getTaxTypes: rejected,
+      getVoucherTypes: rejected,
+    });
+    const tables = [
+      'alicuotas',
+      'comprobantes',
+      'conceptos',
+      'documentos',
+      'iva-receptor',
+      'monedas',
+      'opcionales',
+      'tributos',
+    ] as const;
+
+    for (const query of [
+      () => gateway.getSalesPoints(),
+      () => gateway.getQuotation('USD'),
+      ...tables.map((table) => () => gateway.listTable(table)),
+    ]) {
+      await expect(query()).rejects.toMatchObject({ code: 'WSFE_SERVICE_NOT_AUTHORIZED' });
+    }
+  });
+
   it('maps the server status', async () => {
     const gateway = createGateway({
       getServerStatus: vi.fn(async () => ({ appServer: 'OK', authServer: 'OK', dbServer: 'ERROR' })),
