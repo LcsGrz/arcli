@@ -143,13 +143,14 @@ describe('precedencia en A, B, C, FCE, recibos y notas', () => {
     const json = { comprobanteAsociado: { ...FILE, atajo: 'fc' } };
 
     // El cuit ya lo fija billing.command.parser.test.ts.
+    // La fecha y el CUIT son del comprobante del archivo: con otro no van (cruce A).
     it.each([
-      ['--ar', '6', { numero: 6, shortcut: 'fc' }],
-      ['--apv', '6', { puntoVenta: 6, shortcut: 'fc' }],
+      ['--ar', '6', { cuit: undefined, fecha: undefined, numero: 6, shortcut: 'fc' }],
+      ['--apv', '6', { cuit: undefined, fecha: undefined, puntoVenta: 6, shortcut: 'fc' }],
       ['--afecha', '02/09/2026', { fecha: '02/09/2026', shortcut: 'fc' }],
       // El atajo del archivo no se mezcla con el tipo que identifica el flag.
-      ['--ac', 'ndc', { shortcut: 'ndc' }],
-      ['--at', '12', { tipo: 12 }],
+      ['--ac', 'ndc', { cuit: undefined, fecha: undefined, shortcut: 'ndc' }],
+      ['--at', '12', { cuit: undefined, fecha: undefined, tipo: 12 }],
     ])('%s cambia solo lo suyo', (flag, value, changes) => {
       expect(billingInput({ args: [...BILLING_BASE, flag, value], json }, 'ncc').associatedVoucher).toEqual({
         ...FILE,

@@ -169,6 +169,12 @@ describe('lo que se ofrece guardar en la config (REV-74, #16)', () => {
 
   it('nada si no se emitio, si la config ya tiene CBU, si no se escribio o si no es una FCE', () => {
     expect(cbuToSave(fce, {}, false)).toBeUndefined();
+    // El alias guardado es de otro CBU: guardar solo el CBU los juntaría; con un alias escrito, lo reemplaza.
+    expect(cbuToSave(fce, { aliasCbu: 'otra.cuenta' }, true)).toBeUndefined();
+    expect(cbuToSave({ ...fce, cbuAlias: 'mi.alias' }, { aliasCbu: 'otra.cuenta' }, true)?.values).toContainEqual([
+      'aliasCbu',
+      'mi.alias',
+    ]);
     expect(cbuToSave(fce, { cbu: '0170099220000067797370' }, true)).toBeUndefined();
     expect(cbuToSave({ ...fce, cbu: undefined }, {}, true)).toBeUndefined();
     expect(cbuToSave({ ...fce, voucherKind: VOUCHER_KIND_MAP.fa }, {}, true)).toBeUndefined();

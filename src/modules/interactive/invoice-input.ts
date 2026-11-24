@@ -1,5 +1,5 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
-import { billingVoucherDefaults } from '../billing/billing.defaults';
+import { billingVoucherDefaults, savedCbuAlias } from '../billing/billing.defaults';
 import { BILLING_RULES, type BillingRuleContext } from '../billing/billing.rules';
 import { type BillingCommandInput, billingCommandSchema } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
@@ -23,7 +23,7 @@ export interface InvoiceState {
    */
   readonly amountCurrency?: string;
   readonly cbu?: string;
-  /** Alias del CBU escrito a mano junto con el CBU; sin el, va el de la config. */
+  /** Alias del CBU escrito a mano junto con el CBU; con el CBU de la config, va el suyo. */
   readonly cbuAlias?: string;
   readonly concept?: BillingCommandInput['concept'];
   readonly documentNumber?: number;
@@ -70,12 +70,13 @@ function invoiceInputFields(state: InvoiceState, env: InvoiceInputEnv): Partial<
   const { consumerDocumentNumber, consumerDocumentType, ...advanced } = state.advanced;
   const receiver = resolveReceiverIdentity(state, { consumerDocumentNumber, consumerDocumentType });
   const fce = isFceInvoiceState(state);
+  const cbu = fce ? (state.cbu ?? defaults.defaultCbu) : undefined;
 
   return {
     ...advanced,
-    cbu: fce ? (state.cbu ?? defaults.defaultCbu) : undefined,
-    // Como en el CLI: en una FCE el alias de la config se informa junto con el CBU.
-    cbuAlias: fce ? (state.cbuAlias ?? defaults.defaultCbuAlias) : undefined,
+    cbu,
+    // Como en el CLI: el alias de la config va solo con su CBU.
+    cbuAlias: fce ? (state.cbuAlias ?? savedCbuAlias(defaults, cbu)) : undefined,
     concept: state.concept,
     documentNumber: receiver.documentNumber,
     documentType: receiver.documentType,

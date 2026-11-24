@@ -15,6 +15,7 @@ import {
   written,
   writtenDate,
 } from './billing.input-groups';
+import { discardOverridden } from './billing.input-overrides';
 import type { BillingJsonInput } from './billing.json-input';
 import { type BillingCommandInput, billingCommandSchema } from './billing.schemas';
 import type { VoucherShortcut } from './billing.types';
@@ -56,7 +57,7 @@ export interface ResolvedBillingInput {
  * decide qué error sale cuando hay más de uno: no lo cambies sin mirar `billing.input-conflicts.test.ts`.
  */
 export function resolveBillingInput({ file = {}, flags = {}, ...context }: BillingInputOptions): ResolvedBillingInput {
-  const layers: BillingInputLayers = { ...context, file, flags };
+  const layers: BillingInputLayers = discardOverridden({ ...context, file, flags });
   const assertFlags = (group: BillingFlagGroup): void => {
     const error = flags.errors?.[group];
 

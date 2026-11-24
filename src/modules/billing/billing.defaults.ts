@@ -17,6 +17,19 @@ export interface BillingDefaults {
   readonly lookupIvaConditionInPadron?: boolean;
 }
 
+/** El mismo CBU, como lo lee el schema (sin espacios). */
+export function isSameCbu(left: string | undefined, right: string | undefined): boolean {
+  return left?.trim() === right?.trim();
+}
+
+/** El alias guardado, si es del CBU que va en el comprobante: con otro CBU seria el alias de otra cuenta. */
+export function savedCbuAlias(
+  defaults: Pick<BillingDefaults, 'defaultCbu' | 'defaultCbuAlias'>,
+  cbu: string | undefined,
+): string | undefined {
+  return isSameCbu(defaults.defaultCbu, cbu) ? defaults.defaultCbuAlias : undefined;
+}
+
 type BillingVoucherConfig = Pick<
   ArcliConfig,
   'aliasCbu' | 'alicuotaPorDefecto' | 'cbu' | 'cotizacionPorDefecto' | 'monedaPorDefecto'

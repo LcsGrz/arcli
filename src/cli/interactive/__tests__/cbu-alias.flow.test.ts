@@ -184,16 +184,7 @@ describe.each(FLOWS)('$name una FCE con el CBU escrito a mano', (flow) => {
     vi.mocked(process.stdout.write).mockRestore();
   });
 
-  it('cruce 2, hoy (cambia en la tanda 4): con un alias guardado no lo pregunta y lo informa', async () => {
-    const input = await answer(flow, ONLY_ALIAS, [[/^CBU/, CBU]]);
-
-    expect(script.remaining()).toBe(0);
-    expect(input).toMatchObject({ cbu: CBU, cbuAlias: 'alias.config' });
-    await expectRoundtrip(input, ONLY_ALIAS);
-  });
-
-  // Tests primero (REV-52): pasa a it() al implementarlo.
-  it.fails('cruce 2, aprobado: pregunta el alias aunque haya uno guardado, y va el escrito', async () => {
+  it('cruce 2: pregunta el alias aunque haya uno guardado, y va el escrito', async () => {
     const input = await answerAliasIfAsked(flow, 'alias.escrito');
 
     expect(input.cbuAlias).toBe('alias.escrito');
@@ -201,17 +192,13 @@ describe.each(FLOWS)('$name una FCE con el CBU escrito a mano', (flow) => {
     await expectRoundtrip(input, ONLY_ALIAS);
   });
 
-  // Tests primero (REV-52): pasa a it() al implementarlo.
-  it.fails(
-    'cruce 2, aprobado: con Enter en el alias no va ninguno, y el comando equivalente tampoco lo suma',
-    async () => {
-      const input = await answerAliasIfAsked(flow, '');
+  it('cruce 2: con Enter en el alias no va ninguno, y el comando equivalente tampoco lo suma', async () => {
+    const input = await answerAliasIfAsked(flow, '');
 
-      expect(input).toMatchObject({ cbu: CBU });
-      expect(input.cbuAlias).toBeUndefined();
-      await expectRoundtrip(input, ONLY_ALIAS);
-    },
-  );
+    expect(input).toMatchObject({ cbu: CBU });
+    expect(input.cbuAlias).toBeUndefined();
+    await expectRoundtrip(input, ONLY_ALIAS);
+  });
 
   it('no cambia: sin alias guardado se pregunta, y va el escrito', async () => {
     const config = configWith();

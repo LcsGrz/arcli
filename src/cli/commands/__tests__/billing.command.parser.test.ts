@@ -240,6 +240,8 @@ describe('billing.command.parser', () => {
           'reducida',
           '--cuit',
           '20111111112',
+          '--ir',
+          'responsable-inscripto',
         ]),
         'fa',
       );

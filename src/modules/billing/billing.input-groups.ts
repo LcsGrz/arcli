@@ -3,9 +3,10 @@ import Big from 'big.js';
 import type { DateInputRole } from '../../lib/dates/date-input-text';
 import { resolveRelativeDateInput } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { mergeAssociatedVoucher } from '../vouchers/associated-voucher.merge';
 
 import { resolveConfigExchangeRate } from './billing.currency';
-import type { BillingDefaults } from './billing.defaults';
+import { type BillingDefaults, isSameCbu, savedCbuAlias } from './billing.defaults';
 import { missingIvaReceiverMessage } from './billing.iva-receptor';
 import type { BillingJsonInput } from './billing.json-input';
 import type { BillingCommandInput } from './billing.schemas';
@@ -136,44 +137,26 @@ export function resolveCurrency(layers: BillingInputLayers) {
 }
 
 export function resolveAssociatedPeriod({ file, flags, now }: BillingInputLayers) {
-  const period = flags.periodoAsociado ?? file.periodoAsociado;
+  const fromFlags = flags.periodoAsociado;
+  const fromFile = file.periodoAsociado;
 
-  return (
-    period && {
-      desde: resolveRelativeDateInput(period.desde, 'from', now),
-      hasta: resolveRelativeDateInput(period.hasta, 'to', now),
-    }
-  );
-}
-
-type AssociatedVoucherJson = NonNullable<BillingJsonInput['comprobanteAsociado']>;
-
-/**
- * Los flags del asociado ganan campo por campo sobre `comprobanteAsociado` del archivo: un `--acuit` solo no descarta
- * el resto. Si un flag identifica el comprobante (`--ac` o `--at`), el tipo del archivo no se mezcla con el.
- */
-function mergeAssociatedVoucher(
-  flags: AssociatedVoucherJson | undefined,
-  file: AssociatedVoucherJson | undefined,
-): AssociatedVoucherJson | undefined {
-  if (!flags || !file) {
-    return flags ?? file;
+  if (!fromFlags && !fromFile) {
+    return undefined;
   }
 
-  const identified = flags.atajo !== undefined || flags.tipo !== undefined ? flags : file;
-
+  // Campo por campo, como el comprobante asociado.
   return {
-    atajo: identified.atajo,
-    cuit: flags.cuit ?? file.cuit,
-    fecha: flags.fecha ?? file.fecha,
-    numero: flags.numero ?? file.numero,
-    puntoVenta: flags.puntoVenta ?? file.puntoVenta,
-    tipo: identified.tipo,
+    desde: resolveRelativeDateInput(fromFlags?.desde ?? fromFile?.desde, 'from', now),
+    hasta: resolveRelativeDateInput(fromFlags?.hasta ?? fromFile?.hasta, 'to', now),
   };
 }
 
 export function resolveAssociatedVoucher({ file, flags, now }: BillingInputLayers) {
-  const voucher = mergeAssociatedVoucher(flags.comprobanteAsociado, file.comprobanteAsociado);
+  const voucher = mergeAssociatedVoucher(
+    flags.comprobanteAsociado,
+    file.comprobanteAsociado,
+    (shortcut) => getVoucherKindByShortcut(shortcut.trim().toLowerCase())?.arcaType,
+  );
 
   return (
     voucher && {
@@ -233,14 +216,17 @@ export function resolveAmounts(layers: BillingInputLayers) {
 }
 
 export function resolveFceFields(layers: BillingInputLayers) {
-  const { defaults, shortcut } = layers;
+  const { defaults, file, flags, shortcut } = layers;
   // El CBU de la config solo aplica a facturas FCE: ARCA rechaza esos opcionales en otros comprobantes (10169).
   const fceDefaults = isFceInvoice(getVoucherKindByShortcut(shortcut)) ? defaults : undefined;
+  const cbu = written(layers, 'cbu') ?? fceDefaults?.defaultCbu;
+  // El alias del archivo es del CBU que trae, si trae uno.
+  const fileAlias = file.cbu === undefined || isSameCbu(file.cbu, cbu) ? file.aliasCbu : undefined;
 
   return {
     cancellation: written(layers, 'anulacion') === true,
-    cbu: written(layers, 'cbu') ?? fceDefaults?.defaultCbu,
-    cbuAlias: written(layers, 'aliasCbu') ?? fceDefaults?.defaultCbuAlias,
+    cbu,
+    cbuAlias: flags.aliasCbu ?? fileAlias ?? (fceDefaults && savedCbuAlias(fceDefaults, cbu)),
     transferMode: written(layers, 'transferencia'),
   };
 }

@@ -10,27 +10,20 @@ import { BILLING_BASE, CBU_A, CBU_B, CBU_C, CUIT_A, CUIT_B } from './billing-fie
 import { billingInput, billingPlan, type Json, pick, type Written } from './input-precedence.fixtures';
 
 /**
- * REV-52: los cruces entre niveles (datos relacionados que vienen de lugares distintos) en A, B, C y FCE. Cada uno va
- * dos veces: como está hoy (esa caracterización se borra en la tanda 4) y, en `it.fails`, como quedó aprobado.
+ * REV-52: los cruces entre niveles (datos relacionados que vienen de lugares distintos) en A, B, C y FCE. Un flag que
+ * cambia a quién, qué comprobante o qué moneda descarta del archivo los datos que dependían del valor anterior.
  */
 
 interface CrossCase {
-  /** Lo aprobado: los campos, o el error. */
+  /** Los campos, o el error. */
   readonly approved: Json | RegExp;
   readonly name: string;
   readonly shortcut?: VoucherShortcut;
-  /** Lo que hace hoy. */
-  readonly today: Json;
   readonly written: Written;
 }
 
 function describeCross(cross: string, cases: readonly CrossCase[]): void {
-  it.each(cases)(`${cross}, hoy (cambia en la tanda 4): $name`, ({ shortcut, today, written }) => {
-    expect(pick(billingInput(written, shortcut), today)).toEqual(today);
-  });
-
-  // Tests primero (REV-52): pasa a it() al implementarlo.
-  it.fails.each(cases)(`${cross}, aprobado: $name`, ({ approved, shortcut, written }) => {
+  it.each(cases)(`${cross}: $name`, ({ approved, shortcut, written }) => {
     if (approved instanceof RegExp) {
       expect(() => billingInput(written, shortcut)).toThrow(approved);
     } else {
@@ -79,36 +72,34 @@ describe('cruce 1: la cotización del archivo con otra moneda en el flag', () =>
     {
       approved: { ...dropped, currencyCode: 'EUR' },
       name: '--moneda EUR sobre USD del archivo',
-      today: { ...kept, currencyCode: 'EUR' },
       written: { args: [...base, '--moneda', 'EUR'], json: { ...rate, codigoMoneda: 'USD' } },
     },
     {
       approved: { ...dropped, currencyCode: '060' },
       name: '--mda 060 sobre DOL del archivo',
       shortcut: 'fa',
-      today: { ...kept, currencyCode: '060' },
       written: { args: [...base, '--mda', '060'], json: { ...rate, codigoMoneda: 'DOL' } },
     },
     {
       approved: dropped,
       name: '--moneda ARS sobre USD del archivo',
       shortcut: 'fc',
-      today: kept,
       written: { args: [...base, '--moneda', 'ARS'], json: { ...rate, codigoMoneda: 'USD' } },
     },
     {
       approved: dropped,
       name: 'sin `codigoMoneda`, la del archivo es la de la config: --moneda USD sobre EUR',
       shortcut: 'fcea',
-      today: kept,
       written: { args: [...base, '--moneda', 'USD'], config: { monedaPorDefecto: 'EUR' }, json: rate },
     },
     {
       approved: dropped,
-      name: 'sin `codigoMoneda` ni config, la del archivo es pesos',
-      shortcut: 'ncb',
-      today: kept,
-      written: { args: [...base, '--moneda', 'USD'], json: rate },
+      name: 'va la oficial aunque la config tenga cotización para esa moneda',
+      written: {
+        args: [...base, '--moneda', 'EUR'],
+        config: { cotizacionPorDefecto: 999, monedaPorDefecto: '060' },
+        json: { ...rate, codigoMoneda: 'USD' },
+      },
     },
   ]);
 
@@ -121,16 +112,31 @@ describe('cruce 1: la cotización del archivo con otra moneda en el flag', () =>
       ],
     }).inputs.map(({ exchangeRate }) => exchangeRate);
 
-  it('cruce 1, hoy (cambia en la tanda 4): en un lote, todos llevan la cotización de su archivo', () => {
-    expect(batch()).toEqual([1400, 1400]);
-  });
-
-  // Tests primero (REV-52): pasa a it() al implementarlo.
-  it.fails('cruce 1, aprobado: en un lote, la descarta solo el que está en otra moneda', () => {
+  it('cruce 1: en un lote, la descarta solo el que está en otra moneda', () => {
     expect(batch()).toEqual([undefined, 1400]);
   });
 
   describeKept('cruce 1', [
+    {
+      expected: kept,
+      name: 'sin `codigoMoneda` ni moneda extranjera en la config, nada contradice a la cotización',
+      shortcut: 'ncb',
+      written: { args: [...base, '--moneda', 'USD'], json: rate },
+    },
+    {
+      expected: kept,
+      name: 'lo mismo con pesos en la config',
+      written: { args: [...base, '--moneda', 'USD'], config: { monedaPorDefecto: 'PES' }, json: rate },
+    },
+    {
+      expected: { exchangeRate: 999, exchangeRateSource: 'config' },
+      name: 'sin cotización en el archivo, la de la config sigue como siempre',
+      written: {
+        args: [...base, '--moneda', 'EUR'],
+        config: { cotizacionPorDefecto: 999 },
+        json: { codigoMoneda: 'USD' },
+      },
+    },
     {
       expected: kept,
       name: 'USD y DOL son la misma moneda',
@@ -163,10 +169,10 @@ describe('cruce 1: la cotización del archivo con otra moneda en el flag', () =>
     },
   ]);
 
-  it('no cambia: `mismaMoneda` con `cotizacionMoneda` en el archivo es un error', () => {
+  it.each(['DOL', 'EUR'])('no cambia: `mismaMoneda` con `cotizacionMoneda` en el archivo es un error (%s)', (code) => {
     expect(() =>
       billingInput({
-        args: [...base, '--moneda', 'DOL'],
+        args: [...base, '--moneda', code],
         json: { ...rate, codigoMoneda: 'USD', mismaMoneda: true },
       }),
     ).toThrow('Con `"mismaMoneda": true` la cotización se toma de ARCA.');
@@ -182,42 +188,36 @@ describe('cruce 2: el alias de la config con otro CBU', () => {
       approved: { cbu: CBU_B, cbuAlias: undefined },
       name: '--cbu de otra cuenta',
       shortcut: 'fcea',
-      today: { cbu: CBU_B, cbuAlias: 'alias.config' },
       written: { args: [...base, '--cbu', CBU_B], config },
     },
     {
       approved: { cbu: CBU_B, cbuAlias: undefined },
       name: '`cbu` del archivo de otra cuenta',
       shortcut: 'fceb',
-      today: { cbu: CBU_B, cbuAlias: 'alias.config' },
       written: { args: base, config, json: { cbu: CBU_B } },
     },
     {
       approved: { cbu: CBU_B, cbuAlias: undefined },
       name: 'alias en la config sin CBU, con --cbu',
       shortcut: 'fcec',
-      today: { cbu: CBU_B, cbuAlias: 'alias.config' },
       written: { args: [...base, '--cbu', CBU_B], config: onlyAlias },
     },
     {
       approved: { cbu: CBU_B, cbuAlias: undefined },
       name: 'alias en la config sin CBU, con `cbu` del archivo',
       shortcut: 'fcea',
-      today: { cbu: CBU_B, cbuAlias: 'alias.config' },
       written: { args: base, config: onlyAlias, json: { cbu: CBU_B } },
     },
     {
       approved: { cbu: CBU_B, cbuAlias: undefined },
       name: 'el alias del archivo con un --cbu distinto del suyo',
       shortcut: 'fcea',
-      today: { cbu: CBU_B, cbuAlias: 'alias.archivo' },
       written: { args: [...base, '--cbu', CBU_B], json: { aliasCbu: 'alias.archivo', cbu: CBU_C } },
     },
     {
       approved: { cbu: CBU_A, cbuAlias: 'alias.config' },
       name: 'el --cbu es el de la config: va su alias y no el del archivo, que es de otra cuenta',
       shortcut: 'fcea',
-      today: { cbu: CBU_A, cbuAlias: 'alias.archivo' },
       written: { args: [...base, '--cbu', CBU_A], config, json: { aliasCbu: 'alias.archivo', cbu: CBU_C } },
     },
   ]);
@@ -292,22 +292,29 @@ describe('cruce 3: los datos del receptor del archivo con otro documento en el f
 
   describeCross('cruce 3', [
     {
+      approved: { ...dropped, ivaConditionSource: 'missing' },
+      name: 'el archivo trae solo el número, y es otro',
+      written: { args: [...amount, '--cuit', String(CUIT_B)], json: { ...receiver, numeroDocumento: CUIT_A } },
+    },
+    {
+      approved: { ...dropped, ivaConditionSource: 'missing' },
+      name: 'el archivo trae solo el tipo, y es otro',
+      written: { args: [...amount, '--cuit', String(CUIT_B)], json: { ...receiver, tipoDocumento: 'dni' } },
+    },
+    {
       approved: { ...dropped, documentNumber: CUIT_B, ivaConditionSource: 'missing' },
       name: 'otro --cuit: el IVA sale del padrón',
       shortcut: 'fa',
-      today: { ...kept, documentNumber: CUIT_B },
       written: { args: [...amount, '--cuit', String(CUIT_B)], json: file },
     },
     {
       approved: { ...dropped, ivaCondition: 'sujeto-exento', ivaConditionSource: 'default' },
       name: 'otro --cuit con IVA en la config: el de la config, que el padrón puede corregir',
-      today: kept,
       written: { args: [...amount, '--cuit', String(CUIT_B)], config: exempt, json: file },
     },
     {
       approved: { ...dropped, ivaCondition: 'sujeto-exento', ivaConditionSource: undefined },
       name: 'otro --cuit con el padrón apagado: el IVA de la config',
-      today: kept,
       written: {
         args: [...amount, '--cuit', String(CUIT_B)],
         config: { ...exempt, consultarPadron: false },
@@ -317,34 +324,29 @@ describe('cruce 3: los datos del receptor del archivo con otro documento en el f
     {
       approved: /^Falta IVA receptor/,
       name: 'otro --cuit con el padrón apagado y sin config: falta el IVA',
-      today: kept,
       written: { args: [...amount, '--cuit', String(CUIT_B)], config: { consultarPadron: false }, json: file },
     },
     {
       approved: /^Falta IVA receptor/,
       name: '--dni: falta el IVA',
       shortcut: 'fc',
-      today: { ...kept, documentType: 'dni' },
       written: { args: [...amount, '--dni', '30111222'], json: file },
     },
     {
       approved: { ...dropped, ivaCondition: 'consumidor-final', ivaConditionSource: undefined },
       name: '--cfinal: es consumidor final',
       shortcut: 'rb',
-      today: { ...kept, documentType: 'consumidor-final' },
       written: { args: [...amount, '--cfinal'], json: file },
     },
     {
       approved: /^Falta IVA receptor/,
       name: 'el mismo número con otro tipo (--cuil)',
-      today: { ...kept, documentType: 'cuil' },
       written: { args: [...amount, '--cuil', String(CUIT_A)], json: file },
     },
     {
       approved: { ...dropped, ivaConditionSource: 'missing' },
       name: '--cuit sobre un consumidor final del archivo',
       shortcut: 'ncb',
-      today: { ...kept, documentNumber: CUIT_B },
       written: {
         args: [...amount, '--cuit', String(CUIT_B)],
         json: { ...receiver, numeroDocumento: 0, tipoDocumento: 'consumidor-final' },
@@ -353,18 +355,31 @@ describe('cruce 3: los datos del receptor del archivo con otro documento en el f
     {
       approved: { ...dropped, ivaCondition: 'sujeto-exento', ivaConditionSource: undefined },
       name: 'con --ir va el del flag, y el nombre y el domicilio del archivo no',
-      today: { ...kept, ivaCondition: 'sujeto-exento' },
       written: { args: [...amount, '--cuit', String(CUIT_B), '--ir', 'sujeto-exento'], json: file },
     },
     {
       approved: { fromFile: undefined, receiverAddress: undefined, receiverName: 'Flag SA' },
       name: 'con --receptor-nombre, el domicilio del archivo tampoco va',
-      today: { fromFile: ['receiverAddress'], receiverAddress: 'Calle 1', receiverName: 'Flag SA' },
       written: { args: [...amount, '--cuit', String(CUIT_B), '--receptor-nombre', 'Flag SA'], json: file },
     },
   ]);
 
   describeKept('cruce 3', [
+    {
+      expected: { ...kept, documentNumber: 0 },
+      name: '--cfinal sobre un consumidor final sin número',
+      written: { args: [...amount, '--cfinal'], json: { ...receiver, tipoDocumento: 'consumidor-final' } },
+    },
+    {
+      expected: { ...kept, documentNumber: CUIT_B },
+      name: 'el archivo trae solo el tipo, que es el mismo',
+      written: { args: [...amount, '--cuit', String(CUIT_B)], json: { ...receiver, tipoDocumento: 'cuit' } },
+    },
+    {
+      expected: { ...kept, documentNumber: CUIT_A },
+      name: 'el archivo trae solo el número, que es el mismo',
+      written: { args: [...amount, '--cuit', String(CUIT_A)], json: { ...receiver, numeroDocumento: CUIT_A } },
+    },
     {
       expected: { ...kept, documentNumber: CUIT_A },
       name: 'el mismo documento, con guiones',
@@ -395,14 +410,7 @@ describe('cruce 3: los datos del receptor del archivo con otro documento en el f
     },
   ]);
 
-  it('cruce 3, hoy (cambia en la tanda 4): en un lote, cada uno lleva los datos de su archivo con el CUIT del flag', () => {
-    const plan = billingPlan({ args: ['--cuit', String(CUIT_B), '--cs'], json: [{ ...file, montoTotal: 1 }] });
-
-    expect(plan.inputs).toMatchObject([{ documentNumber: CUIT_B, receiverName: 'Archivo SA' }]);
-  });
-
-  // Tests primero (REV-52): pasa a it() al implementarlo.
-  it.fails('cruce 3, aprobado: en un lote, solo conserva los datos el que es del mismo documento', () => {
+  it('cruce 3: en un lote, solo conserva los datos el que es del mismo documento', () => {
     const other = { numeroDocumento: CUIT_B, tipoDocumento: 'cuit' };
     const plan = billingPlan({
       args: ['--cuit', String(CUIT_B), '--cs'],
@@ -424,21 +432,40 @@ const PERIOD = { desde: '01/09/2026', hasta: '30/09/2026' };
 const PERIOD_FLAGS = ['--pd', '01/09/2026', '--ph', '30/09/2026'];
 
 describe('cruce 4: comprobante y período asociado en niveles distintos', () => {
-  const both = { associatedPeriod: PERIOD, associatedVoucher: VOUCHER };
-
   describeCross('cruce 4', [
+    ...[
+      ['--ac', 'fb'],
+      ['--at', '6'],
+      ['--ar', '5'],
+      ['--apv', '1'],
+    ].map((flag) => ({
+      approved: { associatedPeriod: undefined },
+      name: `${flag[0]} solo`,
+      shortcut: 'ncb' as const,
+      written: { args: [...base, ...flag], json: PERIOD_FILE },
+    })),
+    {
+      approved: { associatedPeriod: undefined, associatedVoucher: { ...VOUCHER, numero: 9 } },
+      name: '--ar sobre un archivo con los dos: gana el comprobante',
+      shortcut: 'ncb',
+      written: { args: [...base, '--ar', '9'], json: { ...VOUCHER_FILE, ...PERIOD_FILE } },
+    },
+    {
+      approved: { associatedPeriod: { ...PERIOD, hasta: '15/09/2026' }, associatedVoucher: undefined },
+      name: '--ph sobre un archivo con los dos: gana el período',
+      shortcut: 'ncb',
+      written: { args: [...base, '--ph', '15/09/2026'], json: { ...VOUCHER_FILE, ...PERIOD_FILE } },
+    },
     {
       approved: { associatedPeriod: undefined, associatedVoucher: VOUCHER },
       name: '--ac, --ar y --apv con `periodoAsociado` del archivo',
       shortcut: 'ncb',
-      today: both,
       written: { args: [...base, ...VOUCHER_FLAGS], json: PERIOD_FILE },
     },
     {
       approved: { associatedPeriod: PERIOD, associatedVoucher: undefined },
       name: '--pd y --ph con `comprobanteAsociado` del archivo',
       shortcut: 'ndb',
-      today: both,
       written: { args: [...base, ...PERIOD_FLAGS], json: VOUCHER_FILE },
     },
   ]);
@@ -446,6 +473,11 @@ describe('cruce 4: comprobante y período asociado en niveles distintos', () => 
   it.each([
     ['en los flags', { args: [...base, ...VOUCHER_FLAGS, ...PERIOD_FLAGS] }],
     ['en el archivo', { args: base, json: { ...VOUCHER_FILE, ...PERIOD_FILE } }],
+    [
+      'en el archivo, con --afecha',
+      { args: [...base, '--afecha', '01/09/2026'], json: { ...VOUCHER_FILE, ...PERIOD_FILE } },
+    ],
+    ['(--acuit solo y el período del archivo)', { args: [...base, '--acuit', String(CUIT_A)], json: PERIOD_FILE }],
   ])('no cambia: los dos %s son un error', (_name, written: Written) => {
     expect(() => buildRequest(written, 'ncb')).toThrow(
       'Usá un comprobante asociado (`--ac`/`--at`) o un período asociado (`--periodo-desde`/`--periodo-hasta`), pero no ambos.',
@@ -457,22 +489,29 @@ describe('cruce 5: `--vto` y `dia` en niveles distintos', () => {
   describeCross('cruce 5', [
     {
       approved: { dueDay: undefined, fromFile: undefined, paymentDueDate: '30/11/2026' },
+      name: '--vto sobre un archivo con los dos',
+      written: { args: [...base, '--vto', '30/11/2026'], json: { dia: 10, vencimientoPago: '01/11/2026' } },
+    },
+    {
+      approved: { dueDay: 12, fromFile: undefined, paymentDueDate: undefined },
+      name: '--dia sobre un archivo con los dos',
+      written: { args: [...base, '--dia', '12'], json: { dia: 10, vencimientoPago: '01/11/2026' } },
+    },
+    {
+      approved: { dueDay: undefined, fromFile: undefined, paymentDueDate: '30/11/2026' },
       name: '--vto con `dia` del archivo',
-      today: { dueDay: 10, fromFile: ['dueDay'], paymentDueDate: '30/11/2026' },
       written: { args: [...base, '--vto', '30/11/2026'], json: { dia: 10 } },
     },
     {
       approved: { dueDay: undefined, fromFile: undefined, paymentDueDate: '30/11/2026' },
       name: '--vencimiento con `dia` del archivo, en una FCE',
       shortcut: 'fcea',
-      today: { dueDay: 10, fromFile: ['dueDay'], paymentDueDate: '30/11/2026' },
       written: { args: [...base, '--vencimiento', '30/11/2026'], json: { dia: 10 } },
     },
     {
       approved: { dueDay: 10, paymentDueDate: undefined },
       name: '--dia con `vencimientoPago` del archivo',
       shortcut: 'fc',
-      today: { dueDay: 10, paymentDueDate: '30/11/2026' },
       written: { args: [...base, '--dia', '10'], json: { vencimientoPago: '30/11/2026' } },
     },
   ]);
@@ -491,67 +530,87 @@ describe('cruce 6: una sola punta del período en el flag', () => {
       approved: { associatedPeriod: { desde: '15/09/2026', hasta: '30/09/2026' } },
       name: '--periodo-desde con el período entero en el archivo',
       shortcut: 'ncc',
-      today: { associatedPeriod: { desde: '15/09/2026', hasta: undefined } },
       written: { args: [...base, '--periodo-desde', '15/09/2026'], json: PERIOD_FILE },
     },
     {
       approved: { associatedPeriod: { desde: '01/09/2026', hasta: '15/09/2026' } },
       name: '--ph con el período entero en el archivo',
       shortcut: 'nda',
-      today: { associatedPeriod: { desde: undefined, hasta: '15/09/2026' } },
       written: { args: [...base, '--ph', '15/09/2026'], json: PERIOD_FILE },
     },
     {
       approved: { associatedPeriod: { desde: '01/09/2026', hasta: '15/09/2026' } },
       name: '--pd con solo `hasta` en el archivo',
       shortcut: 'ncb',
-      today: { associatedPeriod: { desde: '01/09/2026', hasta: undefined } },
       written: { args: [...base, '--pd', '01/09/2026'], json: { periodoAsociado: { hasta: '15/09/2026' } } },
     },
   ]);
 });
 
-/**
- * Cruces que no están en la tabla del diseño: cómo están hoy, sin decidir nada. Si se decide cambiar alguno, se edita
- * acá.
- */
-describe('cruces sin decidir (hoy)', () => {
-  it('A: `--ac`, `--ar` y `--apv` de otro comprobante conservan la fecha y el CUIT del que trae el archivo', () => {
-    const json = { comprobanteAsociado: { atajo: 'fb', cuit: String(CUIT_A), fecha: '01/09/2026', numero: 1 } };
+describe('cruce A: un flag que apunta a otro comprobante asociado', () => {
+  const own = { cuit: String(CUIT_A), fecha: '01/09/2026' };
+  const file = { atajo: 'fb', numero: 1, puntoVenta: 2 };
+  const json = { comprobanteAsociado: { ...file, ...own } };
 
-    expect(billingInput({ args: [...base, '--ac', 'ndb', '--ar', '9', '--apv', '4'], json }, 'ncb')).toMatchObject({
-      associatedVoucher: {
-        cuit: String(CUIT_A),
-        fecha: '01/09/2026',
-        numero: 9,
-        puntoVenta: 4,
-        shortcut: 'ndb',
-      },
-    });
+  it.each<[string, string[], Json]>([
+    ['otro tipo con --ac', ['--ac', 'ndb'], { numero: 1, puntoVenta: 2, shortcut: 'ndb' }],
+    ['otro tipo con --at', ['--at', '7'], { numero: 1, puntoVenta: 2, tipo: 7 }],
+    ['otro número', ['--ar', '9'], { numero: 9, puntoVenta: 2, shortcut: 'fb' }],
+    ['otro punto de venta', ['--apv', '4'], { numero: 1, puntoVenta: 4, shortcut: 'fb' }],
+    [
+      'otro número con su fecha: no va el CUIT',
+      ['--ar', '9', '--afecha', '05/09/2026'],
+      { fecha: '05/09/2026', numero: 9, puntoVenta: 2, shortcut: 'fb' },
+    ],
+  ])('%s descarta la fecha y el CUIT del archivo', (_name, args, expected) => {
+    expect(billingInput({ args: [...base, ...args], json }, 'ncb').associatedVoucher).toEqual(expected);
   });
 
+  it.each<[string, string[], Json]>([
+    [
+      'los mismos valores',
+      ['--ac', 'fb', '--ar', '1', '--apv', '2'],
+      { ...own, numero: 1, puntoVenta: 2, shortcut: 'fb' },
+    ],
+    ['el mismo tipo, por su código', ['--at', '6'], { ...own, numero: 1, puntoVenta: 2, tipo: 6 }],
+    ['la fecha', ['--afecha', '05/09/2026'], { ...own, fecha: '05/09/2026', numero: 1, puntoVenta: 2, shortcut: 'fb' }],
+  ])('%s no descarta nada', (_name, args, expected) => {
+    expect(billingInput({ args: [...base, ...args], json }, 'ncb').associatedVoucher).toEqual(expected);
+  });
+
+  it('lo que el archivo no trae no contradice nada', () => {
+    const written = { args: [...base, '--ac', 'fb', '--ar', '9'], json: { comprobanteAsociado: own } };
+
+    expect(billingInput(written, 'ncb').associatedVoucher).toEqual({ ...own, numero: 9, shortcut: 'fb' });
+  });
+});
+
+describe('cruces que quedan así (decidido)', () => {
   it.each([
     ['--ar', '0'],
     ['--apv', '0'],
     ['--afecha', ''],
-  ])('B: %s %j solo se ignora y queda el del archivo (con otro flag del asociado es un error)', (flag, value) => {
-    const json = { comprobanteAsociado: { fecha: '01/09/2026', numero: 5, puntoVenta: 1 } };
-    const input = billingInput({ args: [...base, flag, value], json }, 'ncb');
+  ])(
+    'B (decidido: queda así): %s %j solo se ignora y queda el del archivo (con otro flag del asociado es un error)',
+    (flag, value) => {
+      const json = { comprobanteAsociado: { fecha: '01/09/2026', numero: 5, puntoVenta: 1 } };
+      const input = billingInput({ args: [...base, flag, value], json }, 'ncb');
 
-    expect(input.associatedVoucher).toEqual(json.comprobanteAsociado);
-  });
+      expect(input.associatedVoucher).toEqual(json.comprobanteAsociado);
+    },
+  );
 
-  it('B: con otro flag del asociado, `--ar 0` sí se lee y es un error', () => {
+  it('B (decidido: queda así): con otro flag del asociado, `--ar 0` sí se lee y es un error', () => {
     expect(() => billingInput({ args: [...base, '--ar', '0', '--apv', '2'], json: VOUCHER_FILE }, 'ncb')).toThrow(
       /too_small/,
     );
   });
 
-  it('B: `--pd ""` se ignora y queda el período del archivo', () => {
+  it('B (decidido: queda así): `--pd ""` se ignora y queda el período del archivo', () => {
     expect(billingInput({ args: [...base, '--pd', ''], json: PERIOD_FILE }, 'ncb').associatedPeriod).toEqual(PERIOD);
   });
 
-  it('C: `--cp` con fechas de servicio en el archivo es el error de productos: no gana el flag', () => {
+  it('C (decidido: queda así): `--cp` con fechas de servicio en el archivo es el error de productos: no gana el flag', () => {
     const written = {
       args: ['--monto', '1000', '--ir-cf', '--cp'],
       json: { concepto: 'servicios', servicioDesde: '01/09/2026', servicioHasta: '30/09/2026' },

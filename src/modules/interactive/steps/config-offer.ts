@@ -15,12 +15,17 @@ export interface ConfigOffer {
  */
 export function cbuToSave(
   state: Pick<InvoiceState, 'cbu' | 'cbuAlias' | 'voucherKind'>,
-  config: Pick<ArcliConfig, 'cbu'>,
+  config: Pick<ArcliConfig, 'aliasCbu' | 'cbu'>,
   authorized: boolean,
 ): ConfigOffer | undefined {
   const { cbu, cbuAlias } = state;
 
   if (!authorized || !cbu || config.cbu || !isFceInvoiceState(state)) {
+    return undefined;
+  }
+
+  // Guardar solo el CBU lo dejaria con el alias que ya esta en la config, que es de otra cuenta.
+  if (!cbuAlias && config.aliasCbu) {
     return undefined;
   }
 
