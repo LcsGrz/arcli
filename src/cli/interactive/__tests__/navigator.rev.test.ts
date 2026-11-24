@@ -173,8 +173,8 @@ describe('auditoría del asistente del 19/11', () => {
         [/País de destino/, 'ESTADOS UNIDOS'],
         [/ID impositivo/, '12-3456789'],
         [/Qué exportás/, 'Servicios'],
-        [/moneda/, 'Dólares'],
-        [/Te pagan en dólares/, 'Sí'],
+        [/Moneda del comprobante/, 'Dólares'],
+        [/Cómo te pagan/, 'En dólares'],
         ...singleExportItem('1.500'),
         [/Forma de pago/, ''],
         [/Actividad de WSFEX/, '620100'],
@@ -654,8 +654,8 @@ describe('auditoría del asistente del 19/11: una sola salida (NAV-4)', () => {
         [/País de destino/, 'ESTADOS UNIDOS'],
         [/ID impositivo/, '12-3456789'],
         [/Qué exportás/, 'Servicios'],
-        [/moneda/, 'Dólares'],
-        [/Te pagan en dólares/, 'Sí'],
+        [/Moneda del comprobante/, 'Dólares'],
+        [/Cómo te pagan/, 'En dólares'],
         ...singleExportItem('1.500'),
         [/Forma de pago/, ''],
         [/Actividad de WSFEX/, '620100'],
@@ -676,6 +676,7 @@ describe('auditoría del asistente del 19/11: una sola salida (NAV-4)', () => {
         [/Qué comprobante querés repetir/, 'Factura de exportación E'],
         [/Cuál repetimos/, '00003-00000007'],
         ...KEEP_EXPORT_ITEMS,
+        [/Cómo te pagan/, 'En dólares'],
         [/Fecha de pago/, '25'],
         [/Agregamos/, []],
         NO_EMIT,
@@ -864,8 +865,8 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
       [/País de destino/, 'estados unidos'],
       [/ID impositivo/, '12-3456789'],
       [/Qué exportás/, 'Servicios'],
-      [/moneda/, currency],
-      ...(currency === 'Dólares' ? ([[/Te pagan en dólares/, 'Sí']] as const) : []),
+      [/Moneda del comprobante/, currency],
+      ...(currency === 'Dólares' ? ([[/Cómo te pagan/, 'En dólares']] as const) : []),
       // Sin monto (NAV-10): el precio del ítem nombra la moneda.
       [/^Descripción del ítem 1:/, ''],
       [/^Cantidad:/, ''],
@@ -1004,8 +1005,8 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
       [/País de destino/, 'estados unidos'],
       [/ID impositivo/, '12-3456789'],
       [/Qué exportás/, 'Servicios'],
-      [/moneda/, 'Dólares'],
-      [/Te pagan en dólares/, 'Sí'],
+      [/Moneda del comprobante/, 'Dólares'],
+      [/Cómo te pagan/, 'En dólares'],
       ...singleExportItem('1.500'),
       [/Forma de pago/, BACK],
       [/^Ítems de .*: modificá o eliminá ítems/, BACK],
@@ -1022,8 +1023,8 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
       await run(
         [
           ...untilItems,
-          [/Te pagan en dólares/, BACK],
-          [/moneda/, 'Pesos'],
+          [/Cómo te pagan/, BACK],
+          [/Moneda del comprobante/, 'Pesos'],
           [/^Ítems de .*: modificá o eliminá ítems/, editing({ edit: ['Según detalle'] })],
           [/^Descripción del ítem 1:/, ''],
           [/^Cantidad:/, ''],
@@ -1039,12 +1040,12 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
       expect(lastQuestion(/^Importe:$/)?.[1]?.previousAnswer).toBe('1500');
     });
 
-    it('solo cambiar "¿Te pagan en dólares?": los ítems siguen, en el editor, sin aviso', async () => {
+    it('solo cambiar "¿Cómo te pagan?": los ítems siguen, en el editor, sin aviso', async () => {
       await run(
         [
           ...untilItems,
           // En servicios no se pregunta la cotización (2053).
-          [/Te pagan en dólares/, 'No, en pesos'],
+          [/Cómo te pagan/, 'En pesos'],
           [/^Ítems de .*: modificá o eliminá ítems/, editing({})],
           [/^Importe total de la factura de exportación E: 1\.500 USD/, 'Confirmar'],
           ...rest,
@@ -1311,8 +1312,8 @@ describe('TUI-15: lo respondido no se pierde si la vista previa rechaza', () => 
           [/País de destino/, 'ESTADOS UNIDOS'],
           [/ID impositivo/, '12-3456789'],
           [/Qué exportás/, 'Servicios'],
-          [/moneda/, 'Dólares'],
-          [/Te pagan en dólares/, 'Sí'],
+          [/Moneda del comprobante/, 'Dólares'],
+          [/Cómo te pagan/, 'En dólares'],
           ...singleExportItem('1.500'),
           [/Forma de pago/, ''],
           [/Actividad de WSFEX/, '620100'],

@@ -176,6 +176,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Permisos de embarque/, '26001EC01000123A'],
       [/Agregamos algún opcional/, []],
       [/Emitimos la factura de exportación E en testing/, 'Sí, emitir ahora'],
@@ -226,6 +227,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
@@ -255,6 +257,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
@@ -281,6 +284,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Actividad de WSFEX/, ''],
       // Antes de los opcionales, contra la más temprana que ARCA acepta para la fecha del comprobante (TUI-22).
       [
@@ -314,6 +318,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Actividad de WSFEX/, rejecting('620100', ['620900', /no está en la tabla de actividades de WSFEX.*2105/])],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
@@ -337,6 +342,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Actividad de WSFEX/, '620100'],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
@@ -348,6 +354,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
@@ -366,6 +373,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, ['Fecha del comprobante']],
       [/Fecha del comprobante/, rejecting('10/11', ['08/11/2026', /del 09\/11\/2026 al 19\/11\/2026.*error 1500/])],
@@ -395,6 +403,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       // Anterior a hoy, pero no a la más temprana posible: vale al preguntarla.
       [/Fecha de pago/, '12/11/2026'],
       [/Agregamos algún opcional/, ['Fecha del comprobante']],
@@ -431,6 +440,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
@@ -456,6 +466,7 @@ describe('runExportRepeatFlow', () => {
       [/Unidad/, 'unidades'],
       [/^(?:Importe|Precio unitario) en USD/, '1.000'],
       [/Importe total de la factura de exportación E: 2\.000 USD \(2 ítems\)/, 'Confirmar'],
+      [/Cómo te pagan/, 'En dólares'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
@@ -473,6 +484,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir y generar el PDF'],
@@ -488,6 +500,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
@@ -568,6 +581,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       [/Cuál repetimos/, '00004-00000001'],
       [/^Ítems de .*: modificá o eliminá ítems/, editing({})],
       [/Importe total/, 'Confirmar'],
+      [/Cómo te pagan/, 'En dólares'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
@@ -584,14 +598,14 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
-      [/Te pagan en la moneda de la factura/, 'No, en pesos'],
+      [/Cómo te pagan/, 'En pesos'],
       [/Cotización de USD \(la oficial de ARCA es 1\.450,25\)/, '1450,25'],
       [/Permisos de embarque/, BACK],
       // Sin tocarla, al volver arranca de nuevo con la de ARCA.
       [/Cotización de USD/, BACK],
-      [/Te pagan en la moneda de la factura/, BACK],
+      [/Cómo te pagan/, BACK],
       ...KEEP_EXPORT_ITEMS,
-      [/Te pagan en la moneda de la factura/, 'No, en pesos'],
+      [/Cómo te pagan/, 'En pesos'],
       [/Cotización de USD/, '1.500'],
       [/Permisos de embarque/, BACK],
       // Escrita a mano, al volver arranca con la escrita.
@@ -616,7 +630,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
-      [/Te pagan en la moneda de la factura/, 'No, en pesos'],
+      [/Cómo te pagan/, 'En pesos'],
       [/Cotización de USD/, '1450,25'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
@@ -629,6 +643,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
@@ -642,6 +657,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En pesos'],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
     ]);
@@ -651,6 +667,70 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     );
     // Sin incoterm tampoco se ofrece su descripcion.
     expect(offeredOptionals()).not.toContain('Descripción del incoterm');
+  });
+
+  it.each([
+    [true, 'moneda'],
+    [false, 'pesos'],
+    [undefined, 'pesos'],
+  ])('"¿Cómo te pagan?" propone lo de la factura (%s), y se puede cambiar (ARQ-22)', async (sameCurrency, marked) => {
+    const goods = [
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ] as const;
+
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
+      ...goods,
+    ]);
+    expect((await repeatOf({ ...INVOICE, sameCurrency }))?.sameCurrency).toBe(true);
+    expect(script.chooseStep.mock.calls.find(([message]) => /Cómo te pagan/.test(message))?.[2]).toBe(marked);
+
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de USD/, '1450,25'],
+      ...goods,
+    ]);
+    expect((await repeatOf({ ...INVOICE, sameCurrency }))?.sameCurrency).toBe(false);
+  });
+
+  it('una moneda que ARCA no publica: cobrada en ella avisa y vuelve a preguntar; en pesos se escribe (ARQ-22)', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En reales'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/^Cotización de BRL:$/, '210'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    expect(await repeatOf({ ...INVOICE, currencyCode: '012' })).toMatchObject({
+      currencyCode: '012',
+      exchangeRate: 210,
+      sameCurrency: false,
+    });
+    expect(printed().replace(/[│┃╏\s]+/g, ' ')).toContain(
+      'ARCA no publica la cotización de BRL y no acepta otra si te pagan en BRL. Cobrala en pesos, con la cotización que acuerden.',
+    );
+  });
+
+  it('en servicios, en una moneda que ARCA no publica, avisa y vuelve para elegir otra factura (ARQ-22)', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      ...KEEP_EXPORT_ITEMS,
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
+      [/Cuál repetimos/, BACK],
+    ]);
+
+    expect(await repeatOf({ ...INVOICE, currencyCode: '012', exportType: 2, incoterm: undefined })).toBeUndefined();
+    expect(printed().replace(/[│┃╏\s]+/g, ' ')).toContain(
+      'ARCA no publica la cotización de BRL y no acepta otra en servicios. Volvé y elegí otra factura.',
+    );
   });
 
   it('una E en pesos no pregunta la moneda de pago ni la cotización', async () => {
@@ -672,8 +752,11 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/ARCA no tiene un CUIT publicado para ATLANTIDA/, BACK],
+      [/Cómo te pagan/, BACK],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [
         /ARCA no tiene un CUIT publicado para ATLANTIDA/,
         rejecting('55000002126', ['', /^Elegí un CUIT de la lista o escribí el número\.$/]),
@@ -692,6 +775,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/ARCA no tiene un CUIT publicado para ATLANTIDA/, '55000002126'],
       [/Permisos de embarque/, BACK],
       [/ARCA no tiene un CUIT publicado para ATLANTIDA/, '55000002126'],
@@ -712,6 +796,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
@@ -727,6 +812,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/ARCA no tiene un CUIT publicado para ATLANTIDA/, 'unidos'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
@@ -749,6 +835,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [
         /ARCA no tiene un CUIT publicado para ATLANTIDA/,
         rejecting('55000002126', ['55000000000', /^El CUIT de país 55000000000 no existe en la tabla de ARCA\.$/]),
@@ -766,10 +853,13 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Actividad de WSFEX/, rejecting('620100', ['abc', /La actividad/])],
       [/Fecha de pago/, BACK],
       [/Actividad de WSFEX/, BACK],
+      [/Cómo te pagan/, BACK],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Actividad de WSFEX/, rejecting('620100', ['620200', /no está en la tabla de actividades de WSFEX.*2105/])],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
@@ -820,6 +910,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, ['Idioma', 'CUIT del país', 'Descripción del incoterm']],
       [/Idioma del comprobante/, 'Español'],
@@ -828,9 +919,11 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       // "despues" vuelve: se retrocede hasta la factura y se elige otra.
       [/Agregamos algún opcional/, BACK],
       [/Permisos de embarque/, BACK],
+      [/Cómo te pagan/, BACK],
       [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Cuál repetimos/, '00004-00000002'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
@@ -889,6 +982,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       script = createScript([
         [/Cuál repetimos/, '00004-00000001'],
         ...KEEP_EXPORT_ITEMS,
+        [/Cómo te pagan/, 'En dólares'],
         [/Fecha de pago/, '20/11/2026'],
         [/Agregamos algún opcional/, ['Observaciones']],
         [/^Observaciones \(/, 'Pedido 42'],
@@ -908,12 +1002,15 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       script = createScript([
         [/Cuál repetimos/, '00004-00000001'],
         ...KEEP_EXPORT_ITEMS,
+        [/Cómo te pagan/, 'En dólares'],
         [/Fecha de pago/, '20/11/2026'],
         [/Agregamos algún opcional/, []],
         [/Agregamos algún opcional/, BACK],
         [/Fecha de pago/, BACK],
+        [/Cómo te pagan/, BACK],
         [/^Ítems de .*: modificá o eliminá ítems/, editing({ remove: ['Flete'] })],
         [/Importe total/, 'Confirmar'],
+        [/Cómo te pagan/, 'En dólares'],
         [/Fecha de pago/, '20/11/2026'],
         [/Agregamos algún opcional/, []],
       ]);
@@ -932,6 +1029,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       script = createScript([
         [/Cuál repetimos/, '00004-00000001'],
         ...KEEP_EXPORT_ITEMS,
+        [/Cómo te pagan/, 'En dólares'],
         [/Fecha de pago/, '16/11/2026'],
         [/Agregamos algún opcional/, ['Fecha del comprobante']],
         [/Fecha del comprobante/, '14/11/2026'],
@@ -959,6 +1057,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
     ]);
@@ -975,6 +1074,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/Permisos de embarque/, '26001EC01000123A, 26001EC01000124B'],
       [/Agregamos algún opcional/, []],
     ]);

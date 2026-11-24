@@ -28,7 +28,6 @@ import { askCountryCuit, exportOptionalsStep } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
 import { pickExportVoucher } from './invoice-picker';
 import { exportExchangeRateLoader } from './official-exchange-rate';
-import { chooseStep } from './prompts';
 import { offerConfig } from './save-to-config';
 import { emissionStep, type InteractiveSession } from './session';
 import {
@@ -36,6 +35,7 @@ import {
   activityStep,
   exportExchangeRateStep,
   exportPaymentDateStep,
+  exportPaymentStep,
   exportRuleEnv,
   type ExportTables,
   loadExportTables,
@@ -66,7 +66,7 @@ function optionsOf(copy: ExportInvoiceCopy['input']): ExportOptions {
 /**
  * Pasos para repetir una factura E: se elige una de las ultimas y se copian cliente, destino, moneda, incoterm e
  * items (el editor arranca con ellos y el total es su suma). Las fechas son nuevas, la cotizacion es la de hoy, y se
- * preguntan los permisos de embarque y la fecha de pago, que son de cada operacion.
+ * preguntan como te pagan (arranca en lo de la factura), los permisos de embarque y la fecha de pago, que son de cada operacion.
  *
  * @internal Exportado para los tests.
  */
@@ -147,31 +147,23 @@ export function exportRepeatSteps(
       units: () => gateway.getUnits(),
       voucher: formatVoucherWithArticle(EXPORT_VOUCHER_KIND),
     }),
-    {
-      // Es sobre la moneda de la factura elegida.
+    // Arranca en lo que informo la factura (`CanMisMonExt`); si FEXGetCMP no lo trae, en pesos.
+    exportPaymentStep<ExportRepeatState>({
+      choosesCurrency: false,
       dependsOn: ['factura'],
-      name: 'misma-moneda',
-      // FEXGetCMP casi siempre trae `CanMisMonExt`; si no, se pregunta como en "Emitir factura".
-      run: async (state, { previous }) => {
-        const sameCurrency = await chooseStep(
-          '¿Te pagan en la moneda de la factura?',
-          [
-            { description: 'ARCA lo registra como cancelación en la misma moneda', name: 'Sí', value: true },
-            { name: 'No, en pesos', value: false },
-          ],
-          previous?.copy?.sameCurrency,
-        );
-
-        return sameCurrency === BACK ? BACK : { copy: { ...requireStepValue(state.copy, 'copy'), sameCurrency } };
-      },
-      skip: (state) => state.copy?.sameCurrency !== undefined,
-    },
+      sameCurrency: nestedLens('copy', 'sameCurrency', (state) => requireStepValue(state.copy, 'copy')),
+      unpublished: (state, voucher) =>
+        exchangeRate.unpublished({ ...voucher, voucherDate: state.options?.voucherDate }),
+      voucher: exchangeRateCase,
+    }),
     // La de la factura no sirve (es de otro dia): arranca con la de aduana de ARCA, como en "Emitir factura" (NAV-9).
     exportExchangeRateStep<ExportRepeatState>({
-      dependsOn: ['factura', 'misma-moneda'],
+      dependsOn: ['factura', 'pago'],
       exchangeRate: fieldLens('exchangeRate'),
       rules: (state) => exportRepeatRuleScope(state, ruleEnv),
       suggestion: (state) => exchangeRate({ ...exchangeRateCase(state), voucherDate: state.options?.voucherDate }),
+      unpublished: (state) =>
+        exchangeRate.unpublished({ ...exchangeRateCase(state), voucherDate: state.options?.voucherDate }),
       voucher: exchangeRateCase,
     }),
     {

@@ -173,3 +173,10 @@ export function validateItemNumber(label: string): (value: string) => string | t
     return parsed.value > 0 ? true : `${label} tiene que ser mayor a 0.`;
   };
 }
+
+/** Un codigo de moneda escrito a mano, si no se tiene la tabla de ARCA para compararlo. */
+export function validateCurrencyCode(value: string): string | true {
+  return /^[a-z0-9]{3}$/i.test(value.trim())
+    ? true
+    : 'La moneda va con su código de tres caracteres: el ISO, como EUR, o el de ARCA, como 060.';
+}

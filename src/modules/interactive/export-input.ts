@@ -1,4 +1,3 @@
-import { ARCA_DOLLAR_CODE, ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { EXPORT_RULES, type ExportRuleContext } from '../export/export.rules';
 import type { ExportCountry, ExportItemInput, ExportType, ExportVoucherInput } from '../export/export.types';
 
@@ -17,7 +16,8 @@ export interface ExportFlowState {
   readonly country?: ExportCountry;
   /** ARCA no publica un CUIT para el destino: hay que pedirlo (`--cuit-pais`). */
   readonly countryCuitMissing?: boolean;
-  readonly currencyCode?: typeof ARCA_DOLLAR_CODE | typeof ARCA_LOCAL_CURRENCY_CODE;
+  /** El codigo de ARCA (`DOL`, `060`, `PES`). */
+  readonly currencyCode?: string;
   readonly destinationCountry?: string;
   /** La cotizacion escrita a mano; sin ella, la de aduana de ARCA, como el CLI sin `--cm`. */
   readonly exchangeRate?: number;

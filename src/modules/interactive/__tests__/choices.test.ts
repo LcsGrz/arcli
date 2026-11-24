@@ -4,12 +4,38 @@ import { VOUCHER_KIND_MAP } from '../../billing/voucher-kind-map';
 import {
   availableChoice,
   currencyChoices,
+  exportCurrencyChoices,
   invoiceKindChoices,
   ivaConditionChoices,
   noteKindChoices,
   receiverChoices,
   reciboChoices,
 } from '../choices';
+
+describe('exportCurrencyChoices (ARQ-22)', () => {
+  const values = (...codes: string[]) => exportCurrencyChoices(codes.map((code) => ({ code }))).map((c) => c.value);
+
+  it('los dólares primero, pesos siempre, y el resto en el orden de A, B y C si está en la tabla', () => {
+    expect(values('012', '060', 'PES', 'DOL')).toEqual(['DOL', 'PES', '060', '012']);
+    expect(values('DOL')).toEqual(['DOL', 'PES']);
+  });
+
+  it('sin tabla, dólares y pesos', () => {
+    expect(values()).toEqual(['DOL', 'PES']);
+  });
+
+  it('una tabla sin DOL no ofrece dólares', () => {
+    expect(values('060')).toEqual(['PES', '060']);
+  });
+
+  it('la tabla se compara sin mayúsculas ni espacios', () => {
+    expect(values(' dol ', 'nzd')).toEqual(['DOL', 'PES', 'NZD']);
+  });
+
+  it('las que A, B y C no ofrecen (numéricas o desconocidas) no están', () => {
+    expect(values('DOL', '002', '049', 'ZZZ')).toEqual(['DOL', 'PES']);
+  });
+});
 
 describe('availableChoice', () => {
   const choices = ivaConditionChoices('a');

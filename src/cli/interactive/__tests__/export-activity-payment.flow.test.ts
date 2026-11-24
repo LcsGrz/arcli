@@ -195,7 +195,7 @@ describe('runExportFlow: la actividad y la forma de pago de una lista donde tamb
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Servicios'],
-      [/moneda/, 'Pesos'],
+      [/Moneda del comprobante/, 'Pesos'],
       ...singleExportItem('100'),
       ...paymentAndActivity,
       [/Fecha de pago/, ''],
@@ -430,6 +430,7 @@ describe('runExportRepeatFlow: la actividad de una lista donde también se escri
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      [/Cómo te pagan/, 'En dólares'],
       [/actividad/i, activity],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],

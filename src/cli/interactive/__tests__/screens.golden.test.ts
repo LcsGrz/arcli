@@ -844,8 +844,8 @@ const facturaE = [
   [/País de destino/, 'estados unidos'],
   [/ID impositivo/, '12-3456789'],
   [/Qué exportás/, 'Servicios'],
-  [/moneda/, 'Dólares'],
-  [/Te pagan en dólares/, 'Sí'],
+  [/Moneda del comprobante/, 'Dólares'],
+  [/Cómo te pagan/, 'En dólares'],
   // Sin "Monto total": el primer ítem con la cantidad y la unidad por defecto, y el total es su suma (NAV-10).
   [/Descripción del ítem 1/, 'Consultoría de software'],
   [/Cantidad/, ''],
@@ -908,8 +908,8 @@ describe('golden de pantallas: factura E', () => {
       [/ARCA no tiene un CUIT publicado/, ''],
       [/ID impositivo/, '12.345.678/0001-90'],
       [/Qué exportás/, 'Bienes'],
-      [/moneda/, 'Dólares'],
-      [/Te pagan en dólares/, 'No, en pesos'],
+      [/Moneda del comprobante/, 'Dólares'],
+      [/Cómo te pagan/, 'En pesos'],
       // Despues de la moneda, arrancando con la de aduana de ARCA (NAV-9).
       [/Cotización de USD/, '1.180'],
       // El primer ítem con los valores por defecto: la misma solicitud que sin ítems (NAV-10).
@@ -937,8 +937,8 @@ describe('golden de pantallas: ítems de la factura E (NAV-10)', () => {
     [/ARCA no tiene un CUIT publicado/, ''],
     [/ID impositivo/, '12.345.678/0001-90'],
     [/Qué exportás/, 'Bienes'],
-    [/moneda/, 'Dólares'],
-    [/Te pagan en dólares/, 'Sí'],
+    [/Moneda del comprobante/, 'Dólares'],
+    [/Cómo te pagan/, 'En dólares'],
   ] as const;
 
   it('carga dos ítems y en el editor modifica uno, borra otro y agrega uno', () =>
@@ -993,7 +993,7 @@ describe('golden de pantallas: ítems de la factura E (NAV-10)', () => {
       [/Unidad/, BACK],
       [/Cantidad/, BACK],
       [/Descripción del ítem 1/, BACK],
-      [/Te pagan en dólares/, 'Sí'],
+      [/Cómo te pagan/, 'En dólares'],
       [/^Ítems de .*: modificá o eliminá ítems/, editing({})],
       [/Importe total/, 'Modificar los ítems'],
       // Esc en el editor, si se llegó desde el total, vuelve al total.
@@ -1013,6 +1013,7 @@ const notaCreditoE = [
   [/Qué factura\?/, 'Factura de exportación E'],
   [/Punto de venta de la factura E/, '3'],
   [/Número de la factura E/, '7'],
+  [/En qué moneda va la nota/, 'En USD'],
 ] as const;
 
 /** La NC arranca con el renglón de la factura (1.500 USD): se modifica el precio a 500. */
@@ -1035,7 +1036,9 @@ describe('golden de pantallas: notas E', () => {
       [
         ...notaCreditoE,
         [/^Ítems de .*: modificá o eliminá ítems/, BACK],
+        [/En qué moneda va la nota/, BACK],
         [/Número de la factura E/, '7'],
+        [/En qué moneda va la nota/, 'En USD'],
         [/^Ítems de .*: modificá o eliminá ítems/, editing({ edit: ['Según detalle'] })],
         [/Descripción del ítem 1/, 'Descuento por volumen'],
         [/Cantidad/, ''],
@@ -1095,6 +1098,24 @@ describe('golden de pantallas: notas E', () => {
       creditNote,
     ));
 
+  it('NC E en pesos sobre la factura E en dólares: los ítems se cargan y no hay tope (ARQ-22)', () =>
+    golden(
+      'nota-e/en-pesos',
+      [
+        ...notaCreditoE.slice(0, -1),
+        [/En qué moneda va la nota/, 'En pesos'],
+        [/Descripción del ítem 1/, 'Diferencia de cambio'],
+        [/Cantidad/, '1'],
+        [/Unidad/, 'unidades'],
+        [/^Importe:/, '250.000'],
+        [/Descripción del ítem 2/, ''],
+        [/Importe total/, 'Confirmar'],
+        [/Agregamos/, []],
+        NO_EMIT,
+      ],
+      creditNote,
+    ));
+
   it('ND E sobre la factura E', () =>
     golden(
       'nota-e/debito',
@@ -1127,7 +1148,11 @@ const sameItems = [
 
 describe('golden de pantallas: Repetir E', () => {
   it('camino tipico: la factura E con los mismos ítems, sin opcionales', () =>
-    golden('repetir-e/tipico', [...repetirE, ...sameItems, [/Fecha de pago/, ''], [/Agregamos/, []], NO_EMIT], repeat));
+    golden(
+      'repetir-e/tipico',
+      [...repetirE, ...sameItems, [/Cómo te pagan/, 'En dólares'], [/Fecha de pago/, ''], [/Agregamos/, []], NO_EMIT],
+      repeat,
+    ));
 
   it('con Volver en el medio: del editor a la factura, otro precio, y de la vista previa a la fecha de pago, con los opcionales marcados (REV-68)', () =>
     golden(
@@ -1142,6 +1167,7 @@ describe('golden de pantallas: Repetir E', () => {
         [/Unidad/, 'unidades'],
         [/^(?:Importe|Precio unitario) en USD/, '1.800'],
         [/Importe total/, 'Confirmar'],
+        [/Cómo te pagan/, 'En dólares'],
         [/Fecha de pago/, ''],
         [/Agregamos/, ['Observaciones']],
         [/Observaciones \(Enter/, 'Segunda cuota'],
@@ -1162,6 +1188,7 @@ describe('golden de pantallas: Repetir E', () => {
       [
         ...repetirE,
         ...sameItems,
+        [/Cómo te pagan/, 'En dólares'],
         [/Fecha de pago/, '30/11/2026'],
         [/Agregamos/, ['Fecha del comprobante', 'Idioma']],
         [/Fecha del comprobante/, '17/11/2026'],
@@ -1177,6 +1204,7 @@ describe('golden de pantallas: Repetir E', () => {
       [
         ...repetirE,
         ...sameItems,
+        [/Cómo te pagan/, 'En dólares'],
         [/Fecha de pago/, ''],
         [/Agregamos/, ['Fecha del comprobante', 'Idioma']],
         [/Fecha del comprobante/, '17/11/2026'],

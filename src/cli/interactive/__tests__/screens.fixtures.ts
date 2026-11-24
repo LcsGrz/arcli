@@ -21,6 +21,8 @@ const POINT_OF_SALE = 3;
 export const OFFICIAL_RATE = 1450;
 /** La cotizacion de aduana de WSFEX del dia, con la que arranca la de la E (NAV-9). */
 export const EXPORT_QUOTATION_RATE = 1174.6;
+/** La de los euros, para la E en otra moneda. */
+export const EXPORT_EURO_QUOTATION_RATE = 1350.25;
 
 const voucher = (overrides: Partial<IssuedVoucher> & Pick<IssuedVoucher, 'number'>): IssuedVoucher => ({
   cae: '86400940834693',
@@ -142,7 +144,11 @@ export function createExportGateway(): ExportGateway {
     }),
     checkPermit: async () => 'OK',
     getActivities: async () => [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }],
-    getCurrencies: async () => [{ code: 'DOL', name: 'Dólar Estadounidense' }],
+    getCurrencies: async () => [
+      { code: 'PES', name: 'Pesos Argentinos' },
+      { code: 'DOL', name: 'Dólar Estadounidense' },
+      { code: '060', name: 'Euro' },
+    ],
     getDestinationCountries: async () => [
       { code: 200, name: 'ARGENTINA' },
       { code: 203, name: 'BRASIL' },
@@ -160,7 +166,10 @@ export function createExportGateway(): ExportGateway {
     ],
     getLastRequestId: async () => 40,
     getLastVoucherNumber: vi.fn(async (arcaType: number) => (arcaType === 19 ? 7 : 0)),
-    getQuotations: async () => [{ code: 'DOL', date: '20261117', rate: EXPORT_QUOTATION_RATE }],
+    getQuotations: async () => [
+      { code: 'DOL', date: '20261117', rate: EXPORT_QUOTATION_RATE },
+      { code: '060', date: '20261117', rate: EXPORT_EURO_QUOTATION_RATE },
+    ],
     getUnits: async () => [
       { id: 1, name: 'kilogramos' },
       { id: 7, name: 'unidades' },

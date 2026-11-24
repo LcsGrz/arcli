@@ -57,7 +57,7 @@ export interface ExportExchangeRateCase {
   /** Codigo de ARCA (`DOL`, `PES`) o ISO. */
   readonly currencyCode: string;
   readonly exportType: ExportType;
-  /** "¿Te pagan en dólares? Sí" (`--misma-moneda`); en las notas no va (1605). */
+  /** "¿Cómo te pagan?" en la moneda (`--misma-moneda`); en las notas no va (1605). */
   readonly sameCurrency?: boolean;
 }
 

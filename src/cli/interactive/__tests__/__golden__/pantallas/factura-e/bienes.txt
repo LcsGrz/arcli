@@ -40,17 +40,18 @@
   · Otros
   = Bienes
 
-? [lista] ¿En qué moneda facturás?
-  arranca en: Dólares (USD)
-  > Dólares (USD) — Con la cotización de aduana que publica ARCA
+? [lista] Moneda del comprobante:
+  arranca en: Dólares estadounidenses (USD)
+  > Dólares estadounidenses (USD)
   · Pesos
-  = Dólares (USD)
+  · Euros (EUR)
+  = Dólares estadounidenses (USD)
 
-? [lista] ¿Te pagan en dólares?
-  arranca en: (ninguna)
-  · Sí — ARCA lo registra como cancelación en la misma moneda
-  · No, en pesos
-  = No, en pesos
+? [lista] ¿Cómo te pagan?
+  arranca en: En pesos
+  > En pesos — El comprobante va en dólares y lo cobrás en pesos: confirmás o cambiás la cotización
+  · En dólares — Se usa la cotización oficial de ARCA
+  = En pesos
 
 ? [texto] Cotización de USD (la oficial de ARCA es 1.174,60):
   arranca escrito: "1174,60"

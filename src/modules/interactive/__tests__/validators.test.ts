@@ -7,6 +7,7 @@ import {
   validateCbu,
   validateCuil,
   validateCuit,
+  validateCurrencyCode,
   validateDate,
   validateDni,
   validateExchangeRate,
@@ -17,6 +18,16 @@ import {
   validatePointOfSale,
   validatePositiveInteger,
 } from '../validators';
+
+describe('validateCurrencyCode (ARQ-22)', () => {
+  it.each(['EUR', 'eur', ' eur ', '060', 'ARS', 'DOL'])('acepta "%s"', (value) => {
+    expect(validateCurrencyCode(value)).toBe(true);
+  });
+
+  it.each(['', '  ', 'EU', 'EURO', '60', 'E R', 'E-R', 'ñan'])('rechaza "%s"', (value) => {
+    expect(validateCurrencyCode(value)).toMatch(/código de tres caracteres/);
+  });
+});
 
 describe('validatePositiveInteger', () => {
   const validateNumber = validatePositiveInteger('El número');

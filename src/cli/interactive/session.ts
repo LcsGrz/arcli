@@ -1,4 +1,4 @@
-import { InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
+import { AppError, InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
 import { checkFceCancellationInRegistry } from '../../modules/billing/billing.associated-lookup';
 import { prepareBillingInput, resolveFceWarningsInOrder } from '../../modules/billing/billing.prepare';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
@@ -185,10 +185,11 @@ export function formatEquivalentCommand(command: string): string {
 
 /**
  * Un error de validacion de la vista previa (`InputValidationError` o `InputIssuesError`: lo que el CLI rechazaria
- * con `INPUT_VALIDATION_ERROR`) se muestra y devuelve BACK: como `confirm` de `runWizard`, el asistente vuelve a la
- * ultima pregunta con todo lo respondido, en vez de volver al menu y perderlo (TUI-15). Los errores de ARCA o de red
- * siguen de largo, como antes. Con `queryErrors` (la E, que en una nota vuelve a consultar el asociado) tambien
- * vuelve si no se sabe si un comprobante existe (`VoucherQueryError`), como al elegirlo (ARQ-22).
+ * con `INPUT_VALIDATION_ERROR`), o una moneda sin cotizacion de ARCA (`ARCA_QUOTATION_ERROR`), se muestra y devuelve
+ * BACK: como `confirm` de `runWizard`, el asistente vuelve a la ultima pregunta con todo lo respondido, en vez de volver
+ * al menu y perderlo (TUI-15). Los demas errores de ARCA o de red siguen de largo, como antes. Con `queryErrors` (la E,
+ * que en una nota vuelve a consultar el asociado) tambien vuelve si no se sabe si un comprobante existe
+ * (`VoucherQueryError`), como al elegirlo (ARQ-22).
  */
 export async function rejectedAsBack<T>(
   preview: () => Promise<T>,
@@ -198,8 +199,14 @@ export async function rejectedAsBack<T>(
     return await preview();
   } catch (error) {
     const queryError = options.queryErrors === true && error instanceof VoucherQueryError;
+    const missingQuotation = error instanceof AppError && error.code === 'ARCA_QUOTATION_ERROR';
 
-    if (!(queryError || error instanceof InputValidationError || error instanceof InputIssuesError)) {
+    if (!(
+      queryError ||
+      missingQuotation ||
+      error instanceof InputValidationError ||
+      error instanceof InputIssuesError
+    )) {
       throw error;
     }
 
