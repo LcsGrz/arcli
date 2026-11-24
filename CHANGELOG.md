@@ -148,7 +148,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Facturas:** si la medianoche pasa en "¿Emitimos?", se emite lo que mostró la vista previa, con sus fechas, como en la `E` (#274).
 - **Facturas:** una respuesta sin CAE ni rechazo, o con un error interno de ARCA, sale como `EMISSION_UNCERTAIN`, y con CAE y un error, como emitido (#273).
 - **Factura E:** en texto, la `E` y sus notas muestran el CAE antes de preguntar, instalar y generar el PDF, como A, B y C (#283).
-- **Consultas:** `ultimos` y las listas del asistente saltean y avisan uno de A, B o C que existe pero no se puede leer, como la `E` (#288).
+- **Consultas:** `ultimos` y las listas del asistente saltean y avisan un A, B o C que existe pero no se puede leer (#288).
 - **PDF:** en la `E`, "Generando PDF..." ya no gira sobre la pregunta de instalar el plugin (#283).
 - **Facturas:** un evento u observación con otra forma ya no pierde el CAE; si no se sabe si lo hay, sale `EMISSION_UNCERTAIN` (#272).
 - **Consultas:** `consultar` y `ultimos` dan `ARCA_VOUCHER_QUERY_ERROR` si ARCA contesta con un error, en vez de decir que no existe (#268).
