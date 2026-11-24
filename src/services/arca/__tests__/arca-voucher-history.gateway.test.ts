@@ -158,6 +158,9 @@ describe('ArcaVoucherHistoryGateway', () => {
     expect(await consulting(undefined, { Errors }).gateway.getVoucher(999, 3, 11)).toBeUndefined();
     // Con un `ResultGet` vacío o en ceros, como hace WSFEX con el 1020, también.
     expect(await consulting({ CbteFch: '', ImpTotal: 0 }, { Errors }).gateway.getVoucher(999, 3, 11)).toBeUndefined();
+    for (const CbteFch of ['00000000', '0', '20261340']) {
+      expect(await consulting({ CbteFch }, { Errors }).gateway.getVoucher(999, 3, 11)).toBeUndefined();
+    }
   });
 
   it('si ARCA trae el comprobante, un 602 no lo vuelve inexistente', async () => {
@@ -180,7 +183,7 @@ describe('ArcaVoucherHistoryGateway', () => {
       message:
         'ARCA devolvió un error al consultar el comprobante 00003-00000999 y no se sabe si existe: 600 ValidacionDeToken: No aparecio CUIT.',
       suggestion:
-        'Volvé a consultar en unos minutos. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.',
+        'Revisá el mensaje de ARCA: si es pasajero, volvé a consultar en unos minutos; si no, corregí lo que dice. Si se repite, no insistas. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.',
     });
     expect(error).toHaveProperty('details', {
       errores: [{ code: 600, codigo: 600, mensaje: INVALID_TOKEN.Msg, msg: INVALID_TOKEN.Msg }],
@@ -199,11 +202,36 @@ describe('ArcaVoucherHistoryGateway', () => {
     }
   });
 
-  it('un error con un código ilegible tampoco es "no existe"', async () => {
-    const { gateway } = consulting(undefined, { Errors: { Err: [NOT_FOUND, { Msg: 'No existe' }] } });
+  it.each([
+    ['sin código', { Msg: 'No existe' }],
+    ['con un código que no es un número', { Code: 'x', Msg: 'No existe' }],
+  ])('un error %s conserva el mensaje, no inventa el código y no es "no existe"', async (_case, unreadable) => {
+    for (const Err of [unreadable, [unreadable]]) {
+      const error = await consulting(undefined, { Errors: { Err } })
+        .gateway.getVoucher(999, 3, 11)
+        .catch((caught: unknown) => caught);
 
-    await expect(gateway.getVoucher(999, 3, 11)).rejects.toMatchObject({ code: 'ARCA_VOUCHER_QUERY_ERROR' });
+      expect(error).toMatchObject({
+        code: 'ARCA_VOUCHER_QUERY_ERROR',
+        details: { errores: [{ codigo: null, mensaje: 'No existe' }] },
+        message: 'ARCA devolvió un error al consultar el comprobante 00003-00000999 y no se sabe si existe: No existe',
+      });
+    }
+
+    await expect(
+      consulting(undefined, { Errors: { Err: [NOT_FOUND, unreadable] } }).gateway.getVoucher(999, 3, 11),
+    ).rejects.toMatchObject({ code: 'ARCA_VOUCHER_QUERY_ERROR' });
   });
+
+  it.each([[[null]], [[{}]], [{}], ['x'], [[NOT_FOUND, null]]])(
+    'un error sin código ni mensaje (%j) es una respuesta inesperada',
+    async (Err) => {
+      await expect(consulting(undefined, { Errors: { Err } }).gateway.getVoucher(999, 3, 11)).rejects.toMatchObject({
+        code: 'ARCA_VOUCHER_QUERY_ERROR',
+        message: expect.stringContaining('una respuesta inesperada'),
+      });
+    },
+  );
 
   it('un error junto con los datos del comprobante también corta', async () => {
     const { gateway } = consulting({ CbteFch: '20261105' }, { Errors: { Err: [INVALID_TOKEN] } });
@@ -218,6 +246,9 @@ describe('ArcaVoucherHistoryGateway', () => {
     ['sin ResultGet ni Errors', { FECompConsultarResult: {} }],
     ['con Errors vacío', { FECompConsultarResult: { Errors: null } }],
     ['sin la fecha del comprobante', { FECompConsultarResult: { ResultGet: { ImpTotal: 100 } } }],
+    ['con la fecha en ceros', { FECompConsultarResult: { ResultGet: { CbteFch: '00000000' } } }],
+    ['con la fecha 0', { FECompConsultarResult: { ResultGet: { CbteFch: '0' } } }],
+    ['con una fecha que no existe', { FECompConsultarResult: { ResultGet: { CbteFch: '20260230' } } }],
   ])('una respuesta inesperada (%s) es un error, no "no existe"', async (_case, response) => {
     const gateway = createGateway({}, { call: vi.fn(async () => response) });
 

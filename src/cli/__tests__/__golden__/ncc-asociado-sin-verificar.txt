@@ -5,7 +5,7 @@ exit: 0
 {
   "atajo": "ncc",
   "avisos": [
-    "No se pudo verificar en ARCA que la nota de crédito no supere la factura C 00003-00000012: ARCA devolvió un error al consultar el comprobante 00003-00000012 y no se sabe si existe: 600 ValidacionDeToken: No aparecio CUIT."
+    "No se pudo verificar en ARCA que la nota de crédito no supere la factura C 00003-00000012: 600 ValidacionDeToken: No aparecio CUIT."
   ],
   "cae": null,
   "caeVencimiento": null,

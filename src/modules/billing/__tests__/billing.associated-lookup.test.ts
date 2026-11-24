@@ -227,27 +227,46 @@ describe('checkAssociatedInArca: NC no mayor que el asociado (REV-45)', () => {
     });
   });
 
-  describe('si ARCA contesta con un error (ERR-1), no es que no exista, aunque el PV sea de web service', () => {
+  describe.each([
+    [600, 'ValidacionDeToken'],
+    [10005, 'El punto de venta no es CAE'],
+    [11002, 'El punto de venta no se encuentra habilitado a usar el presente WS'],
+  ])('si ARCA contesta con el error %i (ERR-1)', (code, msg) => {
     // El gateway real, con `FECompConsultar` contestando un error que no es el 602.
-    const history = new ArcaVoucherHistoryGateway({
-      genericService: {
-        call: async () => ({ FECompConsultarResult: { Errors: { Err: { Code: 600, Msg: 'ValidacionDeToken' } } } }),
+    const history = {
+      getLastNumber: async (): Promise<number> => {
+        throw new Error('11002');
       },
-    } as unknown as Arca);
-    const checkWithError = (input: BillingCommandInput) => {
-      const getSalesPoints = vi.fn(async () => [{ blocked: false, emissionType: 'CAE', number: 3 }]);
-
-      return {
-        getSalesPoints,
-        result: checkAssociatedInArca({
-          gateway: history,
-          input,
-          runtime,
-          salesPoints: { getSalesPoints },
-          service: new BillingService({ clock: systemClock }),
-        }),
-      };
+      getVoucher: ArcaVoucherHistoryGateway.prototype.getVoucher.bind({
+        arca: {
+          genericService: {
+            call: async () => ({ FECompConsultarResult: { Errors: { Err: { Code: code, Msg: msg } } } }),
+          },
+        },
+      }),
     };
+    const checkWithError = (input: BillingCommandInput, salesPoints: Error | number[] = [3, 9]) =>
+      checkAssociatedInArca({
+        gateway: history,
+        input,
+        runtime,
+        salesPoints: {
+          getSalesPoints: async () => {
+            if (salesPoints instanceof Error) {
+              throw salesPoints;
+            }
+
+            return salesPoints.map((number) => ({ blocked: false, emissionType: 'CAE', number }));
+          },
+        },
+        service: new BillingService({ clock: systemClock }),
+      });
+    const at50 = (shortcut: 'fc' | 'fcea', fecha?: string) => ({
+      ...(fecha ? { fecha } : {}),
+      numero: 15,
+      puntoVenta: 50,
+      shortcut,
+    });
 
     it.each([
       ['NC común', note(), 'que la nota de crédito no supere la factura C 00003-00000012'],
@@ -260,31 +279,66 @@ describe('checkAssociatedInArca: NC no mayor que el asociado (REV-45)', () => {
         }),
         'que exista la factura de crédito electrónica A 00003-00000007',
       ],
-    ])('%s: sigue con el aviso', async (_case, input, unchecked) => {
-      const { getSalesPoints, result } = checkWithError(input);
-
-      await expect(result).resolves.toEqual({
+    ])('en un PV propio, %s: sigue con el aviso, sin repetirse', async (_case, input, unchecked) => {
+      await expect(checkWithError(input)).resolves.toEqual({
         input,
-        warnings: [
-          expect.stringMatching(
-            new RegExp(`^No se pudo verificar en ARCA ${unchecked}: ARCA devolvió un error .*600 ValidacionDeToken$`),
-          ),
-        ],
+        warnings: [`No se pudo verificar en ARCA ${unchecked}: ${code} ${msg}`],
       });
-      expect(getSalesPoints).not.toHaveBeenCalled();
     });
 
-    it('nota FCE sin --afecha: frena porque no hay fecha, sin decir que ARCA no lo tiene', async () => {
-      const { getSalesPoints, result } = checkWithError(fceNote());
-
-      await expect(result).rejects.toMatchObject({
+    it('en un PV propio, una nota FCE sin --afecha frena sin decir que ARCA no lo tiene', async () => {
+      await expect(checkWithError(fceNote())).rejects.toMatchObject({
         code: 'INPUT_VALIDATION_ERROR',
-        message: expect.stringMatching(
-          /^No se pudo consultar en ARCA la factura de crédito electrónica A 00003-00000007 para tomar su fecha: ARCA devolvió un error .*600 ValidacionDeToken$/,
-        ),
+        message: `No se pudo consultar en ARCA la factura de crédito electrónica A 00003-00000007 para tomar su fecha: ${code} ${msg}`,
         suggestion: 'Probá de nuevo en un rato o pasá la fecha del asociado con `--afecha <fecha>`.',
       });
-      expect(getSalesPoints).not.toHaveBeenCalled();
+    });
+
+    it('en un PV de otro sistema sigue como con el 602: avisos y --afecha (REGLAS-1)', async () => {
+      for (const input of [
+        note({ associatedVoucher: at50('fc') }),
+        note({ associatedVoucher: at50('fc', '10/03/2026'), shortcut: 'ndc' }),
+        fceNote({ associatedVoucher: at50('fcea', '05/03/2026') }),
+      ]) {
+        await expect(checkWithError(input)).resolves.toEqual(
+          await check(input, undefined, { salesPoints: [3, 9] }).result,
+        );
+      }
+    });
+
+    it('en un PV de otro sistema, una nota FCE sin --afecha frena con la misma sugerencia que con el 602', async () => {
+      await expect(checkWithError(fceNote({ associatedVoucher: at50('fcea') }))).rejects.toMatchObject({
+        message:
+          'No se encontró la factura de crédito electrónica A 00050-00000015 en ARCA, así que no se puede tomar su fecha.',
+        suggestion:
+          'Si es de Comprobantes en línea o de un controlador fiscal, pasá su fecha con `--afecha <fecha>`. Si no, revisá `--ar`, `--apv` y `--ac`.',
+      });
+    });
+
+    it.each([
+      ['la lista viene vacía y el último número falla', [] as number[]],
+      ['falla todo', new Error('timeout')],
+    ])('si no se puede clasificar (%s) gana el error original', async (_case, salesPoints) => {
+      const input = note({ associatedVoucher: at50('fc') });
+
+      await expect(checkWithError(input, salesPoints)).resolves.toEqual({
+        input,
+        warnings: [
+          `No se pudo verificar en ARCA que la nota de crédito no supere la factura C 00050-00000015: ${code} ${msg}`,
+        ],
+      });
+    });
+  });
+
+  it('una respuesta inesperada (ERR-1): el aviso lo dice sin repetirse', async () => {
+    const gateway = new ArcaVoucherHistoryGateway({ genericService: { call: async () => null } } as unknown as Arca);
+
+    await expect(
+      checkAssociatedInArca({ gateway, input: note(), runtime, service: new BillingService({ clock: systemClock }) }),
+    ).resolves.toMatchObject({
+      warnings: [
+        'No se pudo verificar en ARCA que la nota de crédito no supere la factura C 00003-00000012: respuesta inesperada',
+      ],
     });
   });
 

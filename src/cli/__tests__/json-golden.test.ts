@@ -642,8 +642,39 @@ describe('A, B y C', () => {
   it('ncc vista previa con el asociado', () => golden('ncc-previsualizar', [...NCC, '--previsualizar', '--json']));
   it('ncc con el asociado sin verificar: aviso, no "ARCA no tiene" (ERR-1)', () => {
     sdk.generic.call.mockImplementation(failingQuery());
+    sdk.wsfe.getSalesPoints.mockResolvedValue({
+      resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 3 }] },
+    });
 
     return golden('ncc-asociado-sin-verificar', [...NCC, '--previsualizar', '--json']);
+  });
+  it('ncc sobre un asociado de otro sistema, con un error que no es el 602 (REGLAS-1, ERR-1)', () => {
+    sdk.generic.call.mockImplementation(failingQuery());
+    sdk.wsfe.getSalesPoints.mockResolvedValue({
+      resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 4 }] },
+    });
+
+    return golden('ncc-asociado-otro-sistema', [...NCC, '--previsualizar', '--json']);
+  });
+  it('ncc por --cargar sobre un asociado de otro sistema, con un error que no es el 602', () => {
+    sdk.generic.call.mockImplementation(failingQuery());
+    sdk.wsfe.getSalesPoints.mockResolvedValue({
+      resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 4 }] },
+    });
+
+    return golden('ncc-cargar-otro-sistema', [
+      'ncc',
+      '--cargar',
+      writeInput('nota.json', {
+        comprobanteAsociado: { atajo: 'fc', cuit: String(CUIT), numero: 12, puntoVenta: 3 },
+        concepto: 'servicios',
+        ivaReceptor: 'consumidor-final',
+        montoTotal: 1000,
+        tipoDocumento: 'consumidor-final',
+      }),
+      '--previsualizar',
+      '--json',
+    ]);
   });
   it('ncc aprobada', () => golden('ncc-aprobada', [...NCC, '--emitir', '--json']));
 
@@ -996,6 +1027,12 @@ describe('otros comandos que van a ARCA', () => {
     sdk.generic.call.mockRejectedValue(new Error('ns1:coe.alreadyAuthenticated'));
 
     return golden('error-consultar-transitorio', ['consultar', 'fc', '99', '--json']);
+  });
+
+  it('consultar con una excepción que dice "no existe" es UNEXPECTED_ERROR (ERR-1)', () => {
+    sdk.generic.call.mockRejectedValue(new Error('El dominio no existe'));
+
+    return golden('error-consultar-excepcion', ['consultar', 'fc', '99', '--json']);
   });
 
   it('consultar sin autorizar sigue siendo WSFE_SERVICE_NOT_AUTHORIZED', () => {

@@ -17,6 +17,6 @@ exit: 1
     ]
   },
   "error": "ARCA devolvió un error al consultar el comprobante 00003-00000099 y no se sabe si existe: 600 ValidacionDeToken: No aparecio CUIT.",
-  "sugerencia": "Volvé a consultar en unos minutos. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe."
+  "sugerencia": "Revisá el mensaje de ARCA: si es pasajero, volvé a consultar en unos minutos; si no, corregí lo que dice. Si se repite, no insistas. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe."
 }
 

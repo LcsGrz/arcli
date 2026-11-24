@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BillingService } from '../../../modules/billing/billing.service';
 import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
-import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
+import {
+  type IssuedVoucher,
+  type VoucherHistoryGateway,
+  VoucherQueryError,
+} from '../../../modules/vouchers/voucher-history';
 import { systemClock } from '../../../services/time/system-clock';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
@@ -110,6 +114,33 @@ describe('repetir un comprobante', () => {
     ]);
 
     expect(await repeat(createSession([invoice()]))).toMatchObject({ shortcut: 'fc', totalAmount: 121 });
+  });
+
+  it('si falla la primera tanda, sigue en la lista con lo respondido y se puede reintentar (ERR-1)', async () => {
+    const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const session = createSession([invoice()]);
+    let failed = false;
+
+    vi.spyOn(session.historyGateway, 'getVoucher').mockImplementation(async (number) => {
+      if (!failed) {
+        failed = true;
+        throw new VoucherQueryError('600 ValidacionDeToken', { errores: [] }, 'Volvé a consultar.', '600');
+      }
+
+      return number === 14 ? invoice() : undefined;
+    });
+    script = createScript([
+      [/comprobante querés repetir/, 'Factura C'],
+      [/Cuál repetimos/, 'Volver a cargar'],
+      [/Cuál repetimos/, '00003-00000014'],
+      [/Mismo monto/, 'Sí'],
+      [/Período del servicio/, 'Un solo día'],
+      [/Agregamos/, []],
+    ]);
+
+    expect(await repeat(session)).toMatchObject({ shortcut: 'fc', totalAmount: 121 });
+    expect(errors.mock.calls.join('')).toContain('600 ValidacionDeToken');
+    expect(printed()).not.toContain('en el punto de venta 3');
   });
 
   it('con un tipo de documento que el asistente no maneja avisa y vuelve al tipo', async () => {

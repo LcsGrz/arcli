@@ -10,7 +10,7 @@ import type { CliArcaRuntime } from '../../arca-runtime';
 import { missingNonWebServiceInvoiceNotice, pickInvoice, pickNoteInvoice } from '../invoice-picker';
 import type { InteractiveSession } from '../session';
 
-import { createScript } from './script';
+import { createScript, onlyChoices } from './script';
 
 let script = createScript([]);
 /** Lo que devuelve la proxima lista que se muestra mientras carga: la carga, o una opcion elegida antes. */
@@ -88,10 +88,10 @@ function createSession(vouchers: IssuedVoucher[], rows = 2): InteractiveSession 
 }
 
 /** El gateway real con `FECompConsultar` contestando un error que no es el 602, para un numero (ERR-1). */
-function failQueryOf(session: InteractiveSession, failing: number, { once = false } = {}): void {
+function failQueryOf(session: InteractiveSession, failing: number, { code = 600, once = false } = {}): void {
   const real = new ArcaVoucherHistoryGateway({
     genericService: {
-      call: async () => ({ FECompConsultarResult: { Errors: { Err: { Code: 600, Msg: 'ValidacionDeToken' } } } }),
+      call: async () => ({ FECompConsultarResult: { Errors: { Err: { Code: code, Msg: 'ValidacionDeToken' } } } }),
     },
   } as unknown as Arca);
   const find = vi.mocked(session.historyGateway.getVoucher).getMockImplementation()!;
@@ -229,14 +229,96 @@ describe('pickInvoice', () => {
     expect(shownErrors()).toContain('600 ValidacionDeToken');
   });
 
-  it('si falla uno de la primera tanda, sale el error y no una lista incompleta (ERR-1)', async () => {
+  it('si falla la primera tanda, muestra el error y deja reintentar o buscar a mano, sin decir que no hay (ERR-1)', async () => {
+    const session = createSession([1, 2, 3].map(invoice));
+
+    failQueryOf(session, 2, { once: true });
+    script = createScript([
+      [/Cuál/, 'Volver a cargar'],
+      [/Cuál/, '00003-00000002'],
+    ]);
+
+    expect(await pickInvoice(session, options)).toMatchObject({ invoice: { number: 2 } });
+    expect(shownErrors()).toContain('600 ValidacionDeToken');
+    expect(stripAnsi(output)).not.toContain('en el punto de venta 3');
+    expect(onlyChoices(script.chooseStep.mock.calls[0]?.[1]).map((choice) => choice.value)).toEqual([
+      'cargar-mas',
+      'a-mano',
+    ]);
+    // Reintenta la misma tanda: quedan el 3 y el 2, y "cargar más" sigue con el 1.
+    expect(script.chooseStep.mock.calls[1]?.[2]).toMatchObject({ number: 3 });
+    expect(onlyChoices(script.chooseStep.mock.calls[1]?.[1]).map((choice) => choice.value)).toContain('cargar-mas');
+  });
+
+  it('si al reintentar la primera tanda vuelve a fallar, se queda; y se puede volver o buscar a mano', async () => {
     const session = createSession([1, 2, 3].map(invoice));
 
     failQueryOf(session, 2);
+    script = createScript([
+      [/Cuál/, 'Volver a cargar'],
+      [/Cuál/, 'Ingresar el número a mano'],
+      [/Punto de venta/, '3'],
+      [/Número/, '1'],
+    ]);
+
+    expect(await pickInvoice(session, options)).toMatchObject({ invoice: { number: 1 } });
+
+    script = createScript([[/Cuál/, BACK]]);
+    expect(await pickInvoice(session, options)).toBe(BACK);
+  });
+
+  it('si el reintento de la primera tanda no trae ninguno, ahí sí lo dice', async () => {
+    const session = createSession([]);
+
+    vi.mocked(session.historyGateway.getLastNumber).mockResolvedValue(1);
+    failQueryOf(session, 1, { once: true });
+    script = createScript([
+      [/Cuál/, 'Volver a cargar'],
+      [/Cuál/, BACK],
+    ]);
+
+    expect(await pickInvoice(session, options)).toBe(BACK);
+    expect(stripAnsi(output)).toContain('en el punto de venta 3');
+  });
+
+  it('al volver a la pregunta, si el reintento trae el elegido antes, queda marcado', async () => {
+    const session = createSession([1, 2, 3].map(invoice));
+
+    failQueryOf(session, 3, { once: true });
+    script = createScript([
+      [/Cuál/, 'Volver a cargar'],
+      [/Cuál/, BACK],
+    ]);
+    await pickInvoice(session, { ...options, previous: { number: 2, pointOfSale: 3 } });
+
+    expect(script.chooseStep.mock.calls[1]?.[2]).toMatchObject({ number: 2 });
+  });
+
+  it('si falla el último número, el error sale como siempre', async () => {
+    const session = createSession([invoice(1)]);
+
+    vi.mocked(session.historyGateway.getLastNumber).mockRejectedValue(new Error('11002'));
     script = createScript([]);
 
-    await expect(pickInvoice(session, options)).rejects.toMatchObject({ code: 'ARCA_VOUCHER_QUERY_ERROR' });
-    expect(stripAnsi(output)).not.toContain('en el punto de venta 3');
+    await expect(pickInvoice(session, options)).rejects.toThrow('11002');
+  });
+
+  it('al fallar "Cargar más", el cursor queda donde lo dejaste', async () => {
+    const session = createSession([1, 2, 3, 4, 5].map(invoice));
+
+    failQueryOf(session, 3);
+    whileLoading.typing = (choices) => ({
+      term: '0004',
+      value: choices.find((choice) => (choice.value as { number?: number } | undefined)?.number === 4)?.value,
+    });
+    script = createScript([
+      [/Cuál/, 'Cargar más'],
+      [/Cuál/, BACK],
+    ]);
+
+    expect(await pickInvoice(session, options)).toBe(BACK);
+    expect(script.chooseStep.mock.calls.at(-1)?.[2]).toMatchObject({ number: 4 });
+    expect(script.chooseStep.mock.calls.at(-1)?.[4]).toMatchObject({ initialTerm: '0004' });
   });
 
   it('otro error al buscar a mano sigue saliendo al menú', async () => {
@@ -331,21 +413,52 @@ describe('pickNoteInvoice', () => {
     expect(await pickNoteInvoice(createSession([invoice(1)]), options)).toBe(BACK);
   });
 
-  it('un error de ARCA al buscarla no la acepta como de otro sistema (ERR-1)', async () => {
-    const session = createSession([invoice(1)]);
-
-    failQueryOf(session, 15);
-    getSalesPoints.mockClear();
-    script = createScript([
+  const searchByHand = (pointOfSale: string) =>
+    [
       [/Cuál/, 'Ingresar el número a mano'],
-      [/Punto de venta/, '50'],
+      [/Punto de venta/, pointOfSale],
       [/Número/, '15'],
-      [/Cuál/, BACK],
-    ]);
+    ] as const;
 
-    expect(await pickNoteInvoice(session, options)).toBe(BACK);
-    expect(shownErrors()).toContain('600 ValidacionDeToken');
-    expect(getSalesPoints).not.toHaveBeenCalled();
+  describe.each([600, 10005, 11002])('con el error %i de ARCA (ERR-1)', (code) => {
+    it('en un PV de otro sistema la acepta igual que con el 602 (REGLAS-17)', async () => {
+      const session = createSession([invoice(1)]);
+
+      failQueryOf(session, 15, { code });
+      script = createScript(searchByHand('50'));
+
+      expect(await pickNoteInvoice(session, options)).toEqual({
+        number: 15,
+        origin: 'other',
+        otherSystem: true,
+        pointOfSale: 50,
+      });
+      expect(shownErrors()).toBe('');
+    });
+
+    it('en un PV propio muestra el error y vuelve a la lista', async () => {
+      const session = createSession([invoice(1)]);
+
+      failQueryOf(session, 15, { code });
+      script = createScript([...searchByHand('3'), [/Cuál/, BACK]]);
+
+      expect(await pickNoteInvoice(session, options)).toBe(BACK);
+      expect(shownErrors()).toContain(`${code} ValidacionDeToken`);
+      expect(stripAnsi(output)).not.toMatch(/No existe|ARCA no tiene/);
+    });
+
+    it('si no se puede clasificar el PV, muestra el error original y vuelve a la lista', async () => {
+      const session = createSession([invoice(1)]);
+
+      getSalesPoints.mockRejectedValueOnce(new Error('timeout'));
+      vi.mocked(session.historyGateway.getLastNumber).mockResolvedValueOnce(1).mockRejectedValueOnce(new Error('x'));
+      failQueryOf(session, 15, { code });
+      script = createScript([...searchByHand('50'), [/Cuál/, BACK]]);
+
+      expect(await pickNoteInvoice(session, options)).toBe(BACK);
+      expect(shownErrors()).toContain(`${code} ValidacionDeToken`);
+      expect(shownErrors()).not.toContain('timeout');
+    });
   });
 
   it('si no se puede saber de qué sistema es el PV, la acepta igual y lo dice', async () => {
