@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 
 import { EmissionUncertainError } from '../../../modules/billing/billing.errors';
 
+import { createSoapArca } from './arca-soap.fixture';
+
 /**
  * Lo que hace el SDK real con una respuesta rara a la llamada que emite (ERR-16): de acá salen los dobles de
  * `json-golden.test.ts`. El cliente SOAP es falso; no hay red ni WSAA.
@@ -55,32 +57,8 @@ async function authorize(output: unknown): Promise<unknown> {
   return client.wsfexService.authorize({} as never);
 }
 
-/** El SDK y node-soap de verdad, con el HTTP reemplazado: ARCA contesta `body`. */
-async function respond(service: 'wsfe' | 'wsfex', body: string, status = 200): Promise<unknown> {
-  const client = arca();
-  const repository = (
-    service === 'wsfe'
-      ? (client.electronicBillingService as unknown as { electronicBillingRepository: object })
-          .electronicBillingRepository
-      : (client.wsfexService as unknown as { repository: object }).repository
-  ) as {
-    authRepository: object;
-    soapClient: { createClient: (wsdl: string, options: object) => Promise<unknown> };
-  };
-  const createClient = repository.soapClient.createClient.bind(repository.soapClient);
-  const httpClient = {
-    request: (_url: string, _xml: string, callback: (error: null, response: object, body: string) => void) => {
-      callback(null, { data: body, headers: {}, status, statusCode: status }, body);
-
-      return {};
-    },
-  };
-
-  repository.soapClient.createClient = (wsdl, options) => createClient(wsdl, { ...options, httpClient });
-  Object.assign(repository.authRepository, {
-    getAuthParams: () => ({ Auth: { Cuit: 1, Sign: 'firma', Token: 'token' } }),
-    login: async () => ({}),
-  });
+async function respond(service: 'wsfe' | 'wsfex', body: string, status?: number): Promise<unknown> {
+  const client = await createSoapArca(service, () => ({ body, status }));
 
   return service === 'wsfe'
     ? client.electronicBillingService.createVoucher(VOUCHER)

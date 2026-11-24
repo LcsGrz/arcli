@@ -1,0 +1,124 @@
+$ arcli fe --cliente ACME LLC --domicilio-cliente 123 Main St --pais-destino 212 -m 1500 --tipo-expo 4 --id-impositivo TAX-1 --cuit-pais 55000002126 --item 001|Licencia & soporte|2|500|unidad --item 002|Capacitación|1|500|unidad --forma-pago Cheque --observaciones Obs <1> --obs-comerciales Obs 2 --numero 9 --id-solicitud 77 --idioma 1 --cotizacion-moneda 1450,25
+--- SDK ---
+{
+  "Cmp": {
+    "Actividades": {
+      "Actividad": [
+        {
+          "Id": 620100
+        }
+      ]
+    },
+    "CanMisMonExt": "N",
+    "Cbte_nro": 9,
+    "Cbte_Tipo": 19,
+    "Cliente": "ACME LLC",
+    "Cuit_pais_cliente": 55000002126,
+    "Domicilio_cliente": "123 Main St",
+    "Dst_cmp": 212,
+    "Fecha_cbte": "20261110",
+    "Fecha_pago": "20261110",
+    "Forma_pago": "Cheque",
+    "Id": 77,
+    "Id_impositivo": "TAX-1",
+    "Idioma_cbte": 1,
+    "Imp_total": 1500,
+    "Incoterms": "",
+    "Incoterms_Ds": "",
+    "Items": {
+      "Item": [
+        {
+          "Pro_bonificacion": 0,
+          "Pro_codigo": "001",
+          "Pro_ds": "Licencia & soporte",
+          "Pro_precio_uni": 500,
+          "Pro_qty": 2,
+          "Pro_total_item": 1000,
+          "Pro_umed": 7
+        },
+        {
+          "Pro_bonificacion": 0,
+          "Pro_codigo": "002",
+          "Pro_ds": "Capacitación",
+          "Pro_precio_uni": 500,
+          "Pro_qty": 1,
+          "Pro_total_item": 500,
+          "Pro_umed": 7
+        }
+      ]
+    },
+    "Moneda_ctz": 1450.25,
+    "Moneda_Id": "DOL",
+    "Obs": "Obs <1>",
+    "Obs_comerciales": "Obs 2",
+    "Permiso_existente": "",
+    "Punto_vta": 3,
+    "Tipo_expo": 4
+  }
+}
+--- SOAP ---
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  xmlns:tns="http://ar.gov.afip.dif.fexv1/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/">
+<soap:Body>
+<FEXAuthorize xmlns="http://ar.gov.afip.dif.fexv1/">
+<Auth>
+<Token>token</Token>
+<Sign>firma</Sign>
+<Cuit>1</Cuit>
+</Auth>
+<Cmp>
+<Id>77</Id>
+<Fecha_cbte>20261110</Fecha_cbte>
+<Cbte_Tipo>19</Cbte_Tipo>
+<Punto_vta>3</Punto_vta>
+<Cbte_nro>9</Cbte_nro>
+<Tipo_expo>4</Tipo_expo>
+<Permiso_existente>
+</Permiso_existente>
+<Dst_cmp>212</Dst_cmp>
+<Cliente>ACME LLC</Cliente>
+<Cuit_pais_cliente>55000002126</Cuit_pais_cliente>
+<Domicilio_cliente>123 Main St</Domicilio_cliente>
+<Id_impositivo>TAX-1</Id_impositivo>
+<Moneda_Id>DOL</Moneda_Id>
+<Moneda_ctz>1450.25</Moneda_ctz>
+<CanMisMonExt>N</CanMisMonExt>
+<Obs_comerciales>Obs 2</Obs_comerciales>
+<Imp_total>1500</Imp_total>
+<Obs>Obs &lt;1&gt;</Obs>
+<Forma_pago>Cheque</Forma_pago>
+<Incoterms>
+</Incoterms>
+<Incoterms_Ds>
+</Incoterms_Ds>
+<Idioma_cbte>1</Idioma_cbte>
+<Items>
+<Item>
+<Pro_codigo>001</Pro_codigo>
+<Pro_ds>Licencia &amp; soporte</Pro_ds>
+<Pro_qty>2</Pro_qty>
+<Pro_umed>7</Pro_umed>
+<Pro_precio_uni>500</Pro_precio_uni>
+<Pro_bonificacion>0</Pro_bonificacion>
+<Pro_total_item>1000</Pro_total_item>
+</Item>
+<Item>
+<Pro_codigo>002</Pro_codigo>
+<Pro_ds>Capacitación</Pro_ds>
+<Pro_qty>1</Pro_qty>
+<Pro_umed>7</Pro_umed>
+<Pro_precio_uni>500</Pro_precio_uni>
+<Pro_bonificacion>0</Pro_bonificacion>
+<Pro_total_item>500</Pro_total_item>
+</Item>
+</Items>
+<Fecha_pago>20261110</Fecha_pago>
+<Actividades>
+<Actividad>
+<Id>620100</Id>
+</Actividad>
+</Actividades>
+</Cmp>
+</FEXAuthorize>
+</soap:Body>
+</soap:Envelope>

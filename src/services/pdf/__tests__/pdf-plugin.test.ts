@@ -227,6 +227,7 @@ describe('exportBillingPdf', () => {
         events: [],
         observaciones: [],
         observacion: null,
+        arcaNumber: 125,
         raw: { cae: '1', caeFchVto: '1', response: { FeDetResp: { FECAEDetResponse: [{ CbteDesde: 125 }] } } },
         resultado: 'A',
         suggestions: [],

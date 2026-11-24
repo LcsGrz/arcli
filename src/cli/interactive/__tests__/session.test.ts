@@ -4,6 +4,8 @@ import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import { BACK } from '../../../modules/interactive/wizard';
 import { systemClock } from '../../../services/time/system-clock';
+import { billingAnswer } from '../../../testing/arca-answers';
+import { fakeBillingGateway } from '../../../testing/arca-gateways';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { outputState } from '../../closed-output';
 import { describeEmittedInThisRun, resetEmittedInThisRun } from '../../emitted-vouchers';
@@ -36,7 +38,7 @@ function createSession(
 ): InteractiveSession & {
   readonly createVoucher: ReturnType<typeof vi.fn>;
 } {
-  const createVoucher = vi.fn(async () => ({ cae: '86400940834693', response: {} }) as never);
+  const createVoucher = vi.fn(async () => billingAnswer({ cae: '86400940834693', response: {} }));
   const runtime = {
     config: { cert: {}, entornoPorDefecto: environment, key: {}, output: {}, pdf },
     context: { cuit: 20333333334 },
@@ -49,7 +51,7 @@ function createSession(
 
   return {
     arca: {} as never,
-    billingGateway: { createVoucher, getNextVoucherNumber: vi.fn(async () => 1), getQuotation: vi.fn() },
+    billingGateway: fakeBillingGateway({ createVoucher, getNextVoucherNumber: vi.fn(async () => 1) }),
     createVoucher,
     historyGateway: { getLastNumber: vi.fn(), getVoucher: vi.fn() },
     runtime,
@@ -103,20 +105,24 @@ describe('previewAndEmit', () => {
     const session = createSession('testing');
 
     chooseOneMock.mockResolvedValue('emitir');
-    session.createVoucher.mockResolvedValueOnce({
-      cae: '86400940834693',
-      caeFchVto: '20261130',
-      response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] } },
-    });
+    session.createVoucher.mockImplementationOnce(async () =>
+      billingAnswer({
+        cae: '86400940834693',
+        caeFchVto: '20261130',
+        response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] } },
+      }),
+    );
     await expect(previewAndEmit(session, input)).resolves.toBe(true);
     // Si despues no se puede escribir la salida, el aviso dice que se emitio (ERR-18).
     expect(describeEmittedInThisRun()).toEqual([expect.stringContaining('fc del punto de venta 3, 1.')]);
 
-    session.createVoucher.mockResolvedValueOnce({
-      cae: '',
-      caeFchVto: '',
-      response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'R' }] } },
-    });
+    session.createVoucher.mockImplementationOnce(async () =>
+      billingAnswer({
+        cae: '',
+        caeFchVto: '',
+        response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'R' }] } },
+      }),
+    );
     await expect(previewAndEmit(session, input)).resolves.toBe(false);
 
     chooseOneMock.mockResolvedValue(false);
@@ -401,7 +407,7 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
   it('si ARCA contesta vacío, el menú recibe "sin confirmar" y no se ofrece el PDF (ERR-20)', async () => {
     const session = createSession('testing');
 
-    session.createVoucher.mockResolvedValueOnce({ cae: '', caeFchVto: '', response: {} });
+    session.createVoucher.mockImplementationOnce(async () => billingAnswer({ cae: '', caeFchVto: '', response: {} }));
     chooseOneMock.mockResolvedValueOnce('emitir');
 
     await expect(previewAndEmit(session, input)).rejects.toMatchObject({
@@ -416,14 +422,16 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
   it('con CAE y un error: se muestra el CAE, se da por emitido y se ofrece el PDF (ERR-20)', async () => {
     const session = createSession('testing');
 
-    session.createVoucher.mockResolvedValueOnce({
-      cae: '86400940834693',
-      caeFchVto: '20261130',
-      response: {
-        Errors: { Err: [{ Code: 501, Msg: 'Error interno' }] },
-        FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] },
-      },
-    });
+    session.createVoucher.mockImplementationOnce(async () =>
+      billingAnswer({
+        cae: '86400940834693',
+        caeFchVto: '20261130',
+        response: {
+          Errors: { Err: [{ Code: 501, Msg: 'Error interno' }] },
+          FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] },
+        },
+      }),
+    );
     chooseOneMock.mockResolvedValueOnce('emitir');
 
     await expect(previewAndEmit(session, input)).resolves.toBe(true);
@@ -439,11 +447,13 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
   it('un evento suelto no pierde el CAE: se muestra y se ofrece el PDF (ERR-16)', async () => {
     const session = createSession('testing');
 
-    session.createVoucher.mockResolvedValueOnce({
-      cae: '86400940834693',
-      caeFchVto: '20261130',
-      response: { Events: { Evt: { Code: 1, Msg: 'x' } }, FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] } },
-    });
+    session.createVoucher.mockImplementationOnce(async () =>
+      billingAnswer({
+        cae: '86400940834693',
+        caeFchVto: '20261130',
+        response: { Events: { Evt: { Code: 1, Msg: 'x' } }, FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] } },
+      }),
+    );
     chooseOneMock.mockResolvedValueOnce('emitir');
 
     await expect(previewAndEmit(session, input)).resolves.toBe(true);

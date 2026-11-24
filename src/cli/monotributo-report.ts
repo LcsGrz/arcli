@@ -7,8 +7,8 @@ import {
   MemoryMonotributoStore,
   type MonotributoStore,
 } from '../modules/monotributo/monotributo.store';
+import type { ArcaClient } from '../services/arca/arca-client.factory';
 import { ArcaPadronGateway } from '../services/arca/arca-padron.gateway';
-import type { Arca } from '../services/arca/arca-sdk.types';
 
 import { withSpinner } from './spinner';
 import { CLI_VERSION } from './version';
@@ -17,7 +17,7 @@ export interface LoadMonotributoReportInput {
   /** La config, si se pudo leer: la tabla se muestra igual sin ella, pero sin marcar la categoria propia. */
   readonly config?: ArcliConfig;
   /** El cliente de ARCA para el padron; se pide solo si hace falta consultarlo, y si falla no se marca nada. */
-  readonly createArca: () => Arca;
+  readonly createArca: () => ArcaClient;
   readonly environment: ArcliEnvironment;
   /** Sin spinner (por ejemplo, con `--json`). */
   readonly quiet: boolean;

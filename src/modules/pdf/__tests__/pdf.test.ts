@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import type { INextVoucher } from '../../../services/arca/arca-sdk.types';
 import type { BillingExecutionResult } from '../../billing/billing.types.internal';
 import { getVoucherKindByShortcut, VOUCHER_KIND_MAP } from '../../billing/voucher-kind-map';
+import type { UnnumberedVoucherRequest } from '../../billing/voucher-request';
 import { PdfError } from '../pdf.errors';
 import { mapBillingResultToPdfData } from '../pdf-data.mapper';
 import { canHavePdf, planEmissionConfirmation, resolvePdfAfterConfirmation, resolvePdfDecision } from '../pdf-decision';
@@ -16,7 +16,7 @@ const ISSUER_CONFIG = {
 
 function createResult(
   shortcut: string,
-  payload: Partial<INextVoucher>,
+  payload: Partial<UnnumberedVoucherRequest>,
   overrides: Partial<BillingExecutionResult> = {},
 ): BillingExecutionResult {
   const voucherKind = getVoucherKindByShortcut(shortcut);
@@ -48,6 +48,7 @@ function createResult(
       ...payload,
     },
     response: {
+      arcaNumber: 125,
       cae: '76123456789012',
       caeVencimiento: '20261013',
       errors: [],
@@ -356,9 +357,12 @@ describe('mapBillingResultToPdfData', () => {
     expect(() => mapBillingResultToPdfData({ ...result, response: { ...result.response, cae: null } }, issuer)).toThrow(
       /no tiene CAE/,
     );
-    expect(() => mapBillingResultToPdfData({ ...result, response: { ...result.response, raw: null } }, issuer)).toThrow(
-      /número del comprobante/,
-    );
+    expect(() =>
+      mapBillingResultToPdfData(
+        { ...result, response: { ...result.response, arcaNumber: undefined, raw: null } },
+        issuer,
+      ),
+    ).toThrow(/número del comprobante/);
   });
 
   it('shows IVA-included amounts in a factura B', () => {

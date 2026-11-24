@@ -507,10 +507,10 @@ export class ExportService {
     let response: ExportResponseSummary;
 
     try {
-      const raw = await options.gateway.authorize(payload);
+      const answer = await options.gateway.authorize(payload);
 
       // Adentro del try: lo que no se puede leer es una emision sin confirmar (ERR-16).
-      response = mapExportResponse(raw);
+      response = mapExportResponse(answer);
     } catch (error) {
       throw new EmissionUncertainError({
         arcaType: options.resolved.voucherKind.arcaType,

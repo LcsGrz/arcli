@@ -1,5 +1,4 @@
 import { roundToCents } from '../../lib/numbers/argentine-amount';
-import type { IIva } from '../../services/arca/arca-sdk.types';
 import { conceptCode, CONSUMER_DOCUMENT_TYPE_CODE, documentTypeLabel } from '../billing/arca-codes';
 import { resolveIvaRateLabel } from '../billing/billing.amounts';
 import { formatIvaConditionLabel } from '../billing/billing.labels';
@@ -7,6 +6,7 @@ import type { BillingExecutionResult } from '../billing/billing.types.internal';
 import { toIsoCurrencyCode } from '../billing/currency-codes';
 import { formatSaleCondition } from '../billing/sale-condition';
 import { discriminatesIva, isReceipt } from '../billing/voucher-kind-map';
+import type { VoucherRequestIva } from '../billing/voucher-request';
 import type { ExportExecutionResult } from '../export/export.types';
 import { SERVICES_EXPORT_TYPE } from '../export/export.types';
 
@@ -40,7 +40,7 @@ function resolveIvaRateNumber(aliquotId: number): number | undefined {
 }
 
 // La plantilla busca cada alicuota por este texto exacto ("10.5%", con punto).
-function buildIvaEntries(iva: readonly IIva[] | undefined): InvoicePdfIva[] {
+function buildIvaEntries(iva: readonly VoucherRequestIva[] | undefined): InvoicePdfIva[] {
   return (iva ?? []).map((entry) => ({
     baseImponible: entry.BaseImp,
     descripcion: `${resolveIvaRateNumber(entry.Id) ?? entry.Id}%`,
@@ -106,10 +106,7 @@ function requireCae(response: { readonly cae: string | null; readonly caeVencimi
 
 /** ARCA asigna el numero al emitir: sale de la respuesta o, si no se puede leer, es el que se le mando. */
 function resolveVoucherNumber(result: BillingExecutionResult): number {
-  const number =
-    result.response.raw?.response?.FeDetResp?.FECAEDetResponse?.[0]?.CbteDesde ??
-    result.voucherNumber ??
-    result.payload.CbteDesde;
+  const number = result.response.arcaNumber ?? result.voucherNumber;
 
   if (!number) {
     throw new PdfError('PDF_GENERATION_ERROR', 'La respuesta de ARCA no trae el número del comprobante.');
@@ -184,7 +181,7 @@ export function mapBillingResultToPdfData(
 
 /** En WSFEX el numero tambien lo asigna ARCA al autorizar. */
 function resolveExportVoucherNumber(result: ExportExecutionResult): number {
-  const number = result.response.raw?.FEXAuthorizeResult?.FEXResultAuth?.Cbte_nro || result.payload.Cbte_nro;
+  const number = result.response.arcaNumber || result.payload.Cbte_nro;
 
   if (!number) {
     throw new PdfError('PDF_GENERATION_ERROR', 'La respuesta de ARCA no trae el número del comprobante.');

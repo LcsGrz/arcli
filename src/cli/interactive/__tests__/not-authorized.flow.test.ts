@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EXPORT_VOUCHER_KIND } from '../../../modules/export/export.types';
 import { checkArcaHealth } from '../../../modules/parameters/health';
+import type { ArcaClient } from '../../../services/arca/arca-client.factory';
 import { ArcaExportGateway } from '../../../services/arca/arca-export.gateway';
 import { ArcaParametersGateway } from '../../../services/arca/arca-parameters.gateway';
-import type { Arca } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { formatCliError } from '../../error-output';
@@ -28,7 +28,7 @@ const arca = {
     getServerStatus: async () => ({ appServer: 'OK', authServer: 'OK', dbServer: 'OK' }),
   },
   wsfexService: { getLastCmp },
-} as unknown as Arca;
+} as unknown as ArcaClient;
 
 const session = {
   arca,

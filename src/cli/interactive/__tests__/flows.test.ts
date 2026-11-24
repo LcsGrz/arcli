@@ -8,7 +8,7 @@ import { buildInvoiceInput, type InvoiceState } from '../../../modules/interacti
 import { buildNoteInput } from '../../../modules/interactive/note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
-import type { Arca } from '../../../services/arca/arca-sdk.types';
+import type { ArcaClient } from '../../../services/arca/arca-client.factory';
 import { ArcaVoucherHistoryGateway } from '../../../services/arca/arca-voucher-history.gateway';
 import { systemClock } from '../../../services/time/system-clock';
 import { stripAnsi } from '../../../ui';
@@ -1624,7 +1624,7 @@ describe('flujos del modo interactivo', () => {
             genericService: {
               call: async () => ({ FECompConsultarResult: { Errors: { Err: { Code: code, Msg: 'Error de ARCA' } } } }),
             },
-          } as unknown as Arca);
+          } as unknown as ArcaClient);
 
           return {
             ...session,

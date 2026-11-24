@@ -153,6 +153,8 @@ function fakeArca({ failsAt = 0, result = 'A' }: { failsAt?: number; result?: 'A
      import { ArcaBillingGateway } from ${JSON.stringify(gateway)};
      let number = 41;
      ArcaBillingGateway.prototype.getNextVoucherNumber = async () => { await setTimeout(50); return number + 1; };
+     const { createVoucher } = ArcaBillingGateway.prototype;
+     const read = (answer) => createVoucher.call({ arca: { electronicBillingService: { createVoucher: async () => answer } } });
      ArcaBillingGateway.prototype.createVoucher = async () => {
        await setTimeout(50);
        number += 1;
@@ -161,13 +163,13 @@ function fakeArca({ failsAt = 0, result = 'A' }: { failsAt?: number; result?: 'A
          throw new Error('ARCA no respondió');
        }
        appendFileSync(${JSON.stringify(file('emitidos.txt'))}, number + '\\n');
-       return {
+       return read({
          cae: ${JSON.stringify(result === 'A' ? '75123456789012' : '')},
          caeFchVto: ${JSON.stringify(result === 'A' ? '20991231' : '')},
          response: { FeDetResp: { FECAEDetResponse: [
            { CbteDesde: number, CbteHasta: number, Resultado: ${JSON.stringify(result)} },
          ] } },
-       };
+       });
      };`,
   );
 }
@@ -312,11 +314,13 @@ function fakeWsfex(): string {
        getQuotations: [], getUnits: [{ id: 7, name: 'unidades' }],
      };
      for (const [name, answer] of Object.entries(answers)) ArcaExportGateway.prototype[name] = async () => answer;
+     const { authorize } = ArcaExportGateway.prototype;
+     const read = (answer) => authorize.call(new ArcaExportGateway({ wsfexService: { authorize: async () => answer } }));
      ArcaExportGateway.prototype.authorize = async (payload) => {
        appendFileSync(${JSON.stringify(file('emitidos.txt'))}, payload.Cbte_nro + '\\n');
-       return { FEXAuthorizeResult: { FEXErr: { ErrCode: 0, ErrMsg: '' }, FEXEvents: { EventCode: 0, EventMsg: '' },
+       return read({ FEXAuthorizeResult: { FEXErr: { ErrCode: 0, ErrMsg: '' }, FEXEvents: { EventCode: 0, EventMsg: '' },
          FEXResultAuth: { Cae: '75123456789012', Cbte_nro: payload.Cbte_nro, Fch_venc_Cae: '20991231', Id: payload.Id,
-           Motivos_Obs: '', Punto_vta: payload.Punto_vta, Reproceso: 'N', Resultado: 'A' } } };
+           Motivos_Obs: '', Punto_vta: payload.Punto_vta, Reproceso: 'N', Resultado: 'A' } } });
      };`,
   );
 }

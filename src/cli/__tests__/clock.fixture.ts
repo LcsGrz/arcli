@@ -32,6 +32,7 @@ export const sdk = {
   wsfecred: { consultarMontoObligadoRecepcion: vi.fn() },
   wsfex: {
     authorize: vi.fn(),
+    checkPermiso: vi.fn(),
     getCmp: vi.fn(),
     getLastCmp: vi.fn(),
     getLastId: vi.fn(),
@@ -218,6 +219,7 @@ function resetSdk(): void {
       Tipo_expo: 2,
     }),
   );
+  sdk.wsfex.checkPermiso.mockResolvedValue(fex('FEXCheck_Permiso', { Status: 'OK' }));
   sdk.wsfex.getLastCmp.mockResolvedValue({ FEXGetLast_CMPResult: { ...OK, FEXResult_LastCMP: { Cbte_nro: 7 } } });
   sdk.wsfex.getLastId.mockResolvedValue(fex('FEXGetLast_ID', { Id: 41 }));
   sdk.wsfex.getParamActividades.mockResolvedValue(

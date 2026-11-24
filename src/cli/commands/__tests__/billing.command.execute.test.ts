@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { IssuedVoucher } from '../../../modules/vouchers/voucher-history';
+import { billingAnswer } from '../../../testing/arca-answers';
+import { fakeBillingGateway } from '../../../testing/arca-gateways';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import {
   type BillingCommandDependencies,
@@ -39,17 +41,12 @@ function authorization(result: 'A' | 'R') {
         ],
       },
     },
-  } as never;
+  };
 }
 
 function gateways(overrides: Partial<BillingCommandGateways['billing']> = {}): BillingCommandGateways {
   return {
-    billing: {
-      createVoucher: vi.fn(async () => authorization('A')),
-      getNextVoucherNumber: vi.fn(async () => 42),
-      getQuotation: vi.fn(async () => 1000),
-      ...overrides,
-    },
+    billing: fakeBillingGateway({ createVoucher: vi.fn(async () => billingAnswer(authorization('A'))), ...overrides }),
     fce: { getObligation: vi.fn() } as never,
     fceRegistry: { getVoucherState: vi.fn(async () => undefined) },
     history: { getLastNumber: vi.fn(async () => 0), getVoucher: vi.fn(async () => undefined) },
@@ -133,7 +130,9 @@ describe('executeBillingCommand con --json', () => {
   });
 
   it('rechazado por ARCA: el resultado sale igual, con exit 2', async () => {
-    await run([...BASE, '--emitir'], { gateways: gateways({ createVoucher: vi.fn(async () => authorization('R')) }) });
+    await run([...BASE, '--emitir'], {
+      gateways: gateways({ createVoucher: vi.fn(async () => billingAnswer(authorization('R'))) }),
+    });
 
     expect(JSON.parse(stdout)).toMatchObject({ estado: 'rechazado' });
     expect(process.exitCode).toBe(2);
@@ -149,7 +148,7 @@ describe('executeBillingCommand con --json', () => {
     const path = join(directory, 'lote.json');
     const createVoucher = vi
       .fn()
-      .mockResolvedValueOnce(authorization('A'))
+      .mockImplementationOnce(async () => billingAnswer(authorization('A')))
       .mockRejectedValueOnce(new Error('socket hang up'));
 
     writeFileSync(
@@ -509,14 +508,16 @@ describe('notas con el asociado consultado en ARCA una vez, antes de la vista pr
   it('si ARCA rechaza la anulación con 10154, `sugerencias` explica que el comprador tiene que rechazar', async () => {
     const used = withAssociated(issued({ date: '20260305', documentNumber: 30709965812, number: 7, total: 5000 }));
 
-    used.billing.createVoucher = vi.fn(async () => ({
-      cae: '',
-      caeFchVto: '',
-      response: {
-        Errors: { Err: [{ Code: 10154, Msg: 'Comprobante electronico autorizado, NO rechazado por el Comprador' }] },
-        FeDetResp: { FECAEDetResponse: [{ CbteDesde: 42, CbteHasta: 42, Resultado: 'R' }] },
-      },
-    })) as never;
+    used.billing.createVoucher = vi.fn(async () =>
+      billingAnswer({
+        cae: '',
+        caeFchVto: '',
+        response: {
+          Errors: { Err: [{ Code: 10154, Msg: 'Comprobante electronico autorizado, NO rechazado por el Comprador' }] },
+          FeDetResp: { FECAEDetResponse: [{ CbteDesde: 42, CbteHasta: 42, Resultado: 'R' }] },
+        },
+      }),
+    ) as never;
 
     await run([...CREDIT_NOTE_FCE, '--anulacion', '--emitir'], { gateways: used, shortcut: 'ncea' });
 

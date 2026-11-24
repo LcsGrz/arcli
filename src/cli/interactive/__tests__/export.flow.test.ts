@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { ExportGateway } from '../../../modules/export/export.types';
 import { BACK } from '../../../modules/interactive/wizard';
-import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
+import { exportAnswer } from '../../../testing/arca-answers';
+import { fakeBillingGateway } from '../../../testing/arca-gateways';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { outputState } from '../../closed-output';
@@ -19,25 +20,27 @@ let script = createScript([]);
 const savedConfig = vi.fn();
 
 const gateway: ExportGateway = {
-  authorize: vi.fn(async (): Promise<IFEXAuthorizeOutput> => ({
-    FEXAuthorizeResult: {
-      FEXErr: { ErrCode: 0, ErrMsg: 'OK' },
-      FEXEvents: { EventCode: 0, EventMsg: '' },
-      FEXResultAuth: {
-        Cae: '76123456789012',
-        Cbte_nro: 7,
-        Cbte_tipo: 19,
-        Fch_cbte: '20261030',
-        Fch_venc_Cae: '20261109',
-        Id: 1,
-        Motivos_Obs: '',
-        Punto_vta: 4,
-        Reproceso: 'N',
-        Resultado: 'A',
-        Cuit: 20111111112,
+  authorize: vi.fn(async () =>
+    exportAnswer({
+      FEXAuthorizeResult: {
+        FEXErr: { ErrCode: 0, ErrMsg: 'OK' },
+        FEXEvents: { EventCode: 0, EventMsg: '' },
+        FEXResultAuth: {
+          Cae: '76123456789012',
+          Cbte_nro: 7,
+          Cbte_tipo: 19,
+          Fch_cbte: '20261030',
+          Fch_venc_Cae: '20261109',
+          Id: 1,
+          Motivos_Obs: '',
+          Punto_vta: 4,
+          Reproceso: 'N',
+          Resultado: 'A',
+          Cuit: 20111111112,
+        },
       },
-    },
-  })),
+    }),
+  ),
   checkPermit: async () => 'OK',
   getActivities: async () => [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }],
   getCurrencies: async () => [{ code: 'DOL', name: 'Dólar Estadounidense' }],
@@ -106,7 +109,7 @@ vi.mock('../../../modules/config/config.service', () => ({
 function createSession(config: Record<string, unknown> = {}): InteractiveSession {
   return {
     arca: {} as never,
-    billingGateway: { createVoucher: vi.fn(), getNextVoucherNumber: vi.fn(), getQuotation: vi.fn() },
+    billingGateway: fakeBillingGateway(),
     historyGateway: { getLastNumber: vi.fn(), getVoucher: vi.fn() },
     runtime: {
       config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 4, ...config }),
@@ -896,7 +899,7 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
   });
 
   it('si ARCA contesta algo que no se puede leer, el menu recibe "sin confirmar" y no hay PDF ni se ofrece guardar (ERR-16)', async () => {
-    vi.mocked(gateway.authorize).mockResolvedValueOnce(undefined as never);
+    vi.mocked(gateway.authorize).mockImplementationOnce(async () => exportAnswer(undefined));
 
     script = servicesUntilConfirmation('Sí, emitir ahora');
 
@@ -911,7 +914,7 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
   it('si ARCA contesta vacío, el menu recibe "sin confirmar" y no hay PDF ni se ofrece guardar (ERR-20)', async () => {
     savedConfig.mockClear();
     vi.mocked(attachExportPdf).mockClear();
-    vi.mocked(gateway.authorize).mockResolvedValueOnce({} as never);
+    vi.mocked(gateway.authorize).mockImplementationOnce(async () => exportAnswer({}));
     script = servicesUntilConfirmation('Sí, emitir ahora');
 
     await expect(runExportFlow(createSession({ exportacion: { actividad: 620100 } }))).rejects.toMatchObject({
@@ -923,12 +926,14 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
   });
 
   it('si ARCA rechaza la E, lo muestra y no hay PDF', async () => {
-    vi.mocked(gateway.authorize).mockResolvedValueOnce({
-      FEXAuthorizeResult: {
-        FEXErr: { ErrCode: 1580, ErrMsg: 'Debe informar el CUIT del país o el ID impositivo' },
-        FEXEvents: { EventCode: 0, EventMsg: '' },
-      },
-    } as IFEXAuthorizeOutput);
+    vi.mocked(gateway.authorize).mockImplementationOnce(async () =>
+      exportAnswer({
+        FEXAuthorizeResult: {
+          FEXErr: { ErrCode: 1580, ErrMsg: 'Debe informar el CUIT del país o el ID impositivo' },
+          FEXEvents: { EventCode: 0, EventMsg: '' },
+        },
+      }),
+    );
     script = servicesUntilConfirmation('Sí, emitir ahora');
 
     await runExportFlow(createSession({ exportacion: { actividad: 620100 } })).catch(() => undefined);
@@ -939,12 +944,14 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
   // Un rechazo no es una emision (#11, #16): la actividad escrita a mano no se ofrece guardar.
   it('si ARCA rechaza la E, no ofrece guardar la actividad escrita', async () => {
     savedConfig.mockClear();
-    vi.mocked(gateway.authorize).mockResolvedValueOnce({
-      FEXAuthorizeResult: {
-        FEXErr: { ErrCode: 1580, ErrMsg: 'Debe informar el CUIT del país o el ID impositivo' },
-        FEXEvents: { EventCode: 0, EventMsg: '' },
-      },
-    } as IFEXAuthorizeOutput);
+    vi.mocked(gateway.authorize).mockImplementationOnce(async () =>
+      exportAnswer({
+        FEXAuthorizeResult: {
+          FEXErr: { ErrCode: 1580, ErrMsg: 'Debe informar el CUIT del país o el ID impositivo' },
+          FEXEvents: { EventCode: 0, EventMsg: '' },
+        },
+      }),
+    );
     script = createScript([
       [/cliente del exterior/, 'ACME LLC'],
       [/Domicilio/, '123 Main St'],

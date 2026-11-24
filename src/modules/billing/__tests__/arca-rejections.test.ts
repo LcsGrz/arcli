@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 
 import { TROUBLESHOOTING_URL } from '../../../lib/links';
 import { ARCA_REJECTIONS, findArcaRejections, formatArcaRejection } from '../arca-rejections';
-import { mapBillingResponse } from '../billing-response';
+
+import { emitWithBillingAnswer } from './billing-answer.fixture';
 
 const TROUBLESHOOTING = readFileSync(join(process.cwd(), 'docs', 'troubleshooting.md'), 'utf8');
 
@@ -70,8 +71,8 @@ describe('tabla de rechazos de ARCA', () => {
 });
 
 describe('mapBillingResponse: sugerencias', () => {
-  it('lee los códigos de las observaciones, no solo de los errores', () => {
-    const summary = mapBillingResponse({
+  it('lee los códigos de las observaciones, no solo de los errores', async () => {
+    const summary = await emitWithBillingAnswer({
       cae: '',
       caeFchVto: '',
       response: {
@@ -81,19 +82,19 @@ describe('mapBillingResponse: sugerencias', () => {
           ],
         },
       },
-    } as never);
+    });
 
     expect(summary.suggestions).toEqual([expect.stringContaining('IVA receptor no es válido para la letra')]);
   });
 
-  it('una observación de padrón en un comprobante aprobado aclara que no es un rechazo', () => {
-    const summary = mapBillingResponse({
+  it('una observación de padrón en un comprobante aprobado aclara que no es un rechazo', async () => {
+    const summary = await emitWithBillingAnswer({
       cae: '12345678901234',
       caeFchVto: '20261130',
       response: {
         FeDetResp: { FECAEDetResponse: [{ Observaciones: { Obs: [{ Code: 10217, Msg: 'Obs' }] }, Resultado: 'A' }] },
       },
-    } as never);
+    });
 
     expect(summary.status).toBe('observado');
     expect(summary.suggestions).toEqual([expect.stringContaining('No es un rechazo')]);
@@ -104,18 +105,21 @@ describe('mapBillingResponse: sugerencias', () => {
     [817, /límite de tu categoría de Monotributo/],
     [10235, /categoría máxima del Monotributo.*No es un rechazo.*régimen general.*`arcli monotributo`/],
     [816, /categoría máxima del Monotributo/],
-  ])('la observación %i del tope del Monotributo explica que el comprobante está emitido (MONO-6)', (code, text) => {
-    const summary = mapBillingResponse({
-      cae: '12345678901234',
-      caeFchVto: '20261130',
-      response: {
-        FeDetResp: { FECAEDetResponse: [{ Observaciones: { Obs: [{ Code: code, Msg: 'Obs' }] }, Resultado: 'A' }] },
-      },
-    } as never);
+  ])(
+    'la observación %i del tope del Monotributo explica que el comprobante está emitido (MONO-6)',
+    async (code, text) => {
+      const summary = await emitWithBillingAnswer({
+        cae: '12345678901234',
+        caeFchVto: '20261130',
+        response: {
+          FeDetResp: { FECAEDetResponse: [{ Observaciones: { Obs: [{ Code: code, Msg: 'Obs' }] }, Resultado: 'A' }] },
+        },
+      });
 
-    expect(summary.status).toBe('observado');
-    expect(summary.suggestions).toEqual([expect.stringMatching(text)]);
-  });
+      expect(summary.status).toBe('observado');
+      expect(summary.suggestions).toEqual([expect.stringMatching(text)]);
+    },
+  );
 
   it('el receptor igual al emisor se reconoce por el código 10069 o por el mensaje', () => {
     expect(findArcaRejections([10069], '')).toEqual(findArcaRejections([], 'DocNro no puede ser igual al del emisor'));
@@ -130,9 +134,9 @@ describe('mapBillingResponse: sugerencias', () => {
     expect(formatArcaRejection(monotributo)).not.toMatch(/condición del receptor/);
   });
 
-  it('un receptor que no está en los padrones (10015, solo en observaciones) tiene su sugerencia', () => {
+  it('un receptor que no está en los padrones (10015, solo en observaciones) tiene su sugerencia', async () => {
     // Respuesta real de ARCA testing (18/11/2026): `fb --cuit 20201797064`.
-    const summary = mapBillingResponse({
+    const summary = await emitWithBillingAnswer({
       cae: '',
       caeFchVto: '',
       response: {
@@ -152,7 +156,7 @@ describe('mapBillingResponse: sugerencias', () => {
           ],
         },
       },
-    } as never);
+    });
 
     expect(summary.status).toBe('rechazado');
     expect(summary.suggestions).toEqual([
@@ -160,15 +164,15 @@ describe('mapBillingResponse: sugerencias', () => {
     ]);
   });
 
-  it('un rechazo sin código conocido pide revisar errores y observaciones', () => {
-    const summary = mapBillingResponse({
+  it('un rechazo sin código conocido pide revisar errores y observaciones', async () => {
+    const summary = await emitWithBillingAnswer({
       cae: '',
       caeFchVto: '',
       response: {
         Errors: { Err: [{ Code: 99999, Msg: 'Otro' }] },
         FeDetResp: { FECAEDetResponse: [{ Resultado: 'R' }] },
       },
-    } as never);
+    });
 
     expect(summary.suggestions).toEqual(['Revisá observaciones y errores de ARCA antes de volver a emitir.']);
   });

@@ -1,10 +1,10 @@
 import { InputValidationError } from '../../lib/errors/app-error';
-import type { IOpcional } from '../../services/arca/arca-sdk.types';
 
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import { isFceInvoice } from './voucher-kind-map';
 import { formatVoucherSubject } from './voucher-names';
+import type { VoucherRequestOptional } from './voucher-request';
 
 /**
  * Codigos de "Adicionales por R.G." que usa FCE (FEParamGetTiposOpcional).
@@ -39,7 +39,7 @@ function listInvoiceOnlyFlags(input: FceInput): string[] {
 export function resolveElectronicCreditOptionals(
   input: FceInput,
   voucherKind: VoucherKindDefinition,
-): IOpcional[] | undefined {
+): VoucherRequestOptional[] | undefined {
   const invoiceOnlyFlags = listInvoiceOnlyFlags(input);
   const subject = formatVoucherSubject(voucherKind);
 
@@ -75,7 +75,7 @@ export function resolveElectronicCreditOptionals(
     );
   }
 
-  const optionals: IOpcional[] = [{ Id: FCE_OPTIONAL_IDS.cbu, Valor: input.cbu }];
+  const optionals: VoucherRequestOptional[] = [{ Id: FCE_OPTIONAL_IDS.cbu, Valor: input.cbu }];
 
   if (input.cbuAlias) {
     optionals.push({ Id: FCE_OPTIONAL_IDS.cbuAlias, Valor: input.cbuAlias });

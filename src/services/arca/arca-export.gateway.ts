@@ -1,6 +1,7 @@
 import { asArray } from '../../lib/arrays/as-array';
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
+import type { AuthorizationAnswer } from '../../modules/billing/authorization-answer';
 import { readRejectedCae } from '../../modules/billing/emission-response';
 import {
   DEFAULT_EXPORT_UNIT_CODE,
@@ -20,11 +21,22 @@ import {
   type ExportVoucherQuery,
 } from '../../modules/export/export.types';
 
-import type { Arca, IFEXAuthorizeInput, IFEXAuthorizeOutput, IFEXGetLast_CMPInput } from './arca-sdk.types';
+import type { Arca, IFEXAuthorizeInput, IFEXGetLast_CMPInput } from './arca-sdk.types';
+import { readExportAnswer } from './authorization-answer';
 import { isNotAuthorized, notAuthorizedMessage } from './not-authorized';
+import type { SdkRequest } from './sdk-request';
 import { unreadableVoucherError, voucherQueryError } from './voucher-query-error';
 
 const NOT_AUTHORIZED_MESSAGE = notAuthorizedMessage('wsfex', 'factura de exportación');
+
+type FexCmp = IFEXAuthorizeInput['Cmp'];
+/** Los campos que ARCA no siempre acepta: el SDK, como el WSDL, los tipa obligatorios. */
+type FexOptionalField =
+  'Actividades' | 'CanMisMonExt' | 'Cmps_asoc' | 'Cuit_pais_cliente' | 'Fecha_pago' | 'Opcionales' | 'Permisos';
+/** La solicitud del SDK, con esos campos opcionales y el resto comprobado. */
+interface FexRequest {
+  readonly Cmp: Omit<FexCmp, FexOptionalField> & Partial<Pick<FexCmp, FexOptionalField>>;
+}
 
 /** `FEXGetCMP`: "Comprobante inexistente". */
 const VOUCHER_NOT_FOUND_ERROR = 1020;
@@ -201,10 +213,15 @@ export class ArcaExportGateway implements ExportGateway {
    *
    * El WSDL tipa `Permisos` como obligatorio, pero ARCA lo rechaza cuando `Permiso_existente` es `N` (error
    * 1720) y en los tipos de exportacion 2 y 4 pide ese campo vacio (error 1550): sin permisos el `Cmp` no trae la
-   * clave y el serializador de SOAP omite los campos ausentes.
+   * clave y el serializador de SOAP omite los campos ausentes. El `as` es solo por esos: ver `FexRequest`.
    */
-  public async authorize(payload: ExportVoucherPayload): Promise<IFEXAuthorizeOutput> {
-    return this.call((service) => service.authorize({ Cmp: payload } as IFEXAuthorizeInput));
+  public async authorize(payload: SdkRequest<ExportVoucherPayload, FexCmp>): Promise<AuthorizationAnswer> {
+    const request: FexRequest = { Cmp: payload };
+
+    const output = await this.call((service) => service.authorize(request as IFEXAuthorizeInput));
+
+    // Fuera de `call`: un fallo al leer no es que el certificado no este autorizado.
+    return readExportAnswer(output);
   }
 
   /**

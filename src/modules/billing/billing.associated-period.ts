@@ -1,7 +1,6 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { assertRules } from '../../lib/rules/rules';
-import type { IPeriodoAsoc } from '../../services/arca/arca-sdk.types';
 
 import { parseBillingDateInput } from './billing.dates';
 import { ASSOCIATED_PERIOD_RULES } from './billing.rules';
@@ -9,6 +8,7 @@ import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import { isNote } from './voucher-kind-map';
 import { formatVoucherSubject } from './voucher-names';
+import type { VoucherRequestPeriod } from './voucher-request';
 
 /**
  * PeriodoAsoc es la alternativa a CbtesAsoc para NC/ND que ajustan un periodo y no una factura puntual (10197).
@@ -21,7 +21,7 @@ export function resolveAssociatedPeriod(
   voucherKind: VoucherKindDefinition,
   billingDate: string,
   today: string,
-): IPeriodoAsoc | undefined {
+): VoucherRequestPeriod | undefined {
   const period = input.associatedPeriod;
 
   if (!period) {

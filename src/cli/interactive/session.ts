@@ -17,11 +17,10 @@ import {
 } from '../../modules/pdf/pdf-decision';
 import type { VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
-import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
+import { type ArcaClient, ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { ArcaFceRegistryGateway } from '../../services/arca/arca-fce-registry.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
-import type { Arca } from '../../services/arca/arca-sdk.types';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
 import { systemClock } from '../../services/time/system-clock';
 import { colorize, noticePanel, renderPanel, uiSymbol, writeTerminalOutput } from '../../ui';
@@ -39,7 +38,7 @@ import { askTextStep, confirm } from './prompts';
 import { showAssistantError } from './show-assistant-error';
 
 export interface InteractiveSession {
-  readonly arca: Arca;
+  readonly arca: ArcaClient;
   readonly billingGateway: BillingGateway;
   readonly historyGateway: VoucherHistoryGateway;
   readonly runtime: CliArcaRuntime;

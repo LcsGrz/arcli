@@ -5,6 +5,7 @@ import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
 import { systemClock } from '../../../services/time/system-clock';
+import { billingAnswer } from '../../../testing/arca-answers';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { invoiceSteps, runInvoiceFlow } from '../invoice.flow';
@@ -188,14 +189,16 @@ describe('reglas de ARCA en el asistente (#220)', () => {
 
       const { billingGateway, session } = createSession();
 
-      billingGateway.createVoucher.mockResolvedValueOnce({
-        cae: '',
-        caeFchVto: '',
-        response: {
-          Errors: { Err: [{ Code: 10015, Msg: 'Rechazado' }] },
-          FeDetResp: { FECAEDetResponse: [{ Resultado: 'R' }] },
-        },
-      });
+      billingGateway.createVoucher.mockImplementationOnce(async () =>
+        billingAnswer({
+          cae: '',
+          caeFchVto: '',
+          response: {
+            Errors: { Err: [{ Code: 10015, Msg: 'Rechazado' }] },
+            FeDetResp: { FECAEDetResponse: [{ Resultado: 'R' }] },
+          },
+        }),
+      );
 
       await runInvoiceFlow(session);
 

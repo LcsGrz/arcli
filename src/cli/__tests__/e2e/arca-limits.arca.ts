@@ -21,9 +21,8 @@ import {
   EXPORT_TYPE_VALUES,
   EXPORT_VOUCHER_KINDS,
 } from '../../../modules/export/export.types';
-import { ArcaClientFactory } from '../../../services/arca/arca-client.factory';
+import { type ArcaClient, ArcaClientFactory } from '../../../services/arca/arca-client.factory';
 import type { ArcaExportGateway } from '../../../services/arca/arca-export.gateway';
-import type { Arca } from '../../../services/arca/arca-sdk.types';
 import { loadArcaRuntime } from '../../arca-runtime';
 
 import { ARCA_CLI, assertArcaTestingReady } from './arca-guard';
@@ -147,7 +146,7 @@ afterAll(() => {
 });
 
 describe.skipIf(Boolean(process.env.CI))('Tablas copiadas de ARCA contra las de testing', () => {
-  let exportArca: Arca;
+  let exportArca: ArcaClient;
   let exportGateway: ArcaExportGateway;
 
   beforeAll(() => {

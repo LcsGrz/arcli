@@ -10,7 +10,7 @@ export default defineConfig({
     pool: 'forks',
     setupFiles: ['src/__tests__/setup.ts'],
     coverage: {
-      exclude: ['src/**/__tests__/**', 'src/modules/storybook/**'],
+      exclude: ['src/**/__tests__/**', 'src/testing/**', 'src/modules/storybook/**'],
       include: ['src/**/*.ts'],
       provider: 'v8',
       reporter: ['text', 'lcov'],

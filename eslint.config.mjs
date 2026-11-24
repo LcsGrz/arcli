@@ -14,11 +14,20 @@ const UI_STYLE_IMPORTS = [
   })),
 ];
 
-/** Solo `services/` conoce `@arcasdk/core` (docs/architecture.md): el resto importa los tipos de un solo archivo. */
+/** Solo `services/` conoce `@arcasdk/core` (docs/architecture.md); sus tipos, en un solo archivo de `services/arca`. */
 const SDK_TYPES_FILE = 'src/services/arca/arca-sdk.types.ts';
 const SDK_OUTSIDE_SERVICES = {
   regex: '^@arcasdk/core(/|$)',
-  message: 'Solo src/services conoce @arcasdk/core: importá los tipos de src/services/arca/arca-sdk.types.',
+  message: 'Solo src/services conoce @arcasdk/core: usá los tipos propios de modules o ArcaClient.',
+};
+const SDK_TYPES_OUTSIDE_ARCA = {
+  regex: '(^|/)arca-sdk\\.types$',
+  message:
+    'Los tipos del SDK no salen de src/services/arca: usá los propios (VoucherRequest, AuthorizationAnswer, ExportVoucherPayload) o ArcaClient, de arca-client.factory.',
+};
+const TESTING_OUTSIDE_TESTS = {
+  regex: '(^|/)testing/',
+  message: 'src/testing es solo para los tests: no entra en el build.',
 };
 const SDK_INTERNAL_PATHS = {
   regex: '^@arcasdk/core/lib/',
@@ -40,6 +49,17 @@ const UI_BARREL = {
 // =========================
 const CORE_FILES = ['src/lib/**/*.ts', 'src/modules/**/*.ts'];
 const TEST_FILES = ['src/**/__tests__/**/*.ts', 'src/**/*.test.ts'];
+/** Lo que puede importar src/testing. */
+const TESTING_USERS = [...TEST_FILES, 'src/testing/**', 'src/**/*.arca.ts'];
+/** Los imports prohibidos de una capa y, salvo en los tests, también los de src/testing. */
+const layerImports = ({ files, ignores = [], paths = [], patterns }) => [
+  { files, ignores, rules: { 'no-restricted-imports': ['error', { paths, patterns }] } },
+  {
+    files,
+    ignores: [...ignores, ...TESTING_USERS],
+    rules: { 'no-restricted-imports': ['error', { paths, patterns: [...patterns, TESTING_OUTSIDE_TESTS] }] },
+  },
+];
 /** Módulos que son de la app CLI y no del núcleo: ARQ-7 los muda a la app. Mientras, su deuda dice ARQ-7. */
 const APP_MODULES = ['completion', 'desktop-shortcut', 'examples', 'storybook', 'update-check'].map(
   (name) => `src/modules/${name}/**/*.ts`,
@@ -51,6 +71,11 @@ const CORE_ON_CLI = {
   regex: '(^|/)cli(/|$)',
   message:
     'El núcleo no conoce a quién lo llama: mové lo que necesitás de src/cli a modules o lib, o recibilo como parámetro.',
+};
+const CORE_ON_SERVICES = {
+  regex: '(^|/)services(/|$)',
+  message:
+    'El núcleo no conoce los adaptadores: usá tipos propios y recibí el gateway como dependencia; la traducción a los tipos del SDK vive en src/services/arca.',
 };
 const CORE_ON_PROMPTS = {
   regex: '^@inquirer/',
@@ -88,11 +113,6 @@ const SERVICES_ON_CLI = {
 };
 
 // --- Deuda: warn, con su ticket ---
-const CORE_ON_SERVICES = {
-  regex: '(^|/)services(/|$)',
-  message:
-    'El núcleo no conoce los adaptadores: usá tipos propios y recibí el gateway como dependencia; la traducción a los tipos del SDK vive en src/services/arca. Lo cierra ARQ-4.',
-};
 const CORE_ON_UI = {
   regex: '(^|/)ui/',
   message:
@@ -125,7 +145,7 @@ const coreDebtRules = ({ message, extraPaths = [] } = {}) => {
       'warn',
       {
         paths: [...withMessage([CORE_ON_CONF, ...CORE_ON_FS]), ...extraPaths],
-        patterns: withMessage([CORE_ON_SERVICES, CORE_ON_UI]),
+        patterns: withMessage([CORE_ON_UI]),
       },
     ],
   };
@@ -137,7 +157,15 @@ const coreImportRules = (extraPaths = []) => ({
     'error',
     {
       paths: [...UI_STYLE_IMPORTS, ...CORE_ON_APP_LIBS, ...extraPaths],
-      patterns: [UI_BARREL, SDK_OUTSIDE_SERVICES, CORE_ON_CLI, CORE_ON_PROMPTS],
+      patterns: [
+        UI_BARREL,
+        SDK_OUTSIDE_SERVICES,
+        SDK_TYPES_OUTSIDE_ARCA,
+        TESTING_OUTSIDE_TESTS,
+        CORE_ON_CLI,
+        CORE_ON_SERVICES,
+        CORE_ON_PROMPTS,
+      ],
     },
   ],
 });
@@ -241,19 +269,17 @@ export default defineConfig([
   // =========================
   // Capas (docs/architecture.md) y colores y paneles solo desde src/ui (docs/design-system.md)
   // =========================
-  {
+  ...layerImports({
     files: ['src/**/*.ts'],
     ignores: ['src/ui/**', 'src/services/**'],
-    rules: {
-      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS, patterns: [SDK_OUTSIDE_SERVICES] }],
-    },
-  },
-  {
-    files: ['src/lib/**/*.ts', 'src/modules/**/*.ts'],
-    rules: {
-      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL, SDK_OUTSIDE_SERVICES] }],
-    },
-  },
+    paths: UI_STYLE_IMPORTS,
+    patterns: [SDK_OUTSIDE_SERVICES, SDK_TYPES_OUTSIDE_ARCA],
+  }),
+  ...layerImports({
+    files: CORE_FILES,
+    paths: UI_STYLE_IMPORTS,
+    patterns: [UI_BARREL, SDK_OUTSIDE_SERVICES, SDK_TYPES_OUTSIDE_ARCA],
+  }),
   {
     // Fronteras del núcleo, sin tests: los tests pueden armar el caso con lo que necesiten.
     files: CORE_FILES,
@@ -280,38 +306,32 @@ export default defineConfig([
       ...coreDebtRules({ message: APP_MODULE_MESSAGE, extraPaths: processModule(APP_MODULE_MESSAGE) }),
     },
   },
-  {
+  ...layerImports({
     files: ['src/services/**/*.ts'],
+    ignores: ['src/services/arca/**'],
+    paths: UI_STYLE_IMPORTS,
+    patterns: [UI_BARREL, SDK_INTERNAL_PATHS, SDK_TYPES_OUTSIDE_ARCA, SERVICES_ON_CLI],
+  }),
+  ...layerImports({
+    files: ['src/services/arca/**/*.ts'],
     ignores: [SDK_TYPES_FILE],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL, SDK_INTERNAL_PATHS, SERVICES_ON_CLI] },
-      ],
-    },
-  },
-  {
+    paths: UI_STYLE_IMPORTS,
+    patterns: [UI_BARREL, SDK_INTERNAL_PATHS, SERVICES_ON_CLI],
+  }),
+  ...layerImports({
     files: [SDK_TYPES_FILE],
-    rules: {
-      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL, SERVICES_ON_CLI] }],
-    },
-  },
-  {
+    paths: UI_STYLE_IMPORTS,
+    patterns: [UI_BARREL, SERVICES_ON_CLI],
+  }),
+  ...layerImports({
     files: ['src/ui/**/*.ts'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              regex: '/(cli|modules|services)(/|$)',
-              message: 'La UI no conoce el dominio: recibí los datos ya armados (ver docs/architecture.md).',
-            },
-          ],
-        },
-      ],
-    },
-  },
+    patterns: [
+      {
+        regex: '/(cli|modules|services)(/|$)',
+        message: 'La UI no conoce el dominio: recibí los datos ya armados (ver docs/architecture.md).',
+      },
+    ],
+  }),
 
   // =========================
   // Scripts en Node: los de sync-docs (site/) y los del repo (scripts/). Los componentes .astro no pasan por ESLint

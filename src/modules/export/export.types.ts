@@ -1,4 +1,4 @@
-import type { IFEXAuthorizeOutput } from '../../services/arca/arca-sdk.types';
+import type { AuthorizationAnswer } from '../billing/authorization-answer';
 import type { EmitDecisionSource } from '../billing/billing.emit-decision';
 import { ARCA_DOLLAR_CODE } from '../billing/currency-codes';
 import type { PdfOutcome } from '../pdf/pdf.types';
@@ -138,12 +138,6 @@ export interface ExportAssociatedVoucherPayload {
   readonly Cbte_tipo: number;
 }
 
-/** Fila de `Opcionales` (`ClsFEX_Opcional`). */
-interface ExportOptionalPayload {
-  readonly Id: string;
-  readonly Valor: string;
-}
-
 export interface ExportItemPayload {
   readonly Pro_bonificacion: number;
   readonly Pro_codigo: string;
@@ -190,7 +184,6 @@ export interface ExportVoucherPayload {
   readonly Moneda_Id: string;
   readonly Obs: string;
   readonly Obs_comerciales: string;
-  readonly Opcionales?: { Opcional: ExportOptionalPayload[] };
   /**
    * Vacio en los tipos de exportacion 2 y 4: ARCA pide el campo asi (error 1550). En el resto va `N` sin
    * permisos de embarque y `S` cuando el comprobante los informa.
@@ -360,7 +353,7 @@ interface ExportAssociatedVoucherDisplay {
 
 /** Lo que el modulo necesita de ARCA. `authorize` es la unica llamada que emite. */
 export interface ExportGateway {
-  authorize(payload: ExportVoucherPayload): Promise<IFEXAuthorizeOutput>;
+  authorize(payload: ExportVoucherPayload): Promise<AuthorizationAnswer>;
   /** Tabla de actividades de WSFEX: el `Cmp` solo acepta estos codigos, no los del padron. */
   getActivities(): Promise<readonly ExportActivity[]>;
   /**
@@ -453,13 +446,15 @@ export interface ExportResponseError {
   readonly message: string;
 }
 export interface ExportResponseSummary {
+  /** El numero que informo ARCA, si lo informo. Se lee al pedirlo: ver `AuthorizationAnswer`. */
+  readonly arcaNumber?: number;
   readonly cae: string | null;
   readonly caeVencimiento: string | null;
   readonly errors: readonly ExportResponseError[];
   readonly events: readonly ExportResponseError[];
   readonly observacion: string | null;
   readonly observaciones: readonly string[];
-  readonly raw: IFEXAuthorizeOutput | null;
+  readonly raw: unknown;
   readonly resultado: string | null;
   readonly status: 'aprobado' | 'observado' | 'previsualizacion' | 'rechazado';
   readonly suggestions: readonly string[];

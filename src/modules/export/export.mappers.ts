@@ -757,8 +757,8 @@ export function exportTypeTakesPaymentDate(exportType: ExportType, isNote: boole
 /**
  * Arma el `Cmp` de `FEXAuthorize` con los datos ya resueltos contra las tablas de ARCA.
  *
- * Los bloques vacios no van: `Permisos` sin permisos (error 1720), `Cmps_asoc` y `Opcionales` sin filas (error 1820
- * el primero), y `Actividades` sin actividad (error 2100). Las notas llevan `Cmps_asoc` y
+ * Los bloques vacios no van: `Permisos` sin permisos (error 1720), `Cmps_asoc` sin filas (error 1820) y
+ * `Actividades` sin actividad (error 2100). ARCLI no manda `Opcionales`. Las notas llevan `Cmps_asoc` y
  * `Permiso_existente` vacio (1550), y no llevan `Fecha_pago` (1673) ni `CanMisMonExt` (1605). La factura de bienes
  * tampoco lleva `Fecha_pago` (1673): solo va en servicios y otros. La factura en pesos no lleva `CanMisMonExt` (1605).
  */

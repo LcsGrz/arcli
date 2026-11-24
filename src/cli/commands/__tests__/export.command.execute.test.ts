@@ -9,7 +9,8 @@ import {
   type ExportIssuedVoucher,
   type ExportVoucherKind,
 } from '../../../modules/export/export.types';
-import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
+import { exportAnswer } from '../../../testing/arca-answers';
+import { fakeExportGateway } from '../../../testing/arca-gateways';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { registerGlobalOptions } from '../../global-options';
 import { chooseOne } from '../../interactive/prompts';
@@ -26,7 +27,7 @@ vi.mock('../../interactive/prompts', async (original) => ({
 }));
 
 /** Lo que devuelve FEXAuthorize, recortado a lo que lee arcli. */
-function authorization(result: 'A' | 'R'): IFEXAuthorizeOutput {
+function authorization(result: 'A' | 'R') {
   return {
     FEXAuthorizeResult: {
       FEXErr: { ErrCode: 0, ErrMsg: '' },
@@ -45,7 +46,7 @@ function authorization(result: 'A' | 'R'): IFEXAuthorizeOutput {
         Resultado: result,
       },
     },
-  } as IFEXAuthorizeOutput;
+  };
 }
 
 /** La factura que ajusta la nota de credito, como la devuelve FEXGetCMP. */
@@ -69,24 +70,11 @@ const ASSOCIATED_INVOICE: ExportIssuedVoucher = {
 };
 
 function gateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
-  return {
-    authorize: vi.fn(async () => authorization('A')),
-    checkPermit: vi.fn(async () => 'OK'),
-    getActivities: vi.fn(async () => [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }]),
-    getCurrencies: vi.fn(async () => [{ code: 'DOL', name: 'Dólar Estadounidense' }]),
-    getDestinationCountries: vi.fn(async () => [{ code: 212, name: 'ESTADOS UNIDOS' }]),
-    getDestinationCountryCuits: vi.fn(async () => [
-      { countryName: 'ESTADOS UNIDOS - Persona Jurídica', cuit: 55000002126 },
-    ]),
-    getIncoterms: vi.fn(async () => [{ code: 'FOB', name: 'Free on Board' }]),
-    getLanguages: vi.fn(async () => [{ id: 1, name: 'Espanol' }]),
-    getLastRequestId: vi.fn(async () => 7),
-    getLastVoucherNumber: vi.fn(async () => 0),
-    getQuotations: vi.fn(async () => []),
-    getUnits: vi.fn(async () => [{ id: 7, name: 'unidades' }]),
+  return fakeExportGateway({
+    authorize: vi.fn(async () => exportAnswer(authorization('A'))),
     getVoucher: vi.fn(async () => ASSOCIATED_INVOICE),
     ...overrides,
-  };
+  });
 }
 
 function runtime(outputJson: boolean, config: Record<string, unknown>): CliArcaRuntime {
@@ -395,7 +383,9 @@ describe('executeExportCommand: la decision de emitir', () => {
 
 describe('executeExportCommand: codigo de salida', () => {
   it('rechazado por ARCA: el resultado sale igual, con exit 2', async () => {
-    await run([...BASE, '--emitir'], { gateway: gateway({ authorize: vi.fn(async () => authorization('R')) }) });
+    await run([...BASE, '--emitir'], {
+      gateway: gateway({ authorize: vi.fn(async () => exportAnswer(authorization('R'))) }),
+    });
 
     expect(JSON.parse(stdout)).toMatchObject({ cae: null, estado: 'rechazado', resultado: 'R' });
     expect(process.exitCode).toBe(2);
