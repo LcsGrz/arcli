@@ -1,7 +1,7 @@
 import { asArray } from '../../lib/arrays/as-array';
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
-import { readResponseText } from '../../modules/billing/emission-response';
+import { readRejectedCae } from '../../modules/billing/emission-response';
 import {
   DEFAULT_EXPORT_UNIT_CODE,
   type ExportActivity,
@@ -22,7 +22,7 @@ import {
 
 import type { Arca, IFEXAuthorizeInput, IFEXAuthorizeOutput, IFEXGetLast_CMPInput } from './arca-sdk.types';
 import { isNotAuthorized, notAuthorizedMessage } from './not-authorized';
-import { voucherQueryError } from './voucher-query-error';
+import { unreadableVoucherError, voucherQueryError } from './voucher-query-error';
 
 const NOT_AUTHORIZED_MESSAGE = notAuthorizedMessage('wsfex', 'factura de exportación');
 
@@ -267,9 +267,11 @@ export class ArcaExportGateway implements ExportGateway {
 
     if (!voucher) {
       const { number, pointOfSale } = query;
-      const exists = readNumber(row?.Cbte_nro) === number && readResponseText(row?.Cae) !== null;
+      const cae = readNumber(row?.Cbte_nro) === number ? readRejectedCae(row?.Cae) : null;
 
-      throw voucherQueryError({ errors: [], exists, number, pointOfSale });
+      throw cae === null
+        ? voucherQueryError({ errors: [], number, pointOfSale })
+        : unreadableVoucherError({ cae, number, pointOfSale });
     }
 
     return voucher;

@@ -498,9 +498,10 @@ describe('pickExportVoucher', () => {
     expect(stripAnsi(output)).not.toContain('No existe');
   });
 
-  it('sin cambios: una con CAE y un tipo que no conocemos se saltea en la lista; a mano, muestra el error', async () => {
-    const gateway = exportGateway(2, { broken: row(2, { Tipo_expo: 3 }) });
+  const shown = () => stripAnsi(output).replace(/[│┃╏║\s]+/g, ' ');
+  const unreadable = (number: number) => row(number, { Tipo_expo: 3 });
 
+  it('una con CAE y un tipo que no conocemos se saltea con un aviso; a mano, dice que existe', async () => {
     script = createScript([
       [/Cuál/, 'Ingresar el número a mano'],
       [/Punto de venta/, '3'],
@@ -508,13 +509,71 @@ describe('pickExportVoucher', () => {
       [/Cuál/, '00003-00000003'],
     ]);
 
-    expect(await pickExportVoucher(createSession([]), gateway, exportOptions)).toMatchObject({
-      invoice: { number: 3 },
-    });
+    expect(
+      await pickExportVoucher(createSession([]), exportGateway(2, { broken: unreadable(2) }), exportOptions),
+    ).toMatchObject({ invoice: { number: 3 } });
     expect(
       onlyChoices(script.chooseStep.mock.calls[0]?.[1]).filter(({ value }) => typeof value === 'object'),
     ).toHaveLength(1);
-    expect(shownErrors()).toContain('00003-00000002 y no se sabe si existe');
+    expect(shown()).toContain('No se muestra 1 comprobante, porque ARCLI no pudo leer sus datos: 00003-00000002.');
+    expect(shownErrors()).toContain('00003-00000002 existe, con el CAE');
+  });
+
+  it('la que se saltea al "Cargar más" se avisa al llegar, una sola vez', async () => {
+    script = createScript([
+      [/Cuál/, 'Cargar más'],
+      [/Cuál/, '00003-00000003'],
+    ]);
+
+    await pickExportVoucher(createSession([]), exportGateway(1, { broken: unreadable(1) }), exportOptions);
+
+    expect(shown().match(/No se muestra/g)).toHaveLength(1);
+    expect(shown()).toContain('00003-00000001.');
+  });
+
+  it('si no se entiende ninguna de la primera tanda, no dice que no hay y deja cargar más', async () => {
+    script = createScript([
+      [/Cuál/, 'Cargar más'],
+      [/Cuál/, '00003-00000001'],
+    ]);
+
+    const gateway = exportGateway(0);
+    const original = gateway.getVoucher.bind(gateway);
+
+    vi.spyOn(gateway, 'getVoucher').mockImplementation(async (query) =>
+      query.number > 1
+        ? exportGateway(query.number, { broken: unreadable(query.number) }).getVoucher(query)
+        : original(query),
+    );
+
+    expect(await pickExportVoucher(createSession([]), gateway, exportOptions)).toMatchObject({
+      invoice: { number: 1 },
+    });
+    expect(shown()).toContain('No se muestran 2 comprobantes');
+    expect(shown()).toContain('00003-00000003 y 00003-00000002.');
+    expect(shown()).not.toContain('No hay');
+  });
+
+  it('si falla la primera tanda y al reintentar saltea una, la avisa y no dice que no hay', async () => {
+    script = createScript([
+      [/Cuál/, 'Volver a cargar'],
+      [/Cuál/, '00003-00000003'],
+    ]);
+
+    const gateway = exportGateway(2, { once: true });
+    const original = gateway.getVoucher.bind(gateway);
+    let calls = 0;
+
+    vi.spyOn(gateway, 'getVoucher').mockImplementation(async (query) =>
+      query.number === 2 && ++calls > 1
+        ? exportGateway(2, { broken: unreadable(2) }).getVoucher(query)
+        : original(query),
+    );
+
+    await pickExportVoucher(createSession([]), gateway, exportOptions);
+
+    expect(shown()).toContain('No se muestra 1 comprobante');
+    expect(shown()).not.toContain('No hay');
   });
 });
 

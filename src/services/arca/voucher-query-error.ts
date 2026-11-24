@@ -1,3 +1,4 @@
+import { ISSUES_URL } from '../../lib/links';
 import { VoucherQueryError } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 
@@ -10,8 +11,6 @@ import { toDetailErrors } from './arca-error-details';
 export function voucherQueryError(query: {
   /** Vacio: ARCA contesto otra cosa, sin un error que se pueda leer. */
   readonly errors: ReadonlyArray<{ readonly code: number | null; readonly msg: string }>;
-  /** Vino con su numero y su CAE, pero sin un dato que ARCLI necesita o con uno que no conoce. */
-  readonly exists?: boolean;
   readonly number: number;
   readonly pointOfSale: number;
 }): VoucherQueryError {
@@ -30,6 +29,22 @@ export function voucherQueryError(query: {
         : 'Volvé a consultar en unos minutos.'
     } Si se repite, no insistas. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.`,
     reasons || 'respuesta inesperada',
-    query.exists,
+  );
+}
+
+/** Existe (vino con su numero y su CAE), pero sin un dato que ARCLI necesita o con uno que no conoce. */
+export function unreadableVoucherError(voucher: {
+  readonly cae: string;
+  readonly number: number;
+  readonly pointOfSale: number;
+}): VoucherQueryError {
+  const label = formatVoucherNumber(voucher.pointOfSale, voucher.number);
+
+  return new VoucherQueryError(
+    `El comprobante ${label} existe, con el CAE ${voucher.cae}, pero ARCLI no pudo leer los datos que devolvió ARCA.`,
+    { errores: [] },
+    `Si estabas verificando una emisión, ya está emitido: no lo repitas. Miralo en ARCA y avisanos en ${ISSUES_URL}.`,
+    'existe, pero ARCLI no pudo leer sus datos',
+    true,
   );
 }

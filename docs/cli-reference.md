@@ -823,7 +823,7 @@ arcli consultar fb 14 --json      # lo mismo, en JSON
 
 `consultar` muestra el CAE, el receptor, los importes con sus alícuotas y tributos, y, si los tiene, el período de servicio, el vencimiento del pago, el comprobante asociado de una nota (o su período asociado), si se cobra en la misma moneda extranjera, los datos de FCE (CBU, alias, transferencia, anulación) y las observaciones de ARCA.
 
-Sin `--pv` usan el punto de venta de la config. Aceptan también la `E` (`fe`, `nde`, `nce`), que se consulta en WSFEX con su certificado. Si el comprobante no existe, `consultar` termina con el error `VOUCHER_NOT_FOUND`. Si en A, B, C, FCE o un recibo ARCA contesta con un error, o en cualquier tipo sin los datos del comprobante, los dos comandos terminan con `ARCA_VOUCHER_QUERY_ERROR`: no se sabe si el comprobante existe, y `ultimos` no muestra una lista incompleta. El formato del JSON está en [Entrada y salida](input-output.md#comprobantes-emitidos-ultimos-y-consultar).
+Sin `--pv` usan el punto de venta de la config. Aceptan también la `E` (`fe`, `nde`, `nce`), que se consulta en WSFEX con su certificado. Si el comprobante no existe, `consultar` termina con el error `VOUCHER_NOT_FOUND`. Si en A, B, C, FCE o un recibo ARCA contesta con un error, o en cualquier tipo sin los datos del comprobante, los dos comandos terminan con `ARCA_VOUCHER_QUERY_ERROR`: no se sabe si el comprobante existe, y `ultimos` no muestra una lista incompleta. Una `E` que existe y ARCLI no pudo leer es la excepción: `consultar` falla diciendo que existe, y `ultimos` la saltea con un aviso. El formato del JSON está en [Entrada y salida](input-output.md#comprobantes-emitidos-ultimos-y-consultar).
 
 ## Consultar el régimen FCE
 

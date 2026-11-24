@@ -20,10 +20,13 @@ export const EMITTED_WITH_ERROR_SUGGESTION =
   'El comprobante está emitido: ARCA dio el CAE, aunque también informó un error. No lo repitas: revisá el error.';
 
 /**
- * Errores internos de ARCA (500 de aplicacion, 501 de base de datos): no son validaciones y no dicen si se emitio. Sin
- * fuente en el repo (el manual no esta); son los que decidio quien mantiene el proyecto en ERR-20.
+ * Errores internos de ARCA (500 de aplicacion, 501 de base de datos, 502 transaccion activa): no son validaciones y no
+ * dicen si se emitio. Sin fuente en el repo (el manual no esta); los decidio quien mantiene el proyecto (ERR-20).
  */
-const INTERNAL_ARCA_ERRORS: ReadonlySet<number> = new Set([500, 501]);
+export const WSFE_INTERNAL_ERRORS: ReadonlySet<number> = new Set([500, 501, 502]);
+
+/** En WSFEX, ademas el 1000, "Error interno de la aplicacion". */
+export const WSFEX_INTERNAL_ERRORS: ReadonlySet<number> = new Set([...WSFE_INTERNAL_ERRORS, 1000]);
 
 export type EmissionStatus = 'aprobado' | 'observado' | 'rechazado';
 
@@ -33,45 +36,60 @@ export interface EmissionAnswerError {
   readonly message?: string | null;
 }
 
-/** Sin CAE ni resultado, este error dice que ARCA no emitio: cualquiera que no sea interno, tambien sin codigo. */
-function isRejectionError({ code }: EmissionAnswerError): boolean {
-  return !INTERNAL_ARCA_ERRORS.has(Number(code));
+/** El codigo de un error; cero, vacio o algo que no es un numero es "sin codigo". */
+export function readErrorCode(value: unknown): number | undefined {
+  const code = Number(readResponseText(value) ?? NaN);
+
+  return Number.isInteger(code) && code !== 0 ? code : undefined;
+}
+
+function describeErrors(errors: readonly EmissionAnswerError[]): string {
+  return errors
+    .map(({ code, message }) => [readErrorCode(code) ?? '', message ?? ''].join(' ').trim() || NO_DETAIL_TEXT)
+    .join('; ');
 }
 
 /**
- * El estado de lo que contesto ARCA a la llamada que emite, para todas las familias (ERR-20). Manda el CAE: con CAE
- * esta emitido, aunque haya un error. Sin CAE es un rechazo si ARCA lo dice (`R`) o si hay un error que no es interno
- * y ningun resultado. Lo demas (vacia, aprobada sin CAE, un error interno) no dice si se emitio: falla, y quien llama
- * lo convierte en `EmissionUncertainError`.
+ * El estado de lo que contesto ARCA a la llamada que emite, para todas las familias (ERR-20). Manda el CAE: se emitio
+ * si y solo si hay CAE, aunque haya un error. Sin CAE es un rechazo si ARCA lo dice (`R`) o si no hay resultado y si
+ * un error con codigo que no es interno. Lo demas (vacia, aprobada sin CAE, rechazada con CAE, un error interno o sin
+ * codigo) no dice si se emitio: falla, y quien llama lo convierte en `EmissionUncertainError`.
  */
 export function resolveEmissionStatus(answer: {
   readonly cae: string | null;
   readonly errors: readonly EmissionAnswerError[];
   readonly hasObservations: boolean;
+  readonly internalErrors: ReadonlySet<number>;
   /** `R` en el resultado del comprobante o, sin el, en la cabecera. */
   readonly rejected: boolean;
   readonly result: string | null;
-  /** Errores de texto que, sin CAE, no dicen que ARCA rechazo; van en el motivo. Con CAE cuentan como un error. */
-  readonly texts?: readonly string[];
 }): EmissionStatus {
-  const { cae, errors, hasObservations, rejected, result, texts = [] } = answer;
+  const { cae, errors, hasObservations, internalErrors, rejected, result } = answer;
+  const reasons = describeErrors(errors);
+
+  if (rejected && cae !== null) {
+    throw new Error(
+      shortenReason(`ARCA contestó rechazado y con el CAE ${cae}${reasons ? `, con errores: ${reasons}` : ''}`),
+    );
+  }
 
   if (rejected) {
     return 'rechazado';
   }
 
   if (cae !== null) {
-    return result === 'A' && !hasObservations && errors.length + texts.length === 0 ? 'aprobado' : 'observado';
+    return result === 'A' && !hasObservations && errors.length === 0 ? 'aprobado' : 'observado';
   }
 
-  if (result === null && errors.some(isRejectionError)) {
+  const isRejection = ({ code: value }: EmissionAnswerError) => {
+    const code = readErrorCode(value);
+
+    return code !== undefined && !internalErrors.has(code);
+  };
+
+  if (result === null && errors.some(isRejection)) {
     return 'rechazado';
   }
-
-  const reasons = [
-    ...errors.map(({ code, message }) => [code ?? '', message ?? ''].join(' ').trim() || NO_DETAIL_TEXT),
-    ...texts,
-  ].join('; ');
 
   throw new Error(
     shortenReason(

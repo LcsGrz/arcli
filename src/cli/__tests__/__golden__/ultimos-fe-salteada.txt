@@ -1,0 +1,45 @@
+$ arcli ultimos fe --pv 4 --cantidad 2 --json
+exit: 0
+--- stdout ---
+
+{
+  "atajo": "fe",
+  "comprobante": "Factura de exportación E",
+  "tipoArca": 19,
+  "comprobantes": [
+    {
+      "actividad": [
+        620100
+      ],
+      "cae": "76463926585300",
+      "caeVencimiento": "20261110",
+      "cliente": "ACME LLC",
+      "comprobanteAsociado": null,
+      "cotizacion": 1000,
+      "cuitPaisCliente": 55000002126,
+      "destino": {
+        "codigo": 212
+      },
+      "domicilioCliente": "123 Main St",
+      "fecha": "20261030",
+      "idImpositivo": null,
+      "moneda": "DOL",
+      "numero": 7,
+      "resultado": "A",
+      "tipoExpo": 2,
+      "total": 1500
+    }
+  ],
+  "entorno": "testing",
+  "puntoVenta": 4
+}
+
+
+--- stderr ---
+
+┌                                                                                          ┐
+                                                                                            
+     No se muestra 1 comprobante, porque ARCLI no pudo leer sus datos: 00004-00000006.      
+                               Existe en ARCA: no lo repitas.                               
+                                                                                            
+└                                                                                          ┘

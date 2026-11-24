@@ -151,8 +151,7 @@ describe('ArcaExportGateway.getVoucher', () => {
     ['sin comprobante', { ...EMPTY_RESULT }],
     ['en ceros, sin el 1020', { ...EMPTY_RESULT, FEXResultGet: { Cbte_nro: 0, Tipo_expo: 0 } }],
     ['sin número', { ...EMPTY_RESULT, FEXResultGet: { ...DEBIT_NOTE, Cbte_nro: '' } }],
-    ['sin tipo de exportación', { ...EMPTY_RESULT, FEXResultGet: { ...DEBIT_NOTE, Tipo_expo: 3 } }],
-    ['sin moneda', { ...EMPTY_RESULT, FEXResultGet: { ...DEBIT_NOTE, Moneda_Id: ' ' } }],
+    ['sin CAE ni moneda', { ...EMPTY_RESULT, FEXResultGet: { ...DEBIT_NOTE, Cae: '', Moneda_Id: ' ' } }],
   ])('%s no es "no existe": VoucherQueryError (ERR-15)', async (_name, FEXGetCMPResult) => {
     const gateway = createGateway({ getCmp: vi.fn(async () => ({ FEXGetCMPResult })) });
 
@@ -161,6 +160,23 @@ describe('ArcaExportGateway.getVoucher', () => {
       details: { errores: [] },
       name: 'VoucherQueryError',
       reason: 'respuesta inesperada',
+    });
+  });
+
+  it.each<[string, Record<string, unknown>]>([
+    ['un tipo de exportación que no conocemos', { Tipo_expo: 3 }],
+    ['sin moneda', { Moneda_Id: ' ' }],
+  ])('con su número y su CAE, y %s: existe y no se pudo leer', async (_name, row) => {
+    const getCmp = vi.fn(async () => ({
+      FEXGetCMPResult: { ...EMPTY_RESULT, FEXResultGet: { ...DEBIT_NOTE, ...row } },
+    }));
+
+    await expect(
+      createGateway({ getCmp }).getVoucher({ arcaType: 20, number: 1, pointOfSale: 4 }),
+    ).rejects.toMatchObject({
+      code: 'ARCA_VOUCHER_QUERY_ERROR',
+      exists: true,
+      reason: 'existe, pero ARCLI no pudo leer sus datos',
     });
   });
 

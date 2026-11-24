@@ -121,6 +121,8 @@ export function inferIvaRate(netAmount: number, ivaAmount: number): BillingIvaRa
 export interface ListVouchersOptions {
   readonly concurrency?: number;
   readonly limit?: number;
+  /** Un comprobante que existe y no se pudo leer (`VoucherQueryError.exists`): no va en la lista. */
+  readonly onSkip?: (number: number) => void;
 }
 
 /** Ultimos comprobantes emitidos, del mas nuevo al mas viejo. */
@@ -150,12 +152,6 @@ export async function listVouchersFrom(
   return fetchVouchersBackwards(fromNumber, (number) => gateway.getVoucher(number, pointOfSale, voucherType), options);
 }
 
-function skipUnreadable(error: unknown): undefined {
-  if (!(error instanceof VoucherQueryError && error.exists)) {
-    throw error;
-  }
-}
-
 /**
  * Pide los comprobantes desde `fromNumber` hacia atras, del mas nuevo al mas viejo, y descarta los que no existen y
  * los que existen pero no se entienden (`VoucherQueryError.exists`). Si no se sabe si uno existe, falla la lista.
@@ -170,12 +166,21 @@ export async function fetchVouchersBackwards<T>(
   const concurrency = options.concurrency ?? 4;
   const numbers = Array.from({ length: Math.max(0, Math.min(limit, fromNumber)) }, (_, index) => fromNumber - index);
   const vouchers: Array<T | null | undefined> = [];
+  const skipUnreadable =
+    (number: number) =>
+    (error: unknown): undefined => {
+      if (!(error instanceof VoucherQueryError && error.exists)) {
+        throw error;
+      }
+
+      options.onSkip?.(number);
+    };
 
   // Lotes chicos: cada consulta tarda ~0,5 s y no conviene saturar el web service.
   for (let start = 0; start < numbers.length; start += concurrency) {
     const batch = numbers.slice(start, start + concurrency);
 
-    vouchers.push(...(await Promise.all(batch.map((number) => fetch(number).catch(skipUnreadable)))));
+    vouchers.push(...(await Promise.all(batch.map((number) => fetch(number).catch(skipUnreadable(number))))));
   }
 
   return vouchers.filter((voucher): voucher is T => voucher !== null && voucher !== undefined);

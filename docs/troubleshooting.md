@@ -343,14 +343,14 @@ arcli fc ayuda
 - **Severidad:** frecuente
 - **Síntoma:** error ARCA con referencia a transacción activa.
 - **Causa:** ARCA informa una operación transitoria en curso.
-- **Solución:** esperar unos segundos y reintentar antes de modificar el comprobante. Si apareció al emitir, sale como `EMISSION_UNCERTAIN`: verificá primero con `arcli ultimos` (ver abajo).
+- **Solución:** esperar unos segundos y reintentar antes de modificar el comprobante. Al emitir, se lance o venga en la respuesta (502), sale como `EMISSION_UNCERTAIN`: no reintentes, verificá primero con `arcli ultimos` (ver abajo).
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md), [Limitaciones actuales](limitations.md)
 
 ### No se pudo confirmar la emisión (`EMISSION_UNCERTAIN`)
 
 - **Severidad:** crítico
 - **Síntoma:** "No se pudo confirmar la emisión: …" al emitir.
-- **Causa:** falló la llamada que emite en ARCA (red, timeout, transacción activa) o de lo que contestó no se puede saber si se emitió: una respuesta ilegible o vacía, un resultado aprobado sin CAE, o un error interno (500 o 501) sin CAE; el mensaje dice qué contestó. ARCA pudo haber autorizado el comprobante y perderse la respuesta. Si el error es del login en WSAA (certificado no autorizado; uno vencido corta antes con `CERTIFICATE_EXPIRED`) o del pedido del último número, no sale este error sino el original: ahí no se emitió nada y alcanza con corregir y reintentar.
+- **Causa:** falló la llamada que emite en ARCA (red, timeout, transacción activa) o de lo que contestó no se puede saber si se emitió: una respuesta ilegible o vacía, un resultado aprobado sin CAE, un rechazo con CAE, o un error interno (500, 501 o 502; en la `E`, también 1000) o sin código, sin CAE; el mensaje dice qué contestó. ARCA pudo haber autorizado el comprobante y perderse la respuesta. Si el error es del login en WSAA (certificado no autorizado; uno vencido corta antes con `CERTIFICATE_EXPIRED`) o del pedido del último número, no sale este error sino el original: ahí no se emitió nada y alcanza con corregir y reintentar.
 - **Solución:** **no reintentes todavía**. Corré el `arcli ultimos <tipo> --pv <n> --<entorno>` que muestra la sugerencia, con el entorno incluido (sin él, se consulta el de la config): si el comprobante figura, ya está emitido y no hay que repetirlo; si no figura, reintentá. En la `E` (`fe`, `nce`, `nde`) la sugerencia verifica con `arcli consultar <tipo> <número> --pv <n> --<entorno>`; si no figura, reintentá con el mismo `--numero` e `--id-solicitud` que muestra la sugerencia: ARCA no autoriza dos veces el mismo número.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#emisión-sin-confirmar)
 
@@ -359,6 +359,7 @@ arcli fc ayuda
 - **Severidad:** ocasional
 - **Síntoma:** `ARCA devolvió un error al consultar el comprobante 00003-00000099 y no se sabe si existe: …` (o `una respuesta inesperada`) con `ultimos` o `consultar`, con el asociado de una nota `E` o en el asistente. En la `E` solo sale `una respuesta inesperada`: un error de ARCA es `ARCA_EXPORT_ERROR`. En una nota A, B, C o FCE sale como aviso, sin ese código: `No se pudo verificar en ARCA …`.
 - **Causa:** ARCA contestó la consulta con un error que no es el 602 (el que dice que no existe; en la `E`, el 1020) o con una respuesta inesperada, sin los datos del comprobante (en la `E`, número, tipo de exportación o moneda). Hasta la 2.6.0, `consultar` daba `VOUCHER_NOT_FOUND` y `ultimos` mostraba una lista vacía o incompleta.
+- **`El comprobante … existe, con el CAE …, pero ARCLI no pudo leer los datos`** (solo la `E`, por ejemplo con un tipo de exportación que ARCLI no conoce): ya está emitido, no lo repitas. `ultimos` y el asistente lo saltean con un aviso que lo nombra.
 - **Solución:** leer el mensaje de ARCA: si es pasajero, volver a consultar en unos minutos; si no, corregir lo que dice. Si se repite, no insistir. Si estabas verificando una emisión sin confirmar, **no la reintentes** hasta ver si el comprobante existe: se puede duplicar. En una nota A, B, C o FCE, si el punto de venta del asociado no es de web service, el aviso lo dice y la nota sigue: pasá su fecha con `--afecha`.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#códigos-de-error)
 

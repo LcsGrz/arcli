@@ -123,7 +123,7 @@ describe('mapExportResponse', () => {
     const byResultado = mapExportResponse(authorization({ Cae: '', Motivos_Obs: 'Dato invalido', Resultado: 'R' }));
     const byFexErr = mapExportResponse({
       FEXAuthorizeResult: {
-        FEXErr: { ErrCode: 1000, ErrMsg: 'Error interno' },
+        FEXErr: { ErrCode: 1601, ErrMsg: 'Dato invalido' },
         FEXEvents: { EventCode: 0, EventMsg: '' },
       },
     } as unknown as IFEXAuthorizeOutput);
@@ -146,8 +146,8 @@ describe('mapExportResponse', () => {
     expect(mapExportResponse(authorization()).status).toBe('aprobado');
     expect(mapExportResponse(authorization({ Motivos_Obs: 'Obs' })).status).toBe('observado');
     expect(mapExportResponse(authorization({ Motivos_Obs: '   ' })).status).toBe('aprobado');
-    expect(mapExportResponse(authorization({ Resultado: 'R' })).status).toBe('rechazado');
-    expect(mapExportResponse(authorization({ Motivos_Obs: 'Obs', Resultado: 'R' })).status).toBe('rechazado');
+    expect(mapExportResponse(authorization({ Cae: '', Resultado: 'R' })).status).toBe('rechazado');
+    expect(mapExportResponse(authorization({ Cae: '', Motivos_Obs: 'Obs', Resultado: 'R' })).status).toBe('rechazado');
     // Sin Resultado no hay aprobacion que mostrar: no puede salir `aprobado` en el --json.
     expect(mapExportResponse(authorization({ Resultado: '' })).status).toBe('observado');
   });

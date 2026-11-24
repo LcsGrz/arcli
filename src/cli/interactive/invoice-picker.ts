@@ -10,7 +10,7 @@ import type { OtherSystemInvoice } from '../../modules/interactive/note-input';
 import { validatePositiveInteger } from '../../modules/interactive/validators';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { fetchVouchersBackwards, type IssuedVoucher, VoucherQueryError } from '../../modules/vouchers/voucher-history';
-import { formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
+import { formatSkippedVouchers, formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
 import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalOutput } from '../../ui';
@@ -314,8 +314,28 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
   const { message, onPick, pointOfSale, previous, voucherKind } = options;
   // Comprobantes por tanda: los primeros y cada "cargar mas".
   const pageSize = resolveRowsPerList(session.runtime.config);
-  const listFrom = (fromNumber: number): Promise<T[]> =>
-    fetchVouchersBackwards(fromNumber, (number) => source.getVoucher(number, pointOfSale), { limit: pageSize });
+  // Los que cada tanda salteo porque existen y no se pudieron leer: se avisan si la tanda se muestra.
+  const skippedIn = new WeakMap<T[], readonly number[]>();
+  let skippedAny = false;
+  const listFrom = async (fromNumber: number): Promise<T[]> => {
+    const skipped: number[] = [];
+    const batch = await fetchVouchersBackwards(fromNumber, (number) => source.getVoucher(number, pointOfSale), {
+      limit: pageSize,
+      onSkip: (number) => skipped.push(number),
+    });
+
+    skippedIn.set(batch, skipped);
+
+    return batch;
+  };
+  const warnSkipped = (batch: T[]) => {
+    const notice = formatSkippedVouchers(pointOfSale, skippedIn.get(batch) ?? []);
+
+    if (notice) {
+      skippedAny = true;
+      writeTerminalOutput(notice);
+    }
+  };
   const lastNumber = await withSpinner('Buscando en ARCA...', () => source.getLastNumber(pointOfSale));
   const firstBatch = await orShowQueryError(() => withSpinner('Buscando en ARCA...', () => listFrom(lastNumber)));
   const invoices: T[] = firstBatch ?? [];
@@ -342,14 +362,15 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
   });
 
   const warnIfEmpty = () => {
-    if (invoices.length === 0) {
+    if (invoices.length === 0 && !skippedAny) {
       writeTerminalOutput(
         noticePanel(`${formatNoVouchersEmitted(voucherKind)} en el punto de venta ${pointOfSale}.`, 'warning'),
       );
     }
   };
 
-  if (!firstBatchPending) {
+  if (firstBatch) {
+    warnSkipped(firstBatch);
     warnIfEmpty();
   }
 
@@ -360,7 +381,7 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
     const choices: Array<Choice<PickerChoice<T>> | Separator> = [];
 
     // El listado y "cargar mas" van entre lineas punteadas; buscar a mano queda afuera.
-    if (invoices.length > 0 || firstBatchPending) {
+    if (invoices.length > 0 || firstBatchPending || (skippedAny && nextNumber > 0)) {
       // Las filas llegan hasta el final de la linea punteada; el cursor "❯ " ocupa dos columnas.
       const rows = source.formatRows(pointOfSale, invoices, COLUMN_SEPARATOR, statusBarWidth() - 2);
 
@@ -414,6 +435,7 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
 
       if ('loaded' in result) {
         nextNumber -= pageSize;
+        warnSkipped(result.loaded);
 
         if (firstBatchPending) {
           // Como si la primera tanda llegara ahora.

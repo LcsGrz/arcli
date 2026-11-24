@@ -108,7 +108,7 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
   {
     codes: [],
     pattern: /transacci[oó]n activa|error interno de base de datos/i,
-    todo: 'Esperá unos segundos y volvé a intentar la emisión.',
+    todo: 'Verificá con `arcli ultimos` que no se haya emitido antes de reintentar.',
     what: 'ARCA devolvió un error transitorio.',
   },
   {

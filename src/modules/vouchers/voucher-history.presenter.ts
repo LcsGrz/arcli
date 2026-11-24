@@ -69,6 +69,24 @@ function formatVoucherListTitle(report: Omit<VoucherListReport, 'vouchers'>): st
   return `${formatLatestVouchersTitle(report.voucherKind)} ${separator} PV ${report.pointOfSale} ${separator} ${formatEnvironmentLabel(report.environment)}`;
 }
 
+/** Los que ARCA tiene y la lista no muestra, porque no se pudieron leer sus datos. Sin ninguno, vacio. */
+export function formatSkippedVouchers(pointOfSale: number, numbers: readonly number[]): string {
+  if (numbers.length === 0) {
+    return '';
+  }
+
+  const labels = [...numbers]
+    .sort((left, right) => right - left)
+    .map((number) => formatVoucherNumber(pointOfSale, number));
+  const list = labels.length > 1 ? `${labels.slice(0, -1).join(', ')} y ${labels.at(-1)}` : labels[0];
+  const subject = labels.length === 1 ? 'No se muestra 1 comprobante' : `No se muestran ${labels.length} comprobantes`;
+
+  return noticePanel(
+    `${subject}, porque ARCLI no pudo leer sus datos: ${list}. ${labels.length === 1 ? 'Existe en ARCA: no lo repitas.' : 'Existen en ARCA: no los repitas.'}`,
+    'warning',
+  );
+}
+
 /** Una fila del listado: numero, fecha, receptor, total y CAE, en columnas alineadas. */
 function formatVoucherListRow(pointOfSale: number, voucher: IssuedVoucher): string {
   return [

@@ -8,9 +8,11 @@ import {
   NO_DETAIL_TEXT,
   readCae,
   readCaeExpiration,
+  readErrorCode,
   readRejectedCae,
   readResponseText,
   resolveEmissionStatus,
+  WSFE_INTERNAL_ERRORS,
 } from './emission-response';
 
 export function createDryRunResponse(): BillingResponseSummary {
@@ -52,23 +54,23 @@ export function mapBillingResponse(response: CreateVoucherResultDto): BillingRes
   const observations = asArray<unknown>(detail?.Observaciones?.Obs);
   const observaciones = observations.map(readMessage).filter(Boolean);
   const resultado = readResponseText(detail?.Resultado);
-  const rejected = resultado === 'R';
-  // El SDK devuelve "" en un rechazo; el JSON publico promete null.
-  const cae = rejected ? readRejectedCae(response.cae) : (readCae(response.cae) ?? readCae(detail?.CAE));
   // Sin el resultado del comprobante vale el de la cabecera, que con uno solo es el mismo; con CAE, no: manda el CAE.
-  const rejectedByHeader =
-    cae === null && resultado === null && readResponseText(response.response?.FeCabResp?.Resultado) === 'R';
+  const rejectedByHeader = resultado === null && readResponseText(response.response?.FeCabResp?.Resultado) === 'R';
+  // El SDK solo devuelve el CAE con `A`; el JSON publico promete null.
+  const readAnswerCae = resultado === 'R' || rejectedByHeader ? readRejectedCae : readCae;
+  const cae = readAnswerCae(response.cae) ?? readAnswerCae(detail?.CAE);
   const status = resolveEmissionStatus({
     cae,
-    errors: errors.map((item) => ({ code: readCode(item), message: readMessage(item) })),
+    errors: errors.map((item) => ({ code: readCode(item), message: readMessage(item) || readText(item) })),
     hasObservations: observaciones.length > 0,
-    rejected: rejected || rejectedByHeader,
+    internalErrors: WSFE_INTERNAL_ERRORS,
+    rejected: resultado === 'R' || (rejectedByHeader && cae === null),
     result: resultado,
   });
 
   return {
     cae,
-    caeVencimiento: readCaeExpiration(response.caeFchVto || (rejected ? undefined : detail?.CAEFchVto)),
+    caeVencimiento: readCaeExpiration(response.caeFchVto || (cae === null ? undefined : detail?.CAEFchVto)),
     errors,
     events,
     observaciones,
@@ -88,13 +90,16 @@ function toItem(item: unknown): unknown {
 }
 
 function readCode(item: unknown): number | undefined {
-  const code = typeof item === 'object' && item && 'Code' in item ? Number((item as { Code?: number }).Code) : NaN;
-
-  return Number.isInteger(code) ? code : undefined;
+  return typeof item === 'object' && item && 'Code' in item ? readErrorCode(item.Code) : undefined;
 }
 
 function readMessage(item: unknown): string {
   return typeof item === 'object' && item && 'Msg' in item ? (readResponseText(item.Msg) ?? '') : '';
+}
+
+/** El texto de un error que no vino como `{ Code, Msg }` (ver `toItem`). */
+function readText(item: unknown): string {
+  return typeof item === 'object' && item && 'mensaje' in item ? (readResponseText(item.mensaje) ?? '') : '';
 }
 
 /** Lo que sugiere la tabla de rechazos (`arca-rejections.ts`) para los codigos y mensajes de errores y observaciones. */

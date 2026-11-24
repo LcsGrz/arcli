@@ -9,6 +9,7 @@ import {
   readRejectedCae,
   readResponseText,
   resolveEmissionStatus,
+  WSFEX_INTERNAL_ERRORS,
 } from '../billing/emission-response';
 
 import type { ExportResponseError, ExportResponseSummary } from './export.types';
@@ -107,10 +108,10 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
   const result = output.FEXAuthorizeResult;
   const authorization = asArray(result?.FEXResultAuth)[0];
   // Nada de esto puede costar el CAE: se acepta suelto, en lista, nulo o de otro tipo (ERR-16).
-  const codedErrors = asArray(result?.FEXErr).flatMap((error) => toEntry(error?.ErrCode, error?.ErrMsg));
-  // Sin codigo no se sabe si es un error (`ErrCode: 0` es "OK"): se muestra, y sin CAE no rechaza.
-  const textErrors = asArray(result?.FEXErr).flatMap(toTextEntry);
-  const errors = [...codedErrors, ...textErrors];
+  const errors = asArray(result?.FEXErr).flatMap((error) => [
+    ...toEntry(error?.ErrCode, error?.ErrMsg),
+    ...toTextEntry(error),
+  ]);
   const events = asArray(result?.FEXEvents).flatMap((event) => [
     ...toEntry(event?.EventCode, event?.EventMsg),
     ...toTextEntry(event),
@@ -122,11 +123,11 @@ export function mapExportResponse(output: IFEXAuthorizeOutput): ExportResponseSu
   const cae = (resultado === 'R' ? readRejectedCae : readCae)(authorization?.Cae);
   const status = resolveEmissionStatus({
     cae,
-    errors: codedErrors,
+    errors,
     hasObservations: observaciones.length > 0,
+    internalErrors: WSFEX_INTERNAL_ERRORS,
     rejected: resultado === 'R',
     result: resultado,
-    texts: textErrors.map((error) => error.message),
   });
   const emittedWithError = status !== 'rechazado' && errors.length > 0;
   const messages = [...observaciones, ...(emittedWithError ? [] : errors.map((error) => error.message))].join(' | ');
