@@ -1,6 +1,7 @@
 import { asArray } from '../../lib/arrays/as-array';
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
+import { lastNumberErrorSuggestion, type LastNumberPurpose } from '../../lib/errors/query-error';
 import type { AuthorizationAnswer } from '../../modules/billing/authorization-answer';
 import { readRejectedCae } from '../../modules/billing/emission-response';
 import {
@@ -169,14 +170,20 @@ function mapIssuedVoucher(row: Record<string, unknown> | null | undefined): Expo
   };
 }
 
+/** `detalles` de un error de WSFEX. */
+function exportErrorDetails(error: FexError): Record<string, unknown> {
+  return { errores: [{ codigo: error.ErrCode, mensaje: readText(error.ErrMsg) }] };
+}
+
 /** WSFEX no lanza: devuelve `FEXErr` con codigo 0 cuando salio todo bien. */
-function assertNoError(result: FexResult | undefined, operation: string): void {
+function assertNoError(result: FexResult | undefined, operation: string, suggestion?: string): void {
   const error = result?.FEXErr;
 
   if (error?.ErrCode) {
     throw new AppError(`ARCA devolvió un error al consultar ${operation}: ${readText(error.ErrMsg) || error.ErrCode}`, {
       code: 'ARCA_EXPORT_ERROR',
-      details: { errores: [{ codigo: error.ErrCode, mensaje: readText(error.ErrMsg) }] },
+      details: exportErrorDetails(error),
+      suggestion,
     });
   }
 }
@@ -264,7 +271,8 @@ export class ArcaExportGateway implements ExportGateway {
    * `FEXGetCMP` devuelve el comprobante completo, aunque el tipo del SDK solo declare la numeracion: se lee como
    * registro tolerante. A diferencia de `FEXGetLast_CMP`, lleva el `Cmp` fuera de `Auth`, asi que el SDK no lo pisa.
    * Un comprobante que no existe vuelve con el error 1020 y un `FEXResultGet` en ceros (probado en testing). Solo el
-   * 1020 es "no existe": sin el y sin los datos es `ARCA_VOUCHER_QUERY_ERROR` (ERR-15), como el 602 en A, B y C.
+   * 1020 es "no existe", como el 602 en A, B y C: sin el y sin los datos es `ARCA_VOUCHER_QUERY_ERROR` (ERR-15), y otro
+   * error es un `VoucherQueryError` con el codigo `ARCA_EXPORT_ERROR` (ARQ-22).
    */
   public async getVoucher(query: ExportVoucherQuery): Promise<ExportIssuedVoucher | null> {
     const data = (
@@ -277,13 +285,23 @@ export class ArcaExportGateway implements ExportGateway {
       return null;
     }
 
-    assertNoError(data, 'el comprobante asociado');
+    const { number, pointOfSale } = query;
+    const error = data?.FEXErr;
+
+    // Como en A, B y C: no se sabe si existe, y con esta consulta se verifica una emision incierta (ARQ-22).
+    if (error?.ErrCode) {
+      throw voucherQueryError({
+        as: { code: 'ARCA_EXPORT_ERROR', details: exportErrorDetails(error) },
+        errors: [{ code: error.ErrCode, msg: readText(error.ErrMsg) }],
+        number,
+        pointOfSale,
+      });
+    }
 
     const row = data?.FEXResultGet as Record<string, unknown> | null | undefined;
     const voucher = mapIssuedVoucher(row);
 
     if (!voucher) {
-      const { number, pointOfSale } = query;
       const cae = readNumber(row?.Cbte_nro) === number ? readRejectedCae(row?.Cae) : null;
 
       throw cae === null
@@ -374,7 +392,11 @@ export class ArcaExportGateway implements ExportGateway {
    * contesta 1606 (ralcorta/arcasdk#238 lo arregla y sigue abierto). Con el `Auth` completo, token y firma incluidos,
    * el nuestro gana y llega entero.
    */
-  public async getLastVoucherNumber(arcaType: number, pointOfSale: number): Promise<number> {
+  public async getLastVoucherNumber(
+    arcaType: number,
+    pointOfSale: number,
+    purpose: LastNumberPurpose = 'consultar',
+  ): Promise<number> {
     if (!this.authenticate) {
       throw new AppError('El gateway de WSFEX se creó sin autenticador: no puede consultar el último número.', {
         code: 'UNEXPECTED_ERROR',
@@ -392,7 +414,7 @@ export class ArcaExportGateway implements ExportGateway {
       })
     ).FEXGetLast_CMPResult;
 
-    assertNoError(data, 'el último número');
+    assertNoError(data, 'el último número', lastNumberErrorSuggestion(purpose));
 
     return Number(data?.FEXResult_LastCMP?.Cbte_nro) || 0;
   }

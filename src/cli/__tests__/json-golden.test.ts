@@ -2527,6 +2527,9 @@ describe('factura E y sus notas', () => {
     return golden('error-fe-arca', [...FE, '--previsualizar', '--json']);
   });
 
+  it('un incoterm que no existe: los válidos, sin mandar a `parametros` (ARQ-22)', () =>
+    golden('error-fe-incoterm', [...FE, '--tipo-expo', '1', '--incoterm', 'XXX', '--previsualizar', '--json']));
+
   it('ARCA_QUOTATION_ERROR sin cotizacion de aduana', () => {
     sdk.wsfex.getParamMonConCotizacion.mockResolvedValue({
       FEXGetPARAM_MON_CON_COTIZACIONResult: {
@@ -2673,6 +2676,77 @@ describe('otros comandos que van a ARCA', () => {
         });
         process.exitCode = undefined;
       }
+    });
+
+    describe('un error de ARCA al consultar la E, como en A, B y C (ARQ-22)', () => {
+      const ERROR = fexResult(undefined, { FEXErr: { ErrCode: 1510, ErrMsg: 'Punto de venta' } });
+      const SUGGESTION =
+        'Revisá el mensaje de ARCA: si es pasajero, volvé a consultar en unos minutos; si no, corregí lo que dice. Si se repite, no insistas. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.';
+      const report = (voucher: string) => ({
+        codigo: 'ARCA_EXPORT_ERROR',
+        detalles: { errores: [{ codigo: 1510, mensaje: 'Punto de venta' }] },
+        error: `ARCA devolvió un error al consultar el comprobante ${voucher} y no se sabe si existe: 1510 Punto de venta`,
+        sugerencia: SUGGESTION,
+      });
+
+      beforeEach(() => void sdk.wsfex.getCmp.mockImplementation(answering({ 6: ERROR, 8: ERROR, 1: ERROR })));
+
+      it.each(['fe', 'nce', 'nde'])('consultar %s', async (kind) => {
+        expect(await failure(['consultar', kind, '8', '--pv', '4'])).toEqual(report('00004-00000008'));
+      });
+
+      it('consultar fe: el error entero', () =>
+        golden('error-consultar-fe-arca', ['consultar', 'fe', '8', '--pv', '4', '--json']));
+
+      it('consultar fe en la terminal', async () => {
+        prepareConfig({});
+
+        const result = await runCli(['consultar', 'fe', '8', '--pv', '4']);
+        const shown = result.stderr.replace(/[│┃\s]+/g, ' ');
+
+        expect(result.code).toBe(1);
+        expect(shown).toContain('00004-00000008 y no se sabe si existe: 1510 Punto de venta');
+        expect(shown).toContain('no la reintentes hasta saber si el comprobante existe.');
+        expect(shown).not.toContain('asociado');
+      });
+
+      it.each(['fe', 'nce', 'nde'])('ultimos %s', async (kind) => {
+        expect(await failure(['ultimos', kind, '--pv', '4', '--cantidad', '3'])).toEqual(report('00004-00000006'));
+      });
+
+      describe('el último número', () => {
+        const detalles = { errores: [{ codigo: 1510, mensaje: 'Punto de venta' }] };
+
+        beforeEach(
+          () =>
+            void sdk.wsfex.getLastCmp.mockResolvedValue({
+              FEXGetLast_CMPResult: { FEXErr: { ErrCode: 1510, ErrMsg: 'Punto de venta' } },
+            }),
+        );
+
+        it.each(['fe', 'nce', 'nde'])('ultimos %s: la sugerencia de consultar', async (kind) => {
+          expect(await failure(['ultimos', kind, '--pv', '4'])).toEqual({
+            codigo: 'ARCA_EXPORT_ERROR',
+            detalles,
+            error: 'ARCA devolvió un error al consultar el último número: Punto de venta',
+            sugerencia: SUGGESTION,
+          });
+        });
+
+        it('fe --emitir: la de emitir', async () => {
+          expect(await failure([...FE, '--emitir'])).toEqual({
+            codigo: 'ARCA_EXPORT_ERROR',
+            detalles,
+            error: 'ARCA devolvió un error al consultar el último número: Punto de venta',
+            sugerencia: 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.',
+          });
+        });
+      });
+
+      it.each(['nce', 'nde'])('%s: el texto dice que es el asociado, y no se emite', async (kind) => {
+        expect(await failure([kind, ...NCE.slice(1), '--emitir'])).toEqual(report('asociado 00004-00000001'));
+        expect(sdk.wsfex.authorize).not.toHaveBeenCalled();
+      });
     });
 
     // Con su numero y su CAE existe, pero no se entiende: la lista lo saltea y lo avisa.

@@ -1,0 +1,20 @@
+$ arcli consultar fe 8 --pv 4 --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "ARCA_EXPORT_ERROR",
+  "detalles": {
+    "errores": [
+      {
+        "codigo": 1510,
+        "mensaje": "Punto de venta"
+      }
+    ]
+  },
+  "error": "ARCA devolvió un error al consultar el comprobante 00004-00000008 y no se sabe si existe: 1510 Punto de venta",
+  "sugerencia": "Revisá el mensaje de ARCA: si es pasajero, volvé a consultar en unos minutos; si no, corregí lo que dice. Si se repite, no insistas. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe."
+}
+

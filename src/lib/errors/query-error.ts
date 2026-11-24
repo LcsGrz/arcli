@@ -26,3 +26,13 @@ export const VERIFY_BEFORE_RETRY =
 
 /** Que hacer si ARCA contesta una consulta con un error. */
 export const ARCA_QUERY_ERROR_SUGGESTION = `Revisá el mensaje de ARCA: si es pasajero, volvé a consultar en unos minutos; si no, corregí lo que dice. Si se repite, no insistas. ${VERIFY_BEFORE_RETRY}`;
+
+/** Para que se pide el ultimo numero: al consultar se puede estar verificando una emision. */
+export type LastNumberPurpose = 'consultar' | 'emitir';
+
+/** Que hacer si ARCA contesta con un error al pedir el ultimo numero, en wsfe y en wsfex. */
+export function lastNumberErrorSuggestion(purpose: LastNumberPurpose): string {
+  return purpose === 'consultar'
+    ? ARCA_QUERY_ERROR_SUGGESTION
+    : 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.';
+}

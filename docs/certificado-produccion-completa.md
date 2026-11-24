@@ -128,7 +128,7 @@ facturás desde la web de ARCA, creá uno nuevo para ARCLI.
 
 En testing no hace falta: ARCA no controla el punto de venta y cualquier número sirve.
 
-> En producción, la factura de exportación (`arcli fe`) usa **WSFEX - Factura Electrónica de Exportación**, que es un sistema de puntos de venta distinto del de facturación (`wsfe`): un punto de venta habilitado solo para facturación electrónica no sirve para exportación. Dalo de alta con ese sistema si vas a emitir comprobantes `E`.
+> En producción, la factura de exportación (`arcli fe`) usa **WSFEX - Factura Electrónica de Exportación**, que es un sistema de puntos de venta distinto del de facturación (`wsfe`): un punto de venta habilitado solo para facturación electrónica no sirve para exportación. Dalo de alta con ese sistema si vas a emitir comprobantes `E` (paso 2); `arcli parametros puntos-venta` consulta `wsfe` y no sirve para revisarlo.
 
 ### 1. Ver si ya tenés uno
 
@@ -155,11 +155,12 @@ también avisa si el punto de venta configurado no está entre los habilitados.
      ARCA, **"Factura Electrónica - Monotributo - Webservices"** si sos monotributista, o
      **"Factura Electrónica - RI IVA - Aplicativo y Webservices"** si sos responsable
      inscripto. En algunas pantallas aparece como "RECE para aplicativo y web services".
+     Para la `E`, el de Factura Electrónica de Exportación por web service (WSFEX).
      No elijas una opción que diga "Comprobantes en Línea" ni "Factuweb".
    - **Domicilio:** el domicilio desde el que facturás.
 4. Confirmá.
 
-Después, revisá que aparezca y guardalo en ARCLI:
+Después, revisá que aparezca y guardalo en ARCLI (el de la `E` no se revisa así: pasalo con `--pv` al emitir o guardalo si es el único):
 
 ```bash
 arcli parametros puntos-venta --produccion
