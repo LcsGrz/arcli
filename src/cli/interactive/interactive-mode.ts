@@ -35,11 +35,11 @@ import { runConfigMenu, runGuidedSetup } from './config.flow';
 import { runInvoiceFlow } from './invoice.flow';
 import { markIfNew } from './new-mark';
 import { runNoteFlow } from './note.flow';
-import { showAssistantError } from './output-guard';
 import { chooseOne, confirm, isPromptCancellation } from './prompts';
 import { runQueriesMenu } from './queries.flow';
 import { runRepeatFlow } from './repeat.flow';
 import { createInteractiveSession, type InteractiveSession } from './session';
+import { showAssistantError } from './show-assistant-error';
 import { runStatusFlow } from './status.flow';
 import { runUpdateFlow } from './update.flow';
 

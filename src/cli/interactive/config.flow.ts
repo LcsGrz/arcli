@@ -47,8 +47,8 @@ import type { GlobalCliOptions } from '../types';
 import { runCertificateMenu, runGenerateCertificate } from './certificate.flow';
 import { type ConfigFieldLists, configFieldLists } from './config-lists';
 import { markIfNew } from './new-mark';
-import { showAssistantError } from './output-guard';
 import { askTextStep, type Choice, chooseOne, chooseOrTypeStep, chooseStep, confirm, fitPageSize } from './prompts';
+import { showAssistantError } from './show-assistant-error';
 
 /** `--produccion` o `--testing` de `arcli interactivo`: la configuracion guiada pide el certificado de ese entorno. */
 type EnvironmentFlags = Pick<GlobalCliOptions, 'produccion' | 'testing'>;

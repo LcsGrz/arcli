@@ -36,9 +36,10 @@ import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
 import { askEmission, DO_NOT_EMIT_LABEL } from './emission-prompt';
-import { assertOutputVisible, showAssistantError } from './output-guard';
+import { assertOutputVisible } from './output-guard';
 import { offerPdf } from './pdf.flow';
 import { askTextStep, confirm } from './prompts';
+import { showAssistantError } from './show-assistant-error';
 
 export interface InteractiveSession {
   readonly arca: Arca;

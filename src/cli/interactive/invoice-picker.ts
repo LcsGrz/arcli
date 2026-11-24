@@ -17,7 +17,6 @@ import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalOutput } 
 import { withSpinner } from '../spinner';
 
 import { PinnedSeparator } from './list-select';
-import { showAssistantError } from './output-guard';
 import {
   askTextStep,
   type Choice,
@@ -29,6 +28,7 @@ import {
   type LoadingResult,
 } from './prompts';
 import type { InteractiveSession } from './session';
+import { showAssistantError } from './show-assistant-error';
 
 /** Comprobante elegido y el punto de venta donde se emitio (a mano puede ser otro que el configurado). */
 export interface PickedVoucher<T> {

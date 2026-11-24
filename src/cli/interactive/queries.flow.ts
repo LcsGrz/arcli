@@ -33,7 +33,6 @@ import { runHistoryFlow } from './history.flow';
 import { runInvoiceFlow } from './invoice.flow';
 import { runMonotributoQuery } from './monotributo.flow';
 import { markIfNew } from './new-mark';
-import { showAssistantError } from './output-guard';
 import {
   askTextStep,
   BACK_CHOICE,
@@ -47,6 +46,7 @@ import {
   isPromptCancellation,
 } from './prompts';
 import type { InteractiveSession } from './session';
+import { showAssistantError } from './show-assistant-error';
 
 type QueryOption = 'comprobantes' | 'cotizacion' | 'cuit' | 'fce' | 'monotributo' | 'tablas';
 

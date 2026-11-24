@@ -18,8 +18,8 @@ import { BACK, type Back } from '../../modules/interactive/wizard';
 import { systemClock } from '../../services/time/system-clock';
 import { noticePanel, uiSymbol, writeTerminalOutput } from '../../ui';
 
-import { showAssistantError } from './output-guard';
 import { askTextStep, chooseStep, confirm } from './prompts';
+import { showAssistantError } from './show-assistant-error';
 
 export type CertificateFlowResult = 'importado' | 'pendiente';
 

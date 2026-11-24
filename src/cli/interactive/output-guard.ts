@@ -1,6 +1,4 @@
-import { writeTerminalError, writeTerminalOutput } from '../../ui';
 import { isOutputLost, outputState, settleOutput } from '../closed-output';
-import { formatCliError } from '../error-output';
 
 /**
  * El asistente sigue despues de un error y pregunta: con una salida rota, lo primero se perderia y lo segundo seria a
@@ -46,16 +44,4 @@ export async function assertOutputVisible(): Promise<void> {
   }
 
   throw Object.assign(new Error('No se puede escribir la salida.'), { name: 'ExitPromptError' });
-}
-
-/** Un error con el que el asistente sigue. Va a stderr y, si ahi se pierde (se sabe un turno despues), a stdout. */
-export async function showAssistantError(error: unknown): Promise<void> {
-  if (!isOutputLost('stderr')) {
-    writeTerminalError(() => formatCliError(error, false));
-    await settleOutput('stderr');
-  }
-
-  if (isOutputLost('stderr')) {
-    writeTerminalOutput(formatCliError(error, false));
-  }
 }

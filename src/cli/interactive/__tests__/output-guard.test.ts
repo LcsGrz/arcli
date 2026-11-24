@@ -2,8 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { stripAnsi } from '../../../ui';
 import { outputState } from '../../closed-output';
-import { assertOutputVisible, isAssistantRunning, showAssistantError, withOutputGuard } from '../output-guard';
+import { assertOutputVisible, isAssistantRunning, withOutputGuard } from '../output-guard';
 import { isPromptCancellation } from '../prompts';
+import { showAssistantError } from '../show-assistant-error';
 
 const streamError = (code: string) => Object.assign(new Error(`write ${code}`), { code });
 
