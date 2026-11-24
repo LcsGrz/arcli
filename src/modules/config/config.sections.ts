@@ -35,7 +35,7 @@ export const CONFIG_SECTIONS: readonly ConfigSection[] = [
     keys: ['concepto', 'ivaReceptor', 'consultarPadron', 'alicuota', 'moneda', 'cotizacion'],
     label: 'Al facturar',
   },
-  { id: 'fce', keys: ['cbu', 'aliasCbu', 'verificarFce'], label: 'Factura de crédito electrónica (FCE)' },
+  { id: 'fce', keys: ['cuenta', 'verificarFce'], label: 'Factura de crédito electrónica (FCE)' },
   { id: 'exportacion', keys: ['exportacion.actividad'], label: 'Factura de exportación (E)' },
   { id: 'monotributo', keys: ['monotributo.tope'], label: 'Monotributo' },
   {
@@ -57,14 +57,13 @@ export const CONFIG_SECTIONS: readonly ConfigSection[] = [
 /** Nombre de cada dato, igual en `arcli config` y en el modo interactivo. */
 export const CONFIG_LABELS: Record<ConfigPublicKey, string> = {
   alicuota: 'Alícuota de IVA (A y B)',
-  aliasCbu: 'Alias del CBU',
   bruto: 'Salida bruta',
-  cbu: 'CBU',
   'cert.produccion': 'Certificado de producción',
   'cert.testing': 'Certificado de testing',
   concepto: 'Concepto',
   condicionVenta: 'Condición de venta (PDF de A, B y C)',
   cotizacion: 'Cotización (deprecada)',
+  cuenta: 'Cuenta bancaria (CBU y alias)',
   cuit: 'CUIT del emisor',
   'emisor.condicionIva': 'Condición de IVA',
   'emisor.domicilio': 'Domicilio comercial',

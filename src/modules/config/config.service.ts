@@ -9,7 +9,7 @@ import { parseCbu } from '../../lib/identity/cbu';
 import { deleteAtPath, setAtPath } from '../../lib/json/object-path';
 import { describeZodIssues, parseZodInput } from '../billing/billing.zod-errors';
 
-import { cbuAliasChange } from './cbu-alias-change';
+import { accountAliasRemovedWarning, cbuAliasChange, cbuRemovalWarning } from './cbu-alias-change';
 import {
   type ArcliConfig,
   arcliConfigSchema,
@@ -17,7 +17,7 @@ import {
   type ConfigPublicKey,
   configPublicKeySchema,
 } from './config.schemas';
-import { CONFIG_KEY_ALIASES, DEPRECATED_CONFIG_KEYS } from './config-keys';
+import { type AccountStoredKey, CONFIG_KEY_ALIASES, DEPRECATED_CONFIG_KEYS } from './config-keys';
 import {
   describePending,
   invalidSavedCbuError,
@@ -35,15 +35,24 @@ import { type CanonicalConfigKey, parseConfigValue } from './config-value-parser
  * Claves guardadas que se borran al cambiar o borrar la clave publica: la deprecada no puede quedar en el archivo
  * con otro valor, porque se seguiria leyendo si se borra la nueva.
  */
-const LEGACY_STORED_KEYS: Partial<Record<ConfigPublicKey, readonly string[]>> = {
+const LEGACY_STORED_KEYS: Partial<Record<AccountStoredKey | ConfigPublicKey, readonly string[]>> = {
   filasPorLista: ['comprobantesPorLista'],
 };
 
-/** El aviso de una clave deprecada (`comprobantesPorLista`), para mostrarlo al guardarla o borrarla. */
-export function deprecatedConfigKeyWarning(rawKey: string): string | undefined {
+/** El aviso de una clave deprecada (`comprobantesPorLista`, `cbu`), para mostrarlo al guardarla o borrarla. */
+export function deprecatedConfigKeyWarning(
+  rawKey: string,
+  action: 'eliminar' | 'establecer' = 'establecer',
+): string | undefined {
   const key = rawKey.trim();
 
-  return Object.hasOwn(DEPRECATED_CONFIG_KEYS, key) ? DEPRECATED_CONFIG_KEYS[key].warning : undefined;
+  if (!Object.hasOwn(DEPRECATED_CONFIG_KEYS, key)) {
+    return undefined;
+  }
+
+  const { removeWarning, warning } = DEPRECATED_CONFIG_KEYS[key];
+
+  return action === 'eliminar' ? (removeWarning ?? warning) : warning;
 }
 
 /** Donde ver las claves y sus valores, si el rechazo no trae una sugerencia propia. */
@@ -141,7 +150,7 @@ export interface ConfigChange {
 
 interface PlannedChange {
   readonly apply: (draft: Record<string, unknown>) => void;
-  readonly key: CanonicalConfigKey;
+  readonly keys: readonly CanonicalConfigKey[];
   readonly warning?: string;
 }
 
@@ -244,8 +253,9 @@ export class ConfigService {
     return this.initialize();
   }
 
-  public setValue(rawKey: string, rawValue: string): ArcliConfig {
-    return this.saveIfValid(this.planSet(rawKey, rawValue));
+  /** `alias` es solo de `cuenta`: sin el, borra el guardado. */
+  public setValue(rawKey: string, rawValue: string, alias?: string): ArcliConfig {
+    return this.saveIfValid(this.planSet(rawKey, rawValue, alias));
   }
 
   public unsetValue(rawKey: string): ArcliConfig {
@@ -265,25 +275,37 @@ export class ConfigService {
     return this.saveIfValid({
       apply: (draft) => plans.forEach((plan) => plan.apply(draft)),
       // Los valores ya se validaron al planearlos: lo que falle al guardar es de otra clave.
-      key: plans[plans.length - 1].key,
+      keys: plans[plans.length - 1].keys,
     });
   }
 
   /** `config establecer`: como `setValue`, pero guarda aunque queden otras claves que ya estaban rotas. */
-  public repairValue(rawKey: string, rawValue: string): ConfigChange {
-    const change = this.planSet(rawKey, rawValue);
+  public repairValue(rawKey: string, rawValue: string, alias?: string): ConfigChange {
+    return this.repair(this.planSet(rawKey, rawValue, alias));
+  }
+
+  /** `config eliminar`: como `unsetValue`, pero guarda aunque queden otras claves que ya estaban rotas. */
+  public repairUnset(rawKey: string): ConfigChange {
+    return this.repair(this.planUnset(rawKey));
+  }
+
+  private repair(change: PlannedChange): ConfigChange {
     const result = this.saveIfNotWorse(change);
 
     return change.warning === undefined ? result : { ...result, warnings: [change.warning] };
   }
 
-  /** `config eliminar`: como `unsetValue`, pero guarda aunque queden otras claves que ya estaban rotas. */
-  public repairUnset(rawKey: string): ConfigChange {
-    return this.saveIfNotWorse(this.planUnset(rawKey));
-  }
-
-  private planSet(rawKey: string, rawValue: string): PlannedChange {
+  private planSet(rawKey: string, rawValue: string, alias?: string): PlannedChange {
     const key = this.resolveKey(rawKey);
+
+    if (key === 'cuenta') {
+      return this.planAccount(rawValue, alias);
+    }
+
+    if (alias !== undefined) {
+      throw new InputValidationError(`El alias solo se guarda con \`cuenta\`, no con \`${rawKey.trim()}\`.`);
+    }
+
     const canonicalKey = CONFIG_KEY_ALIASES[key];
     const parsedValue = withConfigHelp(() => parseConfigValue(canonicalKey, rawValue, key));
     const aliasChange = key === 'cbu' ? cbuAliasChange(this.readSaved(), rawValue) : undefined;
@@ -297,21 +319,45 @@ export class ConfigService {
           deleteAtPath(draft, CONFIG_KEY_ALIASES.aliasCbu);
         }
       },
-      key: canonicalKey,
+      keys: [canonicalKey],
       warning: aliasChange?.warning,
+    };
+  }
+
+  /** El CBU y su alias en un solo cambio. Sin alias, el guardado se borra: podria ser de otra cuenta. */
+  private planAccount(rawCbu: string, rawAlias: string | undefined): PlannedChange {
+    const cbu = withConfigHelp(() => parseConfigValue('cbu', rawCbu, 'cuenta'));
+    const alias =
+      rawAlias === undefined ? undefined : withConfigHelp(() => parseConfigValue('aliasCbu', rawAlias, 'cuenta'));
+
+    return {
+      apply: (draft) => {
+        setAtPath(draft, 'cbu', cbu);
+
+        if (alias === undefined) {
+          deleteAtPath(draft, 'aliasCbu');
+        } else {
+          setAtPath(draft, 'aliasCbu', alias);
+        }
+      },
+      keys: ['cbu', 'aliasCbu'],
+      warning: alias === undefined ? accountAliasRemovedWarning(this.readSaved()) : undefined,
     };
   }
 
   private planUnset(rawKey: string): PlannedChange {
     const key = this.resolveKey(rawKey);
-    const canonicalKey = CONFIG_KEY_ALIASES[key];
+    // Sin el CBU, su alias no se usa: se borran juntos.
+    const keys: readonly CanonicalConfigKey[] =
+      key === 'cuenta' || key === 'cbu' ? ['cbu', 'aliasCbu'] : [CONFIG_KEY_ALIASES[key]];
 
     return {
       apply: (draft) => {
         deleteLegacyKeys(draft, key);
-        deleteAtPath(draft, canonicalKey);
+        keys.forEach((canonicalKey) => deleteAtPath(draft, canonicalKey));
       },
-      key: canonicalKey,
+      keys,
+      warning: keys.length > 1 ? cbuRemovalWarning(this.readSaved()) : undefined,
     };
   }
 
@@ -347,7 +393,7 @@ export class ConfigService {
 
     change.apply(draft);
 
-    const config = this.parseDraft(change.key, draft);
+    const config = this.parseDraft(change.keys, draft);
     this.writeComplete(config);
 
     return config;
@@ -365,7 +411,9 @@ export class ConfigService {
 
     const error = parseConfigProblems(draft);
 
-    if (!error || !onlyOldProblems(error, parseConfigProblems(saved), change.key)) {
+    const old = parseConfigProblems(saved);
+
+    if (!error || !change.keys.every((key) => onlyOldProblems(error, old, key))) {
       return { config: this.saveIfValid(change) };
     }
 
@@ -385,12 +433,15 @@ export class ConfigService {
     return result;
   }
 
-  private parseDraft(changedKey: CanonicalConfigKey, draft: Record<string, unknown>): ArcliConfig {
+  private parseDraft(changedKeys: readonly CanonicalConfigKey[], draft: Record<string, unknown>): ArcliConfig {
     try {
       return parseZodInput(arcliConfigSchema, draft);
     } catch (error) {
       // El valor recien pasado no es un dato guardado: ese error sale como siempre.
-      if (!(error instanceof ZodError) || error.issues.some((issue) => isSameOrInside(issuePath(issue), changedKey))) {
+      if (
+        !(error instanceof ZodError) ||
+        error.issues.some((issue) => changedKeys.some((key) => isSameOrInside(issuePath(issue), key)))
+      ) {
         throw error;
       }
 
@@ -398,11 +449,13 @@ export class ConfigService {
     }
   }
 
-  private resolveKey(rawKey: string): ConfigPublicKey {
+  private resolveKey(rawKey: string): AccountStoredKey | ConfigPublicKey {
     const key = rawKey.trim();
 
     if (Object.hasOwn(DEPRECATED_CONFIG_KEYS, key)) {
-      return DEPRECATED_CONFIG_KEYS[key].replacement;
+      const { replacement, storedAs } = DEPRECATED_CONFIG_KEYS[key];
+
+      return storedAs ?? replacement;
     }
 
     const result = configPublicKeySchema.safeParse(key);
@@ -419,7 +472,7 @@ export class ConfigService {
   }
 }
 
-function deleteLegacyKeys(draft: Record<string, unknown>, key: ConfigPublicKey): void {
+function deleteLegacyKeys(draft: Record<string, unknown>, key: AccountStoredKey | ConfigPublicKey): void {
   for (const legacyKey of LEGACY_STORED_KEYS[key] ?? []) {
     deleteAtPath(draft, legacyKey);
   }

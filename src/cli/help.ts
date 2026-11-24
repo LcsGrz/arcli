@@ -68,7 +68,7 @@ function createRules(scope: VoucherScope): string {
         : 'Asociado: la factura, el recibo u otra nota de la misma letra con --ac o --at, --apv, --ar y --acuit, o un período con --periodo-desde y --periodo-hasta.',
     );
   } else if (scope.isElectronicCredit) {
-    rules.push('FCE: necesita CBU (--cbu o la clave cbu de la config); --transferencia es sca por defecto.');
+    rules.push('FCE: necesita CBU (--cbu o la clave cuenta de la config); --transferencia es sca por defecto.');
   }
 
   return section('Reglas', compactList(rules));
@@ -245,9 +245,19 @@ function createConfigKeysSection(): string {
 }
 
 export function createConfigSetHelp(): string {
-  return ['', createConfigKeysSection(), '', section('Ejemplo', '  - arcli config establecer puntoVenta 3'), ''].join(
-    '\n',
-  );
+  return [
+    '',
+    createConfigKeysSection(),
+    '',
+    section(
+      'Ejemplos',
+      [
+        '  - arcli config establecer puntoVenta 3',
+        '  - arcli config establecer cuenta 0110599520000012345678 mi.alias.cbu',
+      ].join('\n'),
+    ),
+    '',
+  ].join('\n');
 }
 
 export function createConfigHelp(): string {

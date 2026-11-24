@@ -3,6 +3,7 @@ import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
 import { maskPath } from '../../lib/paths/mask-path';
 import { ivaConditionCode, ivaConditionLabel } from '../billing/arca-codes';
 import { SALE_CONDITION_KEYS, SALE_CONDITION_LABELS } from '../billing/sale-condition';
+import { formatSavedAccount } from '../config/cbu-alias-change';
 import {
   type ArcliConfig,
   arcliDefaultConceptSchema,
@@ -115,8 +116,8 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
     key: 'filasPorLista',
     read: (c) => resolveConfiguredRowsPerList(c)?.toString(),
   },
-  { hint: '22 dígitos', key: 'cbu', read: (c) => c.cbu },
-  { key: 'aliasCbu', read: (c) => c.aliasCbu },
+  // El asistente la pregunta en dos pasos (`askAccount`).
+  { hint: 'CBU de 22 dígitos y alias opcional', key: 'cuenta', read: formatSavedAccount },
   {
     choiceLabels: YES_NO_LABELS,
     choices: ['si', 'no'],

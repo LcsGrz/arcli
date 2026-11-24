@@ -138,7 +138,7 @@ describe('config.service', () => {
           ],
           message:
             'El CBU guardado en la config no es válido: no coincide el dígito verificador del bloque de la cuenta (los últimos 14 dígitos).',
-          suggestion: expect.stringContaining('`arcli config establecer cbu <CBU>`'),
+          suggestion: expect.stringContaining('`arcli config establecer cuenta <CBU> [ALIAS]`'),
         }),
       );
       expect(service.setValue('cbu', '0110599520000012345678').cbu).toBe('0110599520000012345678');
@@ -401,6 +401,17 @@ describe('filasPorLista y la clave deprecada comprobantesPorLista', () => {
       expect(config.comprobantesPorLista).toBeUndefined();
       expect(readStoredFile(service)).toMatchObject({ filasPorLista: 25 });
       expect(readStoredFile(service)).not.toHaveProperty('comprobantesPorLista');
+    } finally {
+      service.close();
+    }
+  });
+
+  it.each(['cuit', 'cbu', 'aliasCbu'])('un alias con `%s` se rechaza: es solo de `cuenta`', (key) => {
+    const service = createService();
+
+    try {
+      expect(() => service.setValue(key, '20123456786', 'mi.alias')).toThrow(/solo se guarda con `cuenta`/);
+      expect(service.getConfig().cuit).toBeUndefined();
     } finally {
       service.close();
     }
