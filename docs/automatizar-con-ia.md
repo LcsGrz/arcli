@@ -26,6 +26,8 @@ ARCLI está pensado para que un asistente con acceso a la terminal (Claude, Chat
 
 Un `0` no garantiza que alguien haya leído la salida: si se cortó al emitir, buscá el comprobante antes de reintentar ([más](input-output.md#formato-de-errores)).
 
+Si la salida no se puede escribir (por ejemplo, el disco lleno), ARCLI termina de emitir y sale con `1`: el error de stderr dice qué se emitió en `sugerencia`. Eso no se vuelve a emitir. Un `1` sin ningún error en stderr tampoco dice que no se emitió: verificá antes de reintentar.
+
 ## Un pedido de ejemplo
 
 ```text
