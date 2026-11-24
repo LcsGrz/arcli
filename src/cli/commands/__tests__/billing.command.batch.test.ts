@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { InputValidationError } from '../../../lib/errors/app-error';
-import { BatchEmissionError, BatchValidationError } from '../../../modules/billing/billing.batch';
+import { BatchEmissionError, type BatchItemError, BatchValidationError } from '../../../modules/billing/billing.batch';
 import { EmissionUncertainError } from '../../../modules/billing/billing.errors';
 import { emitBatch, prepareBatch } from '../billing.command.batch';
 
-const batch = (total: number, invalidItems: Array<{ index: number; message: string }> = []) => ({
+const batch = (total: number, invalidItems: BatchItemError[] = []) => ({
   inputIndexes: Array.from({ length: total - invalidItems.length }, (_, position) => position + 1),
   invalidItems,
   isBatch: total > 1,
@@ -32,7 +32,7 @@ describe('prepareBatch', () => {
   it('junta los fallos de las consultas con los de validacion, con su indice, sin cortar en el primero', async () => {
     const plan = {
       inputIndexes: [1, 2, 4, 5],
-      invalidItems: [{ index: 3, message: 'Falta monto.' }],
+      invalidItems: [{ code: 'INPUT_VALIDATION_ERROR', index: 3, message: 'Falta monto.', suggestion: null }],
       isBatch: true,
       total: 5,
     };
@@ -57,9 +57,14 @@ describe('prepareBatch', () => {
       expect(error.message).toContain('#2: ARCA no devolvió la cotización de DOL.');
       expect(error.details).toEqual({
         comprobantes: [
-          { error: 'ARCA no devolvió la cotización de DOL.', indice: 2 },
-          { error: 'Falta monto.', indice: 3 },
-          { error: 'La factura A no admite IVA receptor "consumidor-final".', indice: 4 },
+          { codigo: 'UNEXPECTED_ERROR', error: 'ARCA no devolvió la cotización de DOL.', indice: 2, sugerencia: null },
+          { codigo: 'INPUT_VALIDATION_ERROR', error: 'Falta monto.', indice: 3, sugerencia: null },
+          {
+            codigo: 'INPUT_VALIDATION_ERROR',
+            error: 'La factura A no admite IVA receptor "consumidor-final".',
+            indice: 4,
+            sugerencia: null,
+          },
         ],
       });
     });
@@ -92,7 +97,9 @@ describe('prepareBatch', () => {
 
     await expect(run).rejects.toThrow(BatchValidationError);
     await expect(run).rejects.toMatchObject({
-      details: { comprobantes: [{ error: 'El padrón no responde', indice: 1 }] },
+      details: {
+        comprobantes: [{ codigo: 'UNEXPECTED_ERROR', error: 'El padrón no responde', indice: 1, sugerencia: null }],
+      },
     });
   });
 });

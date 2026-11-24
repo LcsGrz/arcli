@@ -27,7 +27,6 @@ function expectExactError(source: unknown, message: string): void {
 }
 
 describe('readExportJsonInput', () => {
-  // Tests primero (ERR-10).
   it('acepta un comprobante con todas las claves', () => {
     const source = {
       actividad: 620100,
@@ -75,8 +74,9 @@ describe('readExportJsonInput', () => {
   });
 
   describe('claves desconocidas', () => {
-    it.fails.each([
+    it.each([
       [{ montototal: 1000 }, 'La clave "montototal" no existe: ¿quisiste decir "montoTotal"?'],
+      [{ Monto: 1 }, 'La clave "Monto" no existe: ¿quisiste decir "montoTotal"?'],
       [{ ar: 1 }, 'La clave "ar" no existe: ¿quisiste decir "comprobanteAsociado.numero"?'],
       [{ 'obs-comerciales': 'x' }, 'La clave "obs-comerciales" no existe: ¿quisiste decir "observacionesComerciales"?'],
       [{ constructor: 1 }, 'La clave "constructor" no existe.'],
@@ -96,7 +96,7 @@ describe('readExportJsonInput', () => {
   });
 
   describe('tipos incorrectos', () => {
-    it.fails.each([
+    it.each([
       [{ montoTotal: 'abc' }, '"montoTotal" tiene que ser un número y llegó el texto "abc". Escribilo sin comillas.'],
       [{ montoTotal: '' }, '"montoTotal" tiene que ser un número y llegó el texto "".'],
       [{ montoTotal: null }, '"montoTotal" tiene que ser un número y llegó null.'],
@@ -132,7 +132,7 @@ describe('readExportJsonInput', () => {
     });
   });
 
-  it.fails.each([
+  it.each([
     ['x', 'el texto "x"'],
     [5, '5'],
     [null, 'null'],

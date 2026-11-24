@@ -1,5 +1,5 @@
 import { AppError, HELP_SUGGESTION } from '../../lib/errors/app-error';
-import { isQueryError, VERIFY_BEFORE_RETRY } from '../../lib/errors/query-error';
+import { summarizeError } from '../../lib/errors/error-summary';
 import { ISSUES_URL } from '../../lib/links';
 import { normalizeSearchText } from '../../lib/text/search';
 import { errorPanel } from '../components/errorPanel';
@@ -77,29 +77,10 @@ function formatUnexpectedErrorHint(message: string): string {
     : `Si el problema persiste, revisá la configuración con \`arcli config revisar\` o avisanos en ${ISSUES_URL}.`;
 }
 
-function detectTransientError(
-  message: string,
-  query: boolean,
-): {
-  readonly sugerencia: string;
-  readonly title: string;
-} | null {
-  if (message.includes('coe.alreadyAuthenticated')) {
-    return {
-      sugerencia: `ARCA todavía tiene abierta una sesión anterior. Esperá un par de minutos y ${query ? `repetí la consulta. ${VERIFY_BEFORE_RETRY}` : 'probá de nuevo, con los mismos datos.'}`,
-      title: 'Error transitorio WSAA',
-    };
-  }
-
-  if (message.includes('Transacción Activa')) {
-    return {
-      sugerencia: `ARCA devolvió una transacción activa. Esperá unos segundos y ${query ? `repetí la consulta. ${VERIFY_BEFORE_RETRY}` : 'reintentá la emisión antes de modificar datos del comprobante.'}`,
-      title: 'Error transitorio ARCA',
-    };
-  }
-
-  return null;
-}
+const TRANSIENT_ERROR_TITLES = {
+  arca: 'Error transitorio ARCA',
+  wsaa: 'Error transitorio WSAA',
+} as const;
 
 /** Como se lee cada clave de `detalles` en el panel; el JSON no cambia. */
 const DETAIL_LABELS: Readonly<Record<string, string>> = {
@@ -112,6 +93,9 @@ const DETAIL_LABELS: Readonly<Record<string, string>> = {
   salida: 'Salida',
   vencimiento: 'Vencimiento',
 };
+
+/** Datos para quien lee el JSON: en el panel ya los dicen el mensaje y la sugerencia. */
+const JSON_ONLY_DETAILS: ReadonlySet<string> = new Set(['codigoCausa']);
 
 /** Si el texto ya trae el valor, entero: un `7` no cuenta como dicho por un `17`. */
 function alreadySaid(text: string, value: unknown): boolean {
@@ -129,6 +113,7 @@ function formatErrorDetails(details: Record<string, unknown> | undefined, said: 
   // Arrays y objetos (por ejemplo, la lista de items de un lote) solo van en el JSON:
   // en texto se verian como "[object Object]" y ya estan en el mensaje.
   return Object.entries(details)
+    .filter(([key]) => !JSON_ONLY_DETAILS.has(key))
     .filter(([, value]) => value !== null && value !== undefined && value !== '' && typeof value !== 'object')
     .filter(([, value]) => !alreadySaid(said, value))
     .map(([key, value]) => `${bold(`${DETAIL_LABELS[key] ?? key}:`)} ${String(value)}`);
@@ -165,21 +150,21 @@ export function formatAppError(error: unknown, useJson: boolean): string {
   }
 
   const message = error instanceof Error ? error.message : 'Ocurrió un error inesperado.';
-  const transientError = detectTransientError(message, isQueryError(error));
+  const { code, suggestion, transient } = summarizeError(error);
 
   if (useJson) {
     return renderJson({
-      codigo: transientError ? 'TRANSIENT_ERROR' : 'UNEXPECTED_ERROR',
+      codigo: code,
       detalles: null,
       error: message,
-      sugerencia: transientError?.sugerencia ?? null,
+      sugerencia: suggestion,
     });
   }
 
   return errorPanel(
-    transientError?.title ?? 'Error inesperado',
+    transient ? TRANSIENT_ERROR_TITLES[transient] : 'Error inesperado',
     message,
     [],
-    transientError?.sugerencia ?? formatUnexpectedErrorHint(message),
+    suggestion ?? formatUnexpectedErrorHint(message),
   );
 }

@@ -774,7 +774,6 @@ describe('lotes', () => {
 });
 
 describe('códigos en el lote y causa del error (ERR-5 y ERR-6)', () => {
-  // Tests primero.
   const ITEM = { concepto: 'servicios', ivaReceptor: 'consumidor-final', montoTotal: 1000 };
   const NCEA = [
     ...['ncea', '-m', '1000000', '--cs', '--cuit', String(CLIENT_CUIT), '--ir-ri'],
@@ -852,38 +851,35 @@ describe('códigos en el lote y causa del error (ERR-5 y ERR-6)', () => {
     },
   ];
 
-  it.fails.each(CASES)(
-    '$name: lo mismo en el lote que solo',
-    async ({ arrange, codigo, command, item, sugerencia }) => {
-      arrange?.();
+  it.each(CASES)('$name: lo mismo en el lote que solo', async ({ arrange, codigo, command, item, sugerencia }) => {
+    arrange?.();
 
-      const alone = await jsonError([command, '--cargar', writeInput('solo.json', item), '--previsualizar']);
-      const batch = await jsonError([command, '--cargar', writeInput('lote.json', [item]), '--previsualizar']);
-      const [entry] = (batch.detalles as { comprobantes: JsonError[] }).comprobantes;
+    const alone = await jsonError([command, '--cargar', writeInput('solo.json', item), '--previsualizar']);
+    const batch = await jsonError([command, '--cargar', writeInput('lote.json', [item]), '--previsualizar']);
+    const [entry] = (batch.detalles as { comprobantes: JsonError[] }).comprobantes;
 
-      expect(entry).toEqual({
-        codigo: alone.codigo,
-        error: expect.any(String),
-        indice: 1,
-        sugerencia: alone.sugerencia,
-      });
-      expect(entry?.codigo).toBe(codigo);
+    expect(entry).toEqual({
+      codigo: alone.codigo,
+      error: expect.any(String),
+      indice: 1,
+      sugerencia: alone.sugerencia,
+    });
+    expect(entry?.codigo).toBe(codigo);
 
-      if (sugerencia) {
-        expect(entry?.sugerencia).toMatch(sugerencia);
-      } else {
-        expect(entry?.sugerencia).toBeNull();
-      }
+    if (sugerencia) {
+      expect(entry?.sugerencia).toMatch(sugerencia);
+    } else {
+      expect(entry?.sugerencia).toBeNull();
+    }
 
-      expect(batch).toMatchObject({
-        codigo: 'BATCH_VALIDATION_ERROR',
-        error: `1 de 1 comprobante del lote tiene errores. No se emitió ninguno.\n\n#1: ${entry?.error ?? ''}`,
-        sugerencia: null,
-      });
-    },
-  );
+    expect(batch).toMatchObject({
+      codigo: 'BATCH_VALIDATION_ERROR',
+      error: `1 de 1 comprobante del lote tiene errores. No se emitió ninguno.\n\n#1: ${entry?.error ?? ''}`,
+      sugerencia: null,
+    });
+  });
 
-  it.fails.each([
+  it.each([
     ['la red caída', 'connect ETIMEDOUT', 'UNEXPECTED_ERROR'],
     ['un error pasajero', 'ns1:coe.alreadyAuthenticated: ya posee un TA', 'TRANSIENT_ERROR'],
     ['sin autorizar', 'ns1:cms.cert.notAuthorized', 'PADRON_SERVICE_NOT_AUTHORIZED'],
@@ -902,7 +898,7 @@ describe('códigos en el lote y causa del error (ERR-5 y ERR-6)', () => {
     expect(text).not.toContain(codigoCausa);
   });
 
-  it.fails.each([
+  it.each([
     ['la red caída', () => sdk.generic.call.mockRejectedValue(new Error('connect ETIMEDOUT')), 'UNEXPECTED_ERROR'],
     [
       'un error pasajero',
