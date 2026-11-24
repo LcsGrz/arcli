@@ -42,7 +42,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - Ya no son un error y gana el flag: `--ac`, `--at`, `--ar` o `--apv` con `periodoAsociado` en el JSON, `--periodo-desde` o `--periodo-hasta` con `comprobanteAsociado`, `--vto` con `dia` y `--dia` con `vencimientoPago`.
 > - En `BATCH_EMISSION_ERROR`, `sugerencia` es siempre un texto, antes `null`, y en `error` "Sin procesar" va en su propia línea, como rango desde tres (`#3 a #100 (98)`). La lista completa sigue en `detalles.sinProcesar`.
 > - Si una tabla auxiliar de WSFEX no responde y lo que se emite no sale de ella, los comandos de la `E` y sus notas siguen con un aviso y, con `--emitir`, se emiten; antes salían con el error de la consulta.
-> - Una nota A, B, C o FCE sin `--apv` toma el punto de venta de la nota y, con `--emitir`, se emite; antes, `INPUT_VALIDATION_ERROR`. Sigue siendo error si el asociado es de otro CUIT.
+> - Una nota A, B, C o FCE sin `--apv` toma el punto de venta de la nota y, con `--emitir`, se emite; antes, `INPUT_VALIDATION_ERROR`. Sigue siendo error si el asociado es de otro CUIT, o si un flag descarta el del JSON.
+> - En una nota, si el asociado del JSON no trae `puntoVenta`, `--apv` o `--pv` de otro punto de venta descartan su `fecha`: pasá `--afecha`.
 > - Un comprobante A, B, C, FCE o recibo que ARCA devuelve con su número y su CAE pero no se puede leer: `ultimos` lo saltea y avisa, con `--json` en stderr, y `consultar` sale con `ARCA_VOUCHER_QUERY_ERROR`, antes `VOUCHER_NOT_FOUND`.
 > - `estado` suma `servidoresExportacion`, `null` si WSFEX no responde. `listo` y el exit code no cambian.
 > - En los comandos de la `E` con `exportacion.cert` propio, `avisos` ya no trae el vencimiento del certificado general de ese entorno.
@@ -93,7 +94,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 **Cómo te pagan una `E`.** El asistente preguntaba "¿Te pagan en dólares?" con Sí primero, así que Enter mandaba `CanMisMonExt` en `S`. Ahora pregunta "¿Cómo te pagan?", con "En pesos" primero: Enter manda `N`, como `arcli fe` sin `--misma-moneda`. "Repetir" copiaba el dato sin preguntar; ahora pregunta siempre que la factura sea en moneda extranjera, con lo que informó marcado o, si ARCA no lo devolvió, "En pesos". Los comandos no cambian.
 
-**Punto de venta del asociado.** En las notas A, B, C y FCE había que pasar siempre `--apv`. Ahora, sin él, es el de la nota (`--pv` o la config), también en `--cargar`; `--ac` o `--at` y `--ar` siguen siendo obligatorios. Si el asociado es de otro CUIT, `--apv` se sigue pidiendo. Con un `--pv` distinto del `puntoVenta` del JSON, el asociado sin punto de venta cambia con él y su `fecha` del JSON no va.
+**Punto de venta del asociado.** En las notas A, B, C y FCE había que pasar siempre `--apv`. Ahora, sin él, es el de la nota (`--pv` o la config), también en `--cargar`; `--ac` o `--at` y `--ar` siguen siendo obligatorios. Si el asociado es de otro CUIT, `--apv` se sigue pidiendo. Si el JSON no dice el punto de venta del asociado y `--apv` o `--pv` lo cambian, su `fecha` del JSON no va. Si el asociado existe pero ARCLI no pudo leerlo, la nota sigue con un aviso de lo que queda sin controlar; una FCE sin `--afecha` frena y pide la fecha.
 
 **WSFEX en `estado`.** Una línea más, "Exportación (WSFEX)", y en `--json` el campo `servidoresExportacion`, con la forma de `servidores`. Se consulta a la par, sin autenticación. Si falla o no contesta en 5 segundos dice "sin respuesta" (`null`), y `listo`, el exit code y el resto no cambian.
 

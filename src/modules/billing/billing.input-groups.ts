@@ -9,7 +9,7 @@ import { resolveConfigExchangeRate } from './billing.currency';
 import { type BillingDefaults, isSameCbu, savedCbuAlias } from './billing.defaults';
 import { missingIvaReceiverMessage } from './billing.iva-receptor';
 import type { BillingJsonInput } from './billing.json-input';
-import type { BillingCommandInput } from './billing.schemas';
+import { type BillingCommandInput, MAX_WSFE_POINT_OF_SALE } from './billing.schemas';
 import type { VoucherShortcut } from './billing.types';
 import { discriminatesIva, getVoucherKindByShortcut, isFceInvoice } from './voucher-kind-map';
 
@@ -151,31 +151,67 @@ export function resolveAssociatedPeriod({ file, flags, now }: BillingInputLayers
   };
 }
 
-/**
- * Sin `--apv`, el asociado es del punto de venta de la nota: con un `--pv` distinto al del archivo es otro comprobante y
- * la fecha del archivo no va, como con `--apv` (`mergeAssociatedVoucher`).
- */
-function fileAssociatedVoucher({ file, flags }: BillingInputLayers): BillingJsonInput['comprobanteAsociado'] {
-  const voucher = file.comprobanteAsociado;
-  const followsNote = voucher?.puntoVenta === undefined && flags.comprobanteAsociado?.puntoVenta === undefined;
-  const changesNote =
-    flags.puntoVenta !== undefined && file.puntoVenta !== undefined && flags.puntoVenta !== file.puntoVenta;
+type AssociatedJson = NonNullable<BillingJsonInput['comprobanteAsociado']>;
 
-  return voucher && followsNote && changesNote ? { ...voucher, fecha: undefined } : voucher;
+/** De otro emisor: el punto de venta de la nota no dice nada del suyo. */
+function isForeignAssociated(cuit: string | undefined, { defaults }: BillingInputLayers): boolean {
+  return cuit !== undefined && cuit.replace(/\D/g, '') !== String(defaults.emitterCuit);
+}
+
+/** El punto de venta de un asociado: el suyo o, si es propio, el de la nota. */
+function associatedPointOfSale(
+  voucher: AssociatedJson,
+  note: number | undefined,
+  layers: BillingInputLayers,
+): number | undefined {
+  return voucher.puntoVenta ?? (isForeignAssociated(voucher.cuit, layers) ? undefined : note);
+}
+
+const isPointOfSale = (value: number | undefined): value is number =>
+  value !== undefined && Number.isInteger(value) && value > 0 && value <= MAX_WSFE_POINT_OF_SALE;
+
+/**
+ * Los flags sobre el archivo (`mergeAssociatedVoucher`) y, sin `--apv`, el punto de venta de la nota, como en la E, si
+ * el asociado es propio. Si con los flags es de otro punto de venta que el que tendria el archivo solo, es otro
+ * comprobante y la fecha del archivo no va. Si los flags descartaron un CUIT ajeno del archivo no se sabe de quien es
+ * el otro: no se toma el de la nota.
+ */
+function mergeAssociated(layers: BillingInputLayers): AssociatedJson | undefined {
+  const { defaults, file, flags } = layers;
+  const fromFile = file.comprobanteAsociado;
+  const merged = mergeAssociatedVoucher(
+    flags.comprobanteAsociado,
+    fromFile,
+    (shortcut) => getVoucherKindByShortcut(shortcut.trim().toLowerCase())?.arcaType,
+  );
+
+  if (!merged) {
+    return undefined;
+  }
+
+  const lostForeignCuit = merged.cuit === undefined && isForeignAssociated(fromFile?.cuit, layers);
+  const note = lostForeignCuit ? undefined : (written(layers, 'puntoVenta') ?? defaults.defaultPointOfSale);
+  const pointOfSale = associatedPointOfSale(merged, note, layers);
+  const filePointOfSale =
+    fromFile && associatedPointOfSale(fromFile, file.puntoVenta ?? defaults.defaultPointOfSale, layers);
+  const moved = filePointOfSale !== undefined && pointOfSale !== undefined && filePointOfSale !== pointOfSale;
+  // Incompleto o con un punto de venta invalido no se completa: el error es el de lo que falta o el de `--pv`.
+  const complete = merged.numero !== undefined && (merged.atajo !== undefined || merged.tipo !== undefined);
+
+  return {
+    ...merged,
+    fecha: moved ? flags.comprobanteAsociado?.fecha : merged.fecha,
+    puntoVenta: merged.puntoVenta ?? (complete && isPointOfSale(pointOfSale) ? pointOfSale : undefined),
+  };
 }
 
 export function resolveAssociatedVoucher(layers: BillingInputLayers) {
-  const { flags, now } = layers;
-  const voucher = mergeAssociatedVoucher(
-    flags.comprobanteAsociado,
-    fileAssociatedVoucher(layers),
-    (shortcut) => getVoucherKindByShortcut(shortcut.trim().toLowerCase())?.arcaType,
-  );
+  const voucher = mergeAssociated(layers);
 
   return (
     voucher && {
       cuit: voucher.cuit,
-      fecha: resolveRelativeDateInput(voucher.fecha, 'day', now),
+      fecha: resolveRelativeDateInput(voucher.fecha, 'day', layers.now),
       numero: voucher.numero,
       puntoVenta: voucher.puntoVenta,
       shortcut: voucher.atajo,

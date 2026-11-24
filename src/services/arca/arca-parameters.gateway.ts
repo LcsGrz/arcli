@@ -62,13 +62,6 @@ export class ArcaParametersGateway implements ParametersGateway {
     return { app: status.appServer, auth: status.authServer, db: status.dbServer };
   }
 
-  /** `FEXDummy`, que tampoco autentica: vale con cualquier certificado, tambien sin el de exportacion. */
-  public async getExportServerStatus(): Promise<ServerStatus> {
-    const { FEXDummyResult: status } = await this.arca.wsfexService.dummy();
-
-    return { app: status.AppServer, auth: status.AuthServer, db: status.DbServer };
-  }
-
   public async getSalesPoints(): Promise<SalesPoint[]> {
     const result = (await this.arca.electronicBillingService
       .getSalesPoints()

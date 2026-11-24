@@ -47,7 +47,7 @@ interface Layers {
 
 function resolve(shortcut: VoucherShortcut, { file, flags }: Layers) {
   return resolveBillingInput({
-    defaults: {},
+    defaults: { defaultPointOfSale: 7, emitterCuit: EMITTER },
     file,
     flags,
     now: NOW,
@@ -135,6 +135,82 @@ describe('sin --apv, el punto de venta del asociado es el de la nota', () => {
         flags: { puntoVenta: 4 },
       }),
     ).toMatchObject({ CbteFch: '20261001', PtoVta: 3 });
+  });
+
+  it.each<[string, BillingJsonInput, BillingJsonInput, Record<string, unknown>]>([
+    [
+      '--apv distinto del `puntoVenta` del JSON',
+      { puntoVenta: 3 },
+      { comprobanteAsociado: { puntoVenta: 4 } },
+      { PtoVta: 4 },
+    ],
+    ['--apv distinto del de la config', {}, { comprobanteAsociado: { puntoVenta: 4 } }, { PtoVta: 4 }],
+    ['--pv distinto del de la config', {}, { puntoVenta: 4 }, { PtoVta: 4 }],
+    ['--apv igual al de la config', {}, { comprobanteAsociado: { puntoVenta: 7 } }, { CbteFch: '20261001', PtoVta: 7 }],
+    ['--pv igual al de la config', {}, { puntoVenta: 7 }, { CbteFch: '20261001', PtoVta: 7 }],
+    [
+      '--pv con --apv igual al del JSON',
+      { puntoVenta: 3 },
+      { comprobanteAsociado: { puntoVenta: 3 }, puntoVenta: 4 },
+      { CbteFch: '20261001', PtoVta: 3 },
+    ],
+  ])('la fecha del archivo va solo si el punto de venta es el mismo: %s', (_name, file, flags, expected) => {
+    const comprobanteAsociado = { atajo: 'fc', fecha: '01/10/2026', numero: 5 };
+
+    expect(associatedOf('ncc', { file: { ...CONSUMER, ...file, comprobanteAsociado }, flags })).toEqual({
+      Cuit: String(EMITTER),
+      Nro: 5,
+      Tipo: 11,
+      ...expected,
+    });
+  });
+
+  it.each<[string, BillingJsonInput['comprobanteAsociado']]>([
+    ['otro número', { numero: 9 }],
+    ['otro tipo', { atajo: 'ndc' }],
+  ])('un CUIT ajeno del archivo descartado por %s no deja heredar el de la nota', (_name, comprobanteAsociado) => {
+    const file = { ...CONSUMER, comprobanteAsociado: { atajo: 'fc', cuit: '30709965812', numero: 5 }, puntoVenta: 3 };
+
+    expect(() => associatedOf('ncc', { file, flags: { comprobanteAsociado } })).toThrow('Falta el punto de venta');
+    expect(() => associatedOf('ncc', { file, flags: { comprobanteAsociado, puntoVenta: 4 } })).toThrow(
+      'Falta el punto de venta',
+    );
+    expect(
+      associatedOf('ncc', { file, flags: { comprobanteAsociado: { ...comprobanteAsociado, puntoVenta: 4 } } }),
+    ).toMatchObject({ Cuit: String(EMITTER), PtoVta: 4 });
+    // Con el CUIT propio en el flag vuelve a ser del emisor.
+    expect(
+      associatedOf('ncc', { file, flags: { comprobanteAsociado: { ...comprobanteAsociado, cuit: String(EMITTER) } } }),
+    ).toMatchObject({ PtoVta: 3 });
+  });
+
+  it('un asociado ajeno sin punto de venta, completado con --apv, conserva su CUIT y su fecha', () => {
+    const file = {
+      ...CONSUMER,
+      comprobanteAsociado: { atajo: 'fc', cuit: '30709965812', fecha: '01/10/2026', numero: 5 },
+      puntoVenta: 3,
+    };
+
+    expect(associatedOf('ncc', { file, flags: { comprobanteAsociado: { puntoVenta: 4 } } })).toEqual({
+      CbteFch: '20261001',
+      Cuit: '30709965812',
+      Nro: 5,
+      PtoVta: 4,
+      Tipo: 11,
+    });
+  });
+
+  it('sin punto de venta en ningún lado, falta el de la nota', () => {
+    const { input } = resolveBillingInput({
+      defaults: { emitterCuit: EMITTER },
+      flags: { ...CONSUMER, comprobanteAsociado: { atajo: 'fc', numero: 5 } },
+      now: NOW,
+      shortcut: 'ncc',
+    });
+
+    expect(() => service.buildVoucherPayload(input, { ...runtime, pointOfSale: undefined })).toThrow(
+      'Falta el punto de venta. Usá `--pv <numero>`',
+    );
   });
 
   it('se consulta en ARCA igual que con --apv, y lo mismo el rechazo de una anulación FCE', async () => {

@@ -3,6 +3,7 @@ import { InputValidationError } from '../../lib/errors/app-error';
 import { causeDetails } from '../../lib/errors/error-summary';
 import { errorText } from '../../lib/files/file-error';
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
+import { joinWithAnd } from '../../lib/text/join-with-and';
 import { FCE_REGISTRY_STATE_LABELS, type FceRegistryGateway, type FceRegistryState } from '../fce/fce-registry';
 import type { ParametersGateway } from '../parameters/parameters';
 import { type IssuedVoucher, type VoucherHistoryGateway, VoucherQueryError } from '../vouchers/voucher-history';
@@ -154,7 +155,7 @@ function shouldLookUpAssociated(
 ): boolean {
   const associated = input.associatedVoucher;
 
-  if (!isNote(voucherKind) || !associated?.numero) {
+  if (!isNote(voucherKind) || !associated?.numero || !associated.puntoVenta) {
     return false;
   }
 
@@ -266,6 +267,36 @@ export function missingAssociatedWarning(options: {
   ].join(' ');
 }
 
+/**
+ * El asociado existe en ARCA (vino con su numero y su CAE), pero no se pudo leer: no es de otro sistema ni un error
+ * pasajero. La nota sigue, con lo que quedo sin controlar; sin la fecha, una FCE frena.
+ */
+function unreadableAssociated(options: {
+  readonly arcaType: number;
+  readonly error: VoucherQueryError;
+  readonly label: string;
+  readonly needsDate: boolean;
+  readonly voucherKind: VoucherKindDefinition;
+}): string {
+  const { arcaType, error, label, needsDate, voucherKind } = options;
+  const what = `ARCLI no pudo leer los datos de ${label}, que existe en ARCA`;
+
+  if (needsDate) {
+    throw new InputValidationError(
+      `${what}: no se puede tomar su fecha.`,
+      causeDetails(error),
+      'Pasá la fecha del asociado con `--afecha <fecha>`.',
+    );
+  }
+
+  const unchecked = [
+    ...(voucherKind.isElectronicCredit ? ['que coincidan la moneda, el receptor y la fecha'] : []),
+    ...(capsCreditNote(voucherKind, arcaType) ? ['que la nota de crédito no lo supere'] : []),
+  ];
+
+  return unchecked.length > 0 ? `${what}: queda sin controlar ${joinWithAnd(unchecked)}.` : `${what}.`;
+}
+
 export interface CheckedAssociated {
   readonly input: BillingCommandInput;
   /** Si ARCA no respondio, contesto con un error o no tiene el asociado, y la nota igual se puede emitir: el asociado y el tope de la NC quedan sin controlar. */
@@ -289,6 +320,8 @@ function reasonOf(error: unknown): string {
  * seguro un numero mal escrito. Si el punto de venta no es de web service (Comprobantes en linea, controlador
  * fiscal), sigue con un aviso; la nota FCE sin fecha frena pidiendo `--afecha`. Si ARCA no responde, la nota FCE sin
  * fecha no se puede armar y frena; el resto sigue con un aviso y ARCA decide al emitir.
+ *
+ * Si existe y no se pudo leer (`VoucherQueryError.exists`), sigue con un aviso (`unreadableAssociated`).
  *
  * Si ARCA contesta con un error (`VoucherQueryError`) no se sabe si existe: no frena como "ARCA no tiene". Pero no se
  * sabe con que contesta para un punto de venta de otro sistema, asi que se lo clasifica igual: si no es de web
@@ -334,6 +367,13 @@ export async function checkAssociatedInArca(options: {
   try {
     voucher = await gateway.getVoucher(reference.Nro, reference.PtoVta, reference.Tipo);
   } catch (error) {
+    if (error instanceof VoucherQueryError && error.exists) {
+      return {
+        input,
+        warnings: [unreadableAssociated({ arcaType: reference.Tipo, error, label, needsDate, voucherKind })],
+      };
+    }
+
     if (error instanceof VoucherQueryError && (await classifyPointOfSale(true)) === 'other') {
       queryError = error;
     } else {
@@ -436,6 +476,7 @@ export async function checkFceCancellationInRegistry(options: {
     !isNote(voucherKind) ||
     !input.cancellation ||
     !associated?.numero ||
+    !associated.puntoVenta ||
     (associated.cuit !== undefined && associated.cuit.replace(/\D/g, '') !== String(emitterCuit))
   ) {
     return [];

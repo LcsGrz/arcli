@@ -125,14 +125,14 @@ Los nombres de las claves no siempre coinciden con los flags. Si pasás las dos 
 
 ### Objeto `comprobanteAsociado`
 
-| Campo        | Tipo   | Requerido       | Descripción                                                         |
-| ------------ | ------ | --------------- | ------------------------------------------------------------------- |
-| `atajo`      | string | sí\*            | Atajo del comprobante asociado                                      |
-| `cuit`       | string | sí para notas   | CUIT del comprobante asociado (en NC/ND FCE, por defecto el emisor) |
-| `fecha`      | string | sí en NC/ND FCE | Fecha del comprobante asociado                                      |
-| `numero`     | number | sí para notas   | Número del comprobante asociado                                     |
-| `puntoVenta` | number | sí para notas   | Punto de venta del comprobante asociado                             |
-| `tipo`       | number | sí\*            | Tipo ARCA del comprobante asociado                                  |
+| Campo        | Tipo   | Requerido     | Descripción                                                                                                  |
+| ------------ | ------ | ------------- | ------------------------------------------------------------------------------------------------------------ |
+| `atajo`      | string | sí\*          | Atajo del comprobante asociado                                                                               |
+| `cuit`       | string | no            | CUIT del comprobante asociado; por defecto, el emisor                                                        |
+| `fecha`      | string | no            | Fecha del comprobante asociado; en NC/ND FCE, si falta, se toma de ARCA                                      |
+| `numero`     | number | sí para notas | Número del comprobante asociado                                                                              |
+| `puntoVenta` | number | no            | Punto de venta del comprobante asociado; por defecto, el de la nota. Obligatorio si `cuit` es de otro emisor |
+| `tipo`       | number | sí\*          | Tipo ARCA del comprobante asociado                                                                           |
 
 \* Hay que informar `atajo` o `tipo`, pero no hace falta enviar ambos.
 

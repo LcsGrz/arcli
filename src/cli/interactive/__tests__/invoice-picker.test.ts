@@ -807,3 +807,30 @@ describe('una A, B o C que existe y no se puede leer (ARQ-22)', () => {
     expect(shownErrors()).toContain('00003-00000002 existe, con el CAE');
   });
 });
+
+describe('una nota sobre una A, B o C que existe y no se puede leer (ARQ-22)', () => {
+  it('no la toma como de otro sistema ni habla de emitir, y vuelve a la lista', async () => {
+    const session = createSession([invoice(2), invoice(3)]);
+
+    makeUnreadable(session, 2);
+    // El punto de venta no figura como de web service.
+    getSalesPoints.mockResolvedValueOnce([{ blocked: false, number: 99 }]);
+    script = createScript([
+      [/Cuál/, 'Ingresar el número a mano'],
+      [/Punto de venta/, '3'],
+      [/Número/, '2'],
+      [/Cuál/, '00003-00000003'],
+    ]);
+
+    expect(await pickNoteInvoice(session, options)).toMatchObject({ invoice: { number: 3 } });
+
+    const shown = stripAnsi(output).replace(/[│┃╏║\s]+/g, ' ');
+
+    expect(shown).toContain(
+      'La factura C 00003-00000002 existe en ARCA, pero ARCLI no pudo leer sus datos para copiarlos. Elegí otro comprobante o emití la nota con un comando.',
+    );
+    expect(errors).toBe('');
+    expect(shown).not.toContain('Comprobantes en línea');
+    getSalesPoints.mockReset();
+  });
+});

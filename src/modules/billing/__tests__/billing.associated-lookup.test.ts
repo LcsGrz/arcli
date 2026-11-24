@@ -672,3 +672,57 @@ describe('checkFceCancellationInRegistry: el comprador tiene que rechazar el aso
     expect(gateway.getVoucherState).not.toHaveBeenCalled();
   });
 });
+
+describe('un asociado que existe y ARCLI no pudo leer (ARQ-22)', () => {
+  const checkUnreadable = async (input: BillingCommandInput) => {
+    const call = vi.fn(async (_service: string, _method: string, params: { FeCompConsReq: { CbteNro: number } }) => ({
+      FECompConsultarResult: {
+        ResultGet: { CbteDesde: params.FeCompConsReq.CbteNro, CodAutorizacion: '75123456789012' },
+      },
+    }));
+    const getSalesPoints = vi.fn(async () => [{ blocked: false, emissionType: 'CAE', number: 99 }]);
+    const result = await checkAssociatedInArca({
+      gateway: new ArcaVoucherHistoryGateway({ genericService: { call } } as unknown as ArcaClient),
+      input,
+      runtime,
+      salesPoints: { getSalesPoints },
+      service: new BillingService({ clock: { now: () => new Date('2026-03-18T15:00:00Z') } }),
+    }).finally(() => {
+      // Existe en ARCA: no es de otro sistema, aunque el punto de venta no figure.
+      expect(getSalesPoints).not.toHaveBeenCalled();
+    });
+
+    expect(result.input).toBe(input);
+
+    return result.warnings;
+  };
+  const withDate = (shortcut: 'ncea' | 'ndea') =>
+    fceNote({ associatedVoucher: { fecha: '10/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' }, shortcut });
+  const FC = 'ARCLI no pudo leer los datos de la factura C 00003-00000012, que existe en ARCA';
+  const FCEA = 'ARCLI no pudo leer los datos de la factura de crédito electrónica A 00003-00000007, que existe en ARCA';
+
+  it.each<[string, BillingCommandInput, string]>([
+    ['NC', note(), `${FC}: queda sin controlar que la nota de crédito no lo supere.`],
+    ['ND', note({ shortcut: 'ndc' }), `${FC}.`],
+    [
+      'NC FCE con --afecha',
+      withDate('ncea'),
+      `${FCEA}: queda sin controlar que coincidan la moneda, el receptor y la fecha y que la nota de crédito no lo supere.`,
+    ],
+    [
+      'ND FCE con --afecha',
+      withDate('ndea'),
+      `${FCEA}: queda sin controlar que coincidan la moneda, el receptor y la fecha.`,
+    ],
+  ])('%s: avisa qué queda sin controlar y sigue', async (_name, input, warning) => {
+    expect(await checkUnreadable(input)).toEqual([warning]);
+  });
+
+  it('una nota FCE sin --afecha frena y pide la fecha, sin mandar a reintentar', async () => {
+    await expect(checkUnreadable(fceNote())).rejects.toMatchObject({
+      code: 'INPUT_VALIDATION_ERROR',
+      message: `${FCEA}: no se puede tomar su fecha.`,
+      suggestion: 'Pasá la fecha del asociado con `--afecha <fecha>`.',
+    });
+  });
+});

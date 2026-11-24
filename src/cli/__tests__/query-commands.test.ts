@@ -61,6 +61,10 @@ vi.mock('../../services/arca/arca-fce-obligation.gateway', () => ({
   },
 }));
 
+vi.mock('../../services/arca/wsfex-status', () => ({
+  fetchWsfexServerStatus: async () => ({ app: 'OK', auth: 'OK', db: 'OK' }),
+}));
+
 const written: string[] = [];
 
 function output(): string {

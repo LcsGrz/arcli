@@ -344,6 +344,32 @@ describe('repetir: lo que se copia, como en la E (ARQ-22)', () => {
     );
   });
 
+  it.each<[string, Partial<IssuedVoucher>, string]>([
+    [
+      'sin concepto',
+      { concept: undefined },
+      'Se copian el receptor (consumidor final), la moneda, el monto y la alícuota.',
+    ],
+    [
+      'con exento y no gravado',
+      { exemptAmount: 10, ivaAmount: 21, netAmount: 100, untaxedAmount: 5 },
+      'el monto, la alícuota, el importe exento y el no gravado.',
+    ],
+    ['con no gravado', { ivaAmount: 21, netAmount: 100, untaxedAmount: 5 }, 'la alícuota y el importe no gravado.'],
+  ])('%s', async (_name, overrides, expected) => {
+    script = createScript([
+      [/comprobante querés repetir/, 'Factura B'],
+      [/Cuál repetimos/, '00003-00000014'],
+      [/Mismo monto/, BACK],
+      [/Cuál repetimos/, BACK],
+      [/comprobante querés repetir/, BACK],
+    ]);
+
+    await repeat(createSession([invoice(overrides)]));
+
+    expect(notice()).toContain(expected);
+  });
+
   it('si no se puede reproducir el monto no dice que lo copia', async () => {
     script = createScript([
       [/comprobante querés repetir/, 'Factura C'],

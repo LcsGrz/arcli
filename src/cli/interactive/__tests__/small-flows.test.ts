@@ -55,6 +55,10 @@ vi.mock('../../../services/arca/arca-parameters.gateway', () => ({
   },
 }));
 
+vi.mock('../../../services/arca/wsfex-status', () => ({
+  fetchWsfexServerStatus: async () => ({ app: 'OK', auth: 'OK', db: 'OK' }),
+}));
+
 function createSession(pointOfSale = 3): InteractiveSession {
   return {
     arca: {} as never,

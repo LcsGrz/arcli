@@ -3,7 +3,11 @@ import { Separator } from '@inquirer/core';
 import { asQuery } from '../../lib/errors/query-error';
 import { classifyAssociatedPointOfSale, describeQueryFailure } from '../../modules/billing/billing.associated-lookup';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
-import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/voucher-names';
+import {
+  formatNoVouchersEmitted,
+  formatVoucherSubject,
+  formatVoucherWithArticle,
+} from '../../modules/billing/voucher-names';
 import { resolveRowsPerList } from '../../modules/config/config.schemas';
 import { formatExportVoucherPickerRows } from '../../modules/export/export.history.presenter';
 import type { ExportGateway, ExportIssuedVoucher, ExportVoucherKind } from '../../modules/export/export.types';
@@ -55,9 +59,13 @@ interface VoucherSource<T extends { readonly number: number }, M = never> {
   formatRows(pointOfSale: number, vouchers: readonly T[], separator: string, width: number): string[];
   /**
    * Si el comprobante ingresado a mano no existe y hay algo mas que decir que "No existe", o igual sirve. Con
-   * `queryReason`, ARCA contesto con un error (ese es el motivo) y no se sabe si existe: sin respuesta, se muestra ese error.
+   * `queryError`, ARCA contesto con un error o existe y no se pudo leer (`exists`): sin respuesta, se muestra ese error.
    */
-  describeMissing?(pointOfSale: number, number: number, queryReason?: string): Promise<MissingVoucher<M> | undefined>;
+  describeMissing?(
+    pointOfSale: number,
+    number: number,
+    queryError?: VoucherQueryError,
+  ): Promise<MissingVoucher<M> | undefined>;
 }
 
 /** Solo el nombre y la familia: tambien la E, que no es un VoucherKindDefinition. */
@@ -173,9 +181,7 @@ async function askVoucherByNumber<T extends { readonly number: number }, M>(
         };
       } catch (error) {
         const missing =
-          error instanceof VoucherQueryError
-            ? await source.describeMissing?.(pointOfSale, number, error.reason)
-            : undefined;
+          error instanceof VoucherQueryError ? await source.describeMissing?.(pointOfSale, number, error) : undefined;
 
         if (!missing) {
           throw error;
@@ -252,7 +258,14 @@ export async function pickNoteInvoice(
 
   return pickVoucher(session, options, {
     ...invoiceSource(session, voucherKind),
-    describeMissing: async (pointOfSale: number, number: number, queryReason?: string) => {
+    describeMissing: async (pointOfSale: number, number: number, queryError?: VoucherQueryError) => {
+      if (queryError?.exists) {
+        return {
+          notice: `${formatVoucherSubject(voucherKind)} ${formatVoucherNumber(pointOfSale, number)} existe en ARCA, pero ARCLI no pudo leer sus datos para copiarlos. Elegí otro comprobante o emití la nota con un comando.`,
+        };
+      }
+
+      const queryReason = queryError?.reason;
       const origin = await classifyAssociatedPointOfSale({
         history: session.historyGateway,
         pointOfSale,

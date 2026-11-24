@@ -15,11 +15,10 @@ import {
   formatStatusAsText,
   serializeStatus,
 } from '../parameters.presenter';
-import { buildStatusReport } from '../status';
+import { buildStatusReport, type ExportServerStatus } from '../status';
 
 function createGateway(overrides: Partial<ParametersGateway> = {}): ParametersGateway {
   return {
-    getExportServerStatus: async () => ({ app: 'OK', auth: 'OK', db: 'OK' }),
     getQuotation: async () => ({ currency: 'DOL', rate: 1 }),
     getSalesPoints: async () => [],
     getServerStatus: async () => ({ app: 'OK', auth: 'OK', db: 'OK' }),
@@ -106,6 +105,7 @@ describe('parameters', () => {
 describe('entorno en el texto', () => {
   it('names production with its accent', async () => {
     const report = await buildStatusReport({
+      getExportServerStatus: async () => ({ app: 'OK', auth: 'OK', db: 'OK' }),
       now: Date.now,
       environment: 'produccion',
       gateway: createGateway(),
@@ -141,6 +141,7 @@ describe('formatQuotationAsText', () => {
 describe('formatStatusAsText sin estado de un servidor (TUI-20)', () => {
   it('la fila va igual y dice que ARCA no lo informa', async () => {
     const report = await buildStatusReport({
+      getExportServerStatus: async () => ({ app: 'OK', auth: 'OK', db: 'OK' }),
       now: Date.now,
       environment: 'testing',
       gateway: createGateway({ getServerStatus: async () => ({ app: 'OK', auth: 'OK', db: '' }) }),
@@ -154,6 +155,7 @@ describe('formatStatusAsText sin estado de un servidor (TUI-20)', () => {
 describe('buildStatusReport', () => {
   it('is ready when servers are OK and the point of sale is enabled', async () => {
     const report = await buildStatusReport({
+      getExportServerStatus: async () => ({ app: 'OK', auth: 'OK', db: 'OK' }),
       now: Date.now,
       environment: 'produccion',
       gateway: createGateway({ getSalesPoints: async () => [{ blocked: false, emissionType: 'CAE', number: 3 }] }),
@@ -166,6 +168,7 @@ describe('buildStatusReport', () => {
 
   it('cannot verify the point of sale in testing but still is ready', async () => {
     const report = await buildStatusReport({
+      getExportServerStatus: async () => ({ app: 'OK', auth: 'OK', db: 'OK' }),
       now: Date.now,
       environment: 'testing',
       gateway: createGateway(),
@@ -182,18 +185,25 @@ describe('buildStatusReport', () => {
     ];
 
     const blocked = await buildStatusReport({
+      getExportServerStatus: async () => ({ app: 'OK', auth: 'OK', db: 'OK' }),
       now: Date.now,
       environment: 'produccion',
       gateway: createGateway({ getSalesPoints: points }),
       pointOfSale: 3,
     });
     const missing = await buildStatusReport({
+      getExportServerStatus: async () => ({ app: 'OK', auth: 'OK', db: 'OK' }),
       now: Date.now,
       environment: 'produccion',
       gateway: createGateway({ getSalesPoints: points }),
       pointOfSale: 9,
     });
-    const unset = await buildStatusReport({ now: Date.now, environment: 'produccion', gateway: createGateway() });
+    const unset = await buildStatusReport({
+      getExportServerStatus: async () => ({ app: 'OK', auth: 'OK', db: 'OK' }),
+      now: Date.now,
+      environment: 'produccion',
+      gateway: createGateway(),
+    });
 
     expect([blocked.pointOfSale.kind, missing.pointOfSale.kind, unset.pointOfSale.kind]).toEqual([
       'bloqueado',
@@ -210,6 +220,7 @@ describe('buildStatusReport', () => {
   it('is not ready when a server is down and measures latency', async () => {
     let clock = 1000;
     const report = await buildStatusReport({
+      getExportServerStatus: async () => ({ app: 'OK', auth: 'OK', db: 'OK' }),
       environment: 'testing',
       gateway: createGateway({
         getServerStatus: async () => {
@@ -228,15 +239,20 @@ describe('buildStatusReport', () => {
 });
 
 describe('los servidores de exportación, WSFEX (ARQ-22)', () => {
-  const build = (overrides: Partial<ParametersGateway> = {}, timeoutMs?: number) =>
+  type Overrides = Partial<ParametersGateway> & { readonly getExportServerStatus?: ExportServerStatus };
+  const build = (
+    { getExportServerStatus = async () => ({ app: 'OK', auth: 'OK', db: 'OK' }), ...gateway }: Overrides = {},
+    timeoutMs?: number,
+  ) =>
     buildStatusReport({
       environment: 'testing',
-      gateway: createGateway(overrides),
+      gateway: createGateway(gateway),
+      getExportServerStatus,
       now: () => 1000,
       pointOfSale: 3,
       timeoutMs,
     });
-  const text = async (overrides: Partial<ParametersGateway> = {}, timeoutMs?: number) =>
+  const text = async (overrides: Overrides = {}, timeoutMs?: number) =>
     stripAnsi(formatStatusAsText(await build(overrides, timeoutMs)));
 
   it('van en una línea propia y en `servidoresExportacion`', async () => {
@@ -275,5 +291,22 @@ describe('los servidores de exportación, WSFEX (ARQ-22)', () => {
 
   it('si falla lo de siempre, el error es el de siempre', async () => {
     await expect(build({ getServerStatus: () => Promise.reject(new Error('ETIMEDOUT')) })).rejects.toThrow('ETIMEDOUT');
+  });
+
+  it.each<[string, Partial<ParametersGateway>]>([
+    ['no contesta', {}],
+    ['lo de siempre falla antes', { getServerStatus: () => Promise.reject(new Error('ETIMEDOUT')) }],
+    ['los puntos de venta fallan', { getSalesPoints: () => Promise.reject(new Error('ETIMEDOUT')) }],
+  ])('la consulta se cancela si %s: no deja el proceso vivo', async (_name, overrides) => {
+    let signal: AbortSignal | undefined;
+    const getExportServerStatus: ExportServerStatus = (given) => {
+      signal = given;
+
+      return new Promise(() => undefined);
+    };
+
+    await build({ ...overrides, getExportServerStatus }, 10).catch(() => undefined);
+
+    expect(signal?.aborted).toBe(true);
   });
 });

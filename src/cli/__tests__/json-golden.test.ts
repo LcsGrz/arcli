@@ -58,10 +58,10 @@ const sdk = vi.hoisted(() => ({
     getVoucherTypes: vi.fn(),
   },
   wsfecred: { consultarMontoObligadoRecepcion: vi.fn() },
+  wsfexStatus: { fetch: vi.fn() },
   wsfex: {
     authorize: vi.fn(),
     checkPermiso: vi.fn(),
-    dummy: vi.fn(),
     getCmp: vi.fn(),
     getLastCmp: vi.fn(),
     getLastId: vi.fn(),
@@ -75,6 +75,8 @@ const sdk = vi.hoisted(() => ({
     getParamUMed: vi.fn(),
   },
 }));
+
+vi.mock('../../services/arca/wsfex-status', () => ({ fetchWsfexServerStatus: sdk.wsfexStatus.fetch }));
 
 vi.mock('@arcasdk/core', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -282,7 +284,7 @@ function resetSdk(): void {
   sdk.wsfe.getQuotation.mockResolvedValue({ resultGet: { fchCotiz: '20261116', monCotiz: 1452.5, monId: 'DOL' } });
   sdk.generic.call.mockImplementation(consulting(issuedVoucher()));
   sdk.wsfe.getServerStatus.mockResolvedValue({ appServer: 'OK', authServer: 'OK', dbServer: 'OK' });
-  sdk.wsfex.dummy.mockResolvedValue({ FEXDummyResult: { AppServer: 'OK', AuthServer: 'OK', DbServer: 'OK' } });
+  sdk.wsfexStatus.fetch.mockResolvedValue({ app: 'OK', auth: 'OK', db: 'OK' });
   sdk.padron.getTaxpayerDetails.mockResolvedValue({
     datosGenerales: {
       domicilioFiscal: {
@@ -2908,6 +2910,28 @@ describe('otros comandos que van a ARCA', () => {
     return golden('ultimos-con-hueco', ['ultimos', 'fc', '--cantidad', '3', '--json']);
   });
 
+  it('una nota sin --apv: la solicitud y la consulta van al punto de venta de la nota (ARQ-22)', async () => {
+    const note = ['ncc', '-m', '100', '--cs', '--cfinal', '--ac', 'fc', '--ar', '12', '--previsualizar', '--json'];
+
+    for (const [args, pointOfSale] of [
+      [note, 3],
+      [[...note, '--pv', '5'], 5],
+    ] as const) {
+      sdk.generic.call.mockClear();
+      prepareConfig({});
+
+      const result = await runCli(args);
+
+      expect(result).toMatchObject({ code: 0 });
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        solicitud: { CbtesAsoc: [{ Nro: 12, PtoVta: pointOfSale, Tipo: 11 }] },
+      });
+      expect(sdk.generic.call).toHaveBeenCalledWith('wsfe', 'FECompConsultar', {
+        FeCompConsReq: { CbteNro: 12, CbteTipo: 11, PtoVta: pointOfSale },
+      });
+    }
+  });
+
   // ARQ-22: como la E.
   describe('ultimos de A, B y C con uno que existe y no se puede leer', () => {
     const flat = (text: string) => text.replace(/[│┃╏║\s]+/g, ' ');
@@ -3331,7 +3355,7 @@ describe('consultas y comandos sin dorado (REV-49)', () => {
 
   it('estado sin respuesta de WSFEX: lo demás y el exit code no cambian (ARQ-22)', () => {
     sdk.wsfe.getSalesPoints.mockResolvedValue({ resultGet: { ptoVenta: [] } });
-    sdk.wsfex.dummy.mockRejectedValue(new Error('connect ETIMEDOUT'));
+    sdk.wsfexStatus.fetch.mockRejectedValue(new Error('connect ETIMEDOUT'));
 
     return golden('estado-sin-wsfex', ['estado', '--json']);
   });
