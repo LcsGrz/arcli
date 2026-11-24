@@ -46,6 +46,7 @@ import {
   assertExportNoteMatchesAssociated,
   exportAssociatedVoucherWarnings,
   exportNoteHasAssociated,
+  fetchExportAssociatedVoucher,
   missingExportAssociatedVoucherError,
   resolveExportAssociatedQuery,
 } from './export.notes';
@@ -194,7 +195,7 @@ async function fetchAssociated(
     kind,
     pointOfSale: resolveExportPointOfSale(input.pointOfSale, runtime.config),
   });
-  const voucher = await gateway.getVoucher(query);
+  const voucher = await fetchExportAssociatedVoucher(gateway, query);
 
   if (!voucher) {
     throw missingExportAssociatedVoucherError(query);

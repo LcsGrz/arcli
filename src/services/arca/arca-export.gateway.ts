@@ -169,6 +169,11 @@ function mapIssuedVoucher(row: Record<string, unknown> | null | undefined): Expo
   };
 }
 
+/** `detalles` de un error de WSFEX. */
+function exportErrorDetails(error: FexError): Record<string, unknown> {
+  return { errores: [{ codigo: error.ErrCode, mensaje: readText(error.ErrMsg) }] };
+}
+
 /** WSFEX no lanza: devuelve `FEXErr` con codigo 0 cuando salio todo bien. */
 function assertNoError(result: FexResult | undefined, operation: string): void {
   const error = result?.FEXErr;
@@ -176,7 +181,7 @@ function assertNoError(result: FexResult | undefined, operation: string): void {
   if (error?.ErrCode) {
     throw new AppError(`ARCA devolvió un error al consultar ${operation}: ${readText(error.ErrMsg) || error.ErrCode}`, {
       code: 'ARCA_EXPORT_ERROR',
-      details: { errores: [{ codigo: error.ErrCode, mensaje: readText(error.ErrMsg) }] },
+      details: exportErrorDetails(error),
     });
   }
 }
@@ -277,13 +282,23 @@ export class ArcaExportGateway implements ExportGateway {
       return null;
     }
 
-    assertNoError(data, 'el comprobante asociado');
+    const { number, pointOfSale } = query;
+    const error = data?.FEXErr;
+
+    // Como en A, B y C: no se sabe si existe, y con esta consulta se verifica una emision incierta (ARQ-22).
+    if (error?.ErrCode) {
+      throw voucherQueryError({
+        as: { code: 'ARCA_EXPORT_ERROR', details: exportErrorDetails(error) },
+        errors: [{ code: error.ErrCode, msg: readText(error.ErrMsg) }],
+        number,
+        pointOfSale,
+      });
+    }
 
     const row = data?.FEXResultGet as Record<string, unknown> | null | undefined;
     const voucher = mapIssuedVoucher(row);
 
     if (!voucher) {
-      const { number, pointOfSale } = query;
       const cae = readNumber(row?.Cbte_nro) === number ? readRejectedCae(row?.Cae) : null;
 
       throw cae === null

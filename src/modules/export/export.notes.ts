@@ -1,10 +1,12 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { ARCA_QUERY_ERROR_SUGGESTION } from '../../lib/errors/query-error';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { assertRules } from '../../lib/rules/rules';
 import { creditNoteOverTotalError, isCreditNoteOverTotal } from '../billing/billing.associated-lookup';
 import { ARCA_LOCAL_CURRENCY_CODE, isSameCurrency } from '../billing/currency-codes';
 import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/voucher-names';
+import { VoucherQueryError } from '../vouchers/voucher-history';
 import { formatVoucherNumber } from '../vouchers/voucher-number';
 
 import { assertExportPointOfSaleRange, resolveExportRuleDate } from './export.mappers';
@@ -17,6 +19,7 @@ import {
   EXPORT_VOUCHER_KIND,
   EXPORT_VOUCHER_KINDS,
   type ExportAssociatedVoucherInput,
+  type ExportGateway,
   type ExportIssuedVoucher,
   type ExportVoucherInput,
   type ExportVoucherKind,
@@ -383,6 +386,32 @@ export function assertExportNoteMatchesAssociated(options: {
   if (sameCurrency && note.exchangeRate !== associated.exchangeRate) {
     throw new InputValidationError(
       `En servicios la cotización tiene que ser la de ${label} (${formatExchangeRate(associated.exchangeRate)}): ARCA rechaza otra (error 2053). Sacá \`--cotizacion-moneda\`.`,
+    );
+  }
+}
+
+/**
+ * El comprobante que ajusta la nota, o `null` si ARCA no lo tiene. Si ARCA contesta con un error, el texto dice que es
+ * el asociado, con el mismo codigo.
+ */
+export async function fetchExportAssociatedVoucher(
+  gateway: Pick<ExportGateway, 'getVoucher'>,
+  query: ExportVoucherQuery,
+): Promise<ExportIssuedVoucher | null> {
+  try {
+    return await gateway.getVoucher(query);
+  } catch (error) {
+    if (!(error instanceof VoucherQueryError && error.code === 'ARCA_EXPORT_ERROR')) {
+      throw error;
+    }
+
+    throw new VoucherQueryError(
+      `ARCA devolvió un error al consultar el comprobante asociado ${formatVoucherNumber(query.pointOfSale, query.number)} y no se sabe si existe: ${error.reason}`,
+      error.details ?? {},
+      error.suggestion ?? ARCA_QUERY_ERROR_SUGGESTION,
+      error.reason,
+      false,
+      error.code,
     );
   }
 }

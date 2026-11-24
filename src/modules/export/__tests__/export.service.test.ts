@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import type { AppError } from '../../../lib/errors/app-error';
 import { exportAnswer } from '../../../testing/arca-answers';
 import { EmissionUncertainError } from '../../billing/billing.errors';
 import { arcliConfigSchema } from '../../config/config.schemas';
@@ -385,6 +386,27 @@ describe('ExportService.resolve', () => {
     }
 
     expect(gateway.getQuotations).not.toHaveBeenCalled();
+  });
+
+  // ARQ-22: `arcli parametros` es de wsfe, sus tablas no son las de la E.
+  it.each<[string, Partial<ExportVoucherInput>, RegExp]>([
+    ['moneda', { currencyCode: 'XYZ' }, /Las más comunes de la E son .*`USD`/],
+    ['incoterm', { incoterm: 'XXX' }, /^Los válidos son `/],
+    ['idioma', { language: 99 }, /^Los válidos son \d+ \(/],
+    ['país', { destinationCountry: 'Narnia' }, /asistente/],
+    ['CUIT de país', { clientCountryCuit: 1 }, /Sin `--cuit-pais`/],
+    [
+      'unidad',
+      { items: [{ description: 'x', quantity: 1, unit: 'xx', unitPrice: INPUT.amount as number }] },
+      /^Las más comunes son \d/,
+    ],
+  ])('%s inválido: la sugerencia dice los válidos y no manda a `parametros`', async (_name, override, hint) => {
+    const error = (await service
+      .resolve({ ...INPUT, ...override }, createGateway(), RUNTIME)
+      .catch((reason: unknown) => reason)) as AppError;
+
+    expect(error).toMatchObject({ code: 'INPUT_VALIDATION_ERROR', suggestion: expect.stringMatching(hint) });
+    expect(`${error.message} ${error.suggestion}`).not.toContain('parametros');
   });
 
   it('sin cotizacion para la moneda (el gateway descarta las de 0) es ARCA_QUOTATION_ERROR', async () => {

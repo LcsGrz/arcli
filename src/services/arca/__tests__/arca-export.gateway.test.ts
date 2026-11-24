@@ -187,9 +187,14 @@ describe('ArcaExportGateway.getVoucher', () => {
       })),
     });
 
-    await expect(gateway.getVoucher({ arcaType: 19, number: 1, pointOfSale: 0 })).rejects.toThrow(
-      /Punto de venta invalido/,
-    );
+    await expect(gateway.getVoucher({ arcaType: 19, number: 1, pointOfSale: 0 })).rejects.toMatchObject({
+      code: 'ARCA_EXPORT_ERROR',
+      exists: false,
+      message: expect.stringContaining('no se sabe si existe: 1510 Punto de venta invalido'),
+      name: 'VoucherQueryError',
+      reason: '1510 Punto de venta invalido',
+      suggestion: expect.stringContaining('no la reintentes'),
+    });
   });
 });
 

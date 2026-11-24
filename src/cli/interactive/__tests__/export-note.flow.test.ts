@@ -10,6 +10,7 @@ import {
 import { buildExportNoteInput } from '../../../modules/interactive/export-note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import { VoucherQueryError } from '../../../modules/vouchers/voucher-history';
+import { voucherQueryError } from '../../../services/arca/voucher-query-error';
 import { exportAnswer } from '../../../testing/arca-answers';
 import { fakeBillingGateway } from '../../../testing/arca-gateways';
 import { stripAnsi } from '../../../ui';
@@ -316,6 +317,31 @@ describe('runExportNoteFlow', () => {
 
     expect(errors.mock.calls.join('')).toContain('No se sabe si existe');
     expect(printed()).not.toContain('ARCA no tiene');
+  });
+
+  it('con un error de ARCA al buscar el asociado lo muestra, dice que es el asociado y sigue (ARQ-22)', async () => {
+    const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    vi.mocked(gateway.getVoucher).mockRejectedValueOnce(
+      voucherQueryError({
+        as: { code: 'ARCA_EXPORT_ERROR', details: {} },
+        errors: [{ code: 1510, msg: 'Punto de venta' }],
+        number: 1,
+        pointOfSale: 4,
+      }),
+    );
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [/Número de la factura E/, BACK],
+      [/Punto de venta de la factura E/, BACK],
+    ]);
+
+    await runExportNoteFlow(createSession(), 'credito');
+
+    expect(errors.mock.calls.join('').replace(/[│┃╏\s]+/g, ' ')).toContain(
+      'el comprobante asociado 00004-00000001 y no se sabe si existe: 1510 Punto de venta',
+    );
   });
 
   it('sin cambios: otro error al buscar el asociado sale al menú', async () => {

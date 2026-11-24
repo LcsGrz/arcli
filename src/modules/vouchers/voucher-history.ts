@@ -1,4 +1,5 @@
 import { AppError } from '../../lib/errors/app-error';
+import type { ErrorCode } from '../../lib/errors/error-codes';
 import { BILLING_IVA_RATES, documentTypeFromCode, ivaRateFactor } from '../billing/arca-codes';
 import type { BillingDocumentType, BillingIvaRate } from '../billing/billing.schemas';
 
@@ -75,8 +76,10 @@ export class VoucherQueryError extends AppError {
     public readonly reason: string,
     /** Existe (tiene numero y CAE), pero no se entiende: una lista lo saltea en vez de fallar entera. */
     public readonly exists = false,
+    /** La `E` sale con `ARCA_EXPORT_ERROR` si ARCA contesta con un error: el codigo es contrato (ARQ-22). */
+    code: ErrorCode = 'ARCA_VOUCHER_QUERY_ERROR',
   ) {
-    super(message, { code: 'ARCA_VOUCHER_QUERY_ERROR', details, suggestion });
+    super(message, { code, details, suggestion });
     this.name = 'VoucherQueryError';
   }
 }

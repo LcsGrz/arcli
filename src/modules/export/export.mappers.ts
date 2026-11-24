@@ -381,14 +381,18 @@ export function resolveExportType(value: ExportType | undefined): ExportType {
 
 export function resolveExportLanguage(
   value: number | undefined,
-  languages: readonly { readonly id: number }[],
+  languages: readonly { readonly id: number; readonly name?: string }[],
 ): number {
   if (value === undefined) {
     return DEFAULT_EXPORT_LANGUAGE;
   }
 
   if (languages.length > 0 && !languages.some((language) => language.id === value)) {
-    throw new InputValidationError(`El idioma ${value} no existe en la tabla de ARCA.`);
+    throw new InputValidationError(
+      `El idioma ${value} no existe en la tabla de ARCA.`,
+      undefined,
+      `Los válidos son ${languages.map(({ id, name }) => (name ? `${id} (${name})` : id)).join(', ')}.`,
+    );
   }
 
   return value;
@@ -411,6 +415,8 @@ export function resolveExportDestinationCountry(
   if (!country) {
     throw new InputValidationError(
       `El país de destino "${trimmed}" no existe en la tabla de ARCA. Usá el código o el nombre que informa ARCA.`,
+      undefined,
+      'Están todos en el asistente: `arcli`, factura de exportación E, "País de destino".',
     );
   }
 
@@ -525,7 +531,11 @@ export function resolveExportClientCountryCuit(options: {
   const match = options.countries.find((entry) => entry.cuit === options.cuit);
 
   if (!match) {
-    throw new InputValidationError(`El CUIT de país ${options.cuit} no existe en la tabla de ARCA.`);
+    throw new InputValidationError(
+      `El CUIT de país ${options.cuit} no existe en la tabla de ARCA.`,
+      undefined,
+      'Sin `--cuit-pais`, ARCLI usa el del país de destino si la tabla lo trae.',
+    );
   }
 
   const expected = pickCountryCuit(forDestination);
@@ -646,7 +656,9 @@ export function resolveExportIncoterm(
 
   if (!incoterm) {
     throw new InputValidationError(
-      `El incoterm "${trimmed}" no existe en la tabla de ARCA. Consultá los válidos con \`arcli parametros\`.`,
+      `El incoterm "${trimmed}" no existe en la tabla de ARCA.`,
+      undefined,
+      `Los válidos son ${incoterms.map((entry) => `\`${entry.code.trim()}\``).join(', ')}.`,
     );
   }
 

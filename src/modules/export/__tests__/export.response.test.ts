@@ -89,6 +89,17 @@ describe('mapExportResponse', () => {
     expect(summary.suggestions.join(' ')).toMatch(/número del comprobante/);
   });
 
+  it.each([
+    ['El punto de venta no es valido', /--punto-venta/],
+    ['El incoterm no es valido', /`FOB`/],
+    ['La moneda no es valida', /--moneda/],
+  ])('"%s": no manda a `parametros`, que es de wsfe (ARQ-22)', async (Motivos_Obs, hint) => {
+    const { suggestions } = await emitWithExportAnswer(authorization({ Cae: '', Motivos_Obs, Resultado: 'R' }));
+
+    expect(suggestions.join(' ')).toMatch(hint);
+    expect(suggestions.join(' ')).not.toContain('parametros');
+  });
+
   it('sugiere revisar la actividad cuando ARCA la rechaza por no estar vinculada al emisor', async () => {
     const summary = await emitWithExportAnswer({
       FEXAuthorizeResult: {
