@@ -2,7 +2,7 @@ import {
   BatchEmissionError,
   type BatchItemError,
   BatchValidationError,
-  describeBatchItemError,
+  toBatchItemError,
 } from '../../modules/billing/billing.batch';
 
 interface BatchPlan {
@@ -46,7 +46,7 @@ export async function prepareBatch<T, R>(options: {
       validate(item);
       resolved.push(item);
     } catch (error) {
-      errors.push({ index: plan.inputIndexes[position] ?? position + 1, message: describeBatchItemError(error) });
+      errors.push(toBatchItemError(plan.inputIndexes[position] ?? position + 1, error));
     }
   }
 

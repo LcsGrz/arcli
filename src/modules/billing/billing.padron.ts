@@ -1,4 +1,5 @@
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
+import { summarizeError } from '../../lib/errors/error-summary';
 import type { PadronGateway, Taxpayer } from '../padron/padron';
 
 import { ivaConditionCode, ivaConditionLabel } from './arca-codes';
@@ -24,12 +25,18 @@ export function needsPadronLookup(input: BillingCommandInput): boolean {
   );
 }
 
-function fallBack(input: BillingCommandInput, reason: string, hint?: string): PadronResolution {
+/** `failure` es la falla de la consulta, si la hubo: sin ella, el padron contesto. */
+function fallBack(input: BillingCommandInput, reason: string, failure?: { readonly error: unknown }): PadronResolution {
   if (input.ivaConditionSource === 'missing') {
-    throw new InputValidationError(missingIvaReceiverMessage(reason));
+    throw new InputValidationError(
+      missingIvaReceiverMessage(reason),
+      failure && { codigoCausa: summarizeError(failure.error).code },
+    );
   }
 
   const warning = `${reason}. Se usa el IVA receptor de la config: ${ivaConditionLabel(ivaConditionCode(input.ivaCondition))}.`;
+
+  const hint = failure && lookupErrorHint(failure.error);
 
   return { input, warnings: [hint ? `${warning} ${hint}` : warning] };
 }
@@ -60,7 +67,7 @@ export async function resolveIvaConditionFromPadron(
   } catch (error) {
     const message = error instanceof Error ? error.message.replace(/\.$/, '') : 'error desconocido';
 
-    return fallBack(input, `No se pudo consultar el padrón de ARCA (${message})`, lookupErrorHint(error));
+    return fallBack(input, `No se pudo consultar el padrón de ARCA (${message})`, { error });
   }
 
   if (!taxpayer) {

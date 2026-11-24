@@ -95,7 +95,14 @@ describe('--cargar', () => {
     ]);
 
     expect(error.detalles).toEqual({
-      comprobantes: [{ error: 'Punto de venta tiene que ser un entero.', indice: 2 }],
+      comprobantes: [
+        {
+          codigo: 'INPUT_VALIDATION_ERROR',
+          error: 'Punto de venta tiene que ser un entero.',
+          indice: 2,
+          sugerencia: null,
+        },
+      ],
     });
   });
 

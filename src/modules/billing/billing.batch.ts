@@ -1,22 +1,34 @@
 import { ZodError } from 'zod';
 
 import { AppError } from '../../lib/errors/app-error';
+import { summarizeError } from '../../lib/errors/error-summary';
 
 import { EmissionUncertainError } from './billing.errors';
 import { summarizeZodError } from './billing.zod-errors';
 
 export interface BatchItemError {
+  /** El `codigo` que daria ese comprobante solo. */
+  readonly code: string;
   /** Posicion en el lote, empezando en 1. */
   readonly index: number;
   readonly message: string;
+  /** La `sugerencia` que daria ese comprobante solo. */
+  readonly suggestion: string | null;
 }
 
-export function describeBatchItemError(error: unknown): string {
+function describeBatchItemError(error: unknown): string {
   if (error instanceof ZodError) {
     return summarizeZodError(error);
   }
 
   return error instanceof Error ? error.message : String(error);
+}
+
+/** El error de un comprobante del lote; `index` es su posicion, empezando en 1. */
+export function toBatchItemError(index: number, error: unknown): BatchItemError {
+  const { code, suggestion } = summarizeError(error);
+
+  return { code, index, message: describeBatchItemError(error), suggestion };
 }
 
 /** Uno o mas comprobantes del lote no pasan la validacion. Se detecta antes de emitir: no se emitio ninguno. */
@@ -34,7 +46,14 @@ export class BatchValidationError extends AppError {
       ].join('\n'),
       {
         code: 'BATCH_VALIDATION_ERROR',
-        details: { comprobantes: errors.map((item) => ({ error: item.message, indice: item.index })) },
+        details: {
+          comprobantes: errors.map((item) => ({
+            codigo: item.code,
+            error: item.message,
+            indice: item.index,
+            sugerencia: item.suggestion,
+          })),
+        },
       },
     );
     this.name = 'BatchValidationError';

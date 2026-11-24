@@ -103,4 +103,22 @@ describe('resolveIvaConditionFromPadron', () => {
       ),
     ).rejects.toThrow(/Falta IVA receptor. El CUIT 20201797064 no figura en el padrón de ARCA/);
   });
+
+  it('si el padrón no informa la condición no hubo falla: sin codigoCausa', async () => {
+    await expect(
+      resolveIvaConditionFromPadron(
+        input({ ivaConditionSource: 'missing' }),
+        gateway(async () => ({ ...TAXPAYER, ivaCondition: null })),
+      ),
+    ).rejects.toMatchObject({ code: 'INPUT_VALIDATION_ERROR', details: undefined });
+  });
+
+  it('el CUIT no figura en el padrón: tampoco hubo falla', async () => {
+    await expect(
+      resolveIvaConditionFromPadron(
+        input({ ivaConditionSource: 'missing' }),
+        gateway(async () => null),
+      ),
+    ).rejects.toMatchObject({ code: 'INPUT_VALIDATION_ERROR', details: undefined });
+  });
 });
