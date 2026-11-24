@@ -41,6 +41,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - `config establecer cbu` con otro CBU que el guardado borra `aliasCbu` y lo dice en `avisos`; antes el alias quedaba. Sin CBU guardado, el alias queda, con un aviso. `config eliminar cbu` borra también `aliasCbu` y lo dice en `avisos`; antes quedaba.
 > - Ya no son un error y gana el flag: `--ac`, `--at`, `--ar` o `--apv` con `periodoAsociado` en el JSON, `--periodo-desde` o `--periodo-hasta` con `comprobanteAsociado`, `--vto` con `dia` y `--dia` con `vencimientoPago`.
 > - En `BATCH_EMISSION_ERROR`, `sugerencia` es siempre un texto, antes `null`, y en `error` "Sin procesar" va en su propia línea, como rango desde tres (`#3 a #100 (98)`). La lista completa sigue en `detalles.sinProcesar`.
+> - Si una tabla auxiliar de WSFEX no responde y lo que se emite no sale de ella, los comandos de la `E` y sus notas siguen con un aviso y, con `--emitir`, se emiten; antes salían con el error de la consulta.
+> - En los comandos de la `E` con `exportacion.cert` propio, `avisos` ya no trae el vencimiento del certificado general de ese entorno.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
 
@@ -73,6 +75,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Config:** `config establecer cbu` con otro CBU borra el `aliasCbu` del anterior, y `config eliminar cbu` también; lo avisan (#282, #284).
 - **Notas:** un flag del comprobante o del período asociado gana al otro del JSON, y una punta del período conserva la otra (#282).
 - **Salida:** A, B, C, FCE, recibos y notas muestran "Consultando ARCA..." mientras se consulta antes de la vista previa, como la `E` (#283).
+- **Fechas:** con una fecha futura, A, B, C, FCE, recibos y notas avisan desde qué fecha van los siguientes, como la `E` (#287).
+- **Factura E:** sin `--cm` avisa siempre que usa la cotización oficial, y con una fuera del 2 % al 400 %, también (#287).
+- **Factura E:** si una tabla auxiliar de WSFEX no responde, los comandos y la vista previa avisan y siguen, salvo que emitan algo suyo (#287).
+- **Certificados:** el propio de exportación avisa que vence en los comandos y el asistente, y dice cómo renovarlo (#287).
 - **Fechas:** en un lote que cruza la medianoche, `hoy` y las demás fechas relativas son del mismo día en todos los comprobantes (#282).
 
 <details><summary>Detalle</summary>
@@ -102,6 +108,14 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **Asociado de las notas.** Si `--ac`, `--at`, `--ar` o `--apv` apuntan a otro comprobante que el del archivo, su `fecha` y su `cuit` no van: pasá `--afecha` y `--acuit` si hacen falta. Además descartan `periodoAsociado`, y `--periodo-desde` y `--periodo-hasta` descartan `comprobanteAsociado`; antes, juntos eran un error. `--acuit` o `--afecha` solos no eligen. Con una sola punta del período en los flags, la otra sale del archivo; antes se perdía.
 
 **Consultando ARCA.** Con el padrón, la cotización, el asociado de una nota o el régimen FCE, los comandos y el asistente quedaban sin señal hasta la vista previa. Ahora giran con "Consultando ARCA..." si hay una consulta en curso. No aparece con `--json` ni sin terminal.
+
+**Fecha futura.** ARCA numera en orden de fecha: después de un comprobante con fecha futura, los de ese tipo y punto de venta no pueden ir con una anterior (10016; en la `E`, 1535). La `E` ya lo avisaba en la vista previa; ahora también A, B, C, FCE, recibos y notas, en comandos, en cada comprobante de un lote y en el asistente. No frena.
+
+**Cotización de la `E`.** En bienes y otros, sin `--cm` avisa que se usa la oficial, la de aduana, como A, B y C; si es de otro día, lo dice el mismo aviso, en vez del anterior. En servicios y con `--misma-moneda`, donde es obligatoria, sigue avisando solo si es de otro día. Con `--cm` en una factura de bienes u otros la compara con la oficial (una consulta más a WSFEX) y avisa, sin frenar, si está fuera del 2 % al 400 % (1667). Si no se puede consultar, no avisa.
+
+**Tablas de WSFEX.** En los comandos y en la vista previa del asistente, si la de CUIT de países, unidades, incoterms, idiomas, monedas o actividades contesta con un error o se corta la conexión, lo escrito va sin validar y decide ARCA, o faltan solo los nombres. Nunca se emite un dato distinto del que saldría con la tabla: corta, como antes, si de ella sale algo que se emite (el CUIT del país sin `--cuit-pais`, una unidad por nombre, la descripción del incoterm sin `--incoterms-desc`). También cortan dos errores de conexión, los países, la cotización sin `--cm` y cualquier otro error, como el certificado o WSAA. Si no se pudo comparar `--cm` en servicios o con `--misma-moneda`, avisa y sigue. En el PDF, una unidad sin su nombre sale con el código.
+
+**Certificado de exportación.** El de `exportacion.cert`, con su clave, entra en los avisos de vencimiento, como "El certificado de exportación de testing", también en los comandos de A, B y C. Los comandos de la `E` que lo usan no avisan por el general de ese entorno. Vencido, `CERTIFICATE_EXPIRED` lo nombra y ya no manda a `arcli certificado generar`, que renueva el general; `config revisar` tampoco.
 
 **Moneda y actividad de exportación en la config.** La moneda lista las monedas de ARCA, que se buscan por nombre, código de ARCA o ISO (`usd`), y elegir una guarda el código de ARCA (`DOL`), como el default `PES`. La actividad lista la tabla de WSFEX, consultada como en `arcli fe`: hacen falta el CUIT y el certificado y la clave de facturación del entorno, y el de exportación se usa si está configurado; sin eso o si ARCA no responde, se escribe el código como antes. Sin valor guardado, la lista arranca en "Dejar sin configurar": Enter ya no guarda la primera opción sin elegirla, también en la condición de venta. Lo escrito se valida como `arcli config establecer`, y las claves no cambian.
 

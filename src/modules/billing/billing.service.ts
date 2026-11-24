@@ -20,7 +20,7 @@ import {
   validateExchangeRateRange,
 } from './billing.currency';
 import { resolveBillingDateRange } from './billing.date-range';
-import { resolveBillingDate } from './billing.dates';
+import { futureDateWarnings, resolveBillingDate } from './billing.dates';
 import { shouldEmit } from './billing.emit-decision';
 import { EmissionUncertainError } from './billing.errors';
 import { resolveElectronicCreditOptionals } from './billing.fce';
@@ -39,7 +39,7 @@ import { validateDocumentIdentity, validateUncategorizedReceiver } from './billi
 import { createDryRunResponse, mapBillingResponse } from './billing-response';
 import { findArcaCurrency, resolveBillingCurrencyCode } from './currency-codes';
 import { getVoucherKindByShortcut } from './voucher-kind-map';
-import { formatVoucherSubject } from './voucher-names';
+import { formatNextVouchers, formatVoucherSubject } from './voucher-names';
 import type { UnnumberedVoucherRequest } from './voucher-request';
 
 export interface BillingPreviewOptions {
@@ -176,18 +176,29 @@ export class BillingService {
     return resolveIvaConditionFromPadron(input, gateway);
   }
 
-  /** La vista previa, sin hablar con ARCA: no recibe un gateway. */
+  /**
+   * La vista previa, sin hablar con ARCA: no recibe un gateway. Suma a los avisos el de la fecha futura, que sale de la
+   * solicitud ya validada.
+   */
   public preview(options: BillingPreviewOptions): BillingExecutionResult {
     const voucherKind = this.requireVoucherKind(options.input.shortcut);
+    const payload = this.buildVoucherPayload(options.input, options.runtime, voucherKind);
+    const futureDate = futureDateWarnings({
+      code: 10016,
+      next: formatNextVouchers(voucherKind),
+      pointOfSale: payload.PtoVta,
+      today: this.today(),
+      voucherDate: payload.CbteFch,
+    });
 
     return {
       dryRun: true,
       environment: options.runtime.environment,
-      payload: this.buildVoucherPayload(options.input, options.runtime, voucherKind),
+      payload,
       receiver: describeReceiver(options.input),
       response: createDryRunResponse(),
       voucherKind,
-      warnings: options.warnings ?? [],
+      warnings: [...(options.warnings ?? []), ...futureDate],
     };
   }
 

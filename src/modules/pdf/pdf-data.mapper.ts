@@ -8,7 +8,7 @@ import { formatSaleCondition } from '../billing/sale-condition';
 import { discriminatesIva, isReceipt } from '../billing/voucher-kind-map';
 import type { VoucherRequestIva } from '../billing/voucher-request';
 import type { ExportExecutionResult } from '../export/export.types';
-import { SERVICES_EXPORT_TYPE } from '../export/export.types';
+import { DEFAULT_EXPORT_UNIT_CODE, SERVICES_EXPORT_TYPE } from '../export/export.types';
 
 import { PdfError } from './pdf.errors';
 import type { InvoicePdfData, InvoicePdfIssuer, InvoicePdfItem, InvoicePdfIva, PdfVoucherExtras } from './pdf.types';
@@ -248,7 +248,9 @@ export function mapExportResultToPdfData(
     descripcion: item.Pro_ds,
     precioUnitario: item.Pro_precio_uni,
     subtotal: item.Pro_total_item,
-    unidadMedida: display.unitNames[item.Pro_umed] ?? 'unidad',
+    unidadMedida:
+      display.unitNames[item.Pro_umed] ??
+      (item.Pro_umed === DEFAULT_EXPORT_UNIT_CODE ? 'unidad' : String(item.Pro_umed)),
   }));
   const observaciones = [payload.Obs_comerciales, payload.Obs].map((value) => value.trim()).filter(Boolean);
 

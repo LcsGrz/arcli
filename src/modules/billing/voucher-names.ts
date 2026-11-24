@@ -31,6 +31,11 @@ function formatVoucherPlural(voucherKind: NamedVoucher): string {
   return formatVoucherLabel(voucherKind).replace(/^\p{L}+/u, '$&s');
 }
 
+/** `las próximas facturas B`, `los próximos recibos C`. */
+export function formatNextVouchers(voucherKind: NamedVoucher): string {
+  return `${isMasculineVoucher(voucherKind) ? 'los próximos' : 'las próximas'} ${formatVoucherPlural(voucherKind)}`;
+}
+
 /** `Últimas facturas B`, `Últimos recibos C`. */
 export function formatLatestVouchersTitle(voucherKind: NamedVoucher): string {
   return `${isMasculineVoucher(voucherKind) ? 'Últimos' : 'Últimas'} ${formatVoucherPlural(voucherKind)}`;

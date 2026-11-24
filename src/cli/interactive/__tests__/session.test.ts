@@ -7,6 +7,7 @@ import { ArcaFceObligationGateway } from '../../../services/arca/arca-fce-obliga
 import { systemClock } from '../../../services/time/system-clock';
 import { billingAnswer } from '../../../testing/arca-answers';
 import { fakeBillingGateway } from '../../../testing/arca-gateways';
+import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { outputState } from '../../closed-output';
 import { describeEmittedInThisRun, resetEmittedInThisRun } from '../../emitted-vouchers';
@@ -89,6 +90,29 @@ describe('previewAndEmit', () => {
 
     expect(session.createVoucher).not.toHaveBeenCalled();
     expect(offerPdf).not.toHaveBeenCalled();
+  });
+
+  it('avisa la fecha futura, una sola vez y como el comando (10016, ARQ-22)', async () => {
+    const tomorrow = new Intl.DateTimeFormat('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      timeZone: 'America/Argentina/Buenos_Aires',
+      year: 'numeric',
+    }).format(Date.now() + 24 * 60 * 60 * 1000);
+
+    chooseOneMock.mockResolvedValueOnce(false);
+    await previewAndEmit(createSession('testing'), { ...input, billingDate: tomorrow }, ['AVISO DEL ASOCIADO']);
+
+    const output = stripAnsi(
+      vi
+        .mocked(process.stdout.write)
+        .mock.calls.map(([chunk]) => String(chunk))
+        .join(''),
+    );
+
+    // Como en el comando: primero el asociado.
+    expect(output.indexOf('AVISO DEL ASOCIADO')).toBeLessThan(output.indexOf('es futura'));
+    expect(output.match(/error\s+[^\d]*10016/g)).toHaveLength(1);
   });
 
   it('la vista previa no emite aunque los datos traigan emit true, y si cancela no emite (TEST-15)', async () => {

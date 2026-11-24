@@ -271,6 +271,40 @@ describe('previewBilling', () => {
   });
 });
 
+describe('previewBilling: fecha futura (10016, ARQ-22)', () => {
+  const future = (next: string) =>
+    `La fecha del comprobante (19/11/2026) es futura: ${next} del punto de venta 3 van a tener que llevar esa fecha o una posterior, porque ARCA rechaza una anterior (error 10016).`;
+  const receiver = {
+    documentNumber: CLIENT_CUIT,
+    documentType: 'cuit',
+    ivaCondition: 'responsable-inscripto',
+  } as const;
+  const note = { associatedVoucher: { numero: 12, puntoVenta: 3, tipo: 11 } } as Partial<BillingCommandInput>;
+  const noFce = { runtime: { ...runtime, config: { verificarFce: false } } };
+
+  it.each<[string, Partial<BillingCommandInput>]>([
+    ['las próximas facturas A', { ...receiver, shortcut: 'fa' }],
+    ['las próximas facturas C', {}],
+    ['las próximas notas de crédito C', { ...receiver, ...note, shortcut: 'ncc' }],
+    ['los próximos recibos C', { shortcut: 'rc' }],
+    [
+      'las próximas facturas de crédito electrónica C',
+      { ...receiver, cbu: '2850590940090418135201', shortcut: 'fcec', transferMode: 'sca' },
+    ],
+  ])('%s: avisa en la vista previa y al emitir', async (next, overrides) => {
+    const [item] = await preview(planOf([input({ ...overrides, billingDate: '19/11/2026' })]), noFce);
+
+    expect(item.warnings).toContain(future(next));
+    expect(item.preview.warnings).toEqual(item.warnings);
+  });
+
+  it('en un lote, solo el comprobante con fecha futura', async () => {
+    const items = await preview(planOf([input({ billingDate: '18/11/2026' }), input({ billingDate: '19/11/2026' })]));
+
+    expect(items.map(({ warnings }) => warnings)).toEqual([[], [future('las próximas facturas C')]]);
+  });
+});
+
 describe('planBillingEmission', () => {
   it.each([
     { dryRun: false, emit: false },

@@ -268,7 +268,7 @@ Una clave desconocida (`montototal`, `vencimiento`, `moneda`) o un tipo incorrec
   "observaciones": ["..."],
   "observacion": "string | null",
   "numero": "number (número emitido) | null (previsualización)",
-  "avisos": ["texto: padrón, régimen FCE, certificado por vencer, flags salteados…"],
+  "avisos": ["texto: padrón, régimen FCE, fecha futura, certificado por vencer, flags salteados…"],
   "solicitud": { "...": "payload enviado a ARCA; si se emitió, con CbteDesde/CbteHasta" },
   "previsualizacion": true,
   "sugerencias": ["texto en español sugiriendo cómo resolver errores comunes de ARCA"],

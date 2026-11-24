@@ -1,6 +1,7 @@
+import { basename, dirname } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { CERTIFICATE_GUIDE_URL, PRODUCTION_RENEWAL_GUIDE_URL } from '../../../lib/links';
+import { CERTIFICATE_GUIDE_URL, EXPORT_CERTIFICATE_GUIDE_URL, PRODUCTION_RENEWAL_GUIDE_URL } from '../../../lib/links';
 import {
   createSelfSignedCertificate,
   OPENSSL_WARM_UP_TIMEOUT_MS,
@@ -11,6 +12,7 @@ import {
   CERTIFICATE_EXPIRY_WARNING_DAYS,
   CertificateExpiredError,
   describeCertificateExpiry,
+  exportCertificateView,
   inspectCertificateExpiry,
   inspectConfiguredCertificates,
 } from '../certificate-expiry';
@@ -72,7 +74,7 @@ describe('inspectConfiguredCertificates', () => {
     const production = createSelfSignedCertificate(5);
 
     const notices = inspectConfiguredCertificates(
-      { produccion: production.certPath, testing: testing.certPath },
+      { cert: { produccion: production.certPath, testing: testing.certPath } },
       { activeEnvironment: 'testing', now: new Date() },
     );
 
@@ -85,7 +87,7 @@ describe('inspectConfiguredCertificates', () => {
     const production = createSelfSignedCertificate(10);
 
     const notices = inspectConfiguredCertificates(
-      { produccion: production.certPath, testing: testing.certPath },
+      { cert: { produccion: production.certPath, testing: testing.certPath } },
       { activeEnvironment: 'testing', now: new Date() },
     );
 
@@ -98,7 +100,7 @@ describe('inspectConfiguredCertificates', () => {
     const production = createSelfSignedCertificate(10);
 
     const notices = inspectConfiguredCertificates(
-      { produccion: '/no/existe/cert.pem' },
+      { cert: { produccion: '/no/existe/cert.pem' } },
       { activeEnvironment: 'produccion', activePem: production.pem, now: new Date() },
     );
 
@@ -110,10 +112,89 @@ describe('inspectConfiguredCertificates', () => {
     expect(inspectConfiguredCertificates({}, { activeEnvironment: 'testing', now: new Date() })).toEqual([]);
     expect(
       inspectConfiguredCertificates(
-        { produccion: '/no/existe/cert.pem' },
+        { cert: { produccion: '/no/existe/cert.pem' } },
         { activeEnvironment: 'testing', now: new Date() },
       ),
     ).toEqual([]);
+  });
+});
+
+describe('el certificado propio de exportacion (ARQ-22)', () => {
+  const own = (cert: string, key = 'x.key') => ({ exportacion: { cert: { testing: cert }, key: { testing: key } } });
+
+  it('entra en los avisos, nombrado y sin mandar a renovar el general', () => {
+    const general = createSelfSignedCertificate(365);
+    const { certPath } = createSelfSignedCertificate(10);
+    const [notice, ...rest] = inspectConfiguredCertificates(
+      { cert: { testing: general.certPath }, ...own(certPath) },
+      { activeEnvironment: 'testing', now: new Date() },
+    );
+
+    expect(rest).toEqual([]);
+    expect(notice).toMatchObject({ environment: 'testing', expired: false, use: 'exportacion' });
+    expect(notice?.message).toMatch(/^El certificado de exportación de testing vence el .* Renovalo: /);
+    expect(notice?.message).toContain(EXPORT_CERTIFICATE_GUIDE_URL);
+  }, 10_000);
+
+  it('sin la clave, o si es el mismo archivo que el general, no suma un aviso', () => {
+    const { certPath } = createSelfSignedCertificate(10);
+    const inspect = (config: Parameters<typeof inspectConfiguredCertificates>[0]) =>
+      inspectConfiguredCertificates(config, { activeEnvironment: 'testing', now: new Date() });
+
+    expect(inspect(own(certPath, ''))).toEqual([]);
+    expect(
+      inspect({ cert: { testing: certPath }, ...own(`${dirname(certPath)}/./${basename(certPath)}`) }).map(
+        ({ use }) => use,
+      ),
+    ).toEqual([undefined]);
+  }, 10_000);
+
+  it('vencido, la sugerencia es cargarlo en la config', () => {
+    const notice = describeCertificateExpiry(
+      computeCertificateExpiry(EXPIRES_AT, new Date('2026-11-25T12:00:00-03:00')),
+      'produccion',
+      'exportacion',
+    );
+
+    if (!notice) {
+      throw new Error('expected a notice');
+    }
+
+    const error = new CertificateExpiredError(notice);
+
+    expect(error.code).toBe('CERTIFICATE_EXPIRED');
+    expect(error.message).toBe('El certificado de exportación de producción venció el 20/11/2026: ARCA no lo acepta.');
+    expect(error.suggestion).toContain('`arcli config establecer exportacion.cert.produccion <ruta>`');
+    expect(error.suggestion).not.toContain('arcli certificado');
+  });
+
+  it('la E con par propio avisa por el suyo y los de otro entorno, no por el general', () => {
+    const notice = (environment: 'produccion' | 'testing', use?: 'exportacion') => ({
+      daysRemaining: 5,
+      environment,
+      expired: false,
+      expiresOn: '20/11/2026',
+      message: '',
+      summary: '',
+      ...(use ? { use } : {}),
+    });
+    const general = notice('testing');
+    const exportNotice = notice('testing', 'exportacion');
+    const production = notice('produccion');
+    const profile = {
+      certificateExpiry: general,
+      certificateNotices: [general, exportNotice, production],
+      environment: 'testing' as const,
+    };
+
+    expect(exportCertificateView({ ...profile, config: own('x.crt') })).toEqual({
+      certificateExpiry: exportNotice,
+      certificateNotices: [exportNotice, production],
+    });
+    expect(exportCertificateView({ ...profile, config: {} })).toEqual({
+      certificateExpiry: general,
+      certificateNotices: profile.certificateNotices,
+    });
   });
 });
 

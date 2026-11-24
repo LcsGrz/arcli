@@ -30,7 +30,7 @@ export function createArcaQuery<Gateway>(
 
 /** Lo mismo para WSFEX: el gateway de exportacion, con su propio certificado si esta configurado. */
 export function createExportQuery(command: Command): ArcaQuery<ArcaExportGateway> {
-  const runtime = resolveArcaRuntime(getGlobalOptions(command));
+  const runtime = resolveArcaRuntime(getGlobalOptions(command), { service: 'wsfex' });
 
   return { gateway: new ArcaClientFactory().createExportGateway(runtime), runtime };
 }

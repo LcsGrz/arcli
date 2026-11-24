@@ -59,6 +59,7 @@ function buildCertificateExpiryCheck(
   name: string,
   certPath: string | undefined,
   now: Date,
+  renewal: string,
 ): ConfigDoctorReport['checks'][number] | null {
   if (!certPath) {
     return null;
@@ -82,7 +83,7 @@ function buildCertificateExpiryCheck(
     if (isCertificateExpiringSoon(expiry, CERTIFICATE_EXPIRY_WARNING_DAYS)) {
       return {
         category: 'warning',
-        detail: `El ${name} vence en ${expiry.daysRemaining} días (${formattedDate}). Renovalo con \`arcli certificado generar\`.`,
+        detail: `El ${name} vence en ${expiry.daysRemaining} días (${formattedDate}). ${renewal}`,
         label,
         section: 'certificados',
         value: formattedDate,
@@ -211,21 +212,31 @@ export function buildConfigDoctorReport(
     );
   }
 
-  for (const [label, name, certPath] of [
+  for (const [label, name, certPath, exportKey] of [
     ['Vencimiento cert. testing', 'certificado de testing', config.cert.testing],
     ['Vencimiento cert. producción', 'certificado de producción', config.cert.produccion],
     [
       'Vencimiento cert. exportación testing',
       'certificado de exportación de testing',
       config.exportacion?.cert.testing,
+      'exportacion.cert.testing',
     ],
     [
       'Vencimiento cert. exportación producción',
       'certificado de exportación de producción',
       config.exportacion?.cert.produccion,
+      'exportacion.cert.produccion',
     ],
   ] as const) {
-    const certificateCheck = buildCertificateExpiryCheck(label, name, certPath, now);
+    const certificateCheck = buildCertificateExpiryCheck(
+      label,
+      name,
+      certPath,
+      now,
+      exportKey
+        ? `Sacá uno nuevo en ARCA y cargalo con \`arcli config establecer ${exportKey} <ruta>\`.`
+        : 'Renovalo con `arcli certificado generar`.',
+    );
 
     if (certificateCheck) {
       checks.push(certificateCheck);

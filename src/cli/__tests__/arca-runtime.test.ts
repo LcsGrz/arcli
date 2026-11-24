@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CERTIFICATE_GUIDE_URL, certificateRenewalGuideUrl, PRODUCTION_RENEWAL_GUIDE_URL } from '../../lib/links';
+import {
+  CERTIFICATE_GUIDE_URL,
+  certificateRenewalGuideUrl,
+  EXPORT_CERTIFICATE_GUIDE_URL,
+  PRODUCTION_RENEWAL_GUIDE_URL,
+} from '../../lib/links';
 import type { CertificateExpiryNotice } from '../../modules/config/certificate-expiry';
 import { formatEnvironmentLabel } from '../../modules/config/config.schemas';
 import { stripAnsi } from '../../ui';
@@ -115,6 +120,18 @@ describe('certificate notice in commands', () => {
     // Con testing en el aviso, la guia de siempre: renovar en testing es sacarlo de nuevo.
     expect(plain).toContain(`Renovalo: ${CERTIFICATE_GUIDE_URL}`);
     expect(plain.match(/┌/g)).toHaveLength(1);
+  });
+
+  it('el de exportacion lleva su propio link, solo o con uno general (ARQ-22)', () => {
+    const exportNotice = { ...notice(false, 'testing'), use: 'exportacion' } as const;
+
+    writeCertificateNotice(withNotices(false, [exportNotice]));
+    expect(stripAnsi(stderr)).toContain(EXPORT_CERTIFICATE_GUIDE_URL);
+
+    stderr = '';
+    writeCertificateNotice(withNotices(false, [notice(false), exportNotice]));
+    expect(stripAnsi(stderr)).toContain(`Renovalo: ${PRODUCTION_RENEWAL_GUIDE_URL}`);
+    expect(stripAnsi(stderr)).toMatch(/De exportación:\s/);
   });
 
   it('keeps stdout clean with --json and still warns on stderr', () => {

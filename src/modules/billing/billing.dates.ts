@@ -2,6 +2,7 @@ import {
   arcaDateToInstant,
   type CalendarDate,
   calendarDateToArcaDate,
+  formatArcaDateAsArgentineDate,
   maxArcaDate,
   parseArgentineDateInputAsArcaDate,
 } from '../../lib/dates/arca-date';
@@ -84,4 +85,23 @@ export function shouldSendPaymentDueDate(
  */
 export function minimumPaymentDueDate(billingDate: string, today: string, voucherKind: VoucherKindDefinition): string {
   return isFceInvoice(voucherKind) ? maxArcaDate(billingDate, today) : billingDate;
+}
+
+/**
+ * ARCA numera en orden de fecha: con una futura, los que siguen de ese tipo y punto de venta no pueden ir con una
+ * anterior. Es la 10016 en A, B y C (WSFEv1 v4.7) y la 1535 en la E (WSFEX v3.1.0). Las fechas, en yyyymmdd.
+ */
+export function futureDateWarnings(options: {
+  readonly code: 10016 | 1535;
+  /** Los que siguen, con su articulo: `las próximas facturas C`. */
+  readonly next: string;
+  readonly pointOfSale: number;
+  readonly today: string;
+  readonly voucherDate: string;
+}): string[] {
+  return options.voucherDate > options.today
+    ? [
+        `La fecha del comprobante (${formatArcaDateAsArgentineDate(options.voucherDate)}) es futura: ${options.next} del punto de venta ${options.pointOfSale} van a tener que llevar esa fecha o una posterior, porque ARCA rechaza una anterior (error ${options.code}).`,
+      ]
+    : [];
 }

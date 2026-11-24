@@ -5,7 +5,7 @@ exit: 0
 {
   "atajo": "fe",
   "avisos": [
-    "ARCA no publicó la cotización de DOL del 17/11/2026: se usa la del 16/11/2026 (1.450,25). Para usar otra, `--cotizacion-moneda`.",
+    "Sin `--cm` se usa la cotización oficial de ARCA para DOL (1.450,25), la de aduana del 16/11/2026: ARCA no publicó la del 17/11/2026. Para usar otra, `--cotizacion-moneda`.",
     "No se pudo verificar el permiso de embarque 26001EC01000123A en ARCA (socket hang up): revisalo antes de emitir."
   ],
   "cae": null,

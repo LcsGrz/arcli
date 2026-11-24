@@ -144,6 +144,8 @@ arcli config revisar
 
 Si lo renovaste a mano, también sirve `arcli config establecer cert.produccion /ruta/al/certificado-nuevo.crt`.
 
+Si el aviso o el error dice "El certificado de exportación de <entorno>", es el propio de `wsfex`, que `arcli certificado` no renueva: sacá uno nuevo en ARCA, autorizalo a `wsfex` y cargalo con `arcli config establecer exportacion.cert.<entorno> <ruta>` (y `exportacion.key.<entorno>` si cambió la clave).
+
 - **Documentación relacionada:** [Cómo obtener los certificados de ARCA](obtencion-certificados.md), [Formato de errores](input-output.md#certificado-vencido)
 
 ### `config.json` con JSON inválido
@@ -495,9 +497,17 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor (si 
 ### Factura E: la cotización no es la del día
 
 - **Severidad:** frecuente, casi siempre con la fecha de hoy
-- **Síntoma:** aviso `ARCA no publicó la cotización de DOL del <fecha>: se usa la del <fecha anterior>`.
+- **Síntoma:** aviso `Sin --cm se usa la cotización oficial de ARCA para <moneda> (<valor>), la de aduana del <fecha anterior>: ARCA no publicó la del <fecha>`.
 - **Causa:** la `E` usa la cotización de aduana de WSFEX (`FEXGetPARAM_MON_CON_COTIZACION`), que ARCA publica una vez por día. Mientras no sale la de hoy, se usa la última publicada.
 - **Solución:** no hace falta hacer nada. Para fijar otra cotización, pasá `--cotizacion-moneda <valor>` (o `--cm`).
+- **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e)
+
+### Factura E: no se pudo consultar una tabla de WSFEX
+
+- **Severidad:** ocasional, con ARCA con demoras
+- **Síntoma:** aviso `No se pudo consultar la tabla de <tabla> de WSFEX (<motivo>): …`, o el error de la consulta.
+- **Causa:** esa tabla no respondió. Lo que dice `va sin validar` lo controla ARCA al emitir; el CUIT del país, revisalo vos. Si solo faltan nombres, la vista previa y `--json` muestran los códigos; el PDF sale sin el nombre de la moneda y del tipo de entidad del país, y con el código de la unidad. Si de la tabla sale algo que se emite, o si la conexión falla dos veces, corta.
+- **Solución:** probá de nuevo en unos minutos. Si tenés que emitir igual, pasá `--cuit-pais`, `--incoterms-desc` y las unidades por código.
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e)
 
 ### Factura E: ARCA no reconoce el permiso de embarque

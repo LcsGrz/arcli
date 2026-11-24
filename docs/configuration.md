@@ -171,6 +171,8 @@ Reglas:
 
 Las claves aparecen en la sección **Certificados** de `arcli config`, se validan como PEM al guardarlas y `arcli config revisar` avisa si el par quedó incompleto o si el certificado de exportación está por vencer.
 
+El par propio también entra en el aviso de vencimiento de los comandos y del asistente, como "El certificado de exportación de testing vence…". Con él, los comandos de la `E` no avisan por el general de ese entorno. Para renovarlo, sacá uno nuevo en ARCA, autorizalo a `wsfex` y cargalo con `config establecer exportacion.cert.<entorno>` (y `exportacion.key.<entorno>` si cambió la clave): `arcli certificado` renueva el general.
+
 Cómo autorizar el servicio: [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web).
 
 La actividad que informa la `E` se guarda una vez con `arcli config establecer exportacion.actividad <codigo>` (sección **Factura de exportación (E)** de `arcli config`); `--actividad` la pisa. Tiene que ser un código de la tabla de actividades de WSFEX, que no es la del padrón: por ejemplo, `620100` para servicios de consultores en informática.

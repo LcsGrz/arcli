@@ -289,6 +289,17 @@ describe('config revisar: huecos de Stryker (TEST-21)', () => {
     expect(find(buildConfigDoctorReport(base, new Date()), 'Credenciales WSFEX')).toEqual([]);
   }, 10_000);
 
+  it('el certificado de exportación por vencer no manda a renovar el general (ARQ-22)', () => {
+    const report = buildConfigDoctorReport(
+      { ...base, exportacion: { cert: { testing: createCertificateFile(10) }, key: { testing: '/e.key' } } },
+      new Date(),
+    );
+    const [check] = find(report, 'Vencimiento cert. exportación testing');
+
+    expect(check.detail).toContain('`arcli config establecer exportacion.cert.testing <ruta>`');
+    expect(check.detail).not.toContain('arcli certificado');
+  }, 10_000);
+
   it('con los datos del emisor completos el PDF está ok, aunque pdf no sea siempre', () => {
     const report = buildConfigDoctorReport(
       {

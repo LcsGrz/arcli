@@ -1099,7 +1099,8 @@ describe('runExportFlow: la cotización después de la moneda (NAV-9)', () => {
     expect(gateway.authorize).toHaveBeenCalledWith(
       expect.objectContaining({ CanMisMonExt: 'N', Moneda_ctz: 1174.6, Moneda_Id: 'DOL' }),
     );
-    expect(printed()).not.toContain('--cm');
+    expect(printed()).toContain('Sin `--cm` se usa la cotización oficial de ARCA');
+    expect(printed()).not.toMatch(/arcli fe .*--cm/);
   });
 
   it('editada, el comando la lleva con --cm y la solicitud también', async () => {
