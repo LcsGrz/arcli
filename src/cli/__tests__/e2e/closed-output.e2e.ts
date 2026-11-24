@@ -156,7 +156,10 @@ function fakeArca({ failsAt = 0, result = 'A' }: { failsAt?: number; result?: 'A
      ArcaBillingGateway.prototype.createVoucher = async () => {
        await setTimeout(50);
        number += 1;
-       if (number === ${failsAt}) throw new Error('ARCA no respondió');
+       if (number === ${failsAt}) {
+         appendFileSync(${JSON.stringify(file('enviado.txt'))}, number + '\\n');
+         throw new Error('ARCA no respondió');
+       }
        appendFileSync(${JSON.stringify(file('emitidos.txt'))}, number + '\\n');
        return {
          cae: ${JSON.stringify(result === 'A' ? '75123456789012' : '')},
@@ -286,9 +289,9 @@ function driveAssistant(answers: ReadonlyArray<readonly [question: string, keys:
        }
        return write(chunk, ...rest);
      };
-     // Como una terminal: mientras se lee, el proceso sigue. Preguntando sin que nadie conteste, sale con 71.
+     // Como una terminal: mientras se lee, el proceso sigue. Una pregunta que nadie contesta en 10 s sale con 71.
      const waiting = setTimeout(() => process.exit(71), 10000).unref();
-     stdin.on('resume', () => waiting.ref()).on('pause', () => waiting.unref());`,
+     stdin.on('resume', () => waiting.refresh().ref()).on('pause', () => waiting.unref());`,
   );
 }
 
@@ -924,7 +927,8 @@ describe('el asistente', () => {
         [],
         ['interactivo'],
         [
-          failOutput(['stderr'], { delayMs }),
+          // Es el primer error de stderr: nadie supo antes que estaba rota.
+          failOutput(['stderr'], { delayMs, when: "seen.includes('No se pudo confirmar')" }),
           driveAssistant([...ASSISTANT_INVOICE, ['¿Qué querés hacer?', '\x1b']]),
           fakeArca({ failsAt: 42 }),
         ],
@@ -936,6 +940,94 @@ describe('el asistente', () => {
       expect(stdout.indexOf('No se pudo confirmar')).toBeLessThan(stdout.lastIndexOf('¿Qué querés hacer?'));
     },
   );
+});
+
+describe('el asistente con `json=true` en la config: no tiene salida JSON', () => {
+  function configureJson(): void {
+    configure();
+    writeFileSync(file('config.json'), JSON.stringify({ ...readConfig(), output: { jsonPorDefecto: true } }));
+  }
+
+  it('con stderr roto, el aviso va en texto por stdout', async () => {
+    configureJson();
+
+    const result = await runClosing(
+      [],
+      ['interactivo'],
+      [
+        failOutput(['stderr'], { when: "seen.includes('No se pudo confirmar')" }),
+        driveAssistant([...ASSISTANT_INVOICE, ['¿Qué querés hacer?', '\x1b']]),
+        fakeArca({ failsAt: 42 }),
+      ],
+    );
+
+    expect(result.code).toBe(1);
+    expect(plain(result.stdout)).toContain('No se pudo confirmar la emisión');
+    expect(plain(result.stdout)).toContain('No se pudieron escribir todos los avisos y errores: no queda espacio');
+  });
+
+  it('con stdout roto y una emisión sin confirmar, el error y el aviso van en texto por stderr', async () => {
+    configureJson();
+
+    const result = await runClosing(
+      [],
+      ['interactivo'],
+      [
+        failOutput(['stdout'], { when: `existsSync(${JSON.stringify(file('enviado.txt'))})` }),
+        driveAssistant(ASSISTANT_INVOICE),
+        fakeArca({ failsAt: 42 }),
+      ],
+    );
+
+    expect(result.code).toBe(1);
+    expect(plain(result.stderr)).toContain('No se pudo confirmar la emisión');
+    expect(plain(result.stderr)).toContain('No se pudo escribir toda la salida: no queda espacio en el disco.');
+    expect(result.stderr).not.toContain('"codigo"');
+  });
+
+  it('con --json explícito, el aviso va en JSON, como los errores de hoy', async () => {
+    configure();
+
+    const result = await runClosing(
+      [],
+      ['interactivo', '--json'],
+      [failOutput(['stdout']), driveAssistant(ASSISTANT_INVOICE), fakeArca()],
+    );
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('"codigo": "OUTPUT_WRITE_ERROR"');
+  });
+
+  it('sin terminal no se abre: ese error sigue en JSON', async () => {
+    configureJson();
+
+    const result = await runClosing([], ['interactivo']);
+
+    expect(JSON.parse(result.stderr)).toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR' });
+  });
+});
+
+describe('el asistente con el PDF elegido, si stdout se rompe después de emitir', () => {
+  it('no lo genera sin preguntar los datos y el aviso lo dice', async () => {
+    configure({ pdf: 'siempre' });
+    fakePdfPlugin();
+
+    const result = await runClosing(
+      [],
+      ['interactivo'],
+      [
+        failOutput(['stdout'], { when: `existsSync(${JSON.stringify(file('emitidos.txt'))})` }),
+        driveAssistant(ASSISTANT_INVOICE),
+        fakeArca(),
+      ],
+    );
+
+    expect(emitted()).toEqual(['42']);
+    expect(pdfs()).toEqual([]);
+    expect(result.code).toBe(1);
+    expect(plain(result.stderr)).toContain('Se emitió: fc del punto de venta 3, 42.');
+    expect(plain(result.stderr)).toContain('No se generó el PDF: fc del punto de venta 3, 42.');
+  });
 });
 
 // Cada preload se traga el error, como podria hacer el CLI: el intento igual tiene que hacer fallar el test.
