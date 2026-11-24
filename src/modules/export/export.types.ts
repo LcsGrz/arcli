@@ -379,6 +379,12 @@ export interface ExportGateway {
   getUnits(): Promise<readonly ExportUnit[]>;
 }
 
+/** Las lecturas de WSFEX: lo que consulta la vista previa, sin la llamada que emite. */
+export type ExportPreviewGateway = Omit<ExportGateway, 'authorize'>;
+
+/** La llamada que emite. */
+export type ExportEmissionGateway = Pick<ExportGateway, 'authorize'>;
+
 export interface ExportItemInput {
   readonly code?: string;
   readonly description: string;

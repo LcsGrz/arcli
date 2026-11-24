@@ -56,9 +56,10 @@ import {
   EXPORT_VOUCHER_KIND,
   type ExportAssociatedVoucherPayload,
   type ExportDisplayInfo,
+  type ExportEmissionGateway,
   type ExportExecutionResult,
-  type ExportGateway,
   type ExportIssuedVoucher,
+  type ExportPreviewGateway,
   type ExportQuotation,
   type ExportResponseSummary,
   type ExportType,
@@ -183,7 +184,7 @@ interface ResolvedAssociatedVoucher {
 /** Consulta en ARCA el comprobante que ajusta la nota. Es una lectura: no emite nada. */
 async function fetchAssociated(
   input: ExportVoucherInput,
-  gateway: ExportGateway,
+  gateway: ExportPreviewGateway,
   runtime: ExportRuntime,
   kind: ExportVoucherKind,
 ): Promise<ResolvedAssociatedVoucher> {
@@ -269,7 +270,7 @@ export class ExportService {
    */
   public async resolve(
     rawInput: ExportVoucherInput,
-    gateway: ExportGateway,
+    gateway: ExportPreviewGateway,
     runtime: ExportRuntime,
   ): Promise<ResolvedExportVoucher> {
     const now = this.clock.now();
@@ -503,7 +504,7 @@ export class ExportService {
 
   /** La llamada que emite. Un error aca puede haber dejado el comprobante autorizado en ARCA. */
   public async execute(options: {
-    readonly gateway: ExportGateway;
+    readonly gateway: ExportEmissionGateway;
     readonly resolved: ResolvedExportVoucher;
     readonly runtime: ExportRuntime;
     readonly warnings?: readonly string[];
