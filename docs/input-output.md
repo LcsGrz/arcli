@@ -861,6 +861,8 @@ Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `k
 
 Si en el archivo hay otras claves inválidas, `config establecer` y `config eliminar` guardan igual el cambio pedido, sin tocar el resto, y salen con exit code `0`. El JSON no trae las claves rotas y suma `avisos` (`string[]`), con un texto por cada una que queda y cómo arreglarla; sin `--json`, el aviso sale en stderr. Si la rota es `json`, manda el flag. Un valor inválido, o un cambio que produce un problema nuevo, se rechaza y no se guarda nada. Los demás comandos siguen frenando hasta que no quede ninguna.
 
+`config establecer cbu` con otro CBU que el guardado borra `aliasCbu` en el mismo cambio y lo dice en `avisos`; sin CBU guardado, el alias queda y `avisos` dice que se va a usar con ese CBU. Sin `--json`, el aviso sale en stderr. Con el mismo CBU, o sin alias, no hay `avisos`.
+
 `arcli config revisar --json`:
 
 ```json

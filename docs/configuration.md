@@ -78,7 +78,7 @@ Solo si emitís Factura de Crédito Electrónica.
 | Clave          | Tipo    | Valor por defecto | Descripción                                                                                                                          |
 | -------------- | ------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `cbu`          | string  | ninguno           | CBU del emisor (solo facturas FCE). Se validan los 22 dígitos y sus [dos verificadores](validation-rules.md#crédito-electrónico-fce) |
-| `aliasCbu`     | string  | ninguno           | Alias del CBU (solo facturas FCE). Se informa solo si el CBU del comprobante es el de `cbu`                                          |
+| `aliasCbu`     | string  | ninguno           | Alias del CBU (solo facturas FCE). Se informa solo si el CBU del comprobante es el de `cbu`, y se borra al guardar otro `cbu`        |
 | `verificarFce` | boolean | `false`           | Consultar el régimen FCE del receptor al facturar                                                                                    |
 
 ### Exportación
