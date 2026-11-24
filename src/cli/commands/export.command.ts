@@ -1,7 +1,8 @@
 import type { Command } from 'commander';
 
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
-import { formatExportResultAsJson, formatExportResultAsText } from '../../modules/export/export.presenter';
+import { formatExportResultAsText } from '../../modules/export/export.presenter';
+import { serializeExportResult } from '../../modules/export/export.serialize';
 import { ExportService } from '../../modules/export/export.service';
 import {
   EXPORT_VOUCHER_KIND,
@@ -35,7 +36,7 @@ function writeExportResult(
   },
 ): void {
   if (options.outputJson) {
-    writeTerminalJson(formatExportResultAsJson(result, { raw: options.raw }));
+    writeTerminalJson(serializeExportResult(result, { raw: options.raw }));
 
     return;
   }

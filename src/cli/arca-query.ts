@@ -45,7 +45,7 @@ export function withQuerySpinner<T>(
 /** Imprime el resultado en JSON o en texto; solo se arma el formato que se imprime. */
 export function writeQueryOutput(
   runtime: Pick<CliArcaRuntime, 'outputJson'>,
-  output: { readonly json: () => string; readonly text: () => string },
+  output: { readonly json: () => unknown; readonly text: () => string },
 ): void {
   if (runtime.outputJson) {
     writeTerminalJson(output.json());

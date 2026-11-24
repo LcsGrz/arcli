@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { stripAnsi } from '../../../ui/primitives';
 import { deriveIvaCondition, PADRON_TAX_IDS, parseArcaPeriod, parseMonotributoCategoryLetter } from '../padron';
-import { formatPadronAsJson, formatPadronAsText } from '../padron.presenter';
+import { formatPadronAsText, serializePadron } from '../padron.presenter';
 
 const tax = (id: number, active = true) => ({ active, description: String(id), id });
 
@@ -83,7 +83,7 @@ describe('padron presenter', () => {
   };
 
   it('el JSON usa claves en castellano y la condicion IVA del CLI', () => {
-    expect(JSON.parse(formatPadronAsJson({ environment: 'testing', taxpayer }))).toMatchObject({
+    expect(serializePadron({ environment: 'testing', taxpayer })).toMatchObject({
       actividades: [
         { descripcion: 'ALQUILER', id: 439100 },
         { descripcion: 'INMOBILIARIA', id: 681098 },
@@ -147,7 +147,7 @@ describe('padron presenter', () => {
     };
 
     it('en el JSON suma la letra y el periodo sin tocar categoriaMonotributo', () => {
-      expect(JSON.parse(formatPadronAsJson({ environment: 'testing', taxpayer: monotributista }))).toMatchObject({
+      expect(serializePadron({ environment: 'testing', taxpayer: monotributista })).toMatchObject({
         categoriaMonotributo: 'E VENTAS DE COSAS MUEBLES',
         categoriaMonotributoDesde: '201309',
         categoriaMonotributoLetra: 'E',
@@ -162,7 +162,7 @@ describe('padron presenter', () => {
     });
 
     it('si no es monotributista, los campos van en null y no hay filas de categoria', () => {
-      expect(JSON.parse(formatPadronAsJson({ environment: 'testing', taxpayer }))).toMatchObject({
+      expect(serializePadron({ environment: 'testing', taxpayer })).toMatchObject({
         categoriaMonotributo: null,
         categoriaMonotributoDesde: null,
         categoriaMonotributoLetra: null,

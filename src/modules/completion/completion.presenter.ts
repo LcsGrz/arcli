@@ -41,15 +41,11 @@ export function formatCompletionResultAsText(result: CompletionInstallResult, ho
     : noticePanel(`Autocompletado desinstalado de ${where}.\nEn esta terminal sigue activo hasta cerrarla.`, 'success');
 }
 
-export function formatCompletionStateAsJson(state: CompletionInstallState | CompletionInstallResult): string {
-  return JSON.stringify(
-    {
-      ...('changed' in state ? { cambio: state.changed } : {}),
-      instalado: state.installed,
-      ruta: state.path,
-      shell: state.shell,
-    },
-    null,
-    2,
-  );
+export function serializeCompletionState(state: CompletionInstallState | CompletionInstallResult) {
+  return {
+    ...('changed' in state ? { cambio: state.changed } : {}),
+    instalado: state.installed,
+    ruta: state.path,
+    shell: state.shell,
+  };
 }

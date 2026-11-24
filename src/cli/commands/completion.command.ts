@@ -12,8 +12,8 @@ import {
 import { completeWords, type CompletionCommand, type CompletionValues } from '../../modules/completion/completion';
 import {
   formatCompletionResultAsText,
-  formatCompletionStateAsJson,
   formatCompletionStateAsText,
+  serializeCompletionState,
 } from '../../modules/completion/completion.presenter';
 import {
   type CompletionEnvironment,
@@ -151,7 +151,7 @@ export function registerCompletionCommands(program: Command): void {
     const state = getCompletionState(resolveShell(undefined, environment), environment);
 
     if (isJson(self)) {
-      writeTerminalJson(formatCompletionStateAsJson(state));
+      writeTerminalJson(serializeCompletionState(state));
     } else {
       writeTerminalOutput(formatCompletionStateAsText(state, environment.home));
     }
@@ -174,7 +174,7 @@ export function registerCompletionCommands(program: Command): void {
       const result = run(resolveShell(shell, environment), environment);
 
       if (isJson(self)) {
-        writeTerminalJson(formatCompletionStateAsJson(result));
+        writeTerminalJson(serializeCompletionState(result));
       } else {
         writeTerminalOutput(formatCompletionResultAsText(result, environment.home));
       }

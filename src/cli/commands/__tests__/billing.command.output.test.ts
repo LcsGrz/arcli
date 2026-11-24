@@ -79,8 +79,8 @@ describe('writeBillingCommandResults', () => {
 
     const [jsonPayload] = vi.mocked(writeTerminalJson).mock.calls[0]!;
 
-    expect(JSON.parse(jsonPayload)).toMatchObject({ cae: '12345678901234' });
-    expect(JSON.parse(jsonPayload)).not.toBeInstanceOf(Array);
+    expect(jsonPayload).toMatchObject({ cae: '12345678901234' });
+    expect(jsonPayload).not.toBeInstanceOf(Array);
   });
 
   it('writes a json array when there is more than one result', () => {
@@ -92,8 +92,8 @@ describe('writeBillingCommandResults', () => {
 
     const [jsonPayload] = vi.mocked(writeTerminalJson).mock.calls[0]!;
 
-    expect(JSON.parse(jsonPayload)).toBeInstanceOf(Array);
-    expect(JSON.parse(jsonPayload)).toHaveLength(2);
+    expect(jsonPayload).toBeInstanceOf(Array);
+    expect(jsonPayload).toHaveLength(2);
   });
 
   it('writes a json array for a one-item batch', () => {
@@ -106,9 +106,9 @@ describe('writeBillingCommandResults', () => {
 
     const [jsonPayload] = vi.mocked(writeTerminalJson).mock.calls[0]!;
 
-    expect(JSON.parse(jsonPayload)).toBeInstanceOf(Array);
-    expect(JSON.parse(jsonPayload)).toHaveLength(1);
-    expect(JSON.parse(jsonPayload)[0]).toMatchObject({ indice: 1 });
+    expect(jsonPayload).toBeInstanceOf(Array);
+    expect(jsonPayload).toHaveLength(1);
+    expect((jsonPayload as unknown[])[0]).toMatchObject({ indice: 1 });
   });
 
   it('writes plain text output instead of json when outputJson is false', () => {

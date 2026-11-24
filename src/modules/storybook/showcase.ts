@@ -18,6 +18,7 @@ import {
   badge,
   colorize,
   highlightJsonValues,
+  renderJson,
   renderKeyValueRows,
   renderLogo,
   renderObject,
@@ -28,7 +29,8 @@ import {
   type UiTextColor,
 } from '../../ui/primitives';
 import type { UiBorderType } from '../../ui/theme';
-import { formatBillingResultAsJson, formatBillingResultAsText } from '../billing/billing.presenter';
+import { formatBillingResultAsText } from '../billing/billing.presenter';
+import { serializeBillingResult } from '../billing/billing.serialize';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';
 import {
@@ -37,10 +39,10 @@ import {
   formatImportedCertificateAsText,
 } from '../certificates/certificate.presenter';
 import {
-  formatConfig,
   formatConfigAsText,
-  formatConfigDoctor,
   formatConfigDoctorAsText,
+  serializeConfig,
+  serializeConfigDoctor,
 } from '../config/config.presenter';
 import type { ArcliConfig } from '../config/config.schemas';
 import { buildConfigDoctorReport } from '../config/config-doctor';
@@ -568,15 +570,19 @@ function buildErrorScene(): string {
 }
 
 function buildJsonScene(): string {
-  const billingJson = highlightJsonValues(formatBillingResultAsJson(createBillingResult(), { raw: true }));
+  const billingJson = highlightJsonValues(renderJson(serializeBillingResult(createBillingResult(), { raw: true })));
   const configJson = highlightJsonValues(
-    formatConfig(createSampleConfig(), {
-      pdfFolder: '~/arcli/comprobantes',
-      ticketPath: '/Users/demo/.arcli/tickets',
-    }),
+    renderJson(
+      serializeConfig(createSampleConfig(), {
+        pdfFolder: '~/arcli/comprobantes',
+        ticketPath: '/Users/demo/.arcli/tickets',
+      }),
+    ),
   );
   const doctorJson = highlightJsonValues(
-    formatConfigDoctor(buildConfigDoctorReport(createSampleConfig(), SAMPLE_NOW, [{ environment: 'testing' }])),
+    renderJson(
+      serializeConfigDoctor(buildConfigDoctorReport(createSampleConfig(), SAMPLE_NOW, [{ environment: 'testing' }])),
+    ),
   );
 
   return [

@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { stripAnsi, visibleWidth } from '../../../ui/primitives';
 import { BUNDLED_MONOTRIBUTO_TABLE } from '../monotributo.bundled';
 import {
-  formatMonotributoAsJson,
   formatMonotributoBlockAsText,
   formatMonotributoBlockPosition,
   formatMonotributoCategoryAsText,
@@ -11,6 +10,7 @@ import {
   formatMonotributoNotices,
   formatMonotributoSummaryAsText,
   type MonotributoReport,
+  serializeMonotributo,
 } from '../monotributo.presenter';
 
 function report(partial: Partial<MonotributoReport> = {}): MonotributoReport {
@@ -32,9 +32,9 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe('formatMonotributoAsJson', () => {
+describe('serializeMonotributo', () => {
   it('trae la tabla entera con los nombres del contrato', () => {
-    const json = JSON.parse(formatMonotributoAsJson(report({ notices: ['un aviso'] })));
+    const json = serializeMonotributo(report({ notices: ['un aviso'] }));
 
     expect(Object.keys(json)).toEqual([
       'vigenteDesde',
@@ -69,15 +69,13 @@ describe('formatMonotributoAsJson', () => {
   });
 
   it('con --categoria trae solo esa', () => {
-    const json = JSON.parse(formatMonotributoAsJson(report(), 'K'));
+    const json = serializeMonotributo(report(), 'K');
 
     expect(json.categorias.map((category: { categoria: string }) => category.categoria)).toEqual(['K']);
   });
 
   it('la incluida sale sin fecha de consulta y sin categoría propia', () => {
-    const json = JSON.parse(
-      formatMonotributoAsJson(report({ consultedOn: null, ownCategory: null, source: 'incluida' })),
-    );
+    const json = serializeMonotributo(report({ consultedOn: null, ownCategory: null, source: 'incluida' }));
 
     expect(json).toMatchObject({ consultadaEl: null, fuente: 'incluida', tuCategoria: null });
   });

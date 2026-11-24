@@ -133,11 +133,11 @@ function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): Publi
   };
 }
 
-export function formatConfig(config: ArcliConfig, paths: ConfigPathSnapshot, pending?: PendingConfigProblems): string {
+export function serializeConfig(config: ArcliConfig, paths: ConfigPathSnapshot, pending?: PendingConfigProblems) {
   const snapshot = toPublicSnapshot(config, paths);
 
   if (!pending) {
-    return JSON.stringify(snapshot, null, 2);
+    return snapshot;
   }
 
   const visible = structuredClone(snapshot) as unknown as Record<string, unknown>;
@@ -151,7 +151,7 @@ export function formatConfig(config: ArcliConfig, paths: ConfigPathSnapshot, pen
     delete visible.deprecado;
   }
 
-  return JSON.stringify({ ...visible, avisos: pending.warnings }, null, 2);
+  return { ...visible, avisos: pending.warnings };
 }
 
 /** Lo que sigue mal despues de `config establecer` o `config eliminar`, para stderr. */
@@ -174,8 +174,8 @@ function isPending(key: ConfigPublicKey, config: ArcliConfig, pending: PendingCo
 }
 
 /** `{ "ruta": "..." }`, como `ruta` en el JSON de `pdf desinstalar`. */
-export function formatConfigPathAsJson(configPath: string): string {
-  return JSON.stringify({ ruta: configPath }, null, 2);
+export function serializeConfigPath(configPath: string) {
+  return { ruta: configPath };
 }
 
 const ROWS_PER_LIST_JSON_DEPRECATION =
@@ -304,19 +304,15 @@ export function formatConfigAsText(
   return sheetPanel('Configuración', lines);
 }
 
-export function formatConfigDoctor(report: ConfigDoctorReport): string {
-  return JSON.stringify(
-    {
-      chequeos: report.checks.map((check) => ({
-        categoria: check.category,
-        detalle: check.detail,
-        etiqueta: check.label,
-      })),
-      ok: report.ok,
-    },
-    null,
-    2,
-  );
+export function serializeConfigDoctor(report: ConfigDoctorReport) {
+  return {
+    chequeos: report.checks.map((check) => ({
+      categoria: check.category,
+      detalle: check.detail,
+      etiqueta: check.label,
+    })),
+    ok: report.ok,
+  };
 }
 
 function doctorIcon(category: ConfigDoctorReport['checks'][number]['category']): string {

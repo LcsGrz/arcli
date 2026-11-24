@@ -5,11 +5,11 @@ import { VOUCHER_KIND_MAP } from '../../billing/voucher-kind-map';
 import type { IssuedVoucher } from '../voucher-history';
 import {
   formatReceiver,
-  formatVoucherDetailAsJson,
   formatVoucherDetailAsText,
-  formatVoucherListAsJson,
   formatVoucherListAsText,
   formatVoucherPickerRows,
+  serializeVoucherDetail,
+  serializeVoucherList,
 } from '../voucher-history.presenter';
 
 const voucher: IssuedVoucher = {
@@ -97,7 +97,7 @@ describe('voucher-history.presenter', () => {
   });
 
   it('serializa la lista en JSON', () => {
-    const json = JSON.parse(formatVoucherListAsJson({ ...base, vouchers: [voucher] }));
+    const json = serializeVoucherList({ ...base, vouchers: [voucher] });
 
     expect(json).toMatchObject({
       atajo: 'fb',
@@ -164,7 +164,7 @@ describe('voucher-history.presenter', () => {
   });
 
   it('serializa el detalle en JSON', () => {
-    expect(JSON.parse(formatVoucherDetailAsJson({ ...base, voucher }))).toMatchObject({
+    expect(serializeVoucherDetail({ ...base, voucher })).toMatchObject({
       atajo: 'fb',
       caeVencimiento: '20261011',
       numero: 12,
@@ -199,7 +199,7 @@ describe('voucher-history.presenter', () => {
     const ncea = { ...base, voucherKind: VOUCHER_KIND_MAP.ncea };
 
     it('los suma al JSON como campos nuevos, sin tocar los que ya estaban', () => {
-      const json = JSON.parse(formatVoucherDetailAsJson({ ...ncea, voucher: note }));
+      const json = serializeVoucherDetail({ ...ncea, voucher: note });
 
       expect(json).toMatchObject({
         alicuotasIva: [
@@ -226,7 +226,7 @@ describe('voucher-history.presenter', () => {
     });
 
     it('sin datos, las listas salen vacias y el resto en null', () => {
-      expect(JSON.parse(formatVoucherDetailAsJson({ ...base, voucher }))).toMatchObject({
+      expect(serializeVoucherDetail({ ...base, voucher })).toMatchObject({
         alicuotasIva: [],
         comprobantesAsociados: [],
         condicionIvaReceptor: null,
@@ -239,7 +239,7 @@ describe('voucher-history.presenter', () => {
         tributos: [],
         vencimientoPago: null,
       });
-      expect(JSON.parse(formatVoucherListAsJson({ ...base, vouchers: [note] })).comprobantes[0]).toMatchObject({
+      expect(serializeVoucherList({ ...base, vouchers: [note] }).comprobantes[0]).toMatchObject({
         comprobantesAsociados: [{ numero: 7 }],
         vencimientoPago: '20261015',
       });

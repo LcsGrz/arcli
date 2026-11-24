@@ -54,29 +54,25 @@ function monotributoRows(taxpayer: Taxpayer): Row[] {
   ];
 }
 
-export function formatPadronAsJson(report: PadronReport): string {
+export function serializePadron(report: PadronReport) {
   const { taxpayer } = report;
 
-  return JSON.stringify(
-    {
-      actividades: taxpayer.activities.map((activity) => ({ descripcion: activity.description, id: activity.id })),
-      avisos: taxpayer.notices,
-      deprecado: [DEPRECATED_CUIT_NUMBER],
-      categoriaMonotributo: taxpayer.monotributoCategory,
-      categoriaMonotributoLetra: taxpayer.monotributoCategoryLetter,
-      categoriaMonotributoDesde: taxpayer.monotributoCategorySince,
-      condicionIva: taxpayer.ivaCondition,
-      cuit: taxpayer.cuit,
-      domicilio: taxpayer.address,
-      entorno: report.environment,
-      estadoClave: taxpayer.keyStatus,
-      impuestos: taxpayer.taxes.map((tax) => ({ activo: tax.active, descripcion: tax.description, id: tax.id })),
-      nombre: taxpayer.name,
-      tipoPersona: taxpayer.personType,
-    },
-    null,
-    2,
-  );
+  return {
+    actividades: taxpayer.activities.map((activity) => ({ descripcion: activity.description, id: activity.id })),
+    avisos: taxpayer.notices,
+    deprecado: [DEPRECATED_CUIT_NUMBER],
+    categoriaMonotributo: taxpayer.monotributoCategory,
+    categoriaMonotributoLetra: taxpayer.monotributoCategoryLetter,
+    categoriaMonotributoDesde: taxpayer.monotributoCategorySince,
+    condicionIva: taxpayer.ivaCondition,
+    cuit: taxpayer.cuit,
+    domicilio: taxpayer.address,
+    entorno: report.environment,
+    estadoClave: taxpayer.keyStatus,
+    impuestos: taxpayer.taxes.map((tax) => ({ activo: tax.active, descripcion: tax.description, id: tax.id })),
+    nombre: taxpayer.name,
+    tipoPersona: taxpayer.personType,
+  };
 }
 
 export function formatPadronAsText(report: PadronReport): string {

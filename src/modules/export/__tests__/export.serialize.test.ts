@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
+import { renderJson } from '../../../ui/primitives';
 import { mapExportResponse } from '../export.response';
-import { formatExportResultAsJson, serializeExportResult } from '../export.serialize';
+import { serializeExportResult } from '../export.serialize';
 import {
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
@@ -233,8 +234,8 @@ describe('serializeExportResult', () => {
     });
   });
 
-  it('formatExportResultAsJson devuelve JSON con dos espacios', () => {
-    const text = formatExportResultAsJson(result());
+  it('el comando lo escribe como JSON con dos espacios', () => {
+    const text = renderJson(serializeExportResult(result()));
 
     expect(text).toBe(JSON.stringify(serializeExportResult(result()), null, 2));
   });

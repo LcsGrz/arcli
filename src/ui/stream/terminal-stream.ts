@@ -53,8 +53,8 @@ export function writeTerminalOutput(content: string): void {
   process.stdout.write(formatTerminalOutput(content, { target: 'stdout' }));
 }
 
-export function writeTerminalJson(content: string): void {
-  process.stdout.write(formatTerminalOutput(content, { json: true, target: 'stdout' }));
+export function writeTerminalJson(value: unknown): void {
+  process.stdout.write(formatTerminalOutput(renderJson(value), { json: true, target: 'stdout' }));
 }
 
 /**

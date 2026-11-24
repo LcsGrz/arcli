@@ -2,8 +2,8 @@ import type { Command } from 'commander';
 
 import { ConfigService } from '../../modules/config/config.service';
 import {
-  formatDesktopShortcutAsJson,
   formatDesktopShortcutAsText,
+  serializeDesktopShortcut,
 } from '../../modules/desktop-shortcut/desktop-shortcut.presenter';
 import { createDesktopShortcut, currentDesktopShortcutEnvironment } from '../../modules/desktop-shortcut/installer';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
@@ -31,7 +31,7 @@ export function registerDesktopShortcutCommand(program: Command): void {
     const result = createDesktopShortcut(folder, currentDesktopShortcutEnvironment(configPath));
 
     if (json) {
-      writeTerminalJson(formatDesktopShortcutAsJson(result));
+      writeTerminalJson(serializeDesktopShortcut(result));
     } else {
       writeTerminalOutput(formatDesktopShortcutAsText(result));
     }

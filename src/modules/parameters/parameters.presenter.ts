@@ -31,17 +31,13 @@ export function formatParameterTablesAsText(): string {
   );
 }
 
-export function formatParameterTablesAsJson(): string {
-  return JSON.stringify(
-    {
-      tablas: [
-        ...PARAMETER_TABLE_NAMES.map((name) => ({ descripcion: PARAMETER_TABLES[name], tabla: name })),
-        { descripcion: 'Cotización oficial de ARCA', tabla: 'cotizacion' },
-      ],
-    },
-    null,
-    2,
-  );
+export function serializeParameterTables() {
+  return {
+    tablas: [
+      ...PARAMETER_TABLE_NAMES.map((name) => ({ descripcion: PARAMETER_TABLES[name], tabla: name })),
+      { descripcion: 'Cotización oficial de ARCA', tabla: 'cotizacion' },
+    ],
+  };
 }
 
 export function formatParameterEntriesAsText(
@@ -116,25 +112,21 @@ export function formatParameterRows(
       );
 }
 
-export function formatParameterEntriesAsJson(
+export function serializeParameterEntries(
   table: ParameterTable,
   entries: readonly ParameterEntry[],
   environment: Environment,
-): string {
-  return JSON.stringify(
-    {
-      entorno: environment,
-      tabla: table,
-      valores: entries.map((entry) => ({
-        descripcion: entry.description,
-        detalle: entry.detail ?? null,
-        id: entry.id,
-        vigenteHasta: entry.validTo ?? null,
-      })),
-    },
-    null,
-    2,
-  );
+) {
+  return {
+    entorno: environment,
+    tabla: table,
+    valores: entries.map((entry) => ({
+      descripcion: entry.description,
+      detalle: entry.detail ?? null,
+      id: entry.id,
+      vigenteHasta: entry.validTo ?? null,
+    })),
+  };
 }
 
 /**
@@ -159,12 +151,13 @@ export function formatQuotationAsText(
   );
 }
 
-export function formatQuotationAsJson(quotation: Quotation, environment: Environment): string {
-  return JSON.stringify(
-    { cotizacion: quotation.rate, entorno: environment, fecha: quotation.date ?? null, moneda: quotation.currency },
-    null,
-    2,
-  );
+export function serializeQuotation(quotation: Quotation, environment: Environment) {
+  return {
+    cotizacion: quotation.rate,
+    entorno: environment,
+    fecha: quotation.date ?? null,
+    moneda: quotation.currency,
+  };
 }
 
 function describePointOfSale(check: PointOfSaleCheck, number: number | undefined): string {
@@ -210,7 +203,7 @@ export function formatStatusAsText(report: StatusReport): string {
   );
 }
 
-export function formatStatusAsJson(report: StatusReport): string {
+export function serializeStatus(report: StatusReport) {
   const point = 'point' in report.pointOfSale ? report.pointOfSale.point : undefined;
   const pointOfSale = {
     estado: report.pointOfSale.kind,
@@ -218,21 +211,17 @@ export function formatStatusAsJson(report: StatusReport): string {
     tipoEmision: point?.emissionType ?? null,
   };
 
-  return JSON.stringify(
-    {
-      deprecado: [DEPRECATED_POINT_OF_SALE_OBJECT],
-      entorno: report.environment,
-      latenciaMs: report.latencyMs,
-      listo: report.ready,
-      puntoVenta: pointOfSale,
-      puntoVentaDetalle: pointOfSale,
-      servidores: {
-        aplicacion: report.servers.app,
-        autenticacion: report.servers.auth,
-        baseDeDatos: report.servers.db,
-      },
+  return {
+    deprecado: [DEPRECATED_POINT_OF_SALE_OBJECT],
+    entorno: report.environment,
+    latenciaMs: report.latencyMs,
+    listo: report.ready,
+    puntoVenta: pointOfSale,
+    puntoVentaDetalle: pointOfSale,
+    servidores: {
+      aplicacion: report.servers.app,
+      autenticacion: report.servers.auth,
+      baseDeDatos: report.servers.db,
     },
-    null,
-    2,
-  );
+  };
 }

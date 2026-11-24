@@ -1,24 +1,10 @@
 import { DEPRECATED_EXPORT_RESPONSE_KEYS } from '../../lib/json/deprecations';
+import { serializePdfOutcome } from '../pdf/pdf.serialize';
 
 import { type ExportExecutionResult, type ExportResponseError, getExportVoucherKindByArcaType } from './export.types';
 
-export interface ExportSerializeOptions {
+interface ExportSerializeOptions {
   readonly raw?: boolean;
-}
-
-// Aditivo: la clave `pdf` solo aparece si se intento generar el PDF.
-function formatPdfOutcome(result: ExportExecutionResult): Record<string, unknown> {
-  if (!result.pdf) {
-    return {};
-  }
-
-  if ('path' in result.pdf) {
-    return { pdf: { ruta: result.pdf.path } };
-  }
-
-  const { code, message, suggestion } = result.pdf.error;
-
-  return { pdf: { error: { codigo: code, mensaje: message, sugerencia: suggestion ?? null } } };
 }
 
 export function formatRawResponse(result: ExportExecutionResult): unknown {
@@ -82,7 +68,6 @@ function withSpanishKeys(item: ExportResponseError): Record<string, unknown> {
     : { ...item, codigo: item.code, mensaje: item.message };
 }
 
-/** @internal Exportado para los tests. */
 export function serializeExportResult(
   result: ExportExecutionResult,
   options: ExportSerializeOptions = {},
@@ -103,7 +88,7 @@ export function serializeExportResult(
     numero: result.payload.Cbte_nro,
     observaciones: result.response.observaciones,
     observacion: result.response.observacion,
-    ...formatPdfOutcome(result),
+    ...serializePdfOutcome(result.pdf),
     previsualizacion: result.dryRun,
     puntoVenta: result.payload.Punto_vta,
     resultado: result.response.resultado,
@@ -113,8 +98,4 @@ export function serializeExportResult(
   };
 
   return options.raw ? { ...summary, respuesta: formatRawResponse(result) } : summary;
-}
-
-export function formatExportResultAsJson(result: ExportExecutionResult, options: ExportSerializeOptions = {}): string {
-  return JSON.stringify(serializeExportResult(result, options), null, 2);
 }

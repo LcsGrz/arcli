@@ -11,6 +11,6 @@ export function formatDesktopShortcutAsText({ path, replaced, usesInstalledArcli
   return noticePanel(usesInstalledArcli ? `${created}\n${FROM_SOURCE_NOTE}` : created, 'success');
 }
 
-export function formatDesktopShortcutAsJson({ path, replaced, usesInstalledArcli }: DesktopShortcutResult): string {
-  return JSON.stringify({ reemplazado: replaced, ruta: path, usaArcliInstalado: usesInstalledArcli }, null, 2);
+export function serializeDesktopShortcut({ path, replaced, usesInstalledArcli }: DesktopShortcutResult) {
+  return { reemplazado: replaced, ruta: path, usaArcliInstalado: usesInstalledArcli };
 }

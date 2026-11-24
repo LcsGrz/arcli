@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { stripAnsi } from '../../../ui/primitives';
 import { listRecentExportVouchers } from '../export.history';
 import {
-  formatExportVoucherDetailAsJson,
   formatExportVoucherDetailAsText,
-  formatExportVoucherListAsJson,
   formatExportVoucherListAsText,
   formatExportVoucherPickerRows,
+  serializeExportVoucherDetail,
+  serializeExportVoucherList,
 } from '../export.history.presenter';
 import { EXPORT_CREDIT_NOTE_KIND, EXPORT_VOUCHER_KIND, type ExportIssuedVoucher } from '../export.types';
 
@@ -80,7 +80,7 @@ describe('salida de ultimos y consultar con la E', () => {
   });
 
   it('el JSON usa las claves de la E', () => {
-    expect(JSON.parse(formatExportVoucherDetailAsJson({ ...report, voucher: NOTE }))).toMatchObject({
+    expect(serializeExportVoucherDetail({ ...report, voucher: NOTE })).toMatchObject({
       atajo: 'nce',
       cae: '76453017205075',
       cliente: 'ACME LLC',
@@ -93,7 +93,7 @@ describe('salida de ultimos y consultar con la E', () => {
       tipoArca: 21,
       total: 500,
     });
-    expect(JSON.parse(formatExportVoucherListAsJson({ ...report, vouchers: [NOTE] })).comprobantes).toHaveLength(1);
+    expect(serializeExportVoucherList({ ...report, vouchers: [NOTE] }).comprobantes).toHaveLength(1);
   });
 });
 
@@ -147,7 +147,7 @@ describe('salida de la E con datos que faltan, en pesos o rechazada', () => {
     expect(stripAnsi(formatExportVoucherDetailAsText({ ...report, voucher }))).toMatch(
       /Comprobante asociado\s+Tipo 1 00002-00000007/,
     );
-    expect(JSON.parse(formatExportVoucherDetailAsJson({ ...report, voucher })).comprobanteAsociado).toEqual({
+    expect(serializeExportVoucherDetail({ ...report, voucher }).comprobanteAsociado).toEqual({
       atajo: null,
       numero: 7,
       puntoVenta: 2,
@@ -164,7 +164,7 @@ describe('salida de la E con datos que faltan, en pesos o rechazada', () => {
   });
 
   it('el JSON pone null en lo que falta, sin sacar claves', () => {
-    const json = JSON.parse(formatExportVoucherDetailAsJson({ ...report, voucher: BARE }));
+    const json = serializeExportVoucherDetail({ ...report, voucher: BARE });
 
     expect(json).toMatchObject({
       cae: null,
@@ -175,7 +175,7 @@ describe('salida de la E con datos que faltan, en pesos o rechazada', () => {
       idImpositivo: null,
       resultado: null,
     });
-    expect(JSON.parse(formatExportVoucherListAsJson({ ...report, vouchers: [] }))).toEqual({
+    expect(serializeExportVoucherList({ ...report, vouchers: [] })).toEqual({
       atajo: 'fe',
       comprobante: 'Factura de exportación E',
       comprobantes: [],

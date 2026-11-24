@@ -14,19 +14,15 @@ export interface FceObligationReport {
   readonly obligation: FceObligation;
 }
 
-export function formatFceObligationAsJson(report: FceObligationReport): string {
-  return JSON.stringify(
-    {
-      cuit: report.cuit,
-      deprecado: [DEPRECATED_CUIT_NUMBER],
-      entorno: report.environment,
-      fecha: report.issueDate,
-      montoDesde: report.obligation.minimumAmount,
-      obligado: report.obligation.obligated,
-    },
-    null,
-    2,
-  );
+export function serializeFceObligation(report: FceObligationReport) {
+  return {
+    cuit: report.cuit,
+    deprecado: [DEPRECATED_CUIT_NUMBER],
+    entorno: report.environment,
+    fecha: report.issueDate,
+    montoDesde: report.obligation.minimumAmount,
+    obligado: report.obligation.obligated,
+  };
 }
 
 export function formatFceObligationAsText(report: FceObligationReport): string {
