@@ -1082,6 +1082,184 @@ describe('el certificado sin autorizar, en las consultas (ERR-7)', () => {
   });
 });
 
+describe('un dato local inválido corta antes de ARCA (ERR-11)', () => {
+  // Tests primero: los `it.fails` pasan a `it` con el arreglo.
+  const BAD_CUIT = '20168598205';
+  const WITHOUT_POINT_OF_SALE: Setup = { config: { puntoVentaPorDefecto: undefined } };
+  const MISSING_POINT_OF_SALE = 'Falta el punto de venta.';
+  const invalidPointOfSale = 'El punto de venta tiene que ser un número entero positivo.';
+  const associated = (shortcut: string) => ['--ac', shortcut, '--apv', '3', '--ar', '12'];
+  const receiver = (cuit = BAD_CUIT) => ['-m', '1000', '--cs', '--cuit', cuit];
+  const FE_PREVIEW = [...FE, '--cuit-pais', '55000002126'];
+
+  /** Ninguna llamada al SDK: ni WSAA, ni el padron, ni las tablas. */
+  function expectNoArcaCalls(): void {
+    for (const [service, methods] of Object.entries(sdk)) {
+      for (const [name, method] of Object.entries(methods)) {
+        expect(method, `${service}.${name}`).not.toHaveBeenCalled();
+      }
+    }
+  }
+
+  /** La red caida: antes del arreglo, el error era este y no el del dato. */
+  function breakNetwork(): void {
+    for (const service of Object.values(sdk)) {
+      for (const method of Object.values(service)) {
+        method.mockRejectedValue(new Error('connect ETIMEDOUT'));
+      }
+    }
+  }
+
+  async function localError(args: readonly string[], setup: Setup = {}): Promise<Record<string, unknown>> {
+    breakNetwork();
+    prepareConfig(setup);
+
+    const result = await runCli([...args, '--json']);
+
+    expect(result).toMatchObject({ code: 1, stdout: '' });
+    expectNoArcaCalls();
+
+    return JSON.parse(result.stderr) as Record<string, unknown>;
+  }
+
+  it.fails.each<[string, string[]]>([
+    ['fa', ['fa', ...receiver()]],
+    ['fb', ['fb', ...receiver()]],
+    ['fc', ['fc', ...receiver()]],
+    ['fcea', ['fcea', ...receiver(), '--cbu', '0110599520000012345678']],
+    ['fceb', ['fceb', ...receiver(), '--cbu', '0110599520000012345678']],
+    ['ra', ['ra', ...receiver()]],
+    ['rb', ['rb', ...receiver()]],
+    ['rc', ['rc', ...receiver()]],
+    ['nca', ['nca', ...receiver(), ...associated('fa')]],
+    ['ndc', ['ndc', ...receiver(), ...associated('fc')]],
+    ['ncea', ['ncea', ...receiver(), ...associated('fcea')]],
+    ['factura b', ['factura', 'b', ...receiver()]],
+    ['fb en dólares, con el IVA receptor', ['fb', ...receiver(), '--ir-ri', '--mda', 'USD']],
+    ['fb en dólares, con CUIL', ['fb', '-m', '1000', '--cs', '--cuil', BAD_CUIT, '--ir-cf', '--mda', 'USD']],
+  ])('el CUIT del receptor: %s', async (_name, args) => {
+    expect(await localError(args)).toEqual({
+      codigo: 'INPUT_VALIDATION_ERROR',
+      detalles: null,
+      error: expect.stringMatching(/--cui[tl]` 20168598205 no es válido en .*dígito verificador/),
+      sugerencia: null,
+    });
+  });
+
+  it.fails('el CUIT del receptor, por --cargar', async () => {
+    const item = { concepto: 'servicios', montoTotal: 1000, numeroDocumento: Number(BAD_CUIT), tipoDocumento: 'cuit' };
+
+    expect(await localError(['fb', '--cargar', writeInput('fb.json', item)])).toMatchObject({
+      codigo: 'INPUT_VALIDATION_ERROR',
+      error: expect.stringContaining('20168598205 no es válido'),
+    });
+  });
+
+  it.fails.each<[string, string[]]>([
+    ['fb', ['fb', ...receiver(String(CLIENT_CUIT))]],
+    ['fc en dólares', [...FC, '--mda', 'USD']],
+    ['rc', ['rc', ...receiver(String(CLIENT_CUIT))]],
+    ['nca', ['nca', ...receiver(String(CLIENT_CUIT)), ...associated('fa')]],
+    ['fe', FE_PREVIEW],
+    ['nce sin asociado', ['nce', ...FE_PREVIEW.slice(1), '--tipo-expo', '4']],
+  ])('sin punto de venta: %s', async (_name, args) => {
+    expect(await localError(args, WITHOUT_POINT_OF_SALE)).toMatchObject({
+      codigo: 'INPUT_VALIDATION_ERROR',
+      detalles: null,
+      error: expect.stringContaining(MISSING_POINT_OF_SALE),
+      sugerencia: null,
+    });
+  });
+
+  it.fails.each<[string, string[], string]>([
+    ['fe --pv 0', [...FE_PREVIEW, '--pv', '0'], invalidPointOfSale],
+    ['fe --pv 99999', [...FE_PREVIEW, '--pv', '99999'], 'El punto de venta va de 1 a 99998'],
+    [
+      'nde sin asociado, --pv 0',
+      ['nde', ...FE_PREVIEW.slice(1), '--tipo-expo', '1', '--incoterm', 'FOB', '--pv', '0'],
+      invalidPointOfSale,
+    ],
+  ])('un punto de venta inválido: %s', async (_name, args, message) => {
+    expect(await localError(args)).toMatchObject({
+      codigo: 'INPUT_VALIDATION_ERROR',
+      error: expect.stringContaining(message),
+    });
+  });
+
+  it.fails('fe por --cargar, con el punto de venta en cero', async () => {
+    const path = writeInput('fe.json', {
+      cliente: 'ACME LLC',
+      domicilioCliente: '123 Main St',
+      montoTotal: 1500,
+      paisDestino: '212',
+      puntoVenta: 0,
+    });
+
+    expect(await localError(['fe', '--cargar', path])).toMatchObject({
+      codigo: 'INPUT_VALIDATION_ERROR',
+      error: expect.stringMatching(/punto de venta|puntoVenta/),
+    });
+  });
+
+  const loteItem = (cuit: string | number) => ({
+    concepto: 'servicios',
+    montoTotal: 1000,
+    numeroDocumento: Number(cuit),
+    tipoDocumento: 'cuit',
+  });
+
+  it.fails('un lote con todos los CUIT inválidos: los lista sin ir a ARCA', async () => {
+    const path = writeInput('lote.json', [loteItem(BAD_CUIT), loteItem(BAD_CUIT)]);
+
+    expect(await localError(['fb', '--cargar', path])).toMatchObject({
+      codigo: 'BATCH_VALIDATION_ERROR',
+      detalles: {
+        comprobantes: [
+          { error: expect.stringContaining('no es válido'), indice: 1 },
+          { error: expect.stringContaining('no es válido'), indice: 2 },
+        ],
+      },
+    });
+  });
+
+  it.fails('un lote con uno inválido: ese no va a ARCA, y el error sigue listando todos', async () => {
+    sdk.padron.getTaxpayerDetails.mockResolvedValue(null);
+    prepareConfig({});
+
+    const path = writeInput('lote.json', [loteItem(CLIENT_CUIT), loteItem(BAD_CUIT)]);
+    const result = await runCli(['fb', '--cargar', path, '--json']);
+
+    expect(result).toMatchObject({ code: 1, stdout: '' });
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      codigo: 'BATCH_VALIDATION_ERROR',
+      detalles: {
+        comprobantes: [
+          { error: expect.stringContaining('no figura en el padrón'), indice: 1 },
+          { error: expect.stringContaining('no es válido'), indice: 2 },
+        ],
+      },
+    });
+    expect(sdk.padron.getTaxpayerDetails.mock.calls).toEqual([[CLIENT_CUIT]]);
+  });
+
+  // Lo que sigue saliendo primero.
+  it.each<[string, Setup, string]>([
+    ['la config incompleta', { rawConfig: '{}' }, 'CONFIGURATION_ERROR'],
+    ['el certificado vencido', { cert: '2026-11-01' }, 'CERTIFICATE_EXPIRED'],
+  ])('%s sale antes que el dato inválido', async (_name, setup, code) => {
+    const withCert = setup.cert ? { cert: certificate(setup.cert) } : setup;
+
+    expect(await localError(['fb', ...receiver()], withCert)).toMatchObject({ codigo: code });
+    expect(await localError([...FE_PREVIEW, '--pv', '0'], withCert)).toMatchObject({ codigo: code });
+  });
+
+  it('en la E, un dato que falta sigue antes que el punto de venta', async () => {
+    expect(await localError(['fe', '-m', '1500', '--pv', '0'])).toMatchObject({
+      error: expect.stringContaining('Falta el nombre del cliente'),
+    });
+  });
+});
+
 describe('consumidor final sin numero (REV-63)', () => {
   // Sin flag de receptor, el IVA receptor sale de la config; el documento, consumidor final por defecto.
   const setup: Setup = { config: { ivaReceptorPorDefecto: 'consumidor-final' } };
