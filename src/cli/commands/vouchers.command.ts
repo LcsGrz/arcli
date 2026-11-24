@@ -2,10 +2,10 @@ import type { Command } from 'commander';
 
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
-import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { INVALID_POINT_OF_SALE_MESSAGE } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { getVoucherKindByShortcut, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
+import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import {
   formatEnvironmentLabel,
   MISSING_POINT_OF_SALE_MESSAGE,

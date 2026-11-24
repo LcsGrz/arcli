@@ -3,11 +3,11 @@ import { parseCuit } from '../../lib/identity/cuit';
 import { parseDni } from '../../lib/identity/dni';
 import { assertRules } from '../../lib/rules/rules';
 
-import { formatDocumentFlag, formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
-import { type BillingRuleContext, RECEIVER_NOT_EMITTER_RULE } from './billing.rules';
+import { type BillingRuleContext, formatDocumentFlag, RECEIVER_NOT_EMITTER_RULE } from './billing.rules';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import { getVoucherKindByFamilyAndLetter, isFceInvoice } from './voucher-kind-map';
+import { formatVoucherSubject, formatVoucherWithArticle } from './voucher-names';
 
 export function validateConceptDateInputs(input: BillingCommandInput, voucherKind: VoucherKindDefinition): void {
   const hasAnyServiceDate = Boolean(input.serviceStartDate || input.serviceEndDate);

@@ -1,5 +1,4 @@
 import type { EmitDecisionSource } from '../../modules/billing/billing.emit-decision';
-import { formatEmissionQuestion } from '../../modules/billing/billing.mappers';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { BillingService } from '../../modules/billing/billing.service';
 import type { BillingExecutionResult, BillingGateway } from '../../modules/billing/billing.types.internal';
@@ -10,6 +9,7 @@ import {
 } from '../../modules/pdf/pdf-decision';
 import { writeTerminalOutput } from '../../ui';
 import type { CliArcaRuntime } from '../arca-runtime';
+import { formatEmissionQuestion } from '../emission-texts';
 
 import { formatBillingOutputs } from './billing.command.output';
 import { confirmEmissionOrNotify } from './confirm-emission';

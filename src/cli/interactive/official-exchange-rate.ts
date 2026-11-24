@@ -1,5 +1,5 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
-import { resolveBillingCurrencyCode } from '../../modules/billing/billing.mappers';
+import { resolveBillingCurrencyCode } from '../../modules/billing/currency-codes';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import {
   resolveExportQuotation,

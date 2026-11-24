@@ -1,3 +1,5 @@
+import { DEFAULT_CURRENCY_CODE } from './billing.constants';
+
 /**
  * Monedas de la tabla de ARCA (`arcli parametros monedas`) con su codigo ISO 4217. Se puede escribir cualquiera de
  * los dos: el ISO es un alias que se traduce al codigo de ARCA antes de enviar. Las que no tienen ISO (`002`, oro)
@@ -85,6 +87,11 @@ export function toArcaCurrencyCode(code: string): string {
   const normalized = code.trim().toUpperCase();
 
   return BY_ISO_CODE.get(normalized)?.arca ?? normalized;
+}
+
+/** Acepta el codigo ISO (`ARS`, `USD`, `UYU`) o el de ARCA (`PES`, `DOL`, `011`) y devuelve el de ARCA. */
+export function resolveBillingCurrencyCode(currencyCode = DEFAULT_CURRENCY_CODE): string {
+  return toArcaCurrencyCode(currencyCode);
 }
 
 /** El ISO de un codigo de ARCA, para mostrarlo; si no tiene, el mismo codigo. */

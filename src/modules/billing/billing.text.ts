@@ -1,5 +1,5 @@
 import { formatPayloadTable, formatResultSummary } from './billing.display';
-import { formatRawBillingResponse } from './billing.serialize';
+import { formatRawResponse } from './billing.serialize';
 import type { BillingExecutionResult } from './billing.types.internal';
 import { formatVoucherText, type VoucherTextOptions } from './voucher-text';
 
@@ -9,7 +9,7 @@ export function formatBillingResultAsText(result: BillingExecutionResult, option
       dryRun: result.dryRun,
       environment: result.environment,
       preview: [formatPayloadTable(result)],
-      raw: () => formatRawBillingResponse(result),
+      raw: () => formatRawResponse(result),
       response: result.response,
       summary: formatResultSummary(result),
       title: result.voucherKind.displayName,

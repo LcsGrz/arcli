@@ -4,11 +4,11 @@ import { assertRules } from '../../lib/rules/rules';
 import type { ICbtesAsoc } from '../../services/arca/arca-sdk.types';
 
 import { parseBillingDateInput } from './billing.dates';
-import { formatVoucherLabel, formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
 import { ASSOCIATED_NOT_AFTER_NOTE_RULE } from './billing.rules';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherFamily, VoucherKindDefinition } from './billing.types';
 import { getVoucherKindByArcaType, getVoucherKindByFamilyAndLetter, isNote, isReceipt } from './voucher-kind-map';
+import { formatVoucherLabel, formatVoucherSubject, formatVoucherWithArticle } from './voucher-names';
 
 interface ResolveAssociatedVoucherOptions {
   readonly billingDate: string;

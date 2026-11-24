@@ -1,7 +1,7 @@
-import { NOTHING_EMITTED_NOTICE } from '../../modules/billing/billing.mappers';
 import type { EmissionChoice, EmissionConfirmationPlan } from '../../modules/pdf/pdf-decision';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { EmissionCancelledError } from '../emission-cancelled';
+import { NOTHING_EMITTED_NOTICE } from '../emission-texts';
 import { askEmission } from '../interactive/emission-prompt';
 import { isPromptCancellation } from '../interactive/prompts';
 

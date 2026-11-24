@@ -16,7 +16,7 @@ import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { formatVoucherText, type VoucherTextOptions } from '../billing/voucher-text';
 import { formatVoucherNumber } from '../vouchers/voucher-number';
 
-import { formatRawExportResponse } from './export.serialize';
+import { formatRawResponse } from './export.serialize';
 import { EXPORT_TYPES, type ExportExecutionResult, type ExportPermitCheckStatus } from './export.types';
 
 export type ExportTextOptions = VoucherTextOptions;
@@ -257,7 +257,7 @@ export function formatExportResultAsText(result: ExportExecutionResult, options:
       dryRun: result.dryRun,
       environment: result.environment,
       preview: formatExportPreviewContent(result),
-      raw: () => formatRawExportResponse(result),
+      raw: () => formatRawResponse(result),
       response: result.response,
       summary: formatExportResultSummary(result),
       title: result.voucherKind.displayName,

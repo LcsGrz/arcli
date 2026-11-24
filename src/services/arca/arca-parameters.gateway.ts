@@ -1,7 +1,7 @@
 import type { Arca } from '@arcasdk/core';
 
 import { AppError } from '../../lib/errors/app-error';
-import { resolveBillingCurrencyCode } from '../../modules/billing/billing.mappers';
+import { resolveBillingCurrencyCode } from '../../modules/billing/currency-codes';
 import type {
   ParameterEntry,
   ParametersGateway,

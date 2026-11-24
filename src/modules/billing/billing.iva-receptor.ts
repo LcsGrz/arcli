@@ -1,8 +1,8 @@
 import { InputValidationError } from '../../lib/errors/app-error';
 
-import { formatVoucherSubject } from './billing.mappers';
 import type { BillingIvaCondition } from './billing.schemas';
 import type { VoucherKindDefinition, VoucherLetter } from './billing.types';
+import { formatVoucherSubject } from './voucher-names';
 
 /** Falta el IVA receptor, con el mismo que hacer en todos lados. `reason`: por que el padron no lo completo. */
 export function missingIvaReceiverMessage(reason?: string): string {
