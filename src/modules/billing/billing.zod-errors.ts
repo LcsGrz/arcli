@@ -1,12 +1,9 @@
 import { type output, type ZodError, ZodRealError, type ZodType } from 'zod';
 
 import type { InputIssue } from '../../lib/errors/input-issue';
+import { describeExpected } from '../../lib/json/json-input-issues';
 
-import {
-  BILLING_JSON_KEY_BY_INTERNAL_KEY,
-  BILLING_JSON_NESTED_KEY_BY_INTERNAL_KEY,
-  describeExpected,
-} from './billing.json-input';
+import { BILLING_JSON_KEY_BY_INTERNAL_KEY, BILLING_JSON_NESTED_KEY_BY_INTERNAL_KEY } from './billing.json-input';
 import { INVALID_POINT_OF_SALE_MESSAGE } from './billing.schemas';
 
 const ZOD_PATH_LABELS: Record<string, string> = {

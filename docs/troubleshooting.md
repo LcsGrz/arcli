@@ -338,7 +338,7 @@ arcli fc ayuda
 ### `ws_sr_constancia_inscripcion` no autorizado
 
 - **Severidad:** frecuente, si usás `arcli padron` o facturás con `--cuit` sin `--ir`
-- **Síntoma:** `arcli padron` falla con `El certificado no está autorizado para el servicio ws_sr_constancia_inscripcion ...`. Al facturar no corta: aparece el aviso `No se pudo consultar el padrón de ARCA` y se usa el `ivaReceptor` de la config.
+- **Síntoma:** `arcli padron` falla con `El certificado no está autorizado para el servicio ws_sr_constancia_inscripcion ...`. Al facturar no corta: aparece el aviso `No se pudo consultar el padrón de ARCA` y se usa el `ivaReceptor` de la config; sin él, es `INPUT_VALIDATION_ERROR` con `detalles.codigoCausa`.
 - **Causa:** el certificado solo tiene autorizado `wsfe`. El padrón usa otro servicio.
 - **Solución:** crear la autorización para `ws_sr_constancia_inscripcion` igual que la de `wsfe`. Si no la necesitás, desactivá la consulta con `arcli config establecer consultarPadron false`.
 - **Documentación relacionada:** [IVA receptor desde el padrón](cli-reference.md#iva-receptor-desde-el-padrón)
@@ -524,7 +524,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor (si 
 - **Severidad:** frecuente
 - **Síntoma:** `BATCH_VALIDATION_ERROR` con la lista de ítems inválidos (`#2: Falta el dato: monto.`…). No se emitió ninguno.
 - **Causa:** ARCLI valida todo el lote antes de emitir el primero, incluidas las consultas al padrón (IVA receptor desde `--cuit`) y a la cotización oficial.
-- **Solución:** corregir esos ítems en el JSON y volver a correr el lote completo. Si el motivo es una consulta a ARCA que no respondió, reintentá en unos minutos.
+- **Solución:** corregir esos ítems en el JSON y volver a correr el lote completo. Si el motivo es una consulta a ARCA que no respondió, reintentá en unos minutos: con `--json`, cada ítem de `detalles.comprobantes` trae su `codigo` y `sugerencia`.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#validación-y-errores-del-lote)
 
 ### El lote se interrumpió a mitad

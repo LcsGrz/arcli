@@ -1,8 +1,17 @@
 import { z } from 'zod';
 
 import { InputValidationError } from '../../lib/errors/app-error';
+import { describeJsonIssue, describeReceived, type JsonInputKeys } from '../../lib/json/json-input-issues';
 
 import type { ExportItemInput } from './export.types';
+
+/** El problema de una clave que admite mas de un tipo o valor; `describeJsonIssue` pone la clave y el punto. */
+function expecting(expected: string, hint: (input: unknown) => string = () => '') {
+  return ({ input }: { readonly input?: unknown }): string =>
+    `tiene que ser ${expected} y llegó ${describeReceived(input)}${hint(input)}`;
+}
+
+const EXPORT_TYPE_CODES: readonly unknown[] = ['1', '2', '4'];
 
 const itemJsonSchema = z
   .object({
@@ -10,7 +19,7 @@ const itemJsonSchema = z
     codigo: z.string().optional(),
     descripcion: z.string(),
     precioUnitario: z.number(),
-    unidad: z.union([z.string(), z.number()]).optional(),
+    unidad: z.union([z.string(), z.number()], { error: expecting('un texto ("unidades") o un número (7)') }).optional(),
   })
   .strict();
 
@@ -56,13 +65,19 @@ const exportJsonInputSchema = z
     numero: z.number().optional(),
     observaciones: z.string().optional(),
     observacionesComerciales: z.string().optional(),
-    paisDestino: z.union([z.string(), z.number()]).optional(),
+    paisDestino: z
+      .union([z.string(), z.number()], { error: expecting('un texto ("Brasil") o un número (203)') })
+      .optional(),
     pdf: z.boolean().optional(),
     permisoExistente: z.boolean().optional(),
     permisos: z.array(z.string()).optional(),
     puntoVenta: z.number().optional(),
     previsualizar: z.boolean().optional(),
-    tipoExpo: z.union([z.literal(1), z.literal(2), z.literal(4)]).optional(),
+    tipoExpo: z
+      .union([z.literal(1), z.literal(2), z.literal(4)], {
+        error: expecting('1, 2 o 4', (input) => (EXPORT_TYPE_CODES.includes(input) ? '. Escribilo sin comillas' : '')),
+      })
+      .optional(),
   })
   .strict();
 
@@ -71,33 +86,45 @@ export type ExportJsonInput = z.infer<typeof exportJsonInputSchema>;
 const DEPRECATED_AMOUNT_KEY_WARNING =
   'La clave "monto" del JSON de `--cargar` se saca en la 3.0.0: usá "montoTotal", como en A, B y C.';
 
-const TYPE_LABELS: Readonly<Record<string, string>> = {
-  array: 'un array',
-  boolean: 'true o false',
-  number: 'un número',
-  object: 'un objeto',
-  string: 'un texto',
+/**
+ * Nombres de flags (sin guiones) que alguien puede escribir en el JSON pensando que valen igual; los que se parecen a
+ * su clave los encuentra la comparacion por parecido. Sin `afecha`: en la E no hay flag y la clave no se usa.
+ */
+const FLAG_NAME_HINTS: Readonly<Record<string, string>> = {
+  ac: 'comprobanteAsociado.atajo',
+  acuit: 'comprobanteAsociado.cuit',
+  apv: 'comprobanteAsociado.puntoVenta',
+  ar: 'comprobanteAsociado.numero',
+  at: 'comprobanteAsociado.tipo',
+  cm: 'cotizacionMoneda',
+  exportarpdf: 'pdf',
+  fecha: 'fechaComprobante',
+  incotermsdesc: 'descripcionIncoterm',
+  mda: 'codigoMoneda',
+  monto: 'montoTotal',
+  moneda: 'codigoMoneda',
+  obscomerciales: 'observacionesComerciales',
+  pv: 'puntoVenta',
+  sinpdf: 'pdf',
 };
 
-function describeIssue(issue: z.core.$ZodIssue): string {
-  const path = issue.path.map(String).join('.');
-
-  if (issue.code === 'unrecognized_keys') {
-    return `La clave "${issue.keys.join('", "')}" no existe en el JSON de \`--cargar\`.`;
-  }
-
-  if (issue.code === 'invalid_type' && issue.input === undefined) {
-    return `Falta "${path}".`;
-  }
-
-  if (issue.code === 'invalid_type') {
-    return `"${path}" tiene que ser ${TYPE_LABELS[issue.expected] ?? issue.expected}.`;
-  }
-
-  return path ? `"${path}": ${issue.message}.` : `${issue.message}.`;
-}
+const JSON_KEYS: JsonInputKeys = {
+  byParent: {
+    // `monto` esta deprecada: se acepta, pero no se sugiere.
+    '': Object.keys(exportJsonInputSchema.shape).filter((key) => key !== 'monto'),
+    comprobanteAsociado: Object.keys(associatedVoucherJsonSchema.shape),
+    items: Object.keys(itemJsonSchema.shape),
+  },
+  flagHints: FLAG_NAME_HINTS,
+};
 
 function parseExportJsonInput(value: unknown): ExportJsonInput {
+  if (typeof value !== 'object' || value === null) {
+    throw new InputValidationError(
+      `El JSON de \`--cargar\` de una E tiene que ser un objeto con un comprobante y es ${describeReceived(value)}.`,
+    );
+  }
+
   const result = exportJsonInputSchema.safeParse(value, { reportInput: true });
 
   if (result.success) {
@@ -105,7 +132,10 @@ function parseExportJsonInput(value: unknown): ExportJsonInput {
   }
 
   throw new InputValidationError(
-    `En el JSON de \`--cargar\`: ${result.error.issues.map((issue) => describeIssue(issue)).join(' ')}`,
+    `En el JSON de \`--cargar\`: ${result.error.issues
+      .flatMap((issue) => describeJsonIssue(issue, JSON_KEYS))
+      .map((issue) => issue.mensaje)
+      .join(' ')}`,
   );
 }
 

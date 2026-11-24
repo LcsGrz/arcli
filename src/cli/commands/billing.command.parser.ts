@@ -6,7 +6,7 @@ import { resolveRelativeDateInput } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { readJsonFile } from '../../lib/files/read-json-file';
 import { parseArgentineAmount } from '../../lib/numbers/argentine-amount';
-import { type BatchItemError, describeBatchItemError } from '../../modules/billing/billing.batch';
+import { type BatchItemError, toBatchItemError } from '../../modules/billing/billing.batch';
 import { resolveConfigExchangeRate } from '../../modules/billing/billing.currency';
 import { type EmitDecisionSource, resolveEmitDecision } from '../../modules/billing/billing.emit-decision';
 import { missingIvaReceiverMessage } from '../../modules/billing/billing.iva-receptor';
@@ -476,7 +476,7 @@ export function parseBillingCommandPlan(
       parsed.push(parseBillingCommandInputFromSource(command, shortcut, parseBillingJsonInput(fileInput), defaults));
       inputIndexes.push(position + 1);
     } catch (error) {
-      invalidItems.push({ index: position + 1, message: describeBatchItemError(error) });
+      invalidItems.push(toBatchItemError(position + 1, error));
     }
   });
 

@@ -1,5 +1,6 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { summarizeError } from '../../lib/errors/error-summary';
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
 import { FCE_REGISTRY_STATE_LABELS, type FceRegistryGateway, type FceRegistryState } from '../fce/fce-registry';
 import type { ParametersGateway } from '../parameters/parameters';
@@ -319,18 +320,18 @@ export async function checkAssociatedInArca(options: {
       voucherType: reference.Tipo,
     });
   let voucher: IssuedVoucher | undefined;
-  let queryReason: string | undefined;
+  let queryError: VoucherQueryError | undefined;
 
   try {
     voucher = await gateway.getVoucher(reference.Nro, reference.PtoVta, reference.Tipo);
   } catch (error) {
     if (error instanceof VoucherQueryError && (await classifyPointOfSale(true)) === 'other') {
-      queryReason = error.reason;
+      queryError = error;
     } else {
       if (needsDate) {
         throw new InputValidationError(
           `No se pudo consultar en ARCA ${label} para tomar su fecha: ${reasonOf(error)}`,
-          undefined,
+          { codigoCausa: summarizeError(error).code },
           'Probá de nuevo en un rato o pasá la fecha del asociado con `--afecha <fecha>`.',
         );
       }
@@ -343,7 +344,7 @@ export async function checkAssociatedInArca(options: {
   }
 
   if (!voucher) {
-    const origin = queryReason === undefined ? await classifyPointOfSale(false) : 'other';
+    const origin = queryError === undefined ? await classifyPointOfSale(false) : 'other';
 
     if (origin === 'web-service') {
       throw missingAssociatedVoucherError(label, needsDate ? 'no se puede tomar su fecha' : undefined);
@@ -352,11 +353,11 @@ export async function checkAssociatedInArca(options: {
     if (needsDate) {
       throw new InputValidationError(
         `${
-          queryReason === undefined
+          queryError === undefined
             ? `No se encontró ${label} en ARCA`
-            : `${describeQueryFailure(label, queryReason)} y el punto de venta ${reference.PtoVta} no es de web service`
+            : `${describeQueryFailure(label, queryError.reason)} y el punto de venta ${reference.PtoVta} no es de web service`
         }, así que no se puede tomar su fecha.`,
-        undefined,
+        queryError && { codigoCausa: summarizeError(queryError).code },
         'Si es de Comprobantes en línea o de un controlador fiscal, pasá su fecha con `--afecha <fecha>`. Si no, revisá `--ar`, `--apv` y `--ac`.',
       );
     }
@@ -370,7 +371,7 @@ export async function checkAssociatedInArca(options: {
           label,
           origin,
           pointOfSale: reference.PtoVta,
-          queryReason,
+          queryReason: queryError?.reason,
         }),
       ],
     };
