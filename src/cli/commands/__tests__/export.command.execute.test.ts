@@ -10,6 +10,7 @@ import {
   type ExportVoucherKind,
 } from '../../../modules/export/export.types';
 import { exportAnswer } from '../../../testing/arca-answers';
+import { fakeExportGateway } from '../../../testing/arca-gateways';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { registerGlobalOptions } from '../../global-options';
 import { chooseOne } from '../../interactive/prompts';
@@ -69,24 +70,11 @@ const ASSOCIATED_INVOICE: ExportIssuedVoucher = {
 };
 
 function gateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
-  return {
+  return fakeExportGateway({
     authorize: vi.fn(async () => exportAnswer(authorization('A'))),
-    checkPermit: vi.fn(async () => 'OK'),
-    getActivities: vi.fn(async () => [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }]),
-    getCurrencies: vi.fn(async () => [{ code: 'DOL', name: 'Dólar Estadounidense' }]),
-    getDestinationCountries: vi.fn(async () => [{ code: 212, name: 'ESTADOS UNIDOS' }]),
-    getDestinationCountryCuits: vi.fn(async () => [
-      { countryName: 'ESTADOS UNIDOS - Persona Jurídica', cuit: 55000002126 },
-    ]),
-    getIncoterms: vi.fn(async () => [{ code: 'FOB', name: 'Free on Board' }]),
-    getLanguages: vi.fn(async () => [{ id: 1, name: 'Espanol' }]),
-    getLastRequestId: vi.fn(async () => 7),
-    getLastVoucherNumber: vi.fn(async () => 0),
-    getQuotations: vi.fn(async () => []),
-    getUnits: vi.fn(async () => [{ id: 7, name: 'unidades' }]),
     getVoucher: vi.fn(async () => ASSOCIATED_INVOICE),
     ...overrides,
-  };
+  });
 }
 
 function runtime(outputJson: boolean, config: Record<string, unknown>): CliArcaRuntime {

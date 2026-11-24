@@ -57,7 +57,7 @@ En GitHub, el workflow `Seguridad` corre CodeQL (consultas `security-extended`) 
 
 ## Tests
 
-Los tests unitarios viven junto al código, en carpetas `__tests__` (por ejemplo `src/modules/billing/__tests__/`). `build` no los publica y `typecheck` sí los valida.
+Los tests unitarios viven junto al código, en carpetas `__tests__` (por ejemplo `src/modules/billing/__tests__/`). Los helpers compartidos están en `src/testing/`. `build` no los publica y `typecheck` sí los valida.
 
 `src/__tests__/setup.ts` corre antes de cada archivo de tests: le da un `HOME` temporal (así ningún test lee ni escribe tu config real) y saca `FORCE_COLOR`, `NO_COLOR`, `TERM` y `ARCLI_ASCII`, para que la suite dé lo mismo en cualquier terminal.
 
@@ -125,6 +125,8 @@ El mismo test compara los códigos de error: cada código de la tabla de [códig
 Los comandos internos (`__completar`, `storybook`) quedan fuera de la lista, en `INTERNAL_COMMANDS`; los atajos y familias, aunque estén ocultos en la ayuda, son públicos y están.
 
 `src/cli/__tests__/json-golden.test.ts` congela la salida completa del `--json` (stdout, stderr y exit code, byte a byte) de facturación A, B, C, FCE y E, lotes y cada código de error, con el SDK de ARCA simulado y reloj fijo; cada caso es un archivo de `src/cli/__tests__/__golden__/`. Un cambio en esos archivos es un cambio de contrato: si es a propósito, se regeneran con `yarn test src/cli/__tests__/json-golden.test.ts -u` y el diff va en el PR (y en `CHANGELOG.md`).
+
+`src/cli/__tests__/arca-request.characterization.test.ts` congela la solicitud exacta de cada emisión, la que recibe el SDK y la que sale por SOAP, en `src/cli/__tests__/__golden__/solicitudes/`: un cambio ahí es un cambio en lo que recibe ARCA. `arca-answer.characterization.test.ts` fija cómo se lee cada respuesta, también las rotas. Los tests que emiten con un gateway falso arman su respuesta con `billingAnswer` o `exportAnswer` (`src/testing/`), que pasan la del SDK por el gateway real.
 
 `src/cli/__tests__/voucher-help.scope.txt` fija las opciones y reglas de la ayuda de cada comprobante; no es contrato y se regenera con `yarn test src/cli/__tests__/voucher-help.scope.test.ts -u`.
 

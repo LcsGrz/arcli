@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { ExportGateway, ExportIssuedVoucher, ExportVoucherPayload } from '../../../modules/export/export.types';
 import { exportAnswer } from '../../../testing/arca-answers';
+import { fakeBillingGateway } from '../../../testing/arca-gateways';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { runExportFlow } from '../export.flow';
@@ -133,7 +134,7 @@ vi.mock('../../../modules/config/config.service', () => ({
 function createSession(config: Record<string, unknown> = {}): InteractiveSession {
   return {
     arca: {} as never,
-    billingGateway: { createVoucher: vi.fn(), getNextVoucherNumber: vi.fn(), getQuotation: vi.fn() },
+    billingGateway: fakeBillingGateway(),
     historyGateway: { getLastNumber: vi.fn(), getVoucher: vi.fn() },
     runtime: {
       config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 4, ...config }),

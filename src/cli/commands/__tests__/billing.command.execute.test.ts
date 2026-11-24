@@ -8,6 +8,7 @@ import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { IssuedVoucher } from '../../../modules/vouchers/voucher-history';
 import { billingAnswer } from '../../../testing/arca-answers';
+import { fakeBillingGateway } from '../../../testing/arca-gateways';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import {
   type BillingCommandDependencies,
@@ -45,12 +46,7 @@ function authorization(result: 'A' | 'R') {
 
 function gateways(overrides: Partial<BillingCommandGateways['billing']> = {}): BillingCommandGateways {
   return {
-    billing: {
-      createVoucher: vi.fn(async () => billingAnswer(authorization('A'))),
-      getNextVoucherNumber: vi.fn(async () => 42),
-      getQuotation: vi.fn(async () => 1000),
-      ...overrides,
-    },
+    billing: fakeBillingGateway({ createVoucher: vi.fn(async () => billingAnswer(authorization('A'))), ...overrides }),
     fce: { getObligation: vi.fn() } as never,
     fceRegistry: { getVoucherState: vi.fn(async () => undefined) },
     history: { getLastNumber: vi.fn(async () => 0), getVoucher: vi.fn(async () => undefined) },

@@ -4,8 +4,8 @@ import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-
 import { EXPORT_VOUCHER_KIND } from '../../../modules/export/export.types';
 import { BACK } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../../modules/vouchers/voucher-history';
+import type { ArcaClient } from '../../../services/arca/arca-client.factory';
 import { ArcaExportGateway } from '../../../services/arca/arca-export.gateway';
-import type { Arca } from '../../../services/arca/arca-sdk.types';
 import { ArcaVoucherHistoryGateway } from '../../../services/arca/arca-voucher-history.gateway';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
@@ -96,7 +96,7 @@ function failQueryOf(session: InteractiveSession, failing: number, { code = 600,
     genericService: {
       call: async () => ({ FECompConsultarResult: { Errors: { Err: { Code: code, Msg: 'ValidacionDeToken' } } } }),
     },
-  } as unknown as Arca);
+  } as unknown as ArcaClient);
   const find = vi.mocked(session.historyGateway.getVoucher).getMockImplementation()!;
   let failed = false;
 
@@ -465,7 +465,7 @@ describe('pickExportVoucher', () => {
           },
           getLastCmp: async () => ({ FEXGetLast_CMPResult: { FEXResult_LastCMP: { Cbte_nro: 3 } } }),
         },
-      } as unknown as Arca,
+      } as unknown as ArcaClient,
       async () => ({ Cuit: 1, Sign: 'firma', Token: 'token' }),
     );
   }

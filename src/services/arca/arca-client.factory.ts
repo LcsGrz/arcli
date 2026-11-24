@@ -17,7 +17,10 @@ import { systemClock } from '../time/system-clock';
 
 import { ArcaExportGateway, type WsfexAuthenticator } from './arca-export.gateway';
 
-function createArcaClient(context: Context): Arca {
+/** El cliente de ARCA: quien lo pide se lo pasa a un gateway y no conoce el SDK. */
+export type ArcaClient = Arca;
+
+function createArcaClient(context: Context): ArcaClient {
   // WSFE y WSFEX de producción prefieren DHE con una clave de 1024 bits, que corta con `dh key too small` donde OpenSSL
   // usa SECLEVEL=2 (Debian y otras distros). Sin DHE negocian otra suite y nada más se afloja, a diferencia de
   // `useHttpsAgent` del SDK, que baja a SECLEVEL=1 y habilita la renegociación insegura en todas las conexiones.
@@ -69,7 +72,7 @@ export class ArcaClientFactory {
   }
 
   /** Todo cliente de ARCA sale de aca: con el certificado vencido se corta antes de pedir el ticket a WSAA. */
-  public create(runtime: Pick<ArcaProfile, 'certificateExpiry' | 'context'>): Arca {
+  public create(runtime: Pick<ArcaProfile, 'certificateExpiry' | 'context'>): ArcaClient {
     if (runtime.certificateExpiry?.expired) {
       throw new CertificateExpiredError(runtime.certificateExpiry);
     }
@@ -78,7 +81,9 @@ export class ArcaClientFactory {
   }
 
   /** El cliente de WSFEX, con su certificado (ver `resolveExportContext`). */
-  public createForExport(runtime: Pick<ArcaProfile, 'certificateExpiry' | 'config' | 'context' | 'environment'>): Arca {
+  public createForExport(
+    runtime: Pick<ArcaProfile, 'certificateExpiry' | 'config' | 'context' | 'environment'>,
+  ): ArcaClient {
     return createArcaClient(this.resolveExportContext(runtime));
   }
 

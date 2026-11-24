@@ -1,8 +1,7 @@
 import type { Command } from 'commander';
 
-import { ArcaClientFactory } from '../services/arca/arca-client.factory';
+import { type ArcaClient, ArcaClientFactory } from '../services/arca/arca-client.factory';
 import type { ArcaExportGateway } from '../services/arca/arca-export.gateway';
-import type { Arca } from '../services/arca/arca-sdk.types';
 import { writeTerminalJson, writeTerminalOutput } from '../ui';
 
 import { type CliArcaRuntime, resolveArcaRuntime } from './arca-runtime';
@@ -20,7 +19,10 @@ export interface ArcaQuery<Gateway> {
 }
 
 /** Resuelve el runtime (con el aviso de certificados) y arma el gateway sobre un cliente de ARCA. */
-export function createArcaQuery<Gateway>(command: Command, createGateway: (arca: Arca) => Gateway): ArcaQuery<Gateway> {
+export function createArcaQuery<Gateway>(
+  command: Command,
+  createGateway: (arca: ArcaClient) => Gateway,
+): ArcaQuery<Gateway> {
   const runtime = resolveArcaRuntime(getGlobalOptions(command));
 
   return { gateway: createGateway(new ArcaClientFactory().create(runtime)), runtime };

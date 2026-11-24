@@ -5,6 +5,7 @@ import { BillingService } from '../../../modules/billing/billing.service';
 import { BACK } from '../../../modules/interactive/wizard';
 import { systemClock } from '../../../services/time/system-clock';
 import { billingAnswer } from '../../../testing/arca-answers';
+import { fakeBillingGateway } from '../../../testing/arca-gateways';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { outputState } from '../../closed-output';
 import { describeEmittedInThisRun, resetEmittedInThisRun } from '../../emitted-vouchers';
@@ -50,7 +51,7 @@ function createSession(
 
   return {
     arca: {} as never,
-    billingGateway: { createVoucher, getNextVoucherNumber: vi.fn(async () => 1), getQuotation: vi.fn() },
+    billingGateway: fakeBillingGateway({ createVoucher, getNextVoucherNumber: vi.fn(async () => 1) }),
     createVoucher,
     historyGateway: { getLastNumber: vi.fn(), getVoucher: vi.fn() },
     runtime,

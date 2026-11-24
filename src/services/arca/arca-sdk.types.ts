@@ -1,6 +1,6 @@
 /**
- * Los tipos de `@arcasdk/core` que usa el resto de arcli, en un solo lugar: fuera de `services/` nadie importa el SDK
- * (ESLint lo hace cumplir). Si una version del SDK mueve o renombra un tipo, se arregla aca.
+ * Los tipos de `@arcasdk/core` que usa `services/arca`, en un solo lugar: afuera van los propios (ESLint lo hace
+ * cumplir). Si una version del SDK mueve o renombra un tipo, se arregla aca.
  */
 export type {
   Arca,

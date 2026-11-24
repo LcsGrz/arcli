@@ -5,6 +5,7 @@ import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import { systemClock } from '../../../services/time/system-clock';
 import { billingAnswer } from '../../../testing/arca-answers';
+import { fakeBillingGateway } from '../../../testing/arca-gateways';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { DO_NOT_EMIT_LABEL, EMIT_NOW_LABEL } from '../emission-prompt';
 import { listSelect } from '../list-select';
@@ -58,7 +59,7 @@ function createSession(environment: 'produccion' | 'testing') {
   } as unknown as CliArcaRuntime;
   const session: InteractiveSession = {
     arca: {} as never,
-    billingGateway: { createVoucher, getNextVoucherNumber: vi.fn(async () => 1), getQuotation: vi.fn() },
+    billingGateway: fakeBillingGateway({ createVoucher, getNextVoucherNumber: vi.fn(async () => 1) }),
     historyGateway: { getLastNumber: vi.fn(), getVoucher: vi.fn() },
     runtime,
     service: new BillingService({ clock: systemClock }),

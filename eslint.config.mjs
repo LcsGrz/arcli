@@ -14,11 +14,16 @@ const UI_STYLE_IMPORTS = [
   })),
 ];
 
-/** Solo `services/` conoce `@arcasdk/core` (docs/architecture.md): el resto importa los tipos de un solo archivo. */
+/** Solo `services/` conoce `@arcasdk/core` (docs/architecture.md); sus tipos, en un solo archivo de `services/arca`. */
 const SDK_TYPES_FILE = 'src/services/arca/arca-sdk.types.ts';
 const SDK_OUTSIDE_SERVICES = {
   regex: '^@arcasdk/core(/|$)',
-  message: 'Solo src/services conoce @arcasdk/core: importá los tipos de src/services/arca/arca-sdk.types.',
+  message: 'Solo src/services conoce @arcasdk/core: usá los tipos propios de modules o ArcaClient.',
+};
+const SDK_TYPES_OUTSIDE_ARCA = {
+  regex: '(^|/)arca-sdk\\.types$',
+  message:
+    'Los tipos del SDK no salen de src/services/arca: usá los propios (VoucherRequest, AuthorizationAnswer, ExportVoucherPayload) o ArcaClient, de arca-client.factory.',
 };
 const SDK_INTERNAL_PATHS = {
   regex: '^@arcasdk/core/lib/',
@@ -51,6 +56,11 @@ const CORE_ON_CLI = {
   regex: '(^|/)cli(/|$)',
   message:
     'El núcleo no conoce a quién lo llama: mové lo que necesitás de src/cli a modules o lib, o recibilo como parámetro.',
+};
+const CORE_ON_SERVICES = {
+  regex: '(^|/)services(/|$)',
+  message:
+    'El núcleo no conoce los adaptadores: usá tipos propios y recibí el gateway como dependencia; la traducción a los tipos del SDK vive en src/services/arca.',
 };
 const CORE_ON_PROMPTS = {
   regex: '^@inquirer/',
@@ -88,11 +98,6 @@ const SERVICES_ON_CLI = {
 };
 
 // --- Deuda: warn, con su ticket ---
-const CORE_ON_SERVICES = {
-  regex: '(^|/)services(/|$)',
-  message:
-    'El núcleo no conoce los adaptadores: usá tipos propios y recibí el gateway como dependencia; la traducción a los tipos del SDK vive en src/services/arca. Lo cierra ARQ-4.',
-};
 const CORE_ON_UI = {
   regex: '(^|/)ui/',
   message:
@@ -125,7 +130,7 @@ const coreDebtRules = ({ message, extraPaths = [] } = {}) => {
       'warn',
       {
         paths: [...withMessage([CORE_ON_CONF, ...CORE_ON_FS]), ...extraPaths],
-        patterns: withMessage([CORE_ON_SERVICES, CORE_ON_UI]),
+        patterns: withMessage([CORE_ON_UI]),
       },
     ],
   };
@@ -137,7 +142,14 @@ const coreImportRules = (extraPaths = []) => ({
     'error',
     {
       paths: [...UI_STYLE_IMPORTS, ...CORE_ON_APP_LIBS, ...extraPaths],
-      patterns: [UI_BARREL, SDK_OUTSIDE_SERVICES, CORE_ON_CLI, CORE_ON_PROMPTS],
+      patterns: [
+        UI_BARREL,
+        SDK_OUTSIDE_SERVICES,
+        SDK_TYPES_OUTSIDE_ARCA,
+        CORE_ON_CLI,
+        CORE_ON_SERVICES,
+        CORE_ON_PROMPTS,
+      ],
     },
   ],
 });
@@ -245,13 +257,19 @@ export default defineConfig([
     files: ['src/**/*.ts'],
     ignores: ['src/ui/**', 'src/services/**'],
     rules: {
-      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS, patterns: [SDK_OUTSIDE_SERVICES] }],
+      'no-restricted-imports': [
+        'error',
+        { paths: UI_STYLE_IMPORTS, patterns: [SDK_OUTSIDE_SERVICES, SDK_TYPES_OUTSIDE_ARCA] },
+      ],
     },
   },
   {
     files: ['src/lib/**/*.ts', 'src/modules/**/*.ts'],
     rules: {
-      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL, SDK_OUTSIDE_SERVICES] }],
+      'no-restricted-imports': [
+        'error',
+        { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL, SDK_OUTSIDE_SERVICES, SDK_TYPES_OUTSIDE_ARCA] },
+      ],
     },
   },
   {
@@ -282,6 +300,19 @@ export default defineConfig([
   },
   {
     files: ['src/services/**/*.ts'],
+    ignores: ['src/services/arca/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: UI_STYLE_IMPORTS,
+          patterns: [UI_BARREL, SDK_INTERNAL_PATHS, SDK_TYPES_OUTSIDE_ARCA, SERVICES_ON_CLI],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/services/arca/**/*.ts'],
     ignores: [SDK_TYPES_FILE],
     rules: {
       'no-restricted-imports': [

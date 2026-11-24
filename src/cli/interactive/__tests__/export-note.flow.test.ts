@@ -11,6 +11,7 @@ import { buildExportNoteInput } from '../../../modules/interactive/export-note-i
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import { VoucherQueryError } from '../../../modules/vouchers/voucher-history';
 import { exportAnswer } from '../../../testing/arca-answers';
+import { fakeBillingGateway } from '../../../testing/arca-gateways';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { serializeCliError } from '../../error-output';
@@ -114,7 +115,7 @@ vi.mock('../../commands/export.command.pdf', () => ({
 function createSession(): InteractiveSession {
   return {
     arca: {} as never,
-    billingGateway: { createVoucher: vi.fn(), getNextVoucherNumber: vi.fn(), getQuotation: vi.fn() },
+    billingGateway: fakeBillingGateway(),
     historyGateway: { getLastNumber: vi.fn(), getVoucher: vi.fn() },
     runtime: {
       config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 4 }),

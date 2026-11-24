@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { Arca } from '../../../services/arca/arca-sdk.types';
+import type { ArcaClient } from '../../../services/arca/arca-client.factory';
 import { ArcaVoucherHistoryGateway } from '../../../services/arca/arca-voucher-history.gateway';
 import { systemClock } from '../../../services/time/system-clock';
 import type { FceRegistryState } from '../../fce/fce-registry';
@@ -362,7 +362,9 @@ describe('checkAssociatedInArca: NC no mayor que el asociado (REV-45)', () => {
   });
 
   it('una respuesta inesperada (ERR-1): el aviso lo dice sin repetirse', async () => {
-    const gateway = new ArcaVoucherHistoryGateway({ genericService: { call: async () => null } } as unknown as Arca);
+    const gateway = new ArcaVoucherHistoryGateway({
+      genericService: { call: async () => null },
+    } as unknown as ArcaClient);
 
     await expect(
       checkAssociatedInArca({ gateway, input: note(), runtime, service: new BillingService({ clock: systemClock }) }),
