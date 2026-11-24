@@ -248,6 +248,23 @@ export class ConfigService {
     return this.saveIfValid(this.planUnset(rawKey));
   }
 
+  /** Varios cambios juntos: se guardan todos o ninguno. */
+  public changeValues(changes: {
+    readonly remove: readonly string[];
+    readonly set: ReadonlyArray<readonly [key: string, value: string]>;
+  }): ArcliConfig {
+    const plans = [
+      ...changes.remove.map((key) => this.planUnset(key)),
+      ...changes.set.map(([key, value]) => this.planSet(key, value)),
+    ];
+
+    return this.saveIfValid({
+      apply: (draft) => plans.forEach((plan) => plan.apply(draft)),
+      // Los valores ya se validaron al planearlos: lo que falle al guardar es de otra clave.
+      key: plans[plans.length - 1].key,
+    });
+  }
+
   /** `config establecer`: como `setValue`, pero guarda aunque queden otras claves que ya estaban rotas. */
   public repairValue(rawKey: string, rawValue: string): ConfigChange {
     return this.saveIfNotWorse(this.planSet(rawKey, rawValue));

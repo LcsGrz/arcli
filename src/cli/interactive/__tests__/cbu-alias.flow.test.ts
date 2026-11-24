@@ -21,8 +21,8 @@ import { captured, comparableInput, parseWithProgram } from './equivalent-comman
 import { createScript, type ScriptedAnswer } from './script';
 
 /**
- * REV-52, cruce 2 en el asistente: el CBU escrito a mano con un alias guardado en la config sin CBU. Va dos veces: como
- * está hoy (esa caracterización se borra en la tanda 4) y, en `it.fails`, como quedó aprobado.
+ * REV-52, cruce 2 en el asistente: el CBU escrito a mano con un alias guardado en la config sin CBU. Ese alias es de
+ * otra cuenta: se pregunta el del CBU escrito.
  */
 
 let script = createScript([]);
@@ -128,8 +128,8 @@ async function answer(flow: (typeof FLOWS)[number], config: ArcliConfig, bankSte
 }
 
 /**
- * El mismo asistente sin cortar si la pregunta del alias no aparece, para que el `it.fails` falle por lo que se emite y
- * no por el guion.
+ * El mismo asistente sin cortar si la pregunta del alias no aparece, para que el test falle por lo que se emite y no por
+ * el guion.
  */
 async function answerAliasIfAsked(flow: (typeof FLOWS)[number], alias: string) {
   script = createScript([...flow.before, [/^CBU/, CBU], [/Agregamos/, []]]);

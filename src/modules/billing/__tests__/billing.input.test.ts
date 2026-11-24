@@ -97,6 +97,14 @@ describe('resolveBillingInput', () => {
     ).toEqual({ desde: '01/10/2026', hasta: '31/10/2026' });
   });
 
+  it('una moneda vacía en los flags no descarta la cotización', () => {
+    const errors = () =>
+      resolve({ file: { ...FILE, codigoMoneda: 'USD', cotizacionMoneda: -1 }, flags: { codigoMoneda: '' } });
+
+    // Los dos datos llegan a la validación.
+    expect(errors).toThrow(/exchangeRate/);
+  });
+
   it('los flags incompatibles salen en su lugar entre los demás errores', () => {
     const flags = { errors: { pdf: new InputValidationError('flags de PDF') } };
 

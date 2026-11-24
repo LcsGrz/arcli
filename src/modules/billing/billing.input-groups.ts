@@ -144,10 +144,10 @@ export function resolveAssociatedPeriod({ file, flags, now }: BillingInputLayers
     return undefined;
   }
 
-  // Campo por campo, como el comprobante asociado.
+  // Campo por campo, como el comprobante asociado; una punta vacia no pisa la del archivo.
   return {
-    desde: resolveRelativeDateInput(fromFlags?.desde ?? fromFile?.desde, 'from', now),
-    hasta: resolveRelativeDateInput(fromFlags?.hasta ?? fromFile?.hasta, 'to', now),
+    desde: resolveRelativeDateInput(fromFlags?.desde || fromFile?.desde, 'from', now),
+    hasta: resolveRelativeDateInput(fromFlags?.hasta || fromFile?.hasta, 'to', now),
   };
 }
 

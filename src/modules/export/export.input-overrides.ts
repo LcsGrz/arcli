@@ -1,37 +1,40 @@
-import { resolveBillingCurrencyCode } from '../billing/currency-codes';
+import { isSameCurrency } from '../billing/currency-codes';
 
 import type { ExportJsonInput } from './export.json-input';
-import { normalizeCountryName } from './export.mappers';
-import { DEFAULT_EXPORT_CURRENCY_CODE } from './export.types';
+import { isSameExportClient, isSameExportCountry, isSameExportIncoterm } from './export.same';
+import { DEFAULT_EXPORT_CURRENCY_CODE, type ExportVoucherKind, isExportNote } from './export.types';
 
 interface Levels {
   readonly file: ExportJsonInput;
   readonly flags: ExportJsonInput;
+  readonly voucherKind: ExportVoucherKind;
 }
 
 type FileKey = keyof ExportJsonInput;
-
-const trimmed = (value: string): string => value.trim();
-const upper = (value: string): string => value.trim().toUpperCase();
 
 /** El flag dice otra cosa que el archivo; lo que el archivo no trae no contradice nada. */
 function changes(
   { file, flags }: Levels,
   key: 'cliente' | 'incoterm' | 'paisDestino',
-  normalize: (value: string) => string,
+  isSame: (flag: string, file: string) => boolean,
 ): boolean {
   const [flag, value] = [flags[key], file[key]];
 
-  return flag !== undefined && value !== undefined && normalize(String(flag)) !== normalize(String(value));
+  return flag !== undefined && value !== undefined && !isSame(String(flag), String(value));
 }
 
-/** La cotizacion del archivo es de su moneda o, si no la dice, de la de la E por defecto. */
-function changesRateCurrency({ file, flags }: Levels): boolean {
-  return (
-    flags.codigoMoneda !== undefined &&
-    resolveBillingCurrencyCode(flags.codigoMoneda) !==
-      resolveBillingCurrencyCode(file.codigoMoneda || DEFAULT_EXPORT_CURRENCY_CODE)
-  );
+/**
+ * La cotizacion del archivo es de su moneda. Si no la dice, en la factura es la de la E por defecto; en una nota sale
+ * del asociado, asi que no se sabe y no va. Una moneda vacia no elige nada.
+ */
+function changesRateCurrency({ file, flags, voucherKind }: Levels): boolean {
+  if (!flags.codigoMoneda?.trim()) {
+    return false;
+  }
+
+  const fileCurrency = file.codigoMoneda || (isExportNote(voucherKind) ? undefined : DEFAULT_EXPORT_CURRENCY_CODE);
+
+  return fileCurrency === undefined || !isSameCurrency(flags.codigoMoneda, fileCurrency);
 }
 
 /** Que flag hace que cada dato del archivo no vaya. */
@@ -39,10 +42,9 @@ const DISCARDS: ReadonlyArray<readonly [when: (levels: Levels) => boolean, keys:
   [changesRateCurrency, ['cotizacionMoneda']],
   [({ flags }) => flags.mismaMoneda === true, ['cotizacionMoneda']],
   [({ flags }) => flags.cotizacionMoneda !== undefined, ['mismaMoneda']],
-  // Un nombre y un codigo se toman por distintos: compararlos necesita la tabla de ARCA.
-  [(levels) => changes(levels, 'paisDestino', normalizeCountryName), ['cuitPais']],
-  [(levels) => changes(levels, 'cliente', trimmed), ['domicilioCliente', 'idImpositivo']],
-  [(levels) => changes(levels, 'incoterm', upper), ['descripcionIncoterm']],
+  [(levels) => changes(levels, 'paisDestino', isSameExportCountry), ['cuitPais']],
+  [(levels) => changes(levels, 'cliente', isSameExportClient), ['domicilioCliente', 'idImpositivo']],
+  [(levels) => changes(levels, 'incoterm', isSameExportIncoterm), ['descripcionIncoterm']],
 ];
 
 /**

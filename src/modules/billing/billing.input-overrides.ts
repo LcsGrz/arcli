@@ -1,7 +1,7 @@
 import { isForeignCurrency } from './billing.currency';
 import type { BillingDefaults } from './billing.defaults';
 import type { BillingJsonInput } from './billing.json-input';
-import { resolveBillingCurrencyCode } from './currency-codes';
+import { isSameCurrency } from './currency-codes';
 
 interface Levels {
   readonly defaults: BillingDefaults;
@@ -11,16 +11,20 @@ interface Levels {
 
 type FileKey = keyof BillingJsonInput;
 
-/** Otro documento: se compara el tipo y el numero finales con lo que trae el archivo, que puede ser uno solo. */
+/** Otro documento que el del archivo, que puede traer solo el tipo o solo el numero. */
 function changesReceiver({ file, flags }: Levels): boolean {
-  return (['tipoDocumento', 'numeroDocumento'] as const).some(
-    (key) => file[key] !== undefined && (flags[key] ?? file[key]) !== file[key],
+  const changes = <T>(flag: T | undefined, value: T | undefined) =>
+    flag !== undefined && value !== undefined && flag !== value;
+
+  return (
+    changes(flags.tipoDocumento, file.tipoDocumento?.trim().toLowerCase()) ||
+    changes(flags.numeroDocumento, file.numeroDocumento)
   );
 }
 
 /**
  * La cotizacion del archivo es de su moneda: la que dice o, si no, la extranjera de la config. Sin ninguna, nada la
- * contradice. Con `mismaMoneda` no se toca: con cotizacion es un error.
+ * contradice. Con `mismaMoneda` no se toca (con cotizacion es un error) y una moneda vacia no elige nada.
  */
 function changesRateCurrency({ defaults, file, flags }: Levels): boolean {
   const configCurrency = isForeignCurrency({ currencyCode: defaults.defaultCurrencyCode })
@@ -31,9 +35,9 @@ function changesRateCurrency({ defaults, file, flags }: Levels): boolean {
   return (
     file.cotizacionMoneda !== undefined &&
     (flags.mismaMoneda ?? file.mismaMoneda) !== true &&
-    flags.codigoMoneda !== undefined &&
+    Boolean(flags.codigoMoneda?.trim()) &&
     fileCurrency !== undefined &&
-    resolveBillingCurrencyCode(flags.codigoMoneda) !== resolveBillingCurrencyCode(fileCurrency)
+    !isSameCurrency(flags.codigoMoneda ?? '', fileCurrency)
   );
 }
 

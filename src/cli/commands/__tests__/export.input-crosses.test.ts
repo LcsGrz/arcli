@@ -62,11 +62,6 @@ describe.each(KINDS)('cruce 1 en %s: la cotización del archivo con otra moneda 
       { exchangeRate: 1400 },
     ],
     [
-      'sin `codigoMoneda`, USD es la del archivo',
-      { args: ['--moneda', 'usd'], config: { monedaPorDefecto: 'EUR' }, json: rate },
-      { exchangeRate: 1400 },
-    ],
-    [
       'con --cm va la del flag',
       { args: ['--moneda', 'EUR', '--cm', '1500'], json: { ...rate, codigoMoneda: 'USD' } },
       { exchangeRate: 1500 },
@@ -78,6 +73,26 @@ describe.each(KINDS)('cruce 1 en %s: la cotización del archivo con otra moneda 
     ],
   ])('cruce 1, no cambia: %s', (_case, written, expected) => {
     expect(pick(exportInput(written, kind), expected)).toEqual(expected);
+  });
+});
+
+describe('cruce 1 en la E con un archivo sin `codigoMoneda`', () => {
+  const written = { args: ['--moneda', 'usd'], config: { monedaPorDefecto: 'EUR' }, json: rate };
+
+  it('en la factura, USD es la del archivo: no cambia', () => {
+    expect(exportInput(written).exchangeRate).toBe(1400);
+  });
+
+  // La moneda de la nota sale de su asociado: la del archivo no se sabe.
+  it.each(KINDS.slice(1))('en %s cualquier --moneda descarta la cotización', (_name, kind) => {
+    expect(exportInput(written, kind).exchangeRate).toBeUndefined();
+  });
+
+  it.each(KINDS)('`--moneda ""` no descarta nada en %s', (_name, kind) => {
+    expect(exportInput({ args: ['--moneda', ''], json: rate }, kind).exchangeRate).toBe(1400);
+    expect(exportInput({ args: ['--moneda', ''], json: { ...rate, codigoMoneda: 'EUR' } }, kind).exchangeRate).toBe(
+      1400,
+    );
   });
 });
 
@@ -145,7 +160,11 @@ describe('cruces D, E y F: el destino, el cliente y el incoterm', () => {
       { args: ['--pais-destino', '203', '--cuit-pais', '50000000016'], json: COUNTRY },
       { clientCountryCuit: 50000000016 },
     ],
-    ['D: el mismo código no', { args: ['--pais-destino', '212'], json: COUNTRY }, { clientCountryCuit: 55000002126 }],
+    [
+      'D: el mismo código no',
+      { args: ['--pais-destino', ' 0212 '], json: COUNTRY },
+      { clientCountryCuit: 55000002126 },
+    ],
     [
       'D: el mismo nombre, con otras mayúsculas y tildes, no',
       { args: ['--pais-destino', 'MEXICO'], json: { ...COUNTRY, paisDestino: 'México' } },
@@ -163,7 +182,7 @@ describe('cruces D, E y F: el destino, el cliente y el incoterm', () => {
     ],
     [
       'E: el mismo cliente no',
-      { args: ['--cliente', 'Archivo LLC '], json: CLIENT },
+      { args: ['--cliente', ' ÁRCHIVO  llc '], json: CLIENT },
       { clientAddress: 'Main St 1', clientTaxId: 'A-1' },
     ],
     [
@@ -178,7 +197,7 @@ describe('cruces D, E y F: el destino, el cliente y el incoterm', () => {
     ],
     [
       'F: el mismo incoterm no',
-      { args: ['--incoterm', 'fob'], json: INCOTERM },
+      { args: ['--incoterm', ' fob '], json: INCOTERM },
       { incotermDescription: 'Free on board' },
     ],
     [
@@ -195,6 +214,10 @@ describe.each(KINDS.slice(1))('cruces A y G en %s: el comprobante asociado', (_n
   it.each<[string[], Json, Json]>([
     [['--ac', 'nde'], { tipo: 19 }, { shortcut: 'nde' }],
     [['--at', '20'], { atajo: 'fe' }, { arcaType: 20 }],
+    // Vacío no identifica nada.
+    [['--ac', ''], { cuit: '20111111112', tipo: 19 }, { arcaType: 19, cuit: '20111111112' }],
+    // Un atajo que no existe es otro comprobante: el error es de la validación.
+    [['--ac', 'zz'], { atajo: 'fe', cuit: '20111111112' }, { shortcut: 'zz' }],
     // Lo del comprobante del archivo no va con otro.
     [['--ac', 'nde'], { atajo: 'fe', cuit: '20111111112', numero: 1 }, { number: 1, shortcut: 'nde' }],
     [['--ar', '9'], { atajo: 'fe', cuit: '20111111112', numero: 1 }, { number: 9, shortcut: 'fe' }],

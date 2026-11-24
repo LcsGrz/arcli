@@ -57,7 +57,8 @@ export function readExportFlags(command: Command, voucherKind: ExportVoucherKind
     // Sin `--afecha`, que es de A, B y C: en `arcli nota-credito e` se saltea con un aviso. En `arcli factura e` se
     // saltean todos.
     comprobanteAsociado: {
-      atajo: pickString(options.ac),
+      // Vacio no identifica nada.
+      atajo: pickString(options.ac) || undefined,
       cuit: pickString(options.acuit),
       numero: pickNumber(options.ar),
       puntoVenta: pickNumber(options.apv, options.asociadoPuntoVenta),

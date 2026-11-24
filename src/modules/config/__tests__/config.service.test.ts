@@ -98,6 +98,28 @@ describe('config.service', () => {
     }
   });
 
+  it('guarda y borra en un solo cambio, o no cambia nada', () => {
+    const service = createService();
+
+    try {
+      service.setValue('aliasCbu', 'otra.cuenta');
+
+      expect(() => service.changeValues({ remove: ['aliasCbu'], set: [['cbu', '123']] })).toThrow(/22 dígitos/);
+      expect(() => service.changeValues({ remove: ['noExiste'], set: [['cbu', '0110599520000012345678']] })).toThrow(
+        /noExiste/,
+      );
+      expect(service.getConfig()).toMatchObject({ aliasCbu: 'otra.cuenta' });
+      expect(service.getConfig().cbu).toBeUndefined();
+
+      const config = service.changeValues({ remove: ['aliasCbu'], set: [['cbu', '0110599520000012345678']] });
+
+      expect(config.cbu).toBe('0110599520000012345678');
+      expect(service.getConfig().aliasCbu).toBeUndefined();
+    } finally {
+      service.close();
+    }
+  });
+
   it('says a saved CBU with a wrong check digit comes from the config, why, and how to change it', () => {
     const service = createService();
 

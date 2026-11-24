@@ -319,10 +319,15 @@ export class ExportService {
     const countryList = await gateway.getDestinationCountries();
     const destinationCountry = resolveExportDestinationCountry(input.destinationCountry, countryList);
     const countryCuits = await gateway.getDestinationCountryCuits();
+    // El mismo destino que el asociado, escrito por nombre: recien con la tabla se sabe.
+    const associatedCuit =
+      associated?.voucher.destinationCountry === destinationCountry.code
+        ? associated.voucher.clientCountryCuit
+        : undefined;
     const clientCountryCuit = resolveExportClientCountryCuit({
       country: destinationCountry,
       countries: countryCuits,
-      cuit: input.clientCountryCuit,
+      cuit: input.clientCountryCuit ?? associatedCuit,
     });
 
     assertExportClientIdentification({

@@ -119,7 +119,7 @@ export function resolveExportInput({
   now,
   voucherKind = EXPORT_VOUCHER_KIND,
 }: ExportInputOptions): ExportInputPlan {
-  const layers: ExportInputLayers = discardExportOverridden({ file, flags });
+  const layers: ExportInputLayers = discardExportOverridden({ file, flags, voucherKind });
   // Las fechas relativas (`hoy`, `+10`...) se resuelven aca, para flags y `--cargar`. En la E todas son de un dia.
   const day = (value: string | undefined) => resolveRelativeDateInput(value, 'day', now);
   const { emit, source: modeSource } = resolveEmitDecision({

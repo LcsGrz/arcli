@@ -366,6 +366,11 @@ describe('cruce 3: los datos del receptor del archivo con otro documento en el f
 
   describeKept('cruce 3', [
     {
+      expected: { ...kept, documentNumber: CUIT_A },
+      name: 'el mismo tipo, con mayúsculas y espacios',
+      written: { args: [...amount, '--cuit', String(CUIT_A)], json: { ...file, tipoDocumento: ' CUIT ' } },
+    },
+    {
       expected: { ...kept, documentNumber: 0 },
       name: '--cfinal sobre un consumidor final sin número',
       written: { args: [...amount, '--cfinal'], json: { ...receiver, tipoDocumento: 'consumidor-final' } },
@@ -555,6 +560,7 @@ describe('cruce A: un flag que apunta a otro comprobante asociado', () => {
   it.each<[string, string[], Json]>([
     ['otro tipo con --ac', ['--ac', 'ndb'], { numero: 1, puntoVenta: 2, shortcut: 'ndb' }],
     ['otro tipo con --at', ['--at', '7'], { numero: 1, puntoVenta: 2, tipo: 7 }],
+    ['un atajo que no existe', ['--ac', 'zz'], { numero: 1, puntoVenta: 2, shortcut: 'zz' }],
     ['otro número', ['--ar', '9'], { numero: 9, puntoVenta: 2, shortcut: 'fb' }],
     ['otro punto de venta', ['--apv', '4'], { numero: 1, puntoVenta: 4, shortcut: 'fb' }],
     [
@@ -604,6 +610,18 @@ describe('cruces que quedan así (decidido)', () => {
     expect(() => billingInput({ args: [...base, '--ar', '0', '--apv', '2'], json: VOUCHER_FILE }, 'ncb')).toThrow(
       /too_small/,
     );
+  });
+
+  it('`--pd ""` con `--ph` no pierde el `desde` del archivo', () => {
+    expect(
+      billingInput({ args: [...base, '--pd', '', '--ph', '15/09/2026'], json: PERIOD_FILE }, 'ncb').associatedPeriod,
+    ).toEqual({ ...PERIOD, hasta: '15/09/2026' });
+  });
+
+  it('`--moneda ""` no descarta la cotización del archivo: es el error de siempre', () => {
+    expect(() =>
+      billingInput({ args: [...base, '--moneda', ''], json: { codigoMoneda: 'USD', cotizacionMoneda: 1400 } }),
+    ).toThrow(/currencyCode/);
   });
 
   it('B (decidido: queda así): `--pd ""` se ignora y queda el período del archivo', () => {

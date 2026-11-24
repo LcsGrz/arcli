@@ -70,6 +70,30 @@ describe('resolveExportInput', () => {
     expect(() => resolve({ file: { emitir: true, previsualizar: true }, flags })).toThrow('"emitir" o "previsualizar"');
   });
 
+  it.each<[string, Partial<ExportInputOptions>, number]>([
+    ['una descripción en blanco no avisa', { flags: { descripcion: ' ' } }, 0],
+    ['sin descripción no avisa', {}, 0],
+    ['con las dos, avisa', { flags: { descripcion: 'Horas' } }, 1],
+  ])('con ítems, %s', (_name, options, warnings) => {
+    const items = [{ cantidad: 1, descripcion: 'x', precioUnitario: 1 }];
+
+    expect(resolve({ file: { items }, ...options }).warnings).toHaveLength(warnings);
+    expect(resolve({ ...options, flags: { ...options.flags, items } }).warnings).toHaveLength(warnings);
+  });
+
+  it('sin ítems la descripción no avisa, y el aviso nombra de dónde salió cada uno', () => {
+    const items = [{ cantidad: 1, descripcion: 'x', precioUnitario: 1 }];
+
+    expect(resolve({ flags: { descripcion: 'Horas' } }).warnings).toEqual([]);
+    expect(resolve({ file: { items: [] }, flags: { descripcion: 'Horas' } }).warnings).toEqual([]);
+    expect(resolve({ file: { descripcion: 'Horas' }, flags: { items } }).warnings).toEqual([
+      'La clave "descripcion" del JSON de `--cargar` se usa solo cuando no hay `--item`: el detalle del comprobante sale de los ítems.',
+    ]);
+    expect(resolve({ file: { items }, flags: { descripcion: 'Horas' } }).warnings).toEqual([
+      '`--descripcion` se usa solo cuando no hay "items": el detalle del comprobante sale de los ítems.',
+    ]);
+  });
+
   it('no comparte la lista de permisos con lo que recibe', () => {
     const permisos = ['P1'];
 
