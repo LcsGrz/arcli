@@ -169,6 +169,18 @@ describe('PDF sin CAE (TEST-18)', () => {
     ).toMatchObject({ cae: result.response.cae, cbteDesde: 77, cbteHasta: 77 });
   });
 
+  it('sin la tabla de unidades, una que no es la de por defecto sale con su código (ARQ-22)', () => {
+    const result = createExportResult();
+    const [item] = result.payload.Items.Item;
+    const unitOf = (Pro_umed: number) =>
+      mapExportResultToPdfData(
+        { ...result, payload: { ...result.payload, Items: { Item: [{ ...item, Pro_umed }] } } },
+        ISSUER,
+      ).items?.[0]?.unidadMedida;
+
+    expect([unitOf(7), unitOf(1)]).toEqual(['unidad', '1']);
+  });
+
   it('rechaza una E sin CAE o sin vencimiento del CAE', () => {
     const result = createExportResult();
 

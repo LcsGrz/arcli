@@ -42,14 +42,14 @@ export function loadArcaProfile(config: ArcliConfig, options: LoadArcaProfileOpt
   const { environment } = options;
   const { certPath, cuit, keyPath } = checkArcaProfile(config, { environment });
   const cert = readPemFile(certPath, 'certificado');
-  const certificateNotices = inspectConfiguredCertificates(config.cert, {
+  const certificateNotices = inspectConfiguredCertificates(config, {
     activeEnvironment: environment,
     activePem: cert,
     now: options.now,
   });
 
   return {
-    certificateExpiry: certificateNotices.find((notice) => notice.environment === environment),
+    certificateExpiry: certificateNotices.find((notice) => notice.environment === environment && !notice.use),
     certificateNotices,
     config,
     context: {

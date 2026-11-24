@@ -7,7 +7,7 @@ import { CertificateExpiredError } from '../../modules/config/certificate-expiry
 import { formatEnvironmentLabel, MISSING_CUIT_MESSAGE } from '../../modules/config/config.schemas';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { stripAnsi } from '../../ui';
-import { resolveArcaRuntime } from '../arca-runtime';
+import { exportCertificateWarnings, resolveArcaRuntime } from '../arca-runtime';
 import {
   type BillingCommandGateways,
   executeBillingCommand,
@@ -571,6 +571,40 @@ describe('factura E: certificado de exportacion', () => {
     new ArcaClientFactory().createForExport(resolveArcaRuntime({}));
 
     expect(Arca).toHaveBeenCalledWith(expect.objectContaining({ cert: profile.other.pem }));
+  });
+
+  it('por vencer, el dedicado se avisa en los comandos, y la E no avisa el general (ARQ-22)', () => {
+    profile.writeConfig(
+      profile.configWith(profile.expiring, {
+        exportacion: { cert: { testing: profile.other.certPath }, key: { testing: profile.other.keyPath } },
+      }),
+    );
+
+    expect(resolveArcaRuntime({}, { service: 'wsfex' }).certificateExpiry).toMatchObject({ environment: 'testing' });
+    expect(stripAnsi(profile.stderr)).not.toContain('El certificado de testing vence');
+
+    profile.writeConfig(
+      profile.configWith(profile.healthy, {
+        exportacion: { cert: { testing: profile.expiring.certPath }, key: { testing: profile.expiring.keyPath } },
+      }),
+    );
+
+    // Tambien en los comandos de A, B y C, sin ser el suyo.
+    expect(resolveArcaRuntime({}).certificateExpiry).toBeUndefined();
+    expect(stripAnsi(profile.stderr)).toContain('El certificado de exportación de testing vence el');
+  });
+
+  it('con --json y el general vencido, la E con par propio sigue y avisa solo lo suyo (ARQ-22)', () => {
+    profile.writeConfig(
+      profile.configWith(profile.expiring, {
+        exportacion: { cert: { testing: profile.other.certPath }, key: { testing: profile.other.keyPath } },
+      }),
+    );
+    profile.moveClockAfterExpiry(profile.expiring, 5);
+
+    const runtime = resolveArcaRuntime({ json: true }, { service: 'wsfex' });
+
+    expect(exportCertificateWarnings(runtime).join()).not.toContain('El certificado de testing');
   });
 
   it('dedicado a medias (solo el certificado): error de configuracion que nombra la clave que falta', () => {

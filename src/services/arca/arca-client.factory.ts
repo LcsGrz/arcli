@@ -115,7 +115,7 @@ export class ArcaClientFactory {
     }
 
     const cert = readPemFile(credentials.cert, 'certificado');
-    const notice = inspectCertificateExpiry(cert, runtime.environment, systemClock.now());
+    const notice = inspectCertificateExpiry(cert, runtime.environment, systemClock.now(), 'exportacion');
 
     if (notice?.expired) {
       throw new CertificateExpiredError(notice);

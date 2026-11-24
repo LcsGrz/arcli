@@ -495,7 +495,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor (si 
 ### Factura E: la cotización no es la del día
 
 - **Severidad:** frecuente, casi siempre con la fecha de hoy
-- **Síntoma:** aviso `ARCA no publicó la cotización de DOL del <fecha>: se usa la del <fecha anterior>`.
+- **Síntoma:** aviso `Sin --cm se usa la cotización oficial de ARCA para <moneda> (<valor>), la de aduana del <fecha anterior>: ARCA no publicó la del <fecha>`.
 - **Causa:** la `E` usa la cotización de aduana de WSFEX (`FEXGetPARAM_MON_CON_COTIZACION`), que ARCA publica una vez por día. Mientras no sale la de hoy, se usa la última publicada.
 - **Solución:** no hace falta hacer nada. Para fijar otra cotización, pasá `--cotizacion-moneda <valor>` (o `--cm`).
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e)

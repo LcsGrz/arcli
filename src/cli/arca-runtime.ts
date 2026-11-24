@@ -1,9 +1,13 @@
 import { dirname } from 'node:path';
 
 import { restrictFolderToOwner } from '../lib/files/restrict-to-owner';
-import { CERTIFICATE_GUIDE_URL, PRODUCTION_RENEWAL_GUIDE_URL } from '../lib/links';
+import { CERTIFICATE_GUIDE_URL, EXPORT_CERTIFICATE_GUIDE_URL } from '../lib/links';
 import { type ArcaProfile, credentialPaths, resolveCuit, resolveEnvironment } from '../modules/config/arca-profile';
-import type { CertificateExpiryNotice } from '../modules/config/certificate-expiry';
+import {
+  type CertificateExpiryNotice,
+  exportCertificateView,
+  renewalGuideUrl,
+} from '../modules/config/certificate-expiry';
 import type { ArcliConfig, ArcliEnvironment } from '../modules/config/config.schemas';
 import { ConfigService } from '../modules/config/config.service';
 import { checkArcaProfile, loadArcaProfile } from '../services/arca/arca-profile.loader';
@@ -28,12 +32,16 @@ export function renderCertificateNotices(notices: readonly CertificateExpiryNoti
     return undefined;
   }
 
+  const general = notices.filter((notice) => notice.use !== 'exportacion');
+  const guideUrls = [...new Set(general.map(renewalGuideUrl))];
+  // Uno de exportacion no se renueva como los generales: con los dos, van los dos links.
+  const generalUrl = guideUrls.length > 1 ? CERTIFICATE_GUIDE_URL : guideUrls[0];
+  const exportUrl = notices.length > general.length ? EXPORT_CERTIFICATE_GUIDE_URL : undefined;
+
   return certificateBanner({
     expired: notices.some((notice) => notice.expired),
-    // Un solo link para todos: el de renovar en produccion si son todos de produccion, si no la guia de siempre.
-    guideUrl: notices.every((notice) => notice.environment === 'produccion')
-      ? PRODUCTION_RENEWAL_GUIDE_URL
-      : CERTIFICATE_GUIDE_URL,
+    // Uno solo para todos los generales: el de renovar en produccion si son todos de produccion, si no la guia de siempre.
+    guideUrl: generalUrl && exportUrl ? `${generalUrl}\nDe exportación: ${exportUrl}` : (generalUrl ?? exportUrl ?? ''),
     summary: notices.map((notice) => notice.summary).join('\n'),
   });
 }
@@ -112,11 +120,24 @@ export function loadArcaRuntime(options: GlobalCliOptions): CliArcaRuntime {
   });
 }
 
-/** Config, credenciales y aviso del certificado: el paso comun de los comandos que van a ARCA. */
-export function resolveArcaRuntime(options: GlobalCliOptions): CliArcaRuntime {
+/**
+ * Config, credenciales y aviso del certificado: el paso comun de los comandos que van a ARCA. En los de la E
+ * (`wsfex`), el aviso habla del certificado que usa (`exportCertificateView`).
+ */
+export function resolveArcaRuntime(
+  options: GlobalCliOptions,
+  { service = 'wsfe' }: { readonly service?: 'wsfe' | 'wsfex' } = {},
+): CliArcaRuntime {
   const runtime = loadArcaRuntime(options);
 
-  writeCertificateNotice(runtime);
+  writeCertificateNotice(service === 'wsfex' ? { ...runtime, ...exportCertificateView(runtime) } : runtime);
 
   return runtime;
+}
+
+/** `certificateWarnings` para la E. */
+export function exportCertificateWarnings(
+  runtime: CertificateRuntime & Pick<CliArcaRuntime, 'config' | 'environment'>,
+): string[] {
+  return certificateWarnings({ ...runtime, ...exportCertificateView(runtime) });
 }

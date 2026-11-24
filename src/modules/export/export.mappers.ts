@@ -142,7 +142,7 @@ export function earliestExportVoucherDate(today: string): string {
  * ARCA 1500 (WSFEX v3.1.0): la fecha de la factura y de las notas E va de hoy - 5 a hoy + 5 (N = fecha de envio) y,
  * en servicios, no puede pasar del mes en curso. Testing lo confirma: +1 aprobada, +6 y -6 rechazadas con el periodo
  * en el mensaje. Una fecha futura vale (por ejemplo, la del embarque del lunes), pero traba el punto de venta: ver
- * `exportFutureDateWarning`. Sin `today` no corre.
+ * `futureDateWarnings`. Sin `today` no corre.
  */
 export const EXPORT_VOUCHER_DATE_WINDOW_RULE: ExportRule = {
   check: (input, { today }) => {

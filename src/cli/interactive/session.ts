@@ -242,7 +242,13 @@ async function previewBilling(
   const fceWarnings = runtime.config.verificarFce
     ? await resolveFceWarningsInOrder(service, [input], new ArcaFceObligationGateway(session.arca))
     : [];
-  const warnings = [...flowWarnings, ...prepared.warnings, ...(fceWarnings[0] ?? []), ...registryWarnings];
+  const warnings = [
+    ...flowWarnings,
+    ...prepared.warnings,
+    ...(preview.warnings ?? []),
+    ...(fceWarnings[0] ?? []),
+    ...registryWarnings,
+  ];
 
   return { input, preview: { ...preview, warnings }, warnings };
 }

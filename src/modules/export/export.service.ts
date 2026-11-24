@@ -8,7 +8,13 @@ import { InputValidationError } from '../../lib/errors/app-error';
 import { AMOUNT_DECIMALS, formatExchangeRate, hasAtMostDecimals } from '../../lib/numbers/argentine-amount';
 import { assertRules } from '../../lib/rules/rules';
 import type { Clock } from '../../lib/time/clock';
-import { assertCurrencyInTable } from '../billing/billing.currency';
+import {
+  assertCurrencyInTable,
+  describeExchangeRateRange,
+  isExchangeRateInRange,
+  officialExchangeRateWarning,
+} from '../billing/billing.currency';
+import { futureDateWarnings } from '../billing/billing.dates';
 import { EmissionUncertainError } from '../billing/billing.errors';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import type { ArcliConfig } from '../config/config.schemas';
@@ -53,7 +59,9 @@ import {
 import { checkExportPermits } from './export.permits';
 import { createDryRunExportResponse, mapExportResponse } from './export.response';
 import { EXPORT_DATE_RULES } from './export.rules';
+import { describeQueryFailure, readExportTable, requireExportTable, unreadExportTableWarnings } from './export.tables';
 import {
+  DEFAULT_EXPORT_UNIT_CODE,
   EXPORT_VOUCHER_KIND,
   type ExportAssociatedVoucherPayload,
   type ExportDisplayInfo,
@@ -158,25 +166,6 @@ const PLURAL_NAMES: Record<ExportVoucherKind['shortcut'], string> = {
   nde: 'notas de débito E',
 };
 
-/**
- * ARCA 1535 (WSFEX v3.1.0) controla la secuencia por punto de venta, tipo, numero y fecha: despues de una E con fecha
- * futura, una del mismo punto de venta y tipo con fecha anterior sale rechazada. Se avisa en la vista previa.
- */
-function exportFutureDateWarnings(options: {
-  readonly kind: ExportVoucherKind;
-  readonly pointOfSale: number;
-  readonly today: string;
-  readonly voucherDate: string;
-}): string[] {
-  if (options.voucherDate <= options.today) {
-    return [];
-  }
-
-  return [
-    `La fecha del comprobante (${formatArcaDateAsArgentineDate(options.voucherDate)}) es futura: las próximas ${PLURAL_NAMES[options.kind.shortcut]} del punto de venta ${options.pointOfSale} van a tener que llevar esa fecha o una posterior, porque ARCA rechaza una anterior (error 1535).`,
-  ];
-}
-
 interface ResolvedAssociatedVoucher {
   readonly payload: ExportAssociatedVoucherPayload;
   readonly voucher: ExportIssuedVoucher;
@@ -213,35 +202,91 @@ async function fetchAssociated(
 }
 
 /**
- * Aviso de que dia es la cotizacion, solo si no es la del dia que se pidio. En servicios y con el pago en la misma
- * moneda se pide el dia anterior al comprobante: sale el aviso cuando ese dia no hubo (un fin de semana o un feriado)
- * y ARCA devolvio la del ultimo dia habil. En el resto, cuando ARCA todavia no publico la de la fecha del comprobante.
+ * De donde salio la cotizacion sin `--cotizacion-moneda`. En servicios y con el pago en la misma moneda es obligatoria
+ * la del dia habil anterior, asi que solo se avisa si ese dia no hubo (un fin de semana o un feriado) y va la ultima
+ * que publico ARCA. En el resto es un default y se avisa siempre, como en A, B y C: con el dia, si ARCA no publico la
+ * del dia que se pidio.
  */
-function exportQuotationWarnings(
-  quotation: ExportQuotation,
-  quotationDate: ExportQuotationDate,
-  exportType: ExportType,
-  voucherDate: string,
-): string[] {
-  if (!quotation.date || quotation.date === quotationDate.date) {
-    return [];
-  }
+function exportQuotationWarnings(options: {
+  readonly currencyCode: string;
+  readonly exportType: ExportType;
+  readonly quotation: ExportQuotation;
+  readonly quotationDate: ExportQuotationDate;
+  readonly voucherDate: string;
+}): string[] {
+  const { currencyCode, exportType, quotation, quotationDate, voucherDate } = options;
+  const asked = formatArcaDateAsArgentineDate(quotationDate.date);
+  const otherDay =
+    quotation.date && quotation.date !== quotationDate.date ? formatArcaDateAsArgentineDate(quotation.date) : undefined;
 
-  const used = `la del ${formatArcaDateAsArgentineDate(quotation.date)} (${formatExchangeRate(quotation.rate)})`;
-
-  if (quotationDate.rule === 'previous-business-day') {
-    const subject = exportType === SERVICES_EXPORT_TYPE ? 'En servicios' : 'Con `--misma-moneda`';
-
+  if (quotationDate.rule === 'voucher-date') {
     return [
-      `${subject} ARCA exige la cotización de ${quotation.code} del día hábil anterior a ${quotationDate.date < addDaysToArcaDate(voucherDate, -1) ? 'hoy, porque la fecha del comprobante es futura' : 'la fecha del comprobante'} (error 2053): se usa ${used}, la última que publicó hasta el ${formatArcaDateAsArgentineDate(quotationDate.date)}.`,
+      officialExchangeRateWarning({
+        code: currencyCode,
+        detail: otherDay ? `, la de aduana del ${otherDay}: ARCA no publicó la del ${asked}` : ', la de aduana',
+        rate: quotation.rate,
+      }),
     ];
   }
 
+  if (!otherDay) {
+    return [];
+  }
+
+  const subject = exportType === SERVICES_EXPORT_TYPE ? 'En servicios' : 'Con `--misma-moneda`';
+  const used = `la del ${otherDay} (${formatExchangeRate(quotation.rate)})`;
+
   return [
-    `ARCA no publicó la cotización de ${quotation.code} del ${formatArcaDateAsArgentineDate(
-      quotationDate.date,
-    )}: se usa ${used}. Para usar otra, \`--cotizacion-moneda\`.`,
+    `${subject} ARCA exige la cotización de ${quotation.code} del día hábil anterior a ${quotationDate.date < addDaysToArcaDate(voucherDate, -1) ? 'hoy, porque la fecha del comprobante es futura' : 'la fecha del comprobante'} (error 2053): se usa ${used}, la última que publicó hasta el ${asked}.`,
   ];
+}
+
+/**
+ * 1667 (WSFEX v3.1.0, p. 19): la cotizacion va "entre el 2% y el 400% de la oficial". Solo avisa: en testing no se puede
+ * probar, porque sus cotizaciones son ficticias.
+ */
+const EXPORT_EXCHANGE_RATE_LIMITS = { maxRatio: 4, minRatio: 0.02 } as const;
+
+/**
+ * Lo que tiene la cotizacion escrita contra la oficial. En servicios y con `--misma-moneda` tiene que ser la de ARCA y
+ * frena; en bienes y otros avisa si esta fuera de rango. Si ARCA no la informa, decide al emitir.
+ */
+async function checkWrittenExchangeRate(options: {
+  readonly code: string;
+  readonly exportType: ExportType;
+  readonly gateway: Pick<ExportPreviewGateway, 'getQuotations'>;
+  readonly quotationDate: ExportQuotationDate;
+  readonly rate: number;
+}): Promise<string[]> {
+  const { exportType, gateway, quotationDate, rate } = options;
+  const code = options.code.trim().toUpperCase();
+  const table = await readExportTable(() => gateway.getQuotations(quotationDate.date));
+  const official = table.rows.find((entry) => entry.code.trim().toUpperCase() === code);
+
+  if (quotationDate.rule === 'previous-business-day') {
+    assertExportExchangeRateMatches({ exportType, given: rate, official });
+
+    return table.ok
+      ? []
+      : [
+          `No se pudo comparar la cotización con la de ARCA (${describeQueryFailure(table.error)}): la rechaza si no es la oficial del día hábil anterior (error ${exportType === SERVICES_EXPORT_TYPE ? 2053 : 1604}).`,
+        ];
+  }
+
+  return official && !isExchangeRateInRange(rate, official.rate, EXPORT_EXCHANGE_RATE_LIMITS)
+    ? [
+        `${describeExchangeRateRange({ code, limits: EXPORT_EXCHANGE_RATE_LIMITS, official: official.rate, rate })} ARCA la puede rechazar (error 1667): revisá \`--cm\`.`,
+      ]
+    : [];
+}
+
+/** Las unidades escritas por codigo, que hay que validar (la de por defecto no), para su aviso. */
+function describeWrittenUnits(input: ExportVoucherInput): string | undefined {
+  const codes = new Set((input.items ?? []).map(({ unit }) => unit ?? DEFAULT_EXPORT_UNIT_CODE));
+
+  codes.delete(DEFAULT_EXPORT_UNIT_CODE);
+
+  return codes.size > 0 ? `la unidad ${[...codes].join(', ')}` : undefined;
 }
 
 function describeAssociated(voucher: ExportIssuedVoucher): ExportDisplayInfo['associatedVoucher'] {
@@ -275,6 +320,7 @@ export class ExportService {
     runtime: ExportRuntime,
   ): Promise<ResolvedExportVoucher> {
     const now = this.clock.now();
+    const today = formatDateAsArcaDate(now);
     const config = runtime.config;
     const voucherKind = rawInput.voucherKind ?? EXPORT_VOUCHER_KIND;
 
@@ -306,7 +352,7 @@ export class ExportService {
         voucherDate: formatArcaDateAsArgentineDate(voucherDate),
         voucherKind,
       },
-      { today: formatDateAsArcaDate(now) },
+      { today },
     );
     assertExportIncoterm({
       exportType,
@@ -318,19 +364,37 @@ export class ExportService {
     // La ultima de las locales, antes de consultar las tablas (ERR-11). En una nota con asociado ya se valido al buscarlo.
     const pointOfSale = resolveExportPointOfSale(input.pointOfSale, config);
 
-    const countryList = await gateway.getDestinationCountries();
-    const destinationCountry = resolveExportDestinationCountry(input.destinationCountry, countryList);
-    const countryCuits = await gateway.getDestinationCountryCuits();
+    const countryTable = await readExportTable(() => gateway.getDestinationCountries());
+    const typedCountryCode = Number(/^\d+$/.exec(input.destinationCountry?.trim() ?? '')?.[0] ?? 0);
+    // Sin la tabla, el codigo alcanza para emitir; un nombre no.
+    const destinationCountry = resolveExportDestinationCountry(
+      input.destinationCountry,
+      typedCountryCode > 0 && !countryTable.ok
+        ? [{ code: typedCountryCode, name: '' }]
+        : requireExportTable(countryTable),
+    );
+    const countryCuitTable = await readExportTable(() => gateway.getDestinationCountryCuits());
+    const countryCuits = countryCuitTable.rows;
     // El mismo destino que el asociado, escrito por nombre: recien con la tabla se sabe.
     const associatedCuit =
       associated?.voucher.destinationCountry === destinationCountry.code
         ? associated.voucher.clientCountryCuit
         : undefined;
-    const clientCountryCuit = resolveExportClientCountryCuit({
-      country: destinationCountry,
-      countries: countryCuits,
-      cuit: input.clientCountryCuit ?? associatedCuit,
-    });
+    const givenCountryCuit = input.clientCountryCuit ?? associatedCuit;
+
+    // El CUIT del pais que no se escribio sale de las dos tablas, y se emite.
+    if (givenCountryCuit === undefined) {
+      requireExportTable(countryTable);
+      requireExportTable(countryCuitTable);
+    }
+
+    const clientCountryCuit = countryCuitTable.ok
+      ? resolveExportClientCountryCuit({
+          country: destinationCountry,
+          countries: countryCuits,
+          cuit: givenCountryCuit,
+        })
+      : givenCountryCuit;
 
     assertExportClientIdentification({
       clientCountryCuit,
@@ -338,7 +402,11 @@ export class ExportService {
       country: destinationCountry,
     });
 
-    const units = await gateway.getUnits();
+    const unitTable = await readExportTable(() => gateway.getUnits());
+    // Una unidad escrita por nombre sale de la tabla.
+    const units = input.items?.some(({ unit }) => typeof unit === 'string')
+      ? requireExportTable(unitTable)
+      : unitTable.rows;
     const items = buildExportItems(
       input.items,
       input.amount as number,
@@ -346,27 +414,29 @@ export class ExportService {
       input.description?.trim() || DEFAULT_EXPORT_ITEM_DESCRIPTION,
     );
 
-    const incotermTable = input.incoterm?.trim() ? await gateway.getIncoterms() : undefined;
-    const incoterm = resolveExportIncoterm(input.incoterm, incotermTable ?? []);
+    const incotermTable = input.incoterm?.trim() ? await readExportTable(() => gateway.getIncoterms()) : undefined;
+    const incoterm = resolveExportIncoterm(input.incoterm, incotermTable?.rows ?? []);
     // Se consulta siempre: la vista previa muestra el nombre del idioma, tambien el de por defecto.
-    const languages = await gateway.getLanguages();
-    const languageId = resolveExportLanguage(input.language, languages);
+    const languageTable = await readExportTable(() => gateway.getLanguages());
+    const languageId = resolveExportLanguage(input.language, languageTable.rows);
     const currency = resolveExportCurrency(input);
     // Se consulta siempre: la vista previa muestra el nombre de la moneda. Una extranjera que no esta en la tabla es
     // error de entrada (1590), antes de buscar su cotizacion; los pesos no se controlan.
-    const currencies = await gateway.getCurrencies();
+    const currencyTable = await readExportTable(() => gateway.getCurrencies());
+    const isLocalCurrency = currency.fields.Moneda_Id === ARCA_LOCAL_CURRENCY_CODE;
+    const requestedCurrency = input.currencyCode?.trim() || currency.fields.Moneda_Id;
 
     assertCurrencyInTable({
       arcaCode: currency.fields.Moneda_Id,
-      requested: input.currencyCode?.trim() || currency.fields.Moneda_Id,
+      requested: requestedCurrency,
       service: 'wsfex',
-      table: currency.fields.Moneda_Id === ARCA_LOCAL_CURRENCY_CODE ? [] : currencies.map((entry) => entry.code),
+      table: isLocalCurrency ? [] : currencyTable.rows.map((entry) => entry.code),
     });
     const quotationDate = resolveExportQuotationDate({
       exportType,
       isNote: isExportNote(voucherKind),
       sameCurrency: currency.fields.CanMisMonExt === 'S',
-      today: formatDateAsArcaDate(now),
+      today,
       voucherDate,
     });
     const quotation = currency.needsQuotation
@@ -377,22 +447,18 @@ export class ExportService {
         )
       : undefined;
 
-    // `--cotizacion-moneda` en la factura de servicios o con `--misma-moneda`: tiene que ser la de ARCA (2053, 1604).
-    if (
-      !currency.needsQuotation &&
-      currency.fields.Moneda_Id !== ARCA_LOCAL_CURRENCY_CODE &&
-      quotationDate.rule === 'previous-business-day'
-    ) {
-      const code = currency.fields.Moneda_Id.trim().toUpperCase();
-
-      assertExportExchangeRateMatches({
-        exportType,
-        given: currency.fields.Moneda_ctz,
-        official: (await gateway.getQuotations(quotationDate.date)).find(
-          (entry) => entry.code.trim().toUpperCase() === code,
-        ),
-      });
-    }
+    // `--cotizacion-moneda`: en servicios o con `--misma-moneda` tiene que ser la de ARCA (2053, 1604), y en bienes y
+    // otros se avisa si esta fuera de rango (1667). La de una nota sale del asociado.
+    const exchangeRateWarnings =
+      currency.needsQuotation || isLocalCurrency || isExportNote(voucherKind)
+        ? []
+        : await checkWrittenExchangeRate({
+            code: currency.fields.Moneda_Id,
+            exportType,
+            gateway,
+            quotationDate,
+            rate: currency.fields.Moneda_ctz,
+          });
     const exchangeRate = quotation?.rate ?? currency.fields.Moneda_ctz;
     // WSFEX numera por punto de venta y tipo. Sin `--numero`, el siguiente al ultimo que tiene ARCA: es una lectura.
     const voucherNumber = resolveExportNumber({
@@ -413,8 +479,9 @@ export class ExportService {
     });
 
     // Sin `--actividad` ni `exportacion.actividad` la E va sin el bloque `Actividades`: ARCA no lo exige.
-    const activityTable = activityCode === undefined ? undefined : await gateway.getActivities();
-    const activity = activityCode === undefined ? undefined : resolveExportActivity(activityCode, activityTable ?? []);
+    const activityTable = activityCode === undefined ? undefined : await readExportTable(() => gateway.getActivities());
+    const activity =
+      activityCode === undefined ? undefined : resolveExportActivity(activityCode, activityTable?.rows ?? []);
     const payload = buildExportPayload(input, {
       activity,
       clientCountryCuit,
@@ -453,7 +520,7 @@ export class ExportService {
     }
 
     // Ultima lectura antes de emitir: un permiso que ARCA no reconoce corta aca y no en el rechazo de `FEXAuthorize`.
-    const permitChecks = await checkExportPermits(payload, gateway, destinationCountry.name);
+    const permitChecks = await checkExportPermits(payload, gateway, destinationCountry.name || undefined);
     const currencyCode = payload.Moneda_Id.trim().toUpperCase();
     const display: ExportDisplayInfo = {
       ...(associated ? { associatedVoucher: describeAssociated(associated.voucher) } : {}),
@@ -461,29 +528,67 @@ export class ExportService {
         clientCountryCuit === undefined
           ? undefined
           : countryCuits.find((entry) => entry.cuit === clientCountryCuit)?.countryName,
-      countryName: destinationCountry.name,
-      currencyName: currencies.find((entry) => entry.code.trim().toUpperCase() === currencyCode)?.name,
+      countryName: destinationCountry.name || undefined,
+      currencyName: currencyTable.rows.find((entry) => entry.code.trim().toUpperCase() === currencyCode)?.name,
       incotermName: incoterm?.name,
-      languageName: languages.find((language) => language.id === languageId)?.name,
+      languageName: languageTable.rows.find((language) => language.id === languageId)?.name,
       ...(permitChecks ? { permitChecks: permitChecks.checks } : {}),
       unitNames: Object.fromEntries(units.map((unit) => [unit.id, unit.name])),
     };
     // La cotizacion de aduana del dia se publica mas tarde: se emite con la ultima disponible, avisando de que dia es.
     const warnings = [
       ...exportAssociatedVoucherWarnings(rawInput.associatedVoucher),
-      ...exportFutureDateWarnings({ kind: voucherKind, pointOfSale, today: formatDateAsArcaDate(now), voucherDate }),
+      ...futureDateWarnings({
+        code: 1535,
+        next: `las próximas ${PLURAL_NAMES[voucherKind.shortcut]}`,
+        pointOfSale,
+        today,
+        voucherDate,
+      }),
       // En las notas `--fecha-pago` es un error (ver `assertExportNoteFields`); en la factura de bienes se ignora.
       ...(!isExportNote(voucherKind) && input.paymentDate?.trim() && !exportTypeTakesPaymentDate(exportType, false)
         ? [
             'La factura E de bienes (`--tipo-expo 1`) no lleva fecha de pago: ARCA la rechaza (error 1673). `--fecha-pago` no se usa.',
           ]
         : []),
-      ...(quotation ? exportQuotationWarnings(quotation, quotationDate, exportType, voucherDate) : []),
+      ...(quotation
+        ? exportQuotationWarnings({
+            // El codigo como se escribio, como en A, B y C.
+            currencyCode: requestedCurrency.toUpperCase(),
+            exportType,
+            quotation,
+            quotationDate,
+            voucherDate,
+          })
+        : []),
+      ...exchangeRateWarnings,
       ...(permitChecks?.warnings ?? []),
-      ...(activity !== undefined && activityTable?.length === 0
+      ...unreadExportTableWarnings(countryTable, 'países', `el país de destino ${destinationCountry.code}`),
+      ...unreadExportTableWarnings(countryCuitTable, 'CUIT de países', `el CUIT de país ${clientCountryCuit}`),
+      ...unreadExportTableWarnings(unitTable, 'unidades de medida', describeWrittenUnits(input)),
+      ...(incoterm && incotermTable
+        ? unreadExportTableWarnings(incotermTable, 'incoterms', `el incoterm ${incoterm.code}`)
+        : []),
+      ...unreadExportTableWarnings(
+        languageTable,
+        'idiomas',
+        input.language === undefined ? undefined : `el idioma ${languageId}`,
+      ),
+      // Con la cotizacion de ARCA, la moneda ya se encontro en su tabla de cotizaciones.
+      ...unreadExportTableWarnings(
+        currencyTable,
+        'monedas',
+        isLocalCurrency || quotation ? undefined : `la moneda ${requestedCurrency.toUpperCase()}`,
+      ),
+      ...(activity !== undefined && activityTable
+        ? unreadExportTableWarnings(activityTable, 'actividades', `la actividad ${activity}`)
+        : []),
+      ...(activity !== undefined && activityTable?.ok && activityTable.rows.length === 0
         ? [exportEmptyTableWarning('actividades', activity)]
         : []),
-      ...(incoterm && incotermTable?.length === 0 ? [exportEmptyTableWarning('incoterms', incoterm.code)] : []),
+      ...(incoterm && incotermTable?.ok && incotermTable.rows.length === 0
+        ? [exportEmptyTableWarning('incoterms', incoterm.code)]
+        : []),
     ];
 
     return { display, payload, voucherKind, warnings };

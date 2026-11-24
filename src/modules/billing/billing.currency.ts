@@ -52,6 +52,18 @@ export function needsOfficialExchangeRate(input: CurrencyInput): boolean {
   return isForeignCurrency(input) && typeof input.exchangeRate !== 'number';
 }
 
+/**
+ * El aviso de que la cotizacion oficial se tomo por defecto, igual en A, B y C y en la E, que en `detail` agrega que es
+ * la de aduana y, si es de otro dia, de cual.
+ */
+export function officialExchangeRateWarning(options: {
+  readonly code: string;
+  readonly detail?: string;
+  readonly rate: number;
+}): string {
+  return `Sin \`--cm\` se usa la cotización oficial de ARCA para ${options.code} (${formatExchangeRate(options.rate)})${options.detail ?? ''}. Para usar otra, \`--cotizacion-moneda\`.`;
+}
+
 /** Los avisos de de donde salio la cotizacion cuando no la indico el usuario. */
 export function exchangeRateWarnings(
   input: Pick<BillingCommandInput, 'currencyCode' | 'exchangeRate' | 'exchangeRateSource'>,
@@ -66,9 +78,9 @@ export function exchangeRateWarnings(
   }
 
   if (input.exchangeRateSource === 'arca') {
-    return [
-      `Sin \`--cm\` se usa la cotización oficial de ARCA para ${code} (${rate}). Para usar otra, \`--cotizacion-moneda\`.`,
-    ];
+    return typeof input.exchangeRate === 'number'
+      ? [officialExchangeRateWarning({ code, rate: input.exchangeRate })]
+      : [];
   }
 
   return [];
@@ -89,8 +101,29 @@ export function resolveSameCurrencyQuotationDate(billingDate: string, today: str
  * 400%" de la oficial. ARCA testing lo confirma con 500 %: aprueba 4,99 veces la oficial y rechaza 5,01, y aprueba
  * el 2,1 % y rechaza el 1,9 % (18/11/2026).
  */
-const EXCHANGE_RATE_MIN_RATIO = 0.02;
-const EXCHANGE_RATE_MAX_RATIO = 5;
+const EXCHANGE_RATE_LIMITS: ExchangeRateLimits = { maxRatio: 5, minRatio: 0.02 };
+
+/** Entre que proporciones de la oficial acepta ARCA la cotizacion. */
+interface ExchangeRateLimits {
+  readonly maxRatio: number;
+  readonly minRatio: number;
+}
+
+export function isExchangeRateInRange(rate: number, official: number, limits: ExchangeRateLimits): boolean {
+  return rate >= official * limits.minRatio && rate <= official * limits.maxRatio;
+}
+
+/** Que cotizacion esta fuera de rango y cual es el rango. */
+export function describeExchangeRateRange(options: {
+  readonly code: string;
+  readonly limits: ExchangeRateLimits;
+  readonly official: number;
+  readonly rate: number;
+}): string {
+  const { code, limits, official, rate } = options;
+
+  return `La cotización de ${code} (${formatExchangeRate(rate)}) está fuera de lo que acepta ARCA: entre el ${limits.minRatio * 100} % y el ${limits.maxRatio * 100} % de la oficial (${formatExchangeRate(official)}), o sea de ${formatExchangeRate(official * limits.minRatio)} a ${formatExchangeRate(official * limits.maxRatio)}.`;
+}
 
 /** Que dato poner en la sugerencia cuando la cotizacion esta fuera de rango. */
 function describeExchangeRateSource(input: Pick<BillingCommandInput, 'exchangeRateSource' | 'fromFile'>): string {
@@ -116,17 +149,14 @@ export function validateExchangeRateRange(
     return;
   }
 
-  const min = official * EXCHANGE_RATE_MIN_RATIO;
-  const max = official * EXCHANGE_RATE_MAX_RATIO;
-
-  if (rate >= min && rate <= max) {
+  if (isExchangeRateInRange(rate, official, EXCHANGE_RATE_LIMITS)) {
     return;
   }
 
   const code = input.currencyCode.trim().toUpperCase();
 
   throw new InputValidationError(
-    `La cotización de ${code} (${formatExchangeRate(rate)}) está fuera de lo que acepta ARCA: entre el 2 % y el 500 % de la oficial (${formatExchangeRate(official)}), o sea de ${formatExchangeRate(min)} a ${formatExchangeRate(max)}.`,
+    describeExchangeRateRange({ code, limits: EXCHANGE_RATE_LIMITS, official, rate }),
     undefined,
     `Revisá ${describeExchangeRateSource(input)}, o sacala para usar la oficial de ARCA.`,
   );

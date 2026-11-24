@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { AppError } from '../../../lib/errors/app-error';
+import { AppError } from '../../../lib/errors/app-error';
 import { exportAnswer } from '../../../testing/arca-answers';
 import { EmissionUncertainError } from '../../billing/billing.errors';
 import { arcliConfigSchema } from '../../config/config.schemas';
@@ -258,9 +258,9 @@ describe('ExportService.resolve', () => {
   });
 
   it('en bienes no manda la fecha de pago (ARCA la rechaza, 1673) y avisa si vino `--fecha-pago`', async () => {
-    const withoutDate = await service.resolve({ ...INPUT, exportType: 1 }, createGateway(), RUNTIME);
+    const withoutDate = await service.resolve({ ...INPUT, exchangeRate: 900, exportType: 1 }, createGateway(), RUNTIME);
     const withDate = await service.resolve(
-      { ...INPUT, exportType: 1, paymentDate: '15/06/2026' },
+      { ...INPUT, exchangeRate: 900, exportType: 1, paymentDate: '15/06/2026' },
       createGateway(),
       RUNTIME,
     );
@@ -351,11 +351,30 @@ describe('ExportService.resolve', () => {
 
     expect(resolved.payload.Moneda_ctz).toBe(895);
     expect(resolved.warnings).toEqual([
-      'ARCA no publicó la cotización de DOL del 01/06/2026: se usa la del 29/05/2026 (895). Para usar otra, `--cotizacion-moneda`.',
+      'Sin `--cm` se usa la cotización oficial de ARCA para DOL (895), la de aduana del 29/05/2026: ARCA no publicó la del 01/06/2026. Para usar otra, `--cotizacion-moneda`.',
     ]);
   });
 
-  it('no avisa nada cuando la cotizacion es la del dia pedido', async () => {
+  it('en bienes y otros avisa que la cotizacion es la oficial, tambien si es la del dia (ARQ-22)', async () => {
+    for (const exportType of [1, 4] as const) {
+      const { warnings } = await service.resolve({ ...INPUT, exportType }, createGateway(), RUNTIME);
+
+      expect(warnings).toEqual([
+        'Sin `--cm` se usa la cotización oficial de ARCA para USD (900,50), la de aduana. Para usar otra, `--cotizacion-moneda`.',
+      ]);
+    }
+
+    const sameCurrency = await service.resolve(
+      { ...INPUT, exportType: 4, sameCurrency: true },
+      createGateway(),
+      RUNTIME,
+    );
+    const withRate = await service.resolve({ ...INPUT, exchangeRate: 900, exportType: 4 }, createGateway(), RUNTIME);
+
+    expect([sameCurrency.warnings, withRate.warnings]).toEqual([[], []]);
+  });
+
+  it('en servicios no avisa nada cuando la cotizacion es la del dia pedido', async () => {
     const resolved = await service.resolve(INPUT, createGateway(), RUNTIME);
 
     expect(resolved.warnings).toEqual([]);
@@ -598,12 +617,32 @@ describe('ExportService.resolve', () => {
     expect(gateway.getLastVoucherNumber).not.toHaveBeenCalled();
   });
 
-  it('en bienes no consulta la cotizacion si viene por flag', async () => {
+  it('en bienes usa la cotizacion del flag, y la oficial solo para compararla', async () => {
     const gateway = createGateway();
     const resolved = await service.resolve({ ...INPUT, exchangeRate: 1000, exportType: 1 }, gateway, RUNTIME);
 
     expect(resolved.payload.Moneda_ctz).toBe(1000);
-    expect(gateway.getQuotations).not.toHaveBeenCalled();
+    expect(gateway.getQuotations).toHaveBeenCalledTimes(1);
+    expect(gateway.getQuotations).toHaveBeenCalledWith('20260601');
+  });
+
+  it('en bienes y otros, una cotizacion fuera del 2 % al 400 % de la oficial avisa sin frenar (1667)', async () => {
+    const warningsFor = async (exchangeRate: number, gateway = createGateway()) =>
+      (await service.resolve({ ...INPUT, exchangeRate, exportType: 4 }, gateway, RUNTIME)).warnings;
+
+    // La oficial es 900,50.
+    expect(await warningsFor(18.01)).toEqual([]);
+    expect(await warningsFor(3602)).toEqual([]);
+    expect(await warningsFor(18)).toEqual([expect.stringContaining('(error 1667)')]);
+    expect(await warningsFor(3602.01)).toEqual([expect.stringContaining('(error 1667)')]);
+    expect(await warningsFor(9)).toEqual([
+      'La cotización de DOL (9) está fuera de lo que acepta ARCA: entre el 2 % y el 400 % de la oficial (900,50), o sea de 18,01 a 3.602. ARCA la puede rechazar (error 1667): revisá `--cm`.',
+    ]);
+    // Sin la oficial no hay contra que comparar.
+    expect(await warningsFor(9, createGateway({ getQuotations: vi.fn(async () => []) }))).toEqual([]);
+    expect(
+      await warningsFor(9, createGateway({ getQuotations: vi.fn().mockRejectedValue(new Error('timeout')) })),
+    ).toEqual([]);
   });
 
   it('en servicios y con `--misma-moneda`, `--cotizacion-moneda` tiene que ser la de ARCA (2053, 1604)', async () => {
@@ -710,6 +749,113 @@ describe('ExportService.resolve', () => {
         environment: 'testing',
       }),
     ).rejects.toThrow(/--pv <numero>/);
+  });
+});
+
+describe('ExportService.resolve: tablas que no responden (EXPO-13, ARQ-22)', () => {
+  const service = new ExportService({ clock: { now: () => NOW } });
+  const down = (error: Error = new Error('timeout')) => vi.fn().mockRejectedValue(error);
+  /** Todo por codigo, sin nada que salga de las tablas. */
+  const CODES: ExportVoucherInput = {
+    ...INPUT,
+    clientCountryCuit: 55000000050,
+    destinationCountry: '203',
+    exportType: 4,
+    incoterm: undefined,
+    items: [{ description: 'Servicio', quantity: 1, unit: 7, unitPrice: 1500 }],
+  };
+  const read = async (overrides: Partial<ExportGateway>, input: Partial<ExportVoucherInput> = {}) =>
+    service.resolve({ ...CODES, currencyCode: 'ARS', ...input }, createGateway(overrides), RUNTIME);
+
+  it.each<[string, Partial<ExportGateway>, Partial<ExportVoucherInput>, string]>([
+    ['idioma por defecto', { getLanguages: down() }, {}, 'idiomas de WSFEX (timeout): los nombres no se muestran.'],
+    ['idioma escrito', { getLanguages: down() }, { language: 2 }, 'idiomas de WSFEX (timeout): el idioma 2 va sin'],
+    ['moneda local', { getCurrencies: down() }, {}, 'monedas de WSFEX (timeout): los nombres no se muestran.'],
+    [
+      'moneda con la cotizacion de ARCA',
+      { getCurrencies: down() },
+      { currencyCode: 'USD' },
+      'monedas de WSFEX (timeout): los nombres no se muestran.',
+    ],
+    [
+      'moneda con `--cm`',
+      { getCurrencies: down() },
+      { currencyCode: 'USD', exchangeRate: 900 },
+      'monedas de WSFEX (timeout): la moneda USD va sin',
+    ],
+    ['unidad por defecto', { getUnits: down() }, {}, 'unidades de medida de WSFEX (timeout): los nombres'],
+    [
+      'unidad escrita',
+      { getUnits: down() },
+      { items: [{ description: 'x', quantity: 1, unit: 1, unitPrice: 1500 }] },
+      'unidades de medida de WSFEX (timeout): la unidad 1 va sin',
+    ],
+    ['incoterm', { getIncoterms: down() }, { incoterm: 'fob' }, 'incoterms de WSFEX (timeout): el incoterm FOB va sin'],
+    ['actividad', { getActivities: down() }, {}, 'actividades de WSFEX (timeout): la actividad 620100 va sin'],
+    [
+      'país por código',
+      { getDestinationCountries: down() },
+      {},
+      'países de WSFEX (timeout): el país de destino 203 va',
+    ],
+    [
+      'CUIT de país escrito',
+      { getDestinationCountryCuits: down() },
+      {},
+      'CUIT de países de WSFEX (timeout): el CUIT de país 55000000050 va sin',
+    ],
+  ])('%s: avisa y sigue, con los mismos datos', async (_case, gateway, input, warning) => {
+    const ok = await read({}, input);
+    const resolved = await read(gateway, input);
+
+    // Sin la tabla, la descripcion del incoterm es su codigo, como con la tabla vacia.
+    expect(resolved.payload).toEqual({ ...ok.payload, Incoterms_Ds: input.incoterm ? 'FOB' : '' });
+    expect(resolved.warnings).toEqual([
+      ...(ok.warnings ?? []),
+      expect.stringContaining(`No se pudo consultar la tabla de ${warning}`),
+    ]);
+  });
+
+  it.each<[string, Partial<ExportGateway>, Partial<ExportVoucherInput>]>([
+    ['el país por nombre', { getDestinationCountries: down() }, { destinationCountry: 'brasil' }],
+    ['el CUIT de país sin escribir', { getDestinationCountryCuits: down() }, { clientCountryCuit: undefined }],
+    ['ese CUIT sin el nombre del país', { getDestinationCountries: down() }, { clientCountryCuit: undefined }],
+    [
+      'la unidad por nombre',
+      { getUnits: down() },
+      { items: [{ description: 'x', quantity: 1, unit: 'unidad', unitPrice: 1500 }] },
+    ],
+    ['la cotización', { getQuotations: down() }, { currencyCode: 'USD' }],
+  ])('corta con el error de la consulta si de ahí sale %s', async (_case, gateway, input) => {
+    await expect(read(gateway, input)).rejects.toThrow('timeout');
+  });
+
+  it.each([
+    new AppError('sin permiso', { code: 'WSFEX_SERVICE_NOT_AUTHORIZED' }),
+    new Error('ns1:cms.cert.expired: Certificado expirado'),
+    new Error('ns1:coe.alreadyAuthenticated: El CEE ya posee un TA valido'),
+    Object.assign(new Error("EACCES: permission denied, open 'x'"), { code: 'EACCES', path: 'x', syscall: 'open' }),
+  ])('la autorización, el certificado y los tickets cortan: $message', async (error) => {
+    await expect(read({ getLanguages: down(error) })).rejects.toBe(error);
+    await expect(read({ getQuotations: down(error) }, { currencyCode: 'USD', exchangeRate: 900 })).rejects.toBe(error);
+  });
+
+  it('sin la cotizacion de aduana para comparar, en servicios avisa y sigue (2053)', async () => {
+    const { payload, warnings } = await read(
+      { getQuotations: down() },
+      { currencyCode: 'USD', exchangeRate: 900, exportType: 2 },
+    );
+
+    expect(payload.Moneda_ctz).toBe(900);
+    expect(warnings).toEqual([
+      'No se pudo comparar la cotización con la de ARCA (timeout): la rechaza si no es la oficial del día hábil anterior (error 2053).',
+    ]);
+  });
+
+  it('Argentina no es un destino, tampoco sin la tabla', async () => {
+    await expect(read({ getDestinationCountries: down() }, { destinationCountry: '200' })).rejects.toThrow(
+      /Argentina no es un destino/,
+    );
   });
 });
 

@@ -18,6 +18,9 @@ export function certificateRenewalGuideUrl(environment: 'produccion' | 'testing'
   return environment === 'produccion' ? PRODUCTION_RENEWAL_GUIDE_URL : CERTIFICATE_GUIDE_URL;
 }
 
+/** El certificado propio de exportacion: no se renueva con `arcli certificado`, se carga en la config. */
+export const EXPORT_CERTIFICATE_GUIDE_URL = `${DOCS_SITE_URL}/referencia/configuracion/#certificados-de-exportación-wsfex`;
+
 /** Seccion de la guia completa de produccion que explica como ver o crear un punto de venta para web service. */
 export const POINT_OF_SALE_GUIDE_URL = `${DOCS_SITE_URL}/empezar/certificado-produccion-completo/#punto-de-venta-para-web-service`;
 

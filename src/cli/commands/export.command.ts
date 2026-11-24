@@ -15,7 +15,7 @@ import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../mod
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { systemClock } from '../../services/time/system-clock';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
-import { certificateWarnings, type CliArcaRuntime, resolveArcaRuntime } from '../arca-runtime';
+import { type CliArcaRuntime, exportCertificateWarnings, resolveArcaRuntime } from '../arca-runtime';
 import { formatEmissionQuestion } from '../emission-texts';
 import { recordExportEmission } from '../emitted-vouchers';
 import { getGlobalOptions } from '../global-options';
@@ -81,7 +81,7 @@ export async function executeExportCommand(
   let spinner: ReturnType<typeof startSpinner> = null;
 
   try {
-    const runtime = dependencies.resolveRuntime(globalOptions);
+    const runtime = dependencies.resolveRuntime(globalOptions, { service: 'wsfex' });
     const voucherKind = options.voucherKind ?? EXPORT_VOUCHER_KIND;
     const plan = parseExportCommandPlan(command, { defaultEmit: runtime.config.output.emitirPorDefecto, voucherKind });
     const useRaw = typeof globalOptions.bruto === 'boolean' ? globalOptions.bruto : runtime.outputRaw;
@@ -93,7 +93,7 @@ export async function executeExportCommand(
     const { preview, resolved, warnings } = await previewExport({
       clock: systemClock,
       // Los avisos de la resolucion (por ejemplo, la cotizacion de un dia anterior) van despues de estos.
-      extraWarnings: [...certificateWarnings(runtime), ...plan.warnings, ...(options.extraWarnings ?? [])],
+      extraWarnings: [...exportCertificateWarnings(runtime), ...plan.warnings, ...(options.extraWarnings ?? [])],
       gateway,
       input: plan.input,
       runtime,

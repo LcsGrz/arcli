@@ -1,6 +1,6 @@
 import { InputValidationError } from '../../lib/errors/app-error';
-import { errorText } from '../../lib/files/file-error';
 
+import { describeQueryFailure } from './export.tables';
 import type { ExportGateway, ExportPermitCheck, ExportPermitCheckStatus, ExportVoucherPayload } from './export.types';
 
 /** `Status` de `FEXCheck_Permiso`. */
@@ -10,12 +10,6 @@ const PERMIT_INVALID_STATUS = 'NO';
 export interface ExportPermitsCheckResult {
   readonly checks: readonly ExportPermitCheck[];
   readonly warnings: readonly string[];
-}
-
-function describeFailure(error: unknown): string {
-  return error instanceof Error && error.message.trim()
-    ? errorText(error).trim().replace(/\.$/, '')
-    : 'error desconocido';
 }
 
 function mapStatus(status: string): ExportPermitCheckStatus {
@@ -74,7 +68,7 @@ export async function checkExportPermits(
     } catch (error) {
       checks.push({ permit: permit.Id_permiso, status: 'sin-verificar' });
       warnings.push(
-        `No se pudo verificar el permiso de embarque ${permit.Id_permiso} en ARCA (${describeFailure(error)}): revisalo antes de emitir.`,
+        `No se pudo verificar el permiso de embarque ${permit.Id_permiso} en ARCA (${describeQueryFailure(error)}): revisalo antes de emitir.`,
       );
     }
   }
