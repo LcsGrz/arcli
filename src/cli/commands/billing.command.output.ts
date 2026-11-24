@@ -65,7 +65,7 @@ export function writeBillingCommandResults(
   );
 }
 
-/** Numeros ordenados, con los seguidos juntos: `del 42 al 61`, `42 y 43` o `7, del 10 al 14`. */
+/** Numeros ordenados, con los seguidos juntos: `del 42 al 61`, `42 y 43` o `7 y del 10 al 14`. */
 function formatNumberRuns(numbers: readonly number[]): string {
   const runs: Array<{ from: number; to: number }> = [];
 
@@ -98,7 +98,9 @@ function formatEmittedGroup(group: readonly BillingExecutionResult[]): string {
       ? `arcli ultimos ${voucherKind.shortcut} ${scope} --cantidad ${quantity} --${environment}`
       : `arcli consultar ${voucherKind.shortcut} <número> ${scope} --${environment}`;
 
-  return `Se emitieron: ${voucherKind.shortcut} del punto de venta ${payload.PtoVta}, ${formatNumberRuns(numbers)}. Verificalos con \`${command}\`.`;
+  const [emitted, verify] = numbers.length === 1 ? ['Se emitió', 'Verificalo'] : ['Se emitieron', 'Verificalos'];
+
+  return `${emitted}: ${voucherKind.shortcut} del punto de venta ${payload.PtoVta}, ${formatNumberRuns(numbers)}. ${verify} con \`${command}\`.`;
 }
 
 /**

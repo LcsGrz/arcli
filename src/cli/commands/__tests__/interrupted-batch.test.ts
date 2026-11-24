@@ -40,7 +40,11 @@ type Step = 'A' | 'R' | 'incierta' | 'login' | 'sin-autorizar';
 /** Corre un lote en el que cada comprobante termina como dice `steps`, y reporta el error como `index.ts`. */
 async function runBatch(
   steps: readonly Step[],
-  options: { readonly json?: boolean; readonly pointsOfSale?: readonly number[] } = {},
+  options: {
+    readonly json?: boolean;
+    readonly numbers?: readonly number[];
+    readonly pointsOfSale?: readonly number[];
+  } = {},
 ): Promise<number> {
   const path = join(directory, 'lote.json');
   const item = {
@@ -109,7 +113,7 @@ async function runBatch(
                 throw new Error('LoginFault');
               }
 
-              return 42 + steps.slice(0, position).filter((step) => step === 'A').length;
+              return options.numbers?.[position] ?? 42 + steps.slice(0, position).filter((step) => step === 'A').length;
             },
             getQuotation: async () => 1000,
           },
@@ -257,6 +261,21 @@ describe('si falla la entrega de los ya procesados (ERR-14)', () => {
 
     expect(plain(stderr)).toContain('`arcli ultimos fc --pv 4 --cantidad 2 --testing`');
     expect(plain(stderr)).toContain('`arcli ultimos fc --pv 5 --cantidad 2 --testing`');
+  });
+
+  it('con números salteados (alguien emitió en el medio), los nombra y la cantidad cubre los huecos', async () => {
+    failDelivery();
+    await runBatch(['A', 'A', 'A', 'A', 'A', 'login'], { numbers: [42, 45, 46, 47, 50] });
+
+    expect(plain(stderr)).toContain('Se emitieron: fc del punto de venta 3, 42, del 45 al 47 y 50.');
+    expect(plain(stderr)).toContain('--cantidad 10 --testing');
+  });
+
+  it('con uno solo, en singular', async () => {
+    failDelivery();
+    await runBatch(['A', 'login']);
+
+    expect(plain(stderr)).toContain('Se emitió: fc del punto de venta 3, 42. Verificalo con');
   });
 
   it('sin ninguno con CAE, no da un comando', async () => {
