@@ -118,7 +118,7 @@ describe('errors.presenter', () => {
 describe('titulos y sugerencias por codigo', () => {
   it.each([
     ['BATCH_VALIDATION_ERROR', 'LOTE INVÁLIDO', 'Corregí esos comprobantes'],
-    ['BATCH_EMISSION_ERROR', 'LOTE INTERRUMPIDO', 'ya se emitieron'],
+    ['BATCH_EMISSION_ERROR', 'LOTE INTERRUMPIDO', 'No se procesó ninguno'],
     ['EMISSION_UNCERTAIN', 'EMISIÓN SIN CONFIRMAR', undefined],
     ['PDF_GENERATION_ERROR', 'PDF NO GENERADO', undefined],
     ['PDF_ISSUER_INCOMPLETE', 'PDF NO GENERADO', undefined],
