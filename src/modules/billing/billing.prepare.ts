@@ -5,7 +5,7 @@ import { exchangeRateWarnings } from './billing.currency';
 import { DUE_DAY_DEPRECATION_WARNING, DUE_DAY_FILE_DEPRECATION_WARNING } from './billing.date-range';
 import type { BillingCommandInput } from './billing.schemas';
 import type { BillingService } from './billing.service';
-import type { BillingGateway } from './billing.types.internal';
+import type { BillingGateway, BillingRuntime } from './billing.types.internal';
 
 /** Lo que consulta la preparacion: ninguna de estas llamadas emite. */
 export interface BillingPreparationGateways {
@@ -20,7 +20,8 @@ export interface PreparedBillingInput {
 }
 
 /**
- * Lo que pasa entre leer la entrada y mostrar la vista previa, igual con flags que en el modo interactivo: completa
+ * Lo que pasa entre leer la entrada y mostrar la vista previa, igual con flags que en el modo interactivo: valida lo
+ * que no necesita ARCA, completa
  * la condicion IVA desde el padron, pide la cotizacion oficial si hace falta y junta los avisos de la entrada. Los
  * avisos de quien llama (certificado, flags salteados) y los del regimen FCE se suman aparte: el FCE se consulta
  * recien con el lote validado.
@@ -29,7 +30,10 @@ export async function prepareBillingInput(
   service: BillingService,
   input: BillingCommandInput,
   gateways: BillingPreparationGateways,
+  runtime: BillingRuntime,
 ): Promise<PreparedBillingInput> {
+  service.assertLocalFields(input, runtime);
+
   const padron = await service.resolveIvaConditionFromPadron(input, gateways.padron);
 
   await service.assertKnownCurrency(padron.input, gateways.billing);

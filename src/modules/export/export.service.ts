@@ -313,6 +313,9 @@ export class ExportService {
       isNote: isExportNote(voucherKind),
     });
 
+    // La ultima de las locales, antes de consultar las tablas (ERR-11). En una nota con asociado ya se valido al buscarlo.
+    const pointOfSale = resolveExportPointOfSale(input.pointOfSale, config);
+
     const countryList = await gateway.getDestinationCountries();
     const destinationCountry = resolveExportDestinationCountry(input.destinationCountry, countryList);
     const countryCuits = await gateway.getDestinationCountryCuits();
@@ -384,7 +387,6 @@ export class ExportService {
       });
     }
     const exchangeRate = quotation?.rate ?? currency.fields.Moneda_ctz;
-    const pointOfSale = resolveExportPointOfSale(input.pointOfSale, config);
     // WSFEX numera por punto de venta y tipo. Sin `--numero`, el siguiente al ultimo que tiene ARCA: es una lectura.
     const voucherNumber = resolveExportNumber({
       code: 1520,

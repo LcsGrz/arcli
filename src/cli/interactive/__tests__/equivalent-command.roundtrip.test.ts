@@ -145,7 +145,7 @@ const invoice = (overrides: Partial<IssuedVoucher> = {}): IssuedVoucher => ({
 /** La solicitud a ARCA que arma una entrada, como `previewAndEmit` y `executeBillingCommand`. */
 async function payloadOf(input: BillingCommandInput, withConfig = config) {
   const service = new BillingService({ clock: systemClock });
-  const prepared = await prepareBillingInput(service, input, { billing: billingGateway, padron });
+  const prepared = await prepareBillingInput(service, input, { billing: billingGateway, padron }, runtime);
 
   return service.buildVoucherPayload(prepared.input, { ...runtime, config: withConfig } as CliArcaRuntime);
 }

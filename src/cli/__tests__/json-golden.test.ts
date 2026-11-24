@@ -1083,7 +1083,6 @@ describe('el certificado sin autorizar, en las consultas (ERR-7)', () => {
 });
 
 describe('un dato local inválido corta antes de ARCA (ERR-11)', () => {
-  // Tests primero: los `it.fails` pasan a `it` con el arreglo.
   const BAD_CUIT = '20168598205';
   const WITHOUT_POINT_OF_SALE: Setup = { config: { puntoVentaPorDefecto: undefined } };
   const MISSING_POINT_OF_SALE = 'Falta el punto de venta.';
@@ -1122,7 +1121,7 @@ describe('un dato local inválido corta antes de ARCA (ERR-11)', () => {
     return JSON.parse(result.stderr) as Record<string, unknown>;
   }
 
-  it.fails.each<[string, string[]]>([
+  it.each<[string, string[]]>([
     ['fa', ['fa', ...receiver()]],
     ['fb', ['fb', ...receiver()]],
     ['fc', ['fc', ...receiver()]],
@@ -1146,7 +1145,7 @@ describe('un dato local inválido corta antes de ARCA (ERR-11)', () => {
     });
   });
 
-  it.fails('el CUIT del receptor, por --cargar', async () => {
+  it('el CUIT del receptor, por --cargar', async () => {
     const item = { concepto: 'servicios', montoTotal: 1000, numeroDocumento: Number(BAD_CUIT), tipoDocumento: 'cuit' };
 
     expect(await localError(['fb', '--cargar', writeInput('fb.json', item)])).toMatchObject({
@@ -1155,13 +1154,14 @@ describe('un dato local inválido corta antes de ARCA (ERR-11)', () => {
     });
   });
 
-  it.fails.each<[string, string[]]>([
+  it.each<[string, string[]]>([
     ['fb', ['fb', ...receiver(String(CLIENT_CUIT))]],
     ['fc en dólares', [...FC, '--mda', 'USD']],
     ['rc', ['rc', ...receiver(String(CLIENT_CUIT))]],
     ['nca', ['nca', ...receiver(String(CLIENT_CUIT)), ...associated('fa')]],
     ['fe', FE_PREVIEW],
     ['nce sin asociado', ['nce', ...FE_PREVIEW.slice(1), '--tipo-expo', '4']],
+    ['nce con asociado', ['nce', '-m', '500', '--ar', '1']],
   ])('sin punto de venta: %s', async (_name, args) => {
     expect(await localError(args, WITHOUT_POINT_OF_SALE)).toMatchObject({
       codigo: 'INPUT_VALIDATION_ERROR',
@@ -1171,14 +1171,15 @@ describe('un dato local inválido corta antes de ARCA (ERR-11)', () => {
     });
   });
 
-  it.fails.each<[string, string[], string]>([
+  it.each<[string, string[], string]>([
     ['fe --pv 0', [...FE_PREVIEW, '--pv', '0'], invalidPointOfSale],
-    ['fe --pv 99999', [...FE_PREVIEW, '--pv', '99999'], 'El punto de venta va de 1 a 99998'],
+    ['fe --pv 99999', [...FE_PREVIEW, '--pv', '99999'], 'va de 1 a 99998: ARCA rechaza 99999 (error 1510)'],
     [
       'nde sin asociado, --pv 0',
       ['nde', ...FE_PREVIEW.slice(1), '--tipo-expo', '1', '--incoterm', 'FOB', '--pv', '0'],
       invalidPointOfSale,
     ],
+    ['nce con asociado, --pv 0', ['nce', '-m', '500', '--ar', '1', '--pv', '0'], invalidPointOfSale],
   ])('un punto de venta inválido: %s', async (_name, args, message) => {
     expect(await localError(args)).toMatchObject({
       codigo: 'INPUT_VALIDATION_ERROR',
@@ -1186,7 +1187,7 @@ describe('un dato local inválido corta antes de ARCA (ERR-11)', () => {
     });
   });
 
-  it.fails('fe por --cargar, con el punto de venta en cero', async () => {
+  it('fe por --cargar, con el punto de venta en cero', async () => {
     const path = writeInput('fe.json', {
       cliente: 'ACME LLC',
       domicilioCliente: '123 Main St',
@@ -1201,6 +1202,14 @@ describe('un dato local inválido corta antes de ARCA (ERR-11)', () => {
     });
   });
 
+  it('fb y fe: el error entero', async () => {
+    breakNetwork();
+    await golden('error-cuit-antes-de-arca', ['fb', ...receiver(), '--json']);
+    process.exitCode = undefined;
+    await golden('error-fe-punto-venta-antes-de-arca', [...FE_PREVIEW, '--pv', '0', '--json']);
+    expectNoArcaCalls();
+  });
+
   const loteItem = (cuit: string | number) => ({
     concepto: 'servicios',
     montoTotal: 1000,
@@ -1208,7 +1217,7 @@ describe('un dato local inválido corta antes de ARCA (ERR-11)', () => {
     tipoDocumento: 'cuit',
   });
 
-  it.fails('un lote con todos los CUIT inválidos: los lista sin ir a ARCA', async () => {
+  it('un lote con todos los CUIT inválidos: los lista sin ir a ARCA', async () => {
     const path = writeInput('lote.json', [loteItem(BAD_CUIT), loteItem(BAD_CUIT)]);
 
     expect(await localError(['fb', '--cargar', path])).toMatchObject({
@@ -1222,7 +1231,7 @@ describe('un dato local inválido corta antes de ARCA (ERR-11)', () => {
     });
   });
 
-  it.fails('un lote con uno inválido: ese no va a ARCA, y el error sigue listando todos', async () => {
+  it('un lote con uno inválido: ese no va a ARCA, y el error sigue listando todos', async () => {
     sdk.padron.getTaxpayerDetails.mockResolvedValue(null);
     prepareConfig({});
 

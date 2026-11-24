@@ -373,6 +373,27 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
     expect(offerPdf).not.toHaveBeenCalled();
   });
 
+  it('un CUIT inválido vuelve a la última pregunta sin consultar el padrón (ERR-11)', async () => {
+    const getTaxpayerDetails = vi.fn();
+    const session = {
+      ...createSession('testing'),
+      arca: { registerInscriptionProofService: { getTaxpayerDetails } } as never,
+    };
+
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    await expect(
+      previewAndEmit(session, {
+        ...input,
+        documentNumber: 20168598205,
+        documentType: 'cuit',
+        ivaConditionSource: 'missing',
+      }),
+    ).resolves.toBe(BACK);
+    expect(getTaxpayerDetails).not.toHaveBeenCalled();
+    expect(vi.mocked(process.stderr.write).mock.calls.join('')).toContain('20168598205 no es válido');
+  });
+
   it('si ARCA falla al pedir la cotización oficial para la vista previa, no pregunta nada', async () => {
     const session = createSession('testing');
 

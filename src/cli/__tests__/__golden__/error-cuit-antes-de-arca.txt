@@ -1,0 +1,13 @@
+$ arcli fb -m 1000 --cs --cuit 20168598205 --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "INPUT_VALIDATION_ERROR",
+  "detalles": null,
+  "error": "`--cuit` 20168598205 no es válido en la factura B: el dígito verificador no coincide; revisá que esté bien escrito.",
+  "sugerencia": null
+}
+
