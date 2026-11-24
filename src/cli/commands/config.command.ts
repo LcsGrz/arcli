@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { join } from 'node:path';
 
+import { errorText } from '../../lib/files/file-error';
 import {
   formatConfig,
   formatConfigAsText,
@@ -62,7 +63,7 @@ export function buildRuntimeChecks(config: ArcliConfig): ConfigDoctorRuntimeChec
     } catch (error) {
       return {
         environment,
-        error: error instanceof Error ? error.message : 'No se pudo completar la validación.',
+        error: errorText(error),
       };
     }
   });

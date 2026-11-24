@@ -340,7 +340,55 @@ describe('exportBillingPdf', () => {
     delete process.env.PUPPETEER_EXECUTABLE_PATH;
   });
 
+  it('un error de archivo del SDK va traducido, con la misma sugerencia', async () => {
+    const path = join(createTempDir(), 'pdf');
+
+    fakeNpmInstall(path);
+    writeFileSync(
+      join(path, 'node_modules', '@arcasdk', 'pdf', 'index.js'),
+      `exports.InvoicePdfGenerator = class { async generate() { throw Object.assign(new Error("EACCES: permission denied, open '/Users/ana/x/y.json'"), { code: 'EACCES', path: '/Users/ana/x/y.json', syscall: 'open' }); } };`,
+    );
+
+    const renderer = new PdfPlugin({ env: {}, findSystemBrowser: () => '/chrome', path }).load();
+
+    await expect(renderer.render({} as never, {})).rejects.toMatchObject({
+      code: 'PDF_GENERATION_ERROR',
+      message: 'No se pudo generar el PDF: No se pudo abrir .../x/y.json: no tenés permiso.',
+      suggestion: expect.stringContaining('pdfNavegador'),
+    });
+
+    delete process.env.PUPPETEER_EXECUTABLE_PATH;
+  });
+
+  it('nombra el package.json del plugin si es una carpeta', () => {
+    const path = join(createTempDir(), 'pdf');
+    const manifest = join(path, 'node_modules', '@arcasdk', 'pdf', 'package.json');
+
+    mkdirSync(manifest, { recursive: true });
+
+    expect(() => new PdfPlugin({ env: {}, findSystemBrowser: () => undefined, path }).getStatus()).toThrow(
+      expect.objectContaining({ code: 'EISDIR', path: manifest }),
+    );
+  });
+
   it('describes failures for the output', () => {
     expect(toPdfFailure(new Error('boom'))).toEqual({ error: { code: 'PDF_GENERATION_ERROR', message: 'boom' } });
+  });
+
+  it('un error de archivo sale con la ruta abreviada y qué hacer, con el mismo código', () => {
+    const path = '/Users/ana/Documents/facturas';
+    const error = Object.assign(new Error(`EACCES: permission denied, mkdir '${path}'`), {
+      code: 'EACCES',
+      path,
+      syscall: 'mkdir',
+    });
+
+    expect(toPdfFailure(error)).toEqual({
+      error: {
+        code: 'PDF_GENERATION_ERROR',
+        message: 'No se pudo crear la carpeta .../Documents/facturas: no tenés permiso.',
+        suggestion: expect.stringContaining('permiso'),
+      },
+    });
   });
 });

@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z, ZodError } from 'zod';
 
+import { InputIssuesError } from '../../lib/errors/app-error';
 import { billingCommandSchema } from '../../modules/billing/billing.schemas';
 import { parseZodInput, summarizeZodError } from '../../modules/billing/billing.zod-errors';
 import { ConfigService } from '../../modules/config/config.service';
@@ -202,12 +203,11 @@ describe('el valor recibido no sale', () => {
       service.close();
     }
 
-    expect(thrown).toBeInstanceOf(ZodError);
+    expect(thrown).toBeInstanceOf(InputIssuesError);
     // Un error de verdad: con stack, y reconocible por quien solo mira `instanceof Error`.
     expect(thrown).toBeInstanceOf(Error);
     expect((thrown as Error).stack).toContain('config.service');
-    // `message` de un ZodError es el JSON de sus problemas: si llega a otro mensaje, el valor tampoco sale.
-    expect(`${(thrown as ZodError).message}${JSON.stringify((thrown as ZodError).issues)}`).not.toContain(secret);
+    expect(`${(thrown as InputIssuesError).message}${JSON.stringify(thrown)}`).not.toContain(secret);
 
     await detailsOf(['config'], config);
     expect(profile.stderr + profile.stdout).not.toContain(secret);

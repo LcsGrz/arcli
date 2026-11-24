@@ -1,4 +1,5 @@
 import { InputValidationError } from '../../lib/errors/app-error';
+import { errorText } from '../../lib/files/file-error';
 
 import type { ExportGateway, ExportPermitCheck, ExportPermitCheckStatus, ExportVoucherPayload } from './export.types';
 
@@ -12,7 +13,9 @@ export interface ExportPermitsCheckResult {
 }
 
 function describeFailure(error: unknown): string {
-  return error instanceof Error && error.message.trim() ? error.message.trim().replace(/\.$/, '') : 'error desconocido';
+  return error instanceof Error && error.message.trim()
+    ? errorText(error).trim().replace(/\.$/, '')
+    : 'error desconocido';
 }
 
 function mapStatus(status: string): ExportPermitCheckStatus {

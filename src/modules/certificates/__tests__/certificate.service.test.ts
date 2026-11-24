@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -181,6 +181,98 @@ describe('CertificateService', () => {
     );
     expect(readFileSync(files.certificate, 'utf8')).toBe(before);
     expect(config().key.testing).toBe(files.key);
+  });
+
+  describe('la clave existe y no se puede leer (readKey)', () => {
+    /** Un par importado y, aparte, un certificado que no es de ese par. */
+    function importedWithOther() {
+      const context = setup();
+
+      context.service.import({
+        content: signRequestLikeArca(context.service.generate({ environment: 'testing' }).csrPem),
+      });
+
+      const other = signRequestLikeArca(setup().service.generate({ environment: 'testing' }).csrPem);
+
+      return { ...context, files: resolveCertificateFiles(context.root, CUIT, 'testing'), other };
+    }
+
+    function rejection(run: () => unknown): { code: string; message: string; suggestion?: string } {
+      try {
+        run();
+      } catch (error) {
+        return error as { code: string; message: string; suggestion?: string };
+      }
+
+      throw new Error('debería fallar');
+    }
+
+    it('si es una carpeta dice que no la pudo leer, con la ruta abreviada', () => {
+      const { files, other, root, service } = importedWithOther();
+
+      rmSync(files.key);
+      mkdirSync(files.key);
+
+      const error = rejection(() => service.import({ content: other }));
+
+      expect(error).toMatchObject({
+        code: 'CERTIFICATE_KEY_MISMATCH',
+        message: `No se pudo leer la clave privada .../${CUIT}/testing.key: es una carpeta.`,
+      });
+      expect(error.suggestion).toBe(
+        'Revisá que tu usuario tenga permiso para leer esa clave y su carpeta, y volvé a importar el certificado. Si esa clave se perdió, armá otro pedido con `arcli certificado generar --testing`.',
+      );
+      expect(JSON.stringify(error)).not.toContain(root);
+    });
+
+    it('con un pedido que tampoco corresponde, dice las dos cosas', () => {
+      const { files, other, service } = importedWithOther();
+
+      service.generate({ environment: 'testing' });
+      rmSync(files.key);
+      mkdirSync(files.key);
+
+      expect(rejection(() => service.import({ content: other }))).toMatchObject({
+        code: 'CERTIFICATE_KEY_MISMATCH',
+        message: `El certificado no corresponde a la clave del último pedido, y no se pudo leer la clave privada .../${CUIT}/testing.key: es una carpeta.`,
+        suggestion:
+          'Bajá de ARCA el certificado que creaste con el último CSR de `arcli certificado generar`. Si no es de ese pedido, revisá que tu usuario tenga permiso para leer esa clave y su carpeta, y volvé a importar el certificado.',
+      });
+    });
+
+    it('si no existe, como siempre', () => {
+      const { files, other, service } = importedWithOther();
+
+      rmSync(files.key);
+
+      expect(rejection(() => service.import({ content: other }))).toMatchObject({
+        code: 'CERTIFICATE_KEY_MISMATCH',
+        message: 'El certificado no corresponde a ninguna clave de este CUIT.',
+        suggestion: expect.stringContaining('Primero armá el pedido'),
+      });
+    });
+
+    it.runIf(process.platform !== 'win32' && process.getuid?.() !== 0)(
+      'con la carpeta sin permiso, no dice que falta armar el pedido',
+      () => {
+        const { root, service } = setup();
+        const request = service.generate({ environment: 'testing' });
+        const folder = resolveCertificateFiles(root, CUIT, 'testing').folder;
+
+        chmodSync(folder, 0o000);
+
+        try {
+          expect(rejection(() => service.import({ content: signRequestLikeArca(request.csrPem) }))).toMatchObject({
+            code: 'CERTIFICATE_KEY_MISMATCH',
+            message: `No se pudo leer la clave privada .../${CUIT}/testing.nueva.key: no tenés permiso.`,
+            suggestion:
+              'Revisá que tu usuario tenga permiso para leer esa clave y su carpeta, y volvé a importar el certificado.',
+          });
+        } finally {
+          chmodSync(folder, 0o700);
+        }
+      },
+    );
   });
 
   it('re-importing the active certificate keeps its key in place (TEST-21)', () => {

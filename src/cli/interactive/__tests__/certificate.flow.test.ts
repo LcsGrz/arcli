@@ -154,6 +154,16 @@ describe('runImportCertificate', () => {
     expect(output).toContain('no tiene un certificado');
   });
 
+  it('un archivo que no se puede leer se muestra en castellano y vuelve', async () => {
+    askTextMock.mockResolvedValueOnce(state.root);
+
+    await expect(runImportCertificate()).resolves.toBe(BACK);
+
+    expect(output).toContain('No se pudo leer');
+    expect(output).toContain('es una carpeta');
+    expect(output).not.toContain('EISDIR');
+  });
+
   it('valida que el archivo exista', async () => {
     askTextMock.mockImplementationOnce(async (_message, options) => {
       expect(options?.validate?.('/no/existe.crt')).toMatch(/No existe/);

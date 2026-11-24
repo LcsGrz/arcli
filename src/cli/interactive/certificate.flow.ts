@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 
 import { AppError } from '../../lib/errors/app-error';
+import { isFileSystemError } from '../../lib/files/file-error';
 import { normalizeDroppedPath } from '../../lib/paths/dropped-path';
 import {
   formatCertificateStatusAsText,
@@ -80,9 +81,8 @@ export async function runImportCertificate(): Promise<'importado' | Back> {
     return BACK;
   }
 
-  const content = readFileSync(normalizeDroppedPath(answer, process.platform), 'utf8');
-
   try {
+    const content = readFileSync(normalizeDroppedPath(answer, process.platform), 'utf8');
     let imported;
 
     try {
@@ -105,7 +105,7 @@ export async function runImportCertificate(): Promise<'importado' | Back> {
 
     return 'importado';
   } catch (error) {
-    if (!(error instanceof AppError)) {
+    if (!(error instanceof AppError) && !isFileSystemError(error)) {
       throw error;
     }
 

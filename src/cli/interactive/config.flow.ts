@@ -2,6 +2,7 @@ import { Separator } from '@inquirer/core';
 import { join } from 'node:path';
 
 import { AppError } from '../../lib/errors/app-error';
+import { errorText, isFileSystemError } from '../../lib/files/file-error';
 import { DOCS_SITE_URL } from '../../lib/links';
 import { normalizeDroppedPath } from '../../lib/paths/dropped-path';
 import {
@@ -97,7 +98,7 @@ function validate(key: ConfigPublicKey, value: string): string | true {
 
     return true;
   } catch (error) {
-    return error instanceof Error ? error.message : String(error);
+    return errorText(error);
   }
 }
 
@@ -477,11 +478,6 @@ async function runCompletionMenu(): Promise<void> {
 
 type ConfigOption =
   'acceso-directo' | 'cambiar' | 'certificados' | 'completado' | 'guiada' | 'pdf' | 'revisar' | 'ver' | 'volver';
-
-/** El error con que Node avisa que no pudo con un archivo: `EPERM`, `EACCES`, `ENOSPC`… */
-function isFileSystemError(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && 'syscall' in error && 'code' in error;
-}
 
 /** Un error aca no corta el menu: se avisa y se puede seguir (por ejemplo, si no hay escritorio). */
 async function runDesktopShortcut(): Promise<void> {

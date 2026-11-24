@@ -48,7 +48,7 @@ describe('el acceso directo que no se puede crear, desde Configuración (H26)', 
     [
       'un error del sistema de archivos',
       Object.assign(new Error('EPERM: operation not permitted, mkdir'), { code: 'EPERM', syscall: 'mkdir' }),
-      'EPERM',
+      'No se pudo crear la carpeta: el sistema no lo permite.',
     ],
   ])('muestra %s y sigue en el menu', async (_name, error, expected) => {
     let printed = '';

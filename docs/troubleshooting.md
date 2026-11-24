@@ -113,6 +113,7 @@ arcli fc -m 1000 --pv 3 --cs --consumidor-final
 - **Síntoma:** `arcli certificado importar` corta con `El certificado no corresponde a la clave del último pedido` (`CERTIFICATE_KEY_MISMATCH`). No se toca la config.
 - **Causa:** el `.crt` se creó en ARCA con otro CSR: uno de un pedido anterior que descartaste con `--reemplazar`, uno armado en otra computadora o uno hecho con `openssl`.
 - **Solución:** en ARCA, creá el certificado con el CSR del último `arcli certificado generar` (está en `certificados/<CUIT>/<entorno>.nueva.csr`, junto a la config) y volvé a importar. Si el certificado es de un par que armaste con `openssl`, configuralo con `arcli config establecer cert.<entorno>` y `key.<entorno>`.
+- **Si dice que no se pudo leer la clave privada:** la clave existe pero tu usuario no tiene permiso, o la ruta es una carpeta. Revisá los permisos de ese archivo y de su carpeta, y volvé a importar. Si la ilegible es la clave del pedido pendiente (`<entorno>.nueva.key`) y no su carpeta, sale como `UNEXPECTED_ERROR`, con el mismo motivo.
 - **Documentación relacionada:** [Comando `arcli certificado`](cli-reference.md#comando-arcli-certificado)
 
 ### Al importar: otros rechazos del certificado
@@ -167,6 +168,28 @@ arcli config establecer key.testing /ruta/a/la/clave.key
 O abrí `arcli` y elegí "Configuración" para la configuración guiada.
 
 - **Documentación relacionada:** [Configuración](configuration.md)
+
+### La configuración guardada tiene datos inválidos
+
+- **Severidad:** crítico
+- **Síntoma:** cualquier comando falla con "La configuración guardada tiene un dato inválido", la clave y el motivo (`INPUT_VALIDATION_ERROR` con `--json`). Con un CBU, "El CBU guardado en la config no es válido".
+- **Causa:** el `config.json` tiene un valor que ARCLI no acepta, casi siempre por una edición a mano.
+- **Solución:** volvé a guardar esa clave o borrala. Con más de una mal, `arcli config establecer` no puede guardar ninguna: corregilas en el archivo que dice la sugerencia.
+
+```bash
+arcli config establecer cuit 20168598204
+arcli config eliminar entorno
+```
+
+- **Documentación relacionada:** [Configuración](configuration.md)
+
+### No se pudo abrir, leer o escribir un archivo
+
+- **Severidad:** a veces
+- **Síntoma:** "No se pudo abrir .../arcli/config.json: no tenés permiso." o parecido (`UNEXPECTED_ERROR` con `--json`; en el PDF, `PDF_GENERATION_ERROR` en `pdf.error`).
+- **Causa:** tu usuario no tiene permiso en ese archivo o carpeta (pasa si alguna vez corriste ARCLI con `sudo`), la ruta es una carpeta y tenía que ser un archivo, o el disco está lleno o es de solo lectura.
+- **Solución:** revisá la ruta que nombra el error y seguí la sugerencia. No corras ARCLI con `sudo`: deja archivos que después tu usuario no puede leer.
+- **Documentación relacionada:** [Códigos de error](input-output.md#códigos-de-error)
 
 ## Validación
 
@@ -614,5 +637,5 @@ arcli config establecer emisor.inicioActividades 1/03/2020
 ### `PDF_GENERATION_ERROR`
 
 - **Síntoma:** "No se pudo generar el PDF".
-- **Causa habitual:** el navegador no arranca. Pasa en servidores sin entorno gráfico o con un Chrome muy viejo.
+- **Causa habitual:** el navegador no arranca. Pasa en servidores sin entorno gráfico o con un Chrome muy viejo. Si nombra un archivo o una carpeta, es la de los PDF o el logo: ver [No se pudo abrir, leer o escribir un archivo](#no-se-pudo-abrir-leer-o-escribir-un-archivo).
 - **Solución:** probá con otro navegador (`arcli config establecer pdfNavegador <ruta>`) o borrá esa config para que ARCLI use el que descargó el plugin.

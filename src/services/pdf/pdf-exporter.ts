@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 
 import { AppError } from '../../lib/errors/app-error';
+import { describeFileError, withFilePath } from '../../lib/files/file-error';
 import { writeNewFile } from '../../lib/files/write-new-file';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
@@ -27,6 +28,12 @@ export function toPdfFailure(error: unknown): Extract<PdfOutcome, { error: unkno
     return { error: { code: error.code, message: error.message } };
   }
 
+  const fileError = describeFileError(error);
+
+  if (fileError) {
+    return { error: { code: 'PDF_GENERATION_ERROR', ...fileError } };
+  }
+
   return {
     error: { code: 'PDF_GENERATION_ERROR', message: error instanceof Error ? error.message : String(error) },
   };
@@ -39,7 +46,7 @@ function readLogoAsDataUrl(path: string | undefined): string | undefined {
 
   const mime = extname(path).toLowerCase() === '.png' ? 'image/png' : 'image/jpeg';
 
-  return `data:${mime};base64,${readFileSync(path).toString('base64')}`;
+  return `data:${mime};base64,${withFilePath(path, () => readFileSync(path)).toString('base64')}`;
 }
 
 /**

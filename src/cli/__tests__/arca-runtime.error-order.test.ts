@@ -39,6 +39,6 @@ describe('orden de los errores del perfil', () => {
   it('config invalida y los dos flags de entorno: primero la config', () => {
     profile.writeConfig({ cuit: '123' });
 
-    expect(() => resolveArcaRuntime({ produccion: true, testing: true })).toThrow(/El CUIT debe tener 11 dígitos/);
+    expect(() => resolveArcaRuntime({ produccion: true, testing: true })).toThrow(/el CUIT debe tener 11 dígitos/);
   });
 });

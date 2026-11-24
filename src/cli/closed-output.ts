@@ -1,6 +1,8 @@
 import type { EventEmitter } from 'node:events';
 import { setImmediate, setTimeout } from 'node:timers/promises';
 
+import { fileErrorReason } from '../lib/files/file-error';
+
 export type OutputName = 'stderr' | 'stdout';
 
 /** El primer error de cada salida que no se pudo escribir. */
@@ -69,7 +71,7 @@ export async function settleOutput(
 
 /** Que no se pudo escribir y por que, para quien usa el CLI. */
 export function describeOutputFailure(output: OutputName, error: NodeJS.ErrnoException): string {
-  const reason = error.code === 'ENOSPC' ? 'no queda espacio en el disco' : (error.code ?? error.message);
+  const reason = (error.code === 'ENOSPC' ? fileErrorReason(error.code) : error.code) ?? error.message;
 
   return output === 'stdout'
     ? `No se pudo escribir toda la salida: ${reason}.`

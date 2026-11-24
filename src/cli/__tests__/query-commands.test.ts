@@ -135,6 +135,21 @@ describe('arcli estado', () => {
     });
   });
 
+  it('un error de archivo va traducido, con el mismo código', async () => {
+    parameters.getServerStatus.mockRejectedValue(
+      Object.assign(new Error("EACCES: permission denied, open '/Users/ana/x/y.json'"), {
+        code: 'EACCES',
+        path: '/Users/ana/x/y.json',
+        syscall: 'open',
+      }),
+    );
+
+    await expect(run('estado')).rejects.toMatchObject({
+      code: 'ARCA_UNAVAILABLE',
+      message: 'ARCA no respondió: No se pudo abrir .../x/y.json: no tenés permiso.',
+    });
+  });
+
   it('con --json devuelve listo y el punto de venta', async () => {
     runtime.outputJson = true;
     parameters.getServerStatus.mockResolvedValue({ app: 'OK', auth: 'OK', db: 'OK' });
