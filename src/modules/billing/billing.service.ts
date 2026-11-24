@@ -35,7 +35,12 @@ import { type PadronResolution, resolveIvaConditionFromPadron } from './billing.
 import { CONSUMER_IDENTIFICATION_THRESHOLD_RULE } from './billing.rules';
 import { type BillingCommandInput, describePointOfSaleOutOfRange, MAX_WSFE_POINT_OF_SALE } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
-import type { BillingExecutionResult, BillingGateway, BillingRuntime } from './billing.types.internal';
+import type {
+  BillingExecutionResult,
+  BillingGateway,
+  BillingResponseSummary,
+  BillingRuntime,
+} from './billing.types.internal';
 import { validateDocumentIdentity, validateUncategorizedReceiver } from './billing.validation';
 import { createDryRunResponse, mapBillingResponse } from './billing-response';
 import { findArcaCurrency } from './currency-codes';
@@ -197,14 +202,17 @@ export class BillingService {
     // Fuera del try: si falla la autenticacion o el pedido del ultimo numero, no se envio nada a ARCA
     // y el error sale tal cual (certificado, ARCA no disponible), sin sugerir que pudo emitirse.
     const voucherNumber = await options.gateway.getNextVoucherNumber(payload.PtoVta, payload.CbteTipo);
-    let response: Awaited<ReturnType<BillingGateway['createVoucher']>>;
+    let response: BillingResponseSummary;
 
     try {
-      response = await options.gateway.createVoucher({
+      const raw = await options.gateway.createVoucher({
         ...payload,
         CbteDesde: voucherNumber,
         CbteHasta: voucherNumber,
       });
+
+      // Adentro del try: lo que no se puede leer es una emision sin confirmar (ERR-16).
+      response = mapBillingResponse(raw);
     } catch (error) {
       throw new EmissionUncertainError({
         cause: error,
@@ -219,7 +227,7 @@ export class BillingService {
       environment: options.runtime.environment,
       payload,
       receiver,
-      response: mapBillingResponse(response),
+      response,
       voucherNumber,
       voucherKind,
       warnings: options.warnings ?? [],
@@ -251,27 +259,30 @@ export class BillingService {
     }
   }
 
+  /**
+   * Lo que se puede validar sin ARCA: el punto de venta y el documento del receptor. Va antes de WSAA, del padron y de
+   * la cotizacion (`prepareBillingInput`), asi un dato mal escrito no se ve como un error de red (ERR-11). El padron y
+   * el asociado no los completan. `buildVoucherPayload` los vuelve a controlar, por si quien llama no preparo la entrada.
+   */
+  public assertLocalFields(input: BillingCommandInput, runtime: BillingRuntime): void {
+    this.requirePointOfSale(input, runtime);
+    validateDocumentIdentity(input, this.requireVoucherKind(input.shortcut), {
+      emitterCuit: runtime.cuit,
+      today: this.today(),
+    });
+  }
+
   public buildVoucherPayload(
     input: BillingCommandInput,
     runtime: BillingRuntime,
     voucherKind = this.requireVoucherKind(input.shortcut),
   ): INextVoucher {
-    const pointOfSale = input.pointOfSale ?? runtime.pointOfSale;
-
     // Resguardo: un IVA receptor que esperaba al padron nunca llega a ARCA con el valor provisorio.
     if (input.ivaConditionSource === 'missing') {
       throw new InputValidationError(missingIvaReceiverMessage());
     }
 
-    if (!pointOfSale) {
-      throw new InputValidationError(MISSING_POINT_OF_SALE_MESSAGE);
-    }
-
-    // El de `--pv` lo frena la entrada; el de la config, aca.
-    if (pointOfSale > MAX_WSFE_POINT_OF_SALE) {
-      throw new InputValidationError(describePointOfSaleOutOfRange('El punto de venta', pointOfSale, 10004));
-    }
-
+    const pointOfSale = this.requirePointOfSale(input, runtime);
     const today = this.today();
     const dateRange = resolveBillingDateRange(input, voucherKind, today);
     const concept = resolveBillingConceptCode(input.concept);
@@ -358,6 +369,21 @@ export class BillingService {
   /** Hoy en Argentina (yyyymmdd), leido en cada operacion. */
   private today(): string {
     return formatDateAsArcaDate(this.clock.now());
+  }
+
+  private requirePointOfSale(input: BillingCommandInput, runtime: BillingRuntime): number {
+    const pointOfSale = input.pointOfSale ?? runtime.pointOfSale;
+
+    if (!pointOfSale) {
+      throw new InputValidationError(MISSING_POINT_OF_SALE_MESSAGE);
+    }
+
+    // El de `--pv` lo frena la entrada; el de la config, aca.
+    if (pointOfSale > MAX_WSFE_POINT_OF_SALE) {
+      throw new InputValidationError(describePointOfSaleOutOfRange('El punto de venta', pointOfSale, 10004));
+    }
+
+    return pointOfSale;
   }
 
   private requireVoucherKind(shortcut: string): VoucherKindDefinition {

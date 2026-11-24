@@ -1,0 +1,13 @@
+$ arcli fe --cliente ACME LLC --domicilio-cliente 123 Main St --pais-destino 212 -m 1500 --item 001|Servicios de consultoría|1|1500|unidad --cuit-pais 55000002126 --pv 0 --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "INPUT_VALIDATION_ERROR",
+  "detalles": null,
+  "error": "El punto de venta tiene que ser un número entero positivo.",
+  "sugerencia": null
+}
+

@@ -1,5 +1,7 @@
 import { AppError } from '../../lib/errors/app-error';
 
+import { describeEmissionFailure } from './emission-response';
+
 /** A, B y C: el numero lo pone ARCA, asi que se verifica con `arcli ultimos`. */
 interface WsfeUncertainTarget {
   readonly environment: 'produccion' | 'testing';
@@ -21,8 +23,8 @@ interface WsfexUncertainTarget {
 }
 
 /**
- * Fallo la llamada que emite en ARCA (red, timeout, ARCA). No se sabe si el comprobante quedo autorizado:
- * pudo emitirse y perderse la respuesta. Reintentar sin verificar puede duplicarlo.
+ * Fallo la llamada que emite en ARCA (red, timeout, ARCA) o no se pudo leer su respuesta. No se sabe si el comprobante
+ * quedo autorizado: pudo emitirse y perderse la respuesta. Reintentar sin verificar puede duplicarlo.
  */
 export class EmissionUncertainError extends AppError {
   /**
@@ -32,7 +34,8 @@ export class EmissionUncertainError extends AppError {
   public readonly verifyCommand?: string;
 
   public constructor(options: { readonly cause: unknown } & (WsfeUncertainTarget | WsfexUncertainTarget)) {
-    const reason = options.cause instanceof Error ? options.cause.message : String(options.cause);
+    const failure = describeEmissionFailure(options.cause);
+    const reason = failure.message;
     const verifyCommand =
       'voucherNumber' in options
         ? `arcli consultar ${options.shortcut} ${options.voucherNumber} --pv ${options.pointOfSale} --${options.environment}`
@@ -50,7 +53,7 @@ export class EmissionUncertainError extends AppError {
           : `Puede haberse emitido igual. Antes de reintentar, verificá con \`${verifyCommand}\`: si figura, ya está emitido y no hay que repetirlo.`,
     });
     this.name = 'EmissionUncertainError';
-    this.cause = options.cause;
+    this.cause = failure;
     this.verifyCommand = verifyCommand;
   }
 }

@@ -87,9 +87,29 @@ function buildItems(result: BillingExecutionResult, description: string): Invoic
   return items.length > 0 ? items : [line(payload.ImpTotal)];
 }
 
-/** ARCA asigna el numero al emitir: sale de la respuesta, no del payload. */
+function requireCae(response: { readonly cae: string | null; readonly caeVencimiento: string | null }) {
+  const { cae, caeVencimiento } = response;
+
+  if (!cae) {
+    throw new PdfError('PDF_GENERATION_ERROR', 'El comprobante no tiene CAE: no se puede generar el PDF.');
+  }
+
+  if (!caeVencimiento) {
+    throw new PdfError(
+      'PDF_GENERATION_ERROR',
+      'ARCA no informó el vencimiento del CAE: no se puede generar el PDF. El comprobante está emitido.',
+    );
+  }
+
+  return { cae, caeVencimiento };
+}
+
+/** ARCA asigna el numero al emitir: sale de la respuesta o, si no se puede leer, es el que se le mando. */
 function resolveVoucherNumber(result: BillingExecutionResult): number {
-  const number = result.response.raw?.response?.FeDetResp?.FECAEDetResponse?.[0]?.CbteDesde ?? result.payload.CbteDesde;
+  const number =
+    result.response.raw?.response?.FeDetResp?.FECAEDetResponse?.[0]?.CbteDesde ??
+    result.voucherNumber ??
+    result.payload.CbteDesde;
 
   if (!number) {
     throw new PdfError('PDF_GENERATION_ERROR', 'La respuesta de ARCA no trae el número del comprobante.');
@@ -105,9 +125,7 @@ export function mapBillingResultToPdfData(
 ): InvoicePdfData {
   const { payload, response, voucherKind } = result;
 
-  if (!response.cae || !response.caeVencimiento) {
-    throw new PdfError('PDF_GENERATION_ERROR', 'El comprobante no tiene CAE: no se puede generar el PDF.');
-  }
+  const { cae, caeVencimiento } = requireCae(response);
 
   const number = resolveVoucherNumber(result);
   const isConsumer = payload.DocTipo === CONSUMER_DOCUMENT_TYPE_CODE;
@@ -115,8 +133,8 @@ export function mapBillingResultToPdfData(
   const iva = discriminatesIva(voucherKind.letter) ? buildIvaEntries(payload.Iva) : [];
 
   return {
-    cae: response.cae,
-    caeFechaVencimiento: response.caeVencimiento,
+    cae,
+    caeFechaVencimiento: caeVencimiento,
     ...(isReceipt(voucherKind) ? { cbteDescripcion: 'RECIBO' } : {}),
     cbteDesde: number,
     cbteFecha: payload.CbteFch,
@@ -224,9 +242,7 @@ export function mapExportResultToPdfData(
 ): InvoicePdfData {
   const { display, payload, response } = result;
 
-  if (!response.cae || !response.caeVencimiento) {
-    throw new PdfError('PDF_GENERATION_ERROR', 'El comprobante no tiene CAE: no se puede generar el PDF.');
-  }
+  const { cae, caeVencimiento } = requireCae(response);
 
   const number = resolveExportVoucherNumber(result);
   const items: InvoicePdfItem[] = payload.Items.Item.map((item) => ({
@@ -240,8 +256,8 @@ export function mapExportResultToPdfData(
   const observaciones = [payload.Obs_comerciales, payload.Obs].map((value) => value.trim()).filter(Boolean);
 
   return {
-    cae: response.cae,
-    caeFechaVencimiento: response.caeVencimiento,
+    cae,
+    caeFechaVencimiento: caeVencimiento,
     cbteDesde: number,
     cbteFecha: payload.Fecha_cbte,
     cbteDescripcion: result.voucherKind.pdfTitle,

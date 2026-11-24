@@ -35,7 +35,8 @@ function formatPdfOutcome(result: BillingExecutionResult): Record<string, unknow
 
 /** ARCA informa `Code` y `Msg`: se suman `codigo` y `mensaje`, como en el resto del JSON. */
 function withSpanishKeys(item: unknown): unknown {
-  if (typeof item !== 'object' || item === null) {
+  // Los que no vinieron como `{ Code, Msg }` ya tienen las claves en castellano.
+  if (typeof item !== 'object' || item === null || 'mensaje' in item) {
     return item;
   }
 

@@ -21,6 +21,7 @@ function input(overrides: Partial<BillingCommandInput> = {}): BillingCommandInpu
   } as BillingCommandInput;
 }
 
+const RUNTIME = { cuit: 20111111112, environment: 'testing', pointOfSale: 3 } as const;
 const PADRON = { getTaxpayer: vi.fn(async () => null) };
 
 describe('prepareBillingInput', () => {
@@ -28,7 +29,12 @@ describe('prepareBillingInput', () => {
 
   it('en pesos no consulta la cotizacion ni avisa nada', async () => {
     const getQuotation = vi.fn(async () => 1000);
-    const prepared = await prepareBillingInput(service, input(), { billing: { getQuotation }, padron: PADRON });
+    const prepared = await prepareBillingInput(
+      service,
+      input(),
+      { billing: { getQuotation }, padron: PADRON },
+      RUNTIME,
+    );
 
     expect(getQuotation).not.toHaveBeenCalled();
     expect(prepared.warnings).toEqual([]);
@@ -36,10 +42,15 @@ describe('prepareBillingInput', () => {
 
   it('en moneda extranjera sin --cm usa la oficial y lo avisa', async () => {
     const getQuotation = vi.fn(async () => 1415.25);
-    const prepared = await prepareBillingInput(service, input({ currencyCode: 'USD', exchangeRate: undefined }), {
-      billing: { getQuotation },
-      padron: PADRON,
-    });
+    const prepared = await prepareBillingInput(
+      service,
+      input({ currencyCode: 'USD', exchangeRate: undefined }),
+      {
+        billing: { getQuotation },
+        padron: PADRON,
+      },
+      RUNTIME,
+    );
 
     expect(getQuotation).toHaveBeenCalledWith('DOL');
     expect(prepared.input).toMatchObject({ exchangeRate: 1415.25, exchangeRateSource: 'arca' });
@@ -53,10 +64,15 @@ describe('prepareBillingInput', () => {
 
       for (const exchangeRate of [undefined, 1000]) {
         await expect(
-          prepareBillingInput(service, input({ currencyCode: 'xyz', exchangeRate }), {
-            billing: { getCurrencyCodes, getQuotation },
-            padron: PADRON,
-          }),
+          prepareBillingInput(
+            service,
+            input({ currencyCode: 'xyz', exchangeRate }),
+            {
+              billing: { getCurrencyCodes, getQuotation },
+              padron: PADRON,
+            },
+            RUNTIME,
+          ),
         ).rejects.toMatchObject({
           code: 'INPUT_VALIDATION_ERROR',
           message: 'La moneda XYZ no está en la tabla de monedas de ARCA: la rechaza al emitir (error 10037).',
@@ -72,17 +88,27 @@ describe('prepareBillingInput', () => {
       const billing = { getCurrencyCodes, getQuotation: vi.fn(async () => 10) };
 
       await expect(
-        prepareBillingInput(service, input({ currencyCode: 'NUE', exchangeRate: undefined }), {
-          billing,
-          padron: PADRON,
-        }),
+        prepareBillingInput(
+          service,
+          input({ currencyCode: 'NUE', exchangeRate: undefined }),
+          {
+            billing,
+            padron: PADRON,
+          },
+          RUNTIME,
+        ),
       ).resolves.toMatchObject({ input: { exchangeRate: 10 } });
       expect(getCurrencyCodes).toHaveBeenCalledTimes(1);
 
-      await prepareBillingInput(service, input({ currencyCode: 'EUR', exchangeRate: undefined }), {
-        billing,
-        padron: PADRON,
-      });
+      await prepareBillingInput(
+        service,
+        input({ currencyCode: 'EUR', exchangeRate: undefined }),
+        {
+          billing,
+          padron: PADRON,
+        },
+        RUNTIME,
+      );
       expect(getCurrencyCodes).toHaveBeenCalledTimes(1);
     });
 
@@ -93,10 +119,15 @@ describe('prepareBillingInput', () => {
       };
 
       await expect(
-        prepareBillingInput(service, input({ currencyCode: 'XYZ', exchangeRate: undefined }), {
-          billing,
-          padron: PADRON,
-        }),
+        prepareBillingInput(
+          service,
+          input({ currencyCode: 'XYZ', exchangeRate: undefined }),
+          {
+            billing,
+            padron: PADRON,
+          },
+          RUNTIME,
+        ),
       ).resolves.toMatchObject({ input: { exchangeRate: 10 } });
     });
   });
@@ -109,7 +140,12 @@ describe('prepareBillingInput', () => {
 
     it('con --cm dentro del rango compara con la oficial y sigue sin avisos', async () => {
       const used = gateways(1000);
-      const prepared = await prepareBillingInput(service, input({ currencyCode: 'USD', exchangeRate: 5000 }), used);
+      const prepared = await prepareBillingInput(
+        service,
+        input({ currencyCode: 'USD', exchangeRate: 5000 }),
+        used,
+        RUNTIME,
+      );
 
       expect(used.billing.getQuotation).toHaveBeenCalledWith('DOL');
       expect(prepared.warnings).toEqual([]);
@@ -117,7 +153,7 @@ describe('prepareBillingInput', () => {
 
     it('frena una cotizacion por encima del 500 % o por debajo del 2 %, nombrando el dato', async () => {
       await expect(
-        prepareBillingInput(service, input({ currencyCode: 'USD', exchangeRate: 5000.01 }), gateways(1000)),
+        prepareBillingInput(service, input({ currencyCode: 'USD', exchangeRate: 5000.01 }), gateways(1000), RUNTIME),
       ).rejects.toMatchObject({
         code: 'INPUT_VALIDATION_ERROR',
         message:
@@ -129,6 +165,7 @@ describe('prepareBillingInput', () => {
           service,
           input({ currencyCode: 'USD', exchangeRate: 19.99, fromFile: ['exchangeRate'] }),
           gateways(1000),
+          RUNTIME,
         ),
       ).rejects.toMatchObject({
         suggestion: 'Revisá `"cotizacionMoneda"` del JSON de `--cargar`, o sacala para usar la oficial de ARCA.',
@@ -138,6 +175,7 @@ describe('prepareBillingInput', () => {
           service,
           input({ currencyCode: 'USD', exchangeRate: 6000, exchangeRateSource: 'config' }),
           gateways(1000),
+          RUNTIME,
         ),
       ).rejects.toMatchObject({ suggestion: expect.stringContaining('la clave `cotizacion` de la config') });
     });
@@ -148,15 +186,20 @@ describe('prepareBillingInput', () => {
         input({ currencyCode: 'USD', exchangeRate: undefined, sameCurrency: true }),
         input({ currencyCode: 'USD', exchangeRate: 1 }),
       ]) {
-        await expect(prepareBillingInput(service, entry, gateways(1000))).resolves.toBeDefined();
+        await expect(prepareBillingInput(service, entry, gateways(1000), RUNTIME)).resolves.toBeDefined();
       }
     });
 
     it('si la consulta falla, avisa y sigue', async () => {
-      const prepared = await prepareBillingInput(service, input({ currencyCode: 'USD', exchangeRate: 5000 }), {
-        billing: { getQuotation: vi.fn(async () => Promise.reject(new Error('ARCA no responde.'))) },
-        padron: PADRON,
-      });
+      const prepared = await prepareBillingInput(
+        service,
+        input({ currencyCode: 'USD', exchangeRate: 5000 }),
+        {
+          billing: { getQuotation: vi.fn(async () => Promise.reject(new Error('ARCA no responde.'))) },
+          padron: PADRON,
+        },
+        RUNTIME,
+      );
 
       expect(prepared.warnings).toEqual([
         'No se pudo comparar la cotización con la oficial de ARCA: ARCA no responde. ARCA la rechaza si no está entre el 2 % y el 500 % de la oficial (error 10119).',
@@ -165,19 +208,29 @@ describe('prepareBillingInput', () => {
   });
 
   it('avisa que --dia esta deprecado', async () => {
-    const prepared = await prepareBillingInput(service, input({ dueDay: 10 }), {
-      billing: { getQuotation: vi.fn() },
-      padron: PADRON,
-    });
+    const prepared = await prepareBillingInput(
+      service,
+      input({ dueDay: 10 }),
+      {
+        billing: { getQuotation: vi.fn() },
+        padron: PADRON,
+      },
+      RUNTIME,
+    );
 
     expect(prepared.warnings).toEqual([expect.stringContaining('--dia')]);
   });
 
   it('si "dia" vino del JSON de --cargar, el aviso nombra la clave y no el flag', async () => {
-    const prepared = await prepareBillingInput(service, input({ dueDay: 10, fromFile: ['dueDay'] }), {
-      billing: { getQuotation: vi.fn() },
-      padron: PADRON,
-    });
+    const prepared = await prepareBillingInput(
+      service,
+      input({ dueDay: 10, fromFile: ['dueDay'] }),
+      {
+        billing: { getQuotation: vi.fn() },
+        padron: PADRON,
+      },
+      RUNTIME,
+    );
 
     expect(prepared.warnings).toEqual([
       'La clave "dia" del JSON de `--cargar` está deprecada y se va a sacar en una próxima versión: usá "vencimientoPago" (por ejemplo, `"vencimientoPago": "10"`).',

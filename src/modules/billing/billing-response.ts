@@ -1,7 +1,9 @@
+import { asArray } from '../../lib/arrays/as-array';
 import type { CreateVoucherResultDto } from '../../services/arca/arca-sdk.types';
 
 import { findArcaRejections, formatArcaRejection } from './arca-rejections';
 import type { BillingResponseSummary } from './billing.types.internal';
+import { NO_DETAIL_TEXT, readCae, readCaeExpiration, readResponseText } from './emission-response';
 
 export function createDryRunResponse(): BillingResponseSummary {
   return {
@@ -19,23 +21,36 @@ export function createDryRunResponse(): BillingResponseSummary {
   };
 }
 
+interface RawDetail {
+  readonly CAE?: unknown;
+  readonly CAEFchVto?: unknown;
+  readonly Observaciones?: { readonly Obs?: unknown } | null;
+  readonly Resultado?: unknown;
+}
+
+/** El detalle del comprobante. El SDK solo mira el primero de una lista: con un objeto suelto pierde el CAE. */
+function readDetail(response: CreateVoucherResultDto): RawDetail | undefined {
+  return asArray<unknown>(response.response?.FeDetResp?.FECAEDetResponse)[0] as RawDetail | undefined;
+}
+
 export function mapBillingResponse(response: CreateVoucherResultDto): BillingResponseSummary {
-  const detail = response.response?.FeDetResp?.FECAEDetResponse?.[0];
-  const events = response.response?.Events?.Evt ?? [];
-  const errors = response.response?.Errors?.Err ?? [];
-  const observaciones =
-    detail?.Observaciones?.Obs?.map((item) => item.Msg).filter((msg): msg is string => Boolean(msg)) ?? [];
-  const resultado = detail?.Resultado ?? null;
-  const suggestions = buildResponseSuggestions({
-    errors,
-    observations: detail?.Observaciones?.Obs ?? [],
-    resultado,
-  });
+  const detail = readDetail(response);
+  // Nada de esto puede costar el CAE: se acepta suelto, en lista, nulo o de otro tipo (ERR-16).
+  const events = asArray<unknown>(response.response?.Events?.Evt)
+    .filter((item) => item !== null)
+    .map(toItem);
+  // Uno nulo tambien cuenta: ARCA informo un error, aunque no se lea.
+  const errors = asArray<unknown>(response.response?.Errors?.Err).map(toItem);
+  const observations = asArray<unknown>(detail?.Observaciones?.Obs);
+  const observaciones = observations.map(readMessage).filter(Boolean);
+  const resultado = readResponseText(detail?.Resultado);
+  const suggestions = buildResponseSuggestions({ errors, observations, resultado });
+  const rejected = resultado === 'R';
 
   return {
     // El SDK devuelve "" en un rechazo; el JSON publico promete null.
-    cae: response.cae || null,
-    caeVencimiento: response.caeFchVto || null,
+    cae: readCae(response.cae) ?? (rejected ? null : readCae(detail?.CAE)),
+    caeVencimiento: readCaeExpiration(response.caeFchVto || (rejected ? undefined : detail?.CAEFchVto)),
     errors,
     events,
     observaciones,
@@ -51,6 +66,13 @@ export function mapBillingResponse(response: CreateVoucherResultDto): BillingRes
   };
 }
 
+/** Lo que no es `{ Code, Msg }` (un texto suelto, un nulo), con la forma que tiene en el JSON. */
+function toItem(item: unknown): unknown {
+  return typeof item === 'object' && item !== null
+    ? item
+    : { codigo: null, mensaje: readResponseText(item) ?? NO_DETAIL_TEXT };
+}
+
 function readCode(item: unknown): number | undefined {
   const code = typeof item === 'object' && item && 'Code' in item ? Number((item as { Code?: number }).Code) : NaN;
 
@@ -58,7 +80,7 @@ function readCode(item: unknown): number | undefined {
 }
 
 function readMessage(item: unknown): string {
-  return typeof item === 'object' && item && 'Msg' in item ? String((item as { Msg?: string }).Msg ?? '') : '';
+  return typeof item === 'object' && item && 'Msg' in item ? (readResponseText(item.Msg) ?? '') : '';
 }
 
 /** Lo que sugiere la tabla de rechazos (`arca-rejections.ts`) para los codigos y mensajes de errores y observaciones. */

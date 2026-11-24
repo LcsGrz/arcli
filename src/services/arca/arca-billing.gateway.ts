@@ -1,3 +1,4 @@
+import { asArray } from '../../lib/arrays/as-array';
 import { addDaysToArcaDate, formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
@@ -135,13 +136,4 @@ interface RawQuotationResponse {
 interface RawArcaError {
   readonly Code?: number | string;
   readonly Msg?: string;
-}
-
-/** El XML de ARCA trae un solo elemento donde el WSDL promete un array. */
-function asArray<T>(value: T | T[] | undefined): T[] {
-  if (value === undefined) {
-    return [];
-  }
-
-  return Array.isArray(value) ? value : [value];
 }

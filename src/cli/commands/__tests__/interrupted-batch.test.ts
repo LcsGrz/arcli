@@ -35,7 +35,7 @@ function plain(text: string): string {
   return stripAnsi(text).replace(/[│┃║╏\s]+/g, ' ');
 }
 
-type Step = 'A' | 'R' | 'incierta' | 'login' | 'sin-autorizar';
+type Step = 'A' | 'R' | 'ilegible' | 'incierta' | 'login' | 'sin-autorizar';
 
 /** Corre un lote en el que cada comprobante termina como dice `steps`, y reporta el error como `index.ts`. */
 async function runBatch(
@@ -102,6 +102,10 @@ async function runBatch(
                 throw new Error('socket hang up');
               }
 
+              if (step === 'ilegible') {
+                throw new TypeError("Cannot read properties of undefined (reading 'FeDetResp')");
+              }
+
               return authorization(step === 'R' ? 'R' : 'A');
             },
             getNextVoucherNumber: async () => {
@@ -161,10 +165,7 @@ describe('la sugerencia del lote cortado, según lo que pasó (ERR-3)', () => {
   it('sin ninguno procesado no habla de ya emitidos ni contradice el mensaje', async () => {
     expect(await runBatch(['login', 'A'])).toBe(1);
     expect(plain(stderr)).toContain('Procesados: 0 de 2');
-    expect(plain(stderr)).toContain(
-      'Antes de reintentar el #1, fijate que no figure emitido con `arcli ultimos <tipo> --pv <n>`, en el mismo entorno.',
-    );
-    expect(plain(stderr)).toContain('Después reintentá los que quedaron sin procesar.');
+    expect(plain(stderr)).toContain('El #1 no se emitió. Reintentá los que quedaron sin procesar.');
     expect(plain(stderr)).not.toMatch(/ya se emitieron|de arriba|No se procesó/);
   });
 
@@ -172,7 +173,7 @@ describe('la sugerencia del lote cortado, según lo que pasó (ERR-3)', () => {
     await runBatch(['A', 'R', 'login', 'A']);
 
     expect(plain(stderr)).toContain('Los procesados con CAE ya se emitieron: no los vuelvas a cargar.');
-    expect(plain(stderr)).toContain('Antes de reintentar el #3, fijate que no figure emitido');
+    expect(plain(stderr)).toContain('El #3 no se emitió. Reintentá los que quedaron sin procesar.');
   });
 
   it('con una emisión sin confirmar no repite la verificación del mensaje', async () => {
@@ -181,7 +182,15 @@ describe('la sugerencia del lote cortado, según lo que pasó (ERR-3)', () => {
     expect(plain(stderr)).toContain('arcli ultimos fc --pv 3 --testing');
     expect(plain(stderr).match(/arcli ultimos/g)).toHaveLength(1);
     expect(plain(stderr)).toContain('Los procesados con CAE ya se emitieron');
-    expect(plain(stderr)).toContain('reintentá los que quedaron sin procesar');
+    expect(plain(stderr)).toContain('Después reintentá los que quedaron sin procesar');
+    expect(plain(stderr)).not.toContain('no se emitió');
+  });
+
+  it('con una respuesta ilegible tampoco dice que no se emitió (ERR-16)', async () => {
+    await runBatch(['A', 'ilegible', 'A']);
+
+    expect(plain(stderr)).toContain('El #2 puede haberse emitido');
+    expect(plain(stderr)).not.toContain('no se emitió');
   });
 
   it('sin confirmar el último: no manda a reintentar lo que no hay', async () => {

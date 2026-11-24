@@ -1,0 +1,15 @@
+$ arcli fc -m 1000 --cs --cfinal --emitir --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "EMISSION_UNCERTAIN",
+  "detalles": {
+    "causa": "hubo un error inesperado al emitir (Cannot read properties of undefined (reading 'FeDetResp'))"
+  },
+  "error": "No se pudo confirmar la emisión: hubo un error inesperado al emitir (Cannot read properties of undefined (reading 'FeDetResp'))",
+  "sugerencia": "Puede haberse emitido igual. Antes de reintentar, verificá con `arcli ultimos fc --pv 3 --testing`: si figura, ya está emitido y no hay que repetirlo."
+}
+

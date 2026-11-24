@@ -482,10 +482,15 @@ async function assertEquivalentRoundtrip(run: Walk): Promise<void> {
       );
 
       const service = new BillingService({ clock: systemClock });
-      const prepared = await prepareBillingInput(service, parsed, {
-        billing: run.session.billingGateway,
-        padron,
-      });
+      const prepared = await prepareBillingInput(
+        service,
+        parsed,
+        {
+          billing: run.session.billingGateway,
+          padron,
+        },
+        runtime,
+      );
 
       expect(service.buildVoucherPayload(prepared.input, runtime), `${line}${context(run)}`).toEqual(
         run.billingPayload,

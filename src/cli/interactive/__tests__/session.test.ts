@@ -359,6 +359,57 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
     expect(offerPdf).not.toHaveBeenCalled();
   });
 
+  it('si ARCA contesta algo que no se puede leer, el menú recibe "sin confirmar" y no se ofrece el PDF (ERR-16)', async () => {
+    const session = createSession('testing');
+
+    session.createVoucher.mockRejectedValueOnce(new TypeError('Cannot read properties of undefined'));
+    chooseOneMock.mockResolvedValueOnce('emitir');
+
+    await expect(previewAndEmit(session, input)).rejects.toMatchObject({
+      code: 'EMISSION_UNCERTAIN',
+      details: { causa: 'hubo un error inesperado al emitir (Cannot read properties of undefined)' },
+      verifyCommand: 'arcli ultimos fc --pv 3 --testing',
+    });
+    expect(session.createVoucher).toHaveBeenCalledTimes(1);
+    expect(offerPdf).not.toHaveBeenCalled();
+  });
+
+  it('un evento suelto no pierde el CAE: se muestra y se ofrece el PDF (ERR-16)', async () => {
+    const session = createSession('testing');
+
+    session.createVoucher.mockResolvedValueOnce({
+      cae: '86400940834693',
+      caeFchVto: '20261130',
+      response: { Events: { Evt: { Code: 1, Msg: 'x' } }, FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] } },
+    });
+    chooseOneMock.mockResolvedValueOnce('emitir');
+
+    await expect(previewAndEmit(session, input)).resolves.toBe(true);
+    expect(vi.mocked(process.stdout.write).mock.calls.join('')).toContain('86400940834693');
+    expect(offerPdf).toHaveBeenCalledTimes(1);
+  });
+
+  it('un CUIT inválido vuelve a la última pregunta sin consultar el padrón (ERR-11)', async () => {
+    const getTaxpayerDetails = vi.fn();
+    const session = {
+      ...createSession('testing'),
+      arca: { registerInscriptionProofService: { getTaxpayerDetails } } as never,
+    };
+
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    await expect(
+      previewAndEmit(session, {
+        ...input,
+        documentNumber: 20168598205,
+        documentType: 'cuit',
+        ivaConditionSource: 'missing',
+      }),
+    ).resolves.toBe(BACK);
+    expect(getTaxpayerDetails).not.toHaveBeenCalled();
+    expect(vi.mocked(process.stderr.write).mock.calls.join('')).toContain('20168598205 no es válido');
+  });
+
   it('si ARCA falla al pedir la cotización oficial para la vista previa, no pregunta nada', async () => {
     const session = createSession('testing');
 
