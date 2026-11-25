@@ -168,7 +168,7 @@ describe('checkForUpdate: cancelada', () => {
 
   function cancelled(cwd: string, currentVersion = '0.1.0') {
     const controller = new AbortController();
-    const result = checkForUpdate(currentVersion, { cwd, maxAgeMs: -1, signal: controller.signal } as object);
+    const result = checkForUpdate(currentVersion, { cwd, maxAgeMs: -1, signal: controller.signal });
 
     controller.abort();
 
@@ -178,7 +178,7 @@ describe('checkForUpdate: cancelada', () => {
   const cached = (cwd: string) =>
     JSON.parse(readFileSync(join(cwd, 'update-cache.json'), 'utf8')) as Record<string, number | string>;
 
-  it.fails('no avisa, no anota la consulta y la próxima reintenta', async () => {
+  it('no avisa, no anota la consulta y la próxima reintenta', async () => {
     const cwd = createCwd();
 
     hangRegistry();
@@ -190,7 +190,7 @@ describe('checkForUpdate: cancelada', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it.fails('con una más nueva ya guardada, avisa con esa', async () => {
+  it('con una más nueva ya guardada, avisa con esa', async () => {
     const cwd = createCwd();
 
     mockRegistryResponse('0.2.0');
@@ -210,7 +210,7 @@ describe('checkForUpdate: cancelada', () => {
     const controller = new AbortController();
 
     vi.stubGlobal('fetch', async () => Promise.reject(new Error('sin red')));
-    expect(await checkForUpdate('0.1.0', { cwd, signal: controller.signal } as object)).toBeNull();
+    expect(await checkForUpdate('0.1.0', { cwd, signal: controller.signal })).toBeNull();
     controller.abort();
     expect(cached(cwd).lastCheckedAt).toBeGreaterThan(0);
   });
@@ -220,7 +220,7 @@ describe('checkForUpdate: cancelada', () => {
     const controller = new AbortController();
 
     mockRegistryResponse('0.2.0');
-    await checkForUpdate('0.1.0', { cwd, signal: controller.signal } as object);
+    await checkForUpdate('0.1.0', { cwd, signal: controller.signal });
     controller.abort();
     expect(cached(cwd)).toMatchObject({ latestVersion: '0.2.0' });
   });
