@@ -13,7 +13,7 @@ import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { systemClock } from '../../services/time/system-clock';
 import { certificateWarnings, type CliArcaRuntime, resolveArcaRuntime } from '../arca-runtime';
 import { type BillingGateways, createBillingGateways } from '../billing-gateways';
-import { recordEmission } from '../emitted-vouchers';
+import { recordEmission, recordFailedPdfs } from '../emitted-vouchers';
 import { getGlobalOptions, registerGlobalOptions } from '../global-options';
 import { withPendingSpinner } from '../pending-spinner';
 import { startSpinner } from '../spinner';
@@ -66,14 +66,19 @@ export async function writeResultsWithPdfs(
   };
 
   // En JSON el PDF va dentro del mismo resultado; en texto primero se ve el CAE y despues se pregunta.
-  if (options.output.outputJson) {
-    writeBillingCommandResults(await attachPdfs(pdfOptions), options.output);
-
-    return;
+  if (!options.output.outputJson) {
+    writeBillingCommandResults(results, options.output);
   }
 
-  writeBillingCommandResults(results, options.output);
-  writePdfOutcomes(results, await attachPdfs(pdfOptions));
+  const withPdfs = await attachPdfs(pdfOptions);
+
+  recordFailedPdfs(withPdfs);
+
+  if (options.output.outputJson) {
+    writeBillingCommandResults(withPdfs, options.output);
+  } else {
+    writePdfOutcomes(results, withPdfs);
+  }
 }
 
 /** Si tampoco se puede escribir el aviso, lo que importa es el error de emision. */

@@ -446,15 +446,11 @@ describe('"Sí, emitir y generar el PDF"', () => {
     expect(assistant.emitted).toEqual([expect.stringContaining('Se emitió'), failing.missing]);
   });
 
-  // Tests primero (REV-54): pasa a it() al implementarlo.
-  it.fails.each(FAILING_PDF)(
-    '$family.name: si el PDF falla, el comando lo anota como el asistente',
-    async (failing) => {
-      const { assistant, command } = await failPdf(failing);
+  it.each(FAILING_PDF)('$family.name: si el PDF falla, el comando lo anota como el asistente', async (failing) => {
+    const { assistant, command } = await failPdf(failing);
 
-      expect(command.emitted).toEqual(assistant.emitted);
-    },
-  );
+    expect(command.emitted).toEqual(assistant.emitted);
+  });
 });
 
 describe('el asistente emite por los casos de uso de modules', () => {

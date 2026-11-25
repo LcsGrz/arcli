@@ -1,5 +1,6 @@
 import type { BillingExecutionResult } from '../modules/billing/billing.types.internal';
 import type { ExportExecutionResult } from '../modules/export/export.types';
+import type { PdfOutcome } from '../modules/pdf/pdf.types';
 import { MAX_RECENT_VOUCHERS } from '../modules/vouchers/voucher-history';
 
 /** Lo que alcanza para nombrar un comprobante con CAE y volver a encontrarlo. */
@@ -20,7 +21,7 @@ export function listEmittedVouchers(results: readonly BillingExecutionResult[]):
 }
 
 const emittedInThisRun: EmittedVoucher[] = [];
-/** Emitidos con el PDF elegido que se quedaron sin el porque no se pudo preguntar o mostrar. */
+/** Emitidos con el PDF elegido que se quedaron sin el: fallo, o no se pudo preguntar. */
 const withoutPdf: EmittedVoucher[] = [];
 /** Cuantos de los primeros ya nombro un aviso en stderr. */
 let announced = 0;
@@ -64,11 +65,42 @@ function listEmittedExport(result: ExportExecutionResult): EmittedVoucher[] {
 
 /** El PDF que se eligio al emitir no se genero: lo dice el aviso, porque no se puede generar despues. */
 export function recordMissingPdf(result: BillingExecutionResult): void {
-  withoutPdf.push(...listEmittedVouchers([result]));
+  addWithoutPdf(listEmittedVouchers([result]));
 }
 
 export function recordMissingExportPdf(result: ExportExecutionResult): void {
-  withoutPdf.push(...listEmittedExport(result));
+  addWithoutPdf(listEmittedExport(result));
+}
+
+/** Los PDF de `results` que fallaron. Va antes de mostrarlos: la salida puede ser lo que falla. */
+export function recordFailedPdfs(results: readonly BillingExecutionResult[]): void {
+  results.filter(hasFailedPdf).forEach(recordMissingPdf);
+}
+
+export function recordFailedExportPdf(result: ExportExecutionResult): void {
+  if (hasFailedPdf(result)) {
+    recordMissingExportPdf(result);
+  }
+}
+
+function hasFailedPdf({ pdf }: { readonly pdf?: PdfOutcome }): boolean {
+  return pdf !== undefined && 'error' in pdf;
+}
+
+/** Cada uno una vez: dos caminos que lo anoten no pueden dar `42 y 42`. */
+function addWithoutPdf(vouchers: readonly EmittedVoucher[]): void {
+  withoutPdf.push(
+    ...vouchers.filter(
+      ({ environment, number, pointOfSale, shortcut }) =>
+        !withoutPdf.some(
+          (known) =>
+            known.environment === environment &&
+            known.number === number &&
+            known.pointOfSale === pointOfSale &&
+            known.shortcut === shortcut,
+        ),
+    ),
+  );
 }
 
 /**

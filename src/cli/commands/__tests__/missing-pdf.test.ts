@@ -7,6 +7,7 @@ import {
   EXPORT_VOUCHER_KIND,
 } from '../../../modules/export/export.types';
 import { stripAnsi } from '../../../ui';
+import { outputState } from '../../closed-output';
 import { reportOutputFailure } from '../../error-output';
 
 import {
@@ -108,8 +109,7 @@ const missing = (shortcut: string, numbers = '42') => `No se generó el PDF: ${e
 describe.each(FAMILIES)('$shortcut', ({ args, run, shortcut }) => {
   const emit = (options: RunOptions) => run([...args, '--emitir'], options);
 
-  // Tests primero (REV-54): pasa a it() al implementarlo.
-  it.fails('en texto: el PDF que falla queda anotado antes de mostrarlo', async () => {
+  it('en texto: el PDF que falla queda anotado antes de mostrarlo', async () => {
     const { events } = await emit(BROKEN);
 
     expect(events.slice(-7)).toEqual([
@@ -123,8 +123,7 @@ describe.each(FAMILIES)('$shortcut', ({ args, run, shortcut }) => {
     ]);
   });
 
-  // Tests primero (REV-54): pasa a it() al implementarlo.
-  it.fails('con --json: queda anotado antes de escribir el resultado', async () => {
+  it('con --json: queda anotado antes de escribir el resultado', async () => {
     const { events } = await emit({ ...BROKEN, json: true });
 
     expect(events.slice(-6)).toEqual([
@@ -137,8 +136,7 @@ describe.each(FAMILIES)('$shortcut', ({ args, run, shortcut }) => {
     ]);
   });
 
-  // Tests primero (REV-54): pasa a it() al implementarlo.
-  it.fails.each([false, true])('con --json %s, si se corta la salida el aviso lo dice una vez', async (json) => {
+  it.each([false, true])('con --json %s, si se corta la salida el aviso lo dice una vez', async (json) => {
     await emit({ ...BROKEN, json });
 
     const notice = lostOutputNotice(json);
@@ -161,8 +159,7 @@ describe.each(FAMILIES)('$shortcut', ({ args, run, shortcut }) => {
 describe.each(COMMANDS)('$shortcut: cualquier PDF elegido que falla', ({ args, run, shortcut }) => {
   const emit = (options: RunOptions) => run([...args, '--emitir'], options);
 
-  // Tests primero (REV-54): pasa a it() al implementarlo.
-  it.fails.each<[string, () => RunOptions]>([
+  it.each<[string, () => RunOptions]>([
     ['falta el componente', () => ({ config: ALWAYS, pdfFailure: 'cargar', pluginInstalled: false })],
     ['el componente no carga', () => ({ config: ALWAYS, pdfFailure: 'cargar' })],
     ['faltan los datos del emisor', () => ({ config: { ...ALWAYS, emisor: {} } })],
@@ -185,14 +182,41 @@ describe.each(COMMANDS)('$shortcut: cualquier PDF elegido que falla', ({ args, r
     expect(result.events.at(-1)).toBe('fin: exit 0');
   });
 
-  // Tests primero (REV-54): pasa a it() al implementarlo.
-  it.fails.each<[string, string[], RunOptions]>([
+  it.each<[string, string[], RunOptions]>([
     ['--exportar-pdf, aunque la config diga `nunca`', ['--emitir', '--exportar-pdf'], { pdfFailure: 'generar' }],
     ['"Sí, emitir y generar el PDF"', [], { answers: [EMIT_WITH_PDF], pdfFailure: 'generar', tty: true }],
   ])('con %s', async (_name, flags, options) => {
     const result = await run([...args, ...flags], options);
 
     expect(notes(result).at(-1)).toBe(`anotado: ${emitted(shortcut)}; ${missing(shortcut)}`);
+  });
+});
+
+describe.each(COMMANDS)('$shortcut: la pregunta del PDF con la salida perdida', ({ args, run, shortcut }) => {
+  const ask = async (output: 'stderr' | 'stdout', answer: Error | string) => {
+    outputState.failures.set(output, new Error('write'));
+
+    try {
+      return notes(
+        await run([...args, '--emitir'], { answers: [answer], config: ASK, pdfFailure: 'generar', tty: true }),
+      );
+    } finally {
+      outputState.failures.clear();
+    }
+  };
+
+  it('cortada: se anota, como en el asistente', async () => {
+    expect(await ask('stdout', 'Ctrl+C')).toEqual([
+      `anotado: ${emitted(shortcut)}`,
+      `anotado: ${emitted(shortcut)}; ${missing(shortcut)}`,
+    ]);
+  });
+
+  it.each<['stderr' | 'stdout', string]>([
+    ['stdout', 'No'],
+    ['stderr', 'Ctrl+C'],
+  ])('con %s perdida y "%s": no se anota', async (output, answer) => {
+    expect(await ask(output, answer)).toEqual([`anotado: ${emitted(shortcut)}`]);
   });
 });
 
@@ -225,8 +249,7 @@ describe('un lote', () => {
   const runBatch = (options: RunOptions) =>
     runBilling(['--cargar', batch(3), '--emitir'], { config: ALWAYS, ...options });
 
-  // Tests primero (REV-54): pasa a it() al implementarlo.
-  it.fails.each([false, true])('con --json %s: solo el que falló, antes de mostrarlo', async (json) => {
+  it.each([false, true])('con --json %s: solo el que falló, antes de mostrarlo', async (json) => {
     const result = await runBatch({ json, pdfFailure: 'generar 42' });
 
     expect(notes(result).at(-1)).toBe(`anotado: ${emitted('fc', 'del 42 al 44')}; ${missing('fc')}`);
@@ -235,15 +258,13 @@ describe('un lote', () => {
     expect(lostOutputNotice(json)).toContain(missing('fc'));
   });
 
-  // Tests primero (REV-54): pasa a it() al implementarlo.
-  it.fails('si fallan todos, en una línea', async () => {
+  it('si fallan todos, en una línea', async () => {
     await runBatch({ pdfFailure: 'cargar' });
 
     expect(lostOutputNotice()).toContain(missing('fc', 'del 42 al 44'));
   });
 
-  // Tests primero (REV-54): pasa a it() al implementarlo.
-  it.fails('el que no lleva PDF y el rechazado no se anotan', async () => {
+  it('el que no lleva PDF y el rechazado no se anotan', async () => {
     const path = batch(3, (position) => ({ pdf: position !== 0 }));
     const result = await runBilling(['--cargar', path, '--emitir'], { arca: ['A', 'A', 'R'], pdfFailure: 'generar' });
 
@@ -251,8 +272,26 @@ describe('un lote', () => {
     expect(result.events.at(-1)).toBe('fin: exit 2');
   });
 
-  // Tests primero (REV-54): pasa a it() al implementarlo.
-  it.fails.each([false, true])('cortado, con --json %s: los ya emitidos, y el error del lote', async (json) => {
+  it('con la pregunta cortada por la salida perdida, el que se preguntaba y el que falló, una vez cada uno', async () => {
+    const path = batch(3, (position) => (position === 0 ? { pdf: true } : position === 1 ? { pdf: false } : {}));
+
+    outputState.closed.set('stdout', new Error('EPIPE'));
+
+    try {
+      const result = await runBilling(['--cargar', path, '--emitir'], {
+        answers: ['Ctrl+C'],
+        config: ASK,
+        pdfFailure: 'generar',
+        tty: true,
+      });
+
+      expect(notes(result).at(-1)).toBe(`anotado: ${emitted('fc', 'del 42 al 44')}; ${missing('fc', '42 y 44')}`);
+    } finally {
+      outputState.closed.clear();
+    }
+  });
+
+  it.each([false, true])('cortado, con --json %s: los ya emitidos, y el error del lote', async (json) => {
     const result = await runBatch({ arca: ['A', 'A', 'incierta'], json, pdfFailure: 'generar' });
 
     expect(notes(result).at(-1)).toBe(`anotado: ${emitted('fc', '42 y 43')}; ${missing('fc', '42 y 43')}`);
