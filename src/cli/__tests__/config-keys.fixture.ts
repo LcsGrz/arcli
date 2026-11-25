@@ -223,8 +223,9 @@ export function normalize(text: string): string {
     ['<cwd>', process.cwd()],
   ] as const;
 
-  // Una ruta relativa, ya enmascarada, queda con el nombre de la carpeta actual.
-  const masked = text.replaceAll(`.../${basename(process.cwd())}/`, '.../<cwd>/');
+  // `x` como ruta, ya enmascarada, queda con el nombre de la carpeta actual. Solo esa: el repo puede llamarse `arcli`,
+  // como la carpeta de los PDF (`.../arcli/comprobantes`).
+  const masked = text.split(`.../${basename(process.cwd())}/x`).join('.../<cwd>/x');
 
   return folders.reduce((result, [name, folder]) => {
     const paths = [...new Set([realpathSync(folder), realpathSync.native(folder), folder])];
