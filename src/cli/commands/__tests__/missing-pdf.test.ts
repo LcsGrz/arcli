@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
+import type { BillingExecutionResult } from '../../../modules/billing/billing.types.internal';
 import {
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_DEBIT_NOTE_KIND,
@@ -8,6 +9,7 @@ import {
 } from '../../../modules/export/export.types';
 import { stripAnsi } from '../../../ui';
 import { outputState } from '../../closed-output';
+import { describeEmittedInThisRun, recordFailedPdfs, recordMissingPdf } from '../../emitted-vouchers';
 import { reportOutputFailure } from '../../error-output';
 
 import {
@@ -297,4 +299,20 @@ describe('un lote', () => {
     expect(notes(result).at(-1)).toBe(`anotado: ${emitted('fc', '42 y 43')}; ${missing('fc', '42 y 43')}`);
     expect(result.events.slice(-2)).toEqual(['error: BATCH_EMISSION_ERROR', 'fin: exit 1']);
   });
+});
+
+it('el mismo comprobante anotado por dos caminos sale una vez', () => {
+  const result = {
+    dryRun: false,
+    environment: 'testing',
+    payload: { PtoVta: 3 },
+    response: { cae: '75123456789012' },
+    voucherKind: { shortcut: 'fc' },
+    voucherNumber: 42,
+  } as BillingExecutionResult;
+
+  recordMissingPdf(result);
+  recordFailedPdfs([{ ...result, pdf: { error: { code: 'PDF_GENERATION_ERROR', message: 'x' } } }]);
+
+  expect(describeEmittedInThisRun()).toEqual([missing('fc')]);
 });
