@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { checkAssociatedInArca } from '../../../modules/billing/billing.associated-lookup';
 import { BillingService } from '../../../modules/billing/billing.service';
 import { getVoucherKindByShortcut, VOUCHER_KIND_MAP } from '../../../modules/billing/voucher-kind-map';
 import { initialAdvancedOptions } from '../../../modules/interactive/billing-optionals';
 import { buildEquivalentCommand } from '../../../modules/interactive/equivalent-command';
 import { buildInvoiceInput, type InvoiceState } from '../../../modules/interactive/invoice-input';
-import { buildNoteInput } from '../../../modules/interactive/note-input';
+import { buildNoteInput, noteReadAssociated, type NoteState } from '../../../modules/interactive/note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
 import type { ArcaClient } from '../../../services/arca/arca-client.factory';
@@ -18,7 +19,7 @@ import { runExportNoteFlow } from '../export-note.flow';
 import { runExportRepeatFlow } from '../export-repeat.flow';
 import { runHistoryFlow } from '../history.flow';
 import { invoiceStateForReceiver, invoiceSteps, runInvoiceFlow } from '../invoice.flow';
-import { noteInputEnv, noteSteps, noteWarnings } from '../note.flow';
+import { noteInputEnv, noteSteps } from '../note.flow';
 import { repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
 import { cbuSteps, offerSavingCbu } from '../steps/cbu';
@@ -78,6 +79,25 @@ function createSession(vouchers: IssuedVoucher[] = [], arca: unknown = {}): Inte
     } as unknown as CliArcaRuntime,
     service: new BillingService({ clock: systemClock }),
   };
+}
+
+/** Los avisos del asociado en la vista previa, con lo que ya leyo el asistente y sin consultar ARCA. */
+async function noteWarnings(session: InteractiveSession, state: NoteState | undefined) {
+  const gateway = { getLastNumber: vi.fn(), getVoucher: vi.fn() };
+  const note = state as NoteState;
+  const input = buildNoteInput(note, noteInputEnv(session, 3));
+  const { warnings } = await checkAssociatedInArca({
+    gateway,
+    // La cotizacion oficial ya resuelta, como en la vista previa.
+    input: input.sameCurrency ? { ...input, exchangeRate: 1000 } : input,
+    read: noteReadAssociated(note, noteInputEnv(session, 3)),
+    runtime: session.runtime as never,
+    service: session.service,
+  });
+
+  expect(gateway.getVoucher).not.toHaveBeenCalled();
+
+  return warnings;
 }
 
 /** La misma sesion con otra config (y su punto de venta, como lo resuelve `loadArcaProfile`). */
@@ -1616,7 +1636,7 @@ describe('flujos del modo interactivo', () => {
           shortcut: 'ncc',
           totalAmount: 50000,
         });
-        expect(noteWarnings(state as NonNullable<typeof state>)).toEqual([
+        expect(await noteWarnings(session, state)).toEqual([
           'No se encontró la factura C 00050-00000015 en ARCA y el punto de venta 50 no es de web service: si es de Comprobantes en línea, de un controlador fiscal o de otro sistema, está bien; si no, revisá `--ar`, `--apv` y `--ac`. No se pudo controlar que la nota de crédito no lo supere.',
         ]);
         expect(buildEquivalentCommand(input, { environment: 'testing', platform: 'linux' })).toContain(
@@ -1669,7 +1689,7 @@ describe('flujos del modo interactivo', () => {
             associatedVoucher: { fecha: '10/11/2026', numero: 15, puntoVenta: 50, shortcut: 'fc' },
             totalAmount: 50000,
           });
-          expect(noteWarnings(state as NonNullable<typeof state>)).toEqual([
+          expect(await noteWarnings(session, state)).toEqual([
             `No se pudo consultar la factura C 00050-00000015 en ARCA (${code} Error de ARCA) y el punto de venta 50 no es de web service: si es de Comprobantes en línea, de un controlador fiscal o de otro sistema, está bien; si no, revisá \`--ar\`, \`--apv\` y \`--ac\`. No se pudo controlar que la nota de crédito no lo supere.`,
           ]);
         });
@@ -1749,7 +1769,7 @@ describe('flujos del modo interactivo', () => {
           shortcut: 'ndb',
         });
         // Una ND no tiene tope: el aviso no lo menciona.
-        expect(noteWarnings(state as NonNullable<typeof state>)[0]).not.toContain('nota de crédito');
+        expect((await noteWarnings(session, state))[0]).not.toContain('nota de crédito');
       });
 
       it('volver desde la fecha vuelve a la lista', async () => {
@@ -1771,7 +1791,7 @@ describe('flujos del modo interactivo', () => {
         const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
         expect(state?.otherSystemInvoice).toBeUndefined();
-        expect(noteWarnings(state as NonNullable<typeof state>)).toEqual([]);
+        expect(await noteWarnings(session, state)).toEqual([]);
         expect(
           buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3)).associatedVoucher,
         ).toMatchObject({

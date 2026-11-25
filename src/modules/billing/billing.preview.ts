@@ -5,7 +5,11 @@ import type { FceRegistryGateway } from '../fce/fce-registry';
 import type { ParametersGateway } from '../parameters/parameters';
 import type { VoucherHistoryGateway } from '../vouchers/voucher-history';
 
-import { checkAssociatedInArca, checkFceCancellationInRegistry } from './billing.associated-lookup';
+import {
+  checkAssociatedInArca,
+  checkFceCancellationInRegistry,
+  type ReadAssociated,
+} from './billing.associated-lookup';
 import { type BatchPlan, prepareBatch } from './billing.batch-run';
 import { type BillingPreparationGateways, prepareBillingInput, resolveFceWarningsInOrder } from './billing.prepare';
 import type { BillingCommandInput } from './billing.schemas';
@@ -27,6 +31,8 @@ export interface BillingPreviewGateways extends BillingPreparationGateways {
 }
 
 export interface PreviewBillingOptions {
+  /** El asociado que quien llama ya consulto: la nota que lo lleva se controla igual, sin consultarlo de nuevo. */
+  readonly associated?: ReadAssociated;
   readonly clock: Clock;
   /** Avisos de quien llama (certificado, flags salteados): van antes que los de cada comprobante. */
   readonly extraWarnings?: readonly string[];
@@ -51,7 +57,7 @@ export interface BillingPreviewItem {
  * `BatchValidationError`; uno suelto falla con el suyo.
  */
 export async function previewBilling(options: PreviewBillingOptions): Promise<BillingPreviewItem[]> {
-  const { clock, extraWarnings = [], gateways, plan, runtime } = options;
+  const { associated, clock, extraWarnings = [], gateways, plan, runtime } = options;
   const service = new BillingService({ clock });
   // En un lote, un fallo del padron o de la cotizacion sale con su indice, junto a los de validacion.
   const prepared = await prepareBatch({
@@ -64,6 +70,7 @@ export async function previewBilling(options: PreviewBillingOptions): Promise<Bi
       const checked = await checkAssociatedInArca({
         gateway: gateways.history,
         input: entry.input,
+        read: associated,
         runtime,
         salesPoints: gateways.salesPoints,
         service,

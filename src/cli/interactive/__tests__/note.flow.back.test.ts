@@ -292,7 +292,8 @@ describe('runNoteFlow', () => {
     expect(previewAndEmit).toHaveBeenCalledWith(
       expect.objectContaining({ typedPointOfSale: 3 }),
       expect.objectContaining({ shortcut: 'ncb', totalAmount: 121 }),
-      [],
+      // El elegido, para no consultarlo de nuevo.
+      expect.objectContaining({ arcaType: 6, number: 14, pointOfSale: 3, voucher: invoice() }),
     );
   });
 

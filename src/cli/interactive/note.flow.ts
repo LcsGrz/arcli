@@ -1,10 +1,5 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
-import {
-  creditNoteOverTotalHint,
-  describeAssociated,
-  isCreditNoteOverTotal,
-  missingAssociatedWarning,
-} from '../../modules/billing/billing.associated-lookup';
+import { creditNoteOverTotalHint, isCreditNoteOverTotal } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { discriminatesIva, isNote, isReceipt, noteSide } from '../../modules/billing/voucher-kind-map';
@@ -40,6 +35,7 @@ import {
   noteFinalize,
   type NoteInputEnv,
   type NoteKind,
+  noteReadAssociated,
   noteReceiverKey,
   type NoteRuleEnv,
   noteRuleScope,
@@ -571,7 +567,11 @@ export async function runNoteFlow(baseSession: InteractiveSession, kind: NoteKin
       confirm: emissionStep<NoteState>((state) =>
         state.exported
           ? undefined
-          : previewAndEmit(session, buildNoteInput(state, noteInputEnv(session, pointOfSale)), noteWarnings(state)),
+          : previewAndEmit(
+              session,
+              buildNoteInput(state, noteInputEnv(session, pointOfSale)),
+              noteReadAssociated(state, noteInputEnv(session, pointOfSale)),
+            ),
       ).confirm,
       // Las reglas sobre la nota final: si una falla, vuelve a la pregunta que escribe el campo.
       finalize: retry.finalize(noteFinalize(() => noteRuleEnv(session, pointOfSale))),
@@ -584,30 +584,4 @@ function withPreposition(invoiceKind: VoucherKindDefinition): string {
   const named = formatVoucherWithArticle(invoiceKind);
 
   return named.startsWith('el ') ? `del ${named.slice(3)}` : `de ${named}`;
-}
-
-/**
- * Los avisos de la vista previa que el asistente sabe y `previewAndEmit` no: el de un asociado de otro sistema, con
- * el mismo texto que con flags (`checkAssociatedInArca`).
- *
- * @internal Exportado para los tests.
- */
-export function noteWarnings(state: NoteState): string[] {
-  const other = state.otherSystemInvoice;
-  const invoiceKind = state.invoiceKind;
-
-  if (!other || !invoiceKind) {
-    return [];
-  }
-
-  return [
-    missingAssociatedWarning({
-      hasDate: Boolean(state.associatedDate),
-      isCreditNote: state.kind !== 'debito',
-      label: describeAssociated(invoiceKind.arcaType, other.pointOfSale, other.number),
-      origin: other.origin,
-      pointOfSale: other.pointOfSale,
-      queryReason: other.queryReason,
-    }),
-  ];
 }

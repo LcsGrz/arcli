@@ -8,6 +8,7 @@ import {
   isPeriodNote,
   noteCurrency,
   type NoteInputEnv,
+  noteReadAssociated,
   type NoteState,
   requiredNoteCancellation,
 } from '../note-input';
@@ -69,6 +70,24 @@ describe('buildNoteInput', () => {
 
   it('el punto de venta de la factura ingresada a mano le gana al del flujo', () => {
     expect(buildNoteInput(overInvoice({ invoicePointOfSale: 7 }), ENV).associatedVoucher?.puntoVenta).toBe(7);
+  });
+
+  it('el asociado ya leído es el de la entrada: el punto de venta del comprobante le gana al de la sesión', () => {
+    const state = overInvoice({ invoicePointOfSale: 7 });
+
+    expect(noteReadAssociated(state, ENV)).toEqual({
+      arcaType: state.invoiceKind?.arcaType,
+      number: 14,
+      pointOfSale: 7,
+      voucher: state.invoice,
+    });
+    expect(noteReadAssociated(overInvoice(), ENV)).toMatchObject({ pointOfSale: 3 });
+  });
+
+  it('por período no hay asociado leído, aunque haya quedado un comprobante elegido', () => {
+    expect(noteReadAssociated(overPeriod({ invoice: invoice() }), ENV)).toBeUndefined();
+    expect(noteReadAssociated(overInvoice({ invoice: undefined }), ENV)).toBeUndefined();
+    expect(noteReadAssociated(overInvoice({ invoiceKind: undefined }), ENV)).toBeUndefined();
   });
 
   it('por período: el período, sin asociado, y la moneda de los opcionales', () => {

@@ -224,10 +224,7 @@ describe('runExportNoteFlow', () => {
   });
 
   it('en bienes pregunta los permisos de embarque y los informa sin --permiso-existente', async () => {
-    // La busca el asistente y despues ExportService, para heredar sus datos.
-    vi.mocked(gateway.getVoucher)
-      .mockResolvedValueOnce({ ...INVOICE, exportType: 1 })
-      .mockResolvedValueOnce({ ...INVOICE, exportType: 1 });
+    vi.mocked(gateway.getVoucher).mockResolvedValueOnce({ ...INVOICE, exportType: 1 });
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
@@ -335,6 +332,8 @@ describe('runExportNoteFlow', () => {
         number: 1,
         pointOfSale: 4,
       });
+    // Sin su tipo no se sabe si el leido es el de la nota: la vista previa lo consulta (REV-53).
+    const WITHOUT_TYPE = { ...INVOICE, arcaType: 0 };
     const SHOWN = 'el comprobante asociado 00004-00000001 y no se sabe si existe: 1510 Punto de venta';
     const shownIn = (errors: { readonly mock: { readonly calls: unknown[][] } }) =>
       errors.mock.calls.join('').replace(/[│┃╏\s]+/g, ' ');
@@ -362,7 +361,7 @@ describe('runExportNoteFlow', () => {
     it('en la vista previa, vuelve a la última pregunta sin perder lo cargado y se emite', async () => {
       const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
-      vi.mocked(gateway.getVoucher).mockResolvedValueOnce(INVOICE).mockRejectedValueOnce(queryError());
+      vi.mocked(gateway.getVoucher).mockResolvedValueOnce(WITHOUT_TYPE).mockRejectedValueOnce(queryError());
       script = createScript([
         [/Punto de venta de la factura E/, '4'],
         [/Número de la factura E/, '1'],
@@ -384,7 +383,7 @@ describe('runExportNoteFlow', () => {
       ['de red', new Error('ETIMEDOUT')],
       ['de autorización', new AppError('Sin autorizar', { code: 'WSFEX_SERVICE_NOT_AUTHORIZED' })],
     ])('sin cambios: un error %s en la vista previa sale al menú', async (_name, error) => {
-      vi.mocked(gateway.getVoucher).mockResolvedValueOnce(INVOICE).mockRejectedValueOnce(error);
+      vi.mocked(gateway.getVoucher).mockResolvedValueOnce(WITHOUT_TYPE).mockRejectedValueOnce(error);
       script = createScript([
         [/Punto de venta de la factura E/, '4'],
         [/Número de la factura E/, '1'],

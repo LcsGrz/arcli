@@ -21,7 +21,7 @@ arcli fc -m 1000 --cs --consumidor-final --testing      # sin validez fiscal
 arcli fc -m 1000 --cs --consumidor-final --produccion   # real
 ```
 
-Sin `--emitir`, los dos muestran la vista previa y, en una terminal, preguntan antes de emitir: en producción, `¿Emitimos la factura C en PRODUCCIÓN?`. En el [modo interactivo](modo-interactivo.md) el entorno se cambia en Configuración, la barra de estado muestra en cuál estás y en producción pide una segunda confirmación.
+Sin `--emitir`, los dos muestran la vista previa y, en una terminal, preguntan antes de emitir: en producción, `¿Emitimos la factura C en PRODUCCIÓN?`. En el [modo interactivo](modo-interactivo.md) la pregunta es la misma, el entorno se cambia en Configuración y la barra de estado muestra en cuál estás.
 
 ## Cambiar el entorno por defecto
 

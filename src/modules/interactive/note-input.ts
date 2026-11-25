@@ -1,5 +1,5 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
-import type { AssociatedPointOfSaleOrigin } from '../billing/billing.associated-lookup';
+import type { AssociatedPointOfSaleOrigin, ReadAssociated } from '../billing/billing.associated-lookup';
 import { resolveRequiredCancellation } from '../billing/billing.associated-vouchers';
 import { BILLING_RULES, type BillingRuleContext } from '../billing/billing.rules';
 import { type BillingCommandInput, billingCommandSchema, type BillingConcept } from '../billing/billing.schemas';
@@ -132,6 +132,33 @@ export function noteCurrency(
  */
 export function buildNoteInput(state: NoteState, env: NoteInputEnv): BillingCommandInput {
   return billingCommandSchema.parse(noteInputFields(state, env));
+}
+
+/**
+ * El asociado que el asistente ya leyo en ARCA (o que ARCA no tiene), para que la vista previa no lo consulte de nuevo.
+ * Una nota de periodo no tiene.
+ */
+export function noteReadAssociated(
+  state: NoteState,
+  env: Pick<NoteInputEnv, 'pointOfSale'>,
+): ReadAssociated | undefined {
+  const { invoice, invoiceKind, invoicePointOfSale, otherSystemInvoice } = state;
+
+  if (!invoiceKind) {
+    return undefined;
+  }
+
+  const { arcaType } = invoiceKind;
+
+  if (otherSystemInvoice) {
+    const { number, origin, pointOfSale, queryReason } = otherSystemInvoice;
+
+    return { arcaType, number, origin, pointOfSale, queryReason };
+  }
+
+  return invoice && !isPeriodNote(state)
+    ? { arcaType, number: invoice.number, pointOfSale: invoicePointOfSale ?? env.pointOfSale, voucher: invoice }
+    : undefined;
 }
 
 /** Los campos de la entrada de la nota, sin validar: lo que leen las reglas mientras se pregunta. */

@@ -247,7 +247,7 @@ export async function runExportRepeatFlow(
   const emission = emissionStep<ExportRepeatState>((answered) => {
     const input = buildExportRepeatInput(answered, { configuredActivity: configured });
 
-    return emitExportVoucher(session, gateway, input, input.activity);
+    return emitExportVoucher(session, gateway, input, { activity: input.activity });
   });
   const state = await runWizard<ExportRepeatState>(
     exportRepeatSteps(session, gateway, tables, pointOfSale),

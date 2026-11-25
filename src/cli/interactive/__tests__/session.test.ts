@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import { BACK } from '../../../modules/interactive/wizard';
+import { VoucherQueryError } from '../../../modules/vouchers/voucher-history';
 import { ArcaFceObligationGateway } from '../../../services/arca/arca-fce-obligation.gateway';
 import { systemClock } from '../../../services/time/system-clock';
 import { billingAnswer } from '../../../testing/arca-answers';
@@ -61,6 +62,15 @@ function createSession(
   };
 }
 
+/** `DD/MM/YYYY` en Argentina, de hoy en adelante. */
+const argentineDay = (offset: number) =>
+  new Intl.DateTimeFormat('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+  }).format(Date.now() + offset * 24 * 60 * 60 * 1000);
+
 const input = billingCommandSchema.parse({
   concept: 'servicios',
   ivaCondition: 'consumidor-final',
@@ -93,15 +103,19 @@ describe('previewAndEmit', () => {
   });
 
   it('avisa la fecha futura, una sola vez y como el comando (10016, ARQ-22)', async () => {
-    const tomorrow = new Intl.DateTimeFormat('es-AR', {
-      day: '2-digit',
-      month: '2-digit',
-      timeZone: 'America/Argentina/Buenos_Aires',
-      year: 'numeric',
-    }).format(Date.now() + 24 * 60 * 60 * 1000);
+    const tomorrow = argentineDay(1);
 
     chooseOneMock.mockResolvedValueOnce(false);
-    await previewAndEmit(createSession('testing'), { ...input, billingDate: tomorrow }, ['AVISO DEL ASOCIADO']);
+    await previewAndEmit(
+      createSession('testing'),
+      {
+        ...input,
+        associatedVoucher: { fecha: argentineDay(0), numero: 15, puntoVenta: 50, shortcut: 'fc' },
+        billingDate: tomorrow,
+        shortcut: 'ncc',
+      },
+      { arcaType: 11, number: 15, origin: 'other', pointOfSale: 50 },
+    );
 
     const output = stripAnsi(
       vi
@@ -111,7 +125,8 @@ describe('previewAndEmit', () => {
     );
 
     // Como en el comando: primero el asociado.
-    expect(output.indexOf('AVISO DEL ASOCIADO')).toBeLessThan(output.indexOf('es futura'));
+    expect(output.indexOf('No se encontró la factura C')).toBeGreaterThan(-1);
+    expect(output.indexOf('No se encontró la factura C')).toBeLessThan(output.indexOf('es futura'));
     expect(output.match(/error\s+[^\d]*10016/g)).toHaveLength(1);
   });
 
@@ -244,11 +259,10 @@ describe('previewAndEmit', () => {
     );
   });
 
-  it('en produccion, emitir con PDF pide la segunda confirmacion y respeta el PDF', async () => {
+  it('en producción, "No" no emite y emitir con PDF respeta el PDF, con una sola pregunta (REV-53)', async () => {
     const declined = createSession('produccion', 3, 'nunca');
 
-    chooseOneMock.mockResolvedValueOnce('emitir-con-pdf');
-    confirmMock.mockResolvedValueOnce(false);
+    chooseOneMock.mockResolvedValueOnce(false);
     await previewAndEmit(declined, input);
     expect(declined.createVoucher).not.toHaveBeenCalled();
     expect(offerPdf).not.toHaveBeenCalled();
@@ -256,36 +270,14 @@ describe('previewAndEmit', () => {
     const accepted = createSession('produccion', 3, 'nunca');
 
     chooseOneMock.mockResolvedValueOnce('emitir-con-pdf');
-    confirmMock.mockResolvedValueOnce(true);
     await previewAndEmit(accepted, input);
-    expect(confirmMock).toHaveBeenCalledWith(
-      expect.stringContaining('PRODUCCIÓN'),
-      'Sí, emitir en producción',
-      'No, dejar sin emitir',
-    );
+    expect(chooseOneMock.mock.calls.map(([question]) => question)).toEqual([
+      expect.stringContaining('en PRODUCCIÓN'),
+      expect.stringContaining('en PRODUCCIÓN'),
+    ]);
+    expect(confirmMock).not.toHaveBeenCalled();
     expect(accepted.createVoucher).toHaveBeenCalledTimes(1);
     expect(offerPdf).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ pdf: true }), expect.anything());
-  });
-
-  it('en produccion pide una segunda confirmacion antes de emitir', async () => {
-    const declined = createSession('produccion');
-
-    chooseOneMock.mockResolvedValueOnce('emitir');
-    confirmMock.mockResolvedValueOnce(false);
-    await previewAndEmit(declined, input);
-    expect(declined.createVoucher).not.toHaveBeenCalled();
-
-    const accepted = createSession('produccion');
-
-    chooseOneMock.mockResolvedValueOnce('emitir');
-    confirmMock.mockResolvedValueOnce(true);
-    await previewAndEmit(accepted, input);
-    expect(accepted.createVoucher).toHaveBeenCalledTimes(1);
-    expect(confirmMock).toHaveBeenLastCalledWith(
-      expect.stringContaining('PRODUCCIÓN'),
-      'Sí, emitir en producción',
-      'No, dejar sin emitir',
-    );
   });
 
   it('el comando equivalente lleva nombre y domicilio del padrón, porque con --ir el CLI no lo consulta', async () => {
@@ -394,11 +386,10 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
     expect(session.createVoucher).not.toHaveBeenCalled();
   });
 
-  it('Ctrl+C en la segunda confirmación de producción tampoco emite', async () => {
+  it('Ctrl+C en la pregunta de producción tampoco emite', async () => {
     const session = createSession('produccion');
 
-    chooseOneMock.mockResolvedValueOnce('emitir');
-    confirmMock.mockRejectedValueOnce(cancellation());
+    chooseOneMock.mockRejectedValueOnce(cancellation());
 
     await expect(previewAndEmit(session, input)).rejects.toMatchObject({ name: 'ExitPromptError' });
     expect(session.createVoucher).not.toHaveBeenCalled();
@@ -519,6 +510,17 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
     expect(session.createVoucher).not.toHaveBeenCalled();
   });
 
+  it('un error al consultar un comprobante en la vista previa de A, B o C sale al menú, no vuelve a la pregunta', async () => {
+    const failure = new VoucherQueryError('No se sabe si existe', {}, 'Volvé a consultar.', 'respuesta inesperada');
+
+    vi.spyOn(BillingService.prototype, 'preview').mockImplementationOnce(() => {
+      throw failure;
+    });
+
+    await expect(previewAndEmit(createSession('testing'), input)).rejects.toBe(failure);
+    expect(chooseOneMock).not.toHaveBeenCalled();
+  });
+
   it('un inválido falla antes de consultar el régimen FCE, y uno válido lleva sus avisos en orden', async () => {
     const session = createSession('testing');
     const runtime = { ...session.runtime, config: { ...session.runtime.config, verificarFce: true } };
@@ -541,12 +543,12 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
     expect(getObligation).not.toHaveBeenCalled();
 
     chooseOneMock.mockResolvedValueOnce(false);
-    await previewAndEmit({ ...session, runtime }, entry, ['aviso del flujo']);
+    await previewAndEmit({ ...session, runtime }, { ...entry, billingDate: argentineDay(1) });
 
     const shown = write.mock.calls.map(([chunk]) => String(chunk)).join('');
 
     expect(getObligation).toHaveBeenCalledTimes(1);
-    expect(shown.indexOf('aviso del flujo')).toBeGreaterThan(-1);
-    expect(shown.indexOf('está obligado')).toBeGreaterThan(shown.indexOf('aviso del flujo'));
+    expect(shown.indexOf('es futura')).toBeGreaterThan(-1);
+    expect(shown.indexOf('está obligado')).toBeGreaterThan(shown.indexOf('es futura'));
   });
 });

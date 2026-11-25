@@ -19,7 +19,7 @@ import { getVoucherKindByArcaType, getVoucherKindByShortcut, isFceInvoice, isNot
 import { formatVoucherSubject, formatVoucherWithArticle } from './voucher-names';
 
 /** `la factura A 00003-00000012`, para usar dentro de una frase. */
-export function describeAssociated(arcaType: number, pointOfSale: number, number: number): string {
+function describeAssociated(arcaType: number, pointOfSale: number, number: number): string {
   const kind = getVoucherKindByArcaType(arcaType);
   const name = kind ? formatVoucherWithArticle(kind) : `el comprobante tipo ${arcaType}`;
 
@@ -243,7 +243,7 @@ export function describeQueryFailure(label: string, reason: string): string {
  * clasificar): la nota sigue, sin controlar su tope, y si falta la fecha se recuerda la 10211. Lo usan los flags y el
  * modo interactivo.
  */
-export function missingAssociatedWarning(options: {
+function missingAssociatedWarning(options: {
   readonly hasDate: boolean;
   readonly isCreditNote: boolean;
   readonly label: string;
@@ -297,6 +297,33 @@ function unreadableAssociated(options: {
   return unchecked.length > 0 ? `${what}: queda sin controlar ${joinWithAnd(unchecked)}.` : `${what}.`;
 }
 
+/** El asociado de una nota, para saber si el que se leyo es el de la entrada. */
+interface AssociatedReference {
+  readonly arcaType: number;
+  readonly number: number;
+  readonly pointOfSale: number;
+}
+
+/** Lo que dice ARCA del asociado, sin lo que hace frenar a cualquier nota. */
+type AssociatedAnswer =
+  | {
+      /** El error de ARCA, para el codigo de su causa. */
+      readonly error?: VoucherQueryError;
+      /** No esta en ARCA (o contesto con un error) y su punto de venta no es de web service, o no se sabe. */
+      readonly origin: Exclude<AssociatedPointOfSaleOrigin, 'web-service'>;
+      /** El motivo, si ARCA contesto con un error en lugar de decir que no existe. */
+      readonly queryReason?: string;
+    }
+  /** Existe, pero no se pudo leer (`VoucherQueryError.exists`). */
+  | { readonly unreadable: VoucherQueryError }
+  | { readonly voucher: IssuedVoucher };
+
+/** El asociado que ya consulto quien llama (el asistente): si es el de la entrada, no se consulta de nuevo. */
+export type ReadAssociated = AssociatedAnswer & AssociatedReference;
+
+/** La consulta: ademas, que falte en un punto de venta de web service o que ARCA no haya respondido. */
+type AssociatedLookup = AssociatedAnswer | { readonly missing: true } | { readonly unanswered: unknown };
+
 export interface CheckedAssociated {
   readonly input: BillingCommandInput;
   /** Si ARCA no respondio, contesto con un error o no tiene el asociado, y la nota igual se puede emitir: el asociado y el tope de la NC quedan sin controlar. */
@@ -313,7 +340,7 @@ function reasonOf(error: unknown): string {
 
 /**
  * Lo que se controla contra el asociado propio de una nota A, B, C o FCE, con una sola consulta a ARCA antes de la
- * vista previa: que exista, que una NC no supere su total y, en una nota FCE sin `--afecha`, su fecha. Devuelve la
+ * vista previa (o ninguna, si quien llama ya lo leyo: `read`): que exista, que una NC no supere su total y, en una nota FCE sin `--afecha`, su fecha. Devuelve la
  * entrada con esa fecha, asi la vista previa la muestra y la emision no vuelve a consultar.
  *
  * Si ARCA no tiene el asociado y su punto de venta es de web service del emisor, frena como en las notas E: es casi
@@ -330,11 +357,13 @@ function reasonOf(error: unknown): string {
 export async function checkAssociatedInArca(options: {
   readonly gateway: Pick<VoucherHistoryGateway, 'getLastNumber' | 'getVoucher'>;
   readonly input: BillingCommandInput;
+  /** El ya consultado: se controla igual, sin volver a consultar, si es el de la entrada. */
+  readonly read?: ReadAssociated;
   readonly runtime: BillingRuntime;
   readonly salesPoints?: Pick<ParametersGateway, 'getSalesPoints'>;
   readonly service: Pick<BillingService, 'buildVoucherPayload'>;
 }): Promise<CheckedAssociated> {
-  const { gateway, input, runtime, salesPoints, service } = options;
+  const { gateway, input, read, runtime, salesPoints, service } = options;
   const voucherKind = getVoucherKindByShortcut(input.shortcut);
   const associated = input.associatedVoucher;
   const unchanged: CheckedAssociated = { input, warnings: [] };
@@ -351,62 +380,108 @@ export async function checkAssociatedInArca(options: {
     return unchanged;
   }
 
-  const label = describeAssociated(reference.Tipo, reference.PtoVta, reference.Nro);
-  const needsDate = voucherKind.isElectronicCredit && !associated.fecha;
+  const query = { arcaType: reference.Tipo, number: reference.Nro, pointOfSale: reference.PtoVta };
+  const lookup = read && isSameReference(read, query) ? read : await lookUpAssociated({ gateway, query, salesPoints });
+
+  return checkLookedUpAssociated({ associated, input, lookup, payload, reference, voucherKind });
+}
+
+function isSameReference(left: AssociatedReference, right: AssociatedReference): boolean {
+  return left.arcaType === right.arcaType && left.number === right.number && left.pointOfSale === right.pointOfSale;
+}
+
+/** Consulta el asociado y, si ARCA no lo tiene o contesta con un error, de donde es su punto de venta. No controla nada. */
+async function lookUpAssociated(options: {
+  readonly gateway: Pick<VoucherHistoryGateway, 'getLastNumber' | 'getVoucher'>;
+  readonly query: AssociatedReference;
+  readonly salesPoints?: Pick<ParametersGateway, 'getSalesPoints'>;
+}): Promise<AssociatedLookup> {
+  const { gateway, query, salesPoints } = options;
   const classifyPointOfSale = (queryFailed: boolean) =>
     classifyAssociatedPointOfSale({
       history: gateway,
-      pointOfSale: reference.PtoVta,
+      pointOfSale: query.pointOfSale,
       queryFailed,
       salesPoints,
-      voucherType: reference.Tipo,
+      voucherType: query.arcaType,
     });
   let voucher: IssuedVoucher | undefined;
-  let queryError: VoucherQueryError | undefined;
 
   try {
-    voucher = await gateway.getVoucher(reference.Nro, reference.PtoVta, reference.Tipo);
+    voucher = await gateway.getVoucher(query.number, query.pointOfSale, query.arcaType);
   } catch (error) {
     if (error instanceof VoucherQueryError && error.exists) {
-      return {
-        input,
-        warnings: [unreadableAssociated({ arcaType: reference.Tipo, error, label, needsDate, voucherKind })],
-      };
+      return { unreadable: error };
     }
 
-    if (error instanceof VoucherQueryError && (await classifyPointOfSale(true)) === 'other') {
-      queryError = error;
-    } else {
-      if (needsDate) {
-        throw new InputValidationError(
-          `No se pudo consultar en ARCA ${label} para tomar su fecha: ${reasonOf(error)}`,
-          causeDetails(error),
-          'Probá de nuevo en un rato o pasá la fecha del asociado con `--afecha <fecha>`.',
-        );
-      }
-
-      const unchecked =
-        noteSide(voucherKind) === 'credito' ? `que la nota de crédito no supere ${label}` : `que exista ${label}`;
-
-      return { input, warnings: [`No se pudo verificar en ARCA ${unchecked}: ${reasonOf(error)}`] };
-    }
+    return error instanceof VoucherQueryError && (await classifyPointOfSale(true)) === 'other'
+      ? { error, origin: 'other', queryReason: error.reason }
+      : { unanswered: error };
   }
 
-  if (!voucher) {
-    const origin = queryError === undefined ? await classifyPointOfSale(false) : 'other';
+  if (voucher) {
+    return { voucher };
+  }
 
-    if (origin === 'web-service') {
-      throw missingAssociatedVoucherError(label, needsDate ? 'no se puede tomar su fecha' : undefined);
+  const origin = await classifyPointOfSale(false);
+
+  return origin === 'web-service' ? { missing: true } : { origin };
+}
+
+/** Lo que se controla con el asociado ya consultado. Ver `checkAssociatedInArca`. */
+function checkLookedUpAssociated(options: {
+  readonly associated: NonNullable<BillingCommandInput['associatedVoucher']>;
+  readonly input: BillingCommandInput;
+  readonly lookup: AssociatedLookup;
+  readonly payload: ReturnType<BillingService['buildVoucherPayload']>;
+  readonly reference: NonNullable<ReturnType<BillingService['buildVoucherPayload']>['CbtesAsoc']>[number];
+  readonly voucherKind: VoucherKindDefinition;
+}): CheckedAssociated {
+  const { associated, input, lookup, payload, reference, voucherKind } = options;
+  const label = describeAssociated(reference.Tipo, reference.PtoVta, reference.Nro);
+  const needsDate = voucherKind.isElectronicCredit && !associated.fecha;
+
+  if ('unreadable' in lookup) {
+    return {
+      input,
+      warnings: [
+        unreadableAssociated({ arcaType: reference.Tipo, error: lookup.unreadable, label, needsDate, voucherKind }),
+      ],
+    };
+  }
+
+  if ('unanswered' in lookup) {
+    const { unanswered } = lookup;
+
+    if (needsDate) {
+      throw new InputValidationError(
+        `No se pudo consultar en ARCA ${label} para tomar su fecha: ${reasonOf(unanswered)}`,
+        causeDetails(unanswered),
+        'Probá de nuevo en un rato o pasá la fecha del asociado con `--afecha <fecha>`.',
+      );
     }
+
+    const unchecked =
+      noteSide(voucherKind) === 'credito' ? `que la nota de crédito no supere ${label}` : `que exista ${label}`;
+
+    return { input, warnings: [`No se pudo verificar en ARCA ${unchecked}: ${reasonOf(unanswered)}`] };
+  }
+
+  if ('missing' in lookup) {
+    throw missingAssociatedVoucherError(label, needsDate ? 'no se puede tomar su fecha' : undefined);
+  }
+
+  if ('origin' in lookup) {
+    const { error, origin, queryReason } = lookup;
 
     if (needsDate) {
       throw new InputValidationError(
         `${
-          queryError === undefined
+          queryReason === undefined
             ? `No se encontró ${label} en ARCA`
-            : `${describeQueryFailure(label, queryError.reason)} y el punto de venta ${reference.PtoVta} no es de web service`
+            : `${describeQueryFailure(label, queryReason)} y el punto de venta ${reference.PtoVta} no es de web service`
         }, así que no se puede tomar su fecha.`,
-        queryError && causeDetails(queryError),
+        error && causeDetails(error),
         'Si es de Comprobantes en línea o de un controlador fiscal, pasá su fecha con `--afecha <fecha>`. Si no, revisá `--ar`, `--apv` y `--ac`.',
       );
     }
@@ -420,11 +495,13 @@ export async function checkAssociatedInArca(options: {
           label,
           origin,
           pointOfSale: reference.PtoVta,
-          queryReason: queryError?.reason,
+          queryReason,
         }),
       ],
     };
   }
+
+  const { voucher } = lookup;
 
   if (voucherKind.isElectronicCredit) {
     assertFceNoteMatchesAssociated({
@@ -444,7 +521,7 @@ export async function checkAssociatedInArca(options: {
   }
 
   if (!needsDate) {
-    return unchanged;
+    return { input, warnings: [] };
   }
 
   return {
