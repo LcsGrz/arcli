@@ -97,6 +97,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Factura E:** la vista previa consulta varias tablas de WSFEX a la vez, y el asistente, cada una una vez por comprobante (#294).
 - **Asistente:** el menú abre sin esperar a ARCA ni a npm: el estado de ARCA y la versión nueva se completan solos (#295).
 - **Salida:** los comandos no esperan a npm al terminar; si no contestó, consulta el próximo (#295).
+- **Factura E:** en el asistente, la lista de incoterms muestra el nombre del marcado, como `Free on Board` (#296).
 
 <details><summary>Detalle</summary>
 
@@ -147,6 +148,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **El asistente abre sin esperar.** El menú aparecía cuando contestaba ARCA (hasta 5 segundos) y npm (hasta 1,5). Ahora aparece enseguida, con `COMPROBANDO ARCA` en la barra, que se reemplaza por el resultado. Si elegís una opción antes queda `ARCA SIN VERIFICAR`, y si después ARCA está con demoras, con problemas o sin respuesta, lo avisa una vez al volver al menú. "Actualizar a la versión X.Y.Z" aparece arriba cuando llega, sin mover la opción marcada ni lo escrito. Volver de Configuración tampoco espera, y al salir las consultas pendientes se cancelan. Si la barra y el menú no entran enteros en la terminal, espera a ARCA y a npm como antes. Emitir no cambia.
 
 **npm al terminar un comando.** Una vez por día, un comando que terminaba antes que la consulta a npm la esperaba hasta 1,5 segundos, y más si la conexión no se establecía. Ahora cancela la consulta y corta la conexión, y el próximo comando vuelve a consultar; si ya se sabía de una versión más nueva, la avisa igual. Una falla de npm se sigue anotando hasta el día siguiente. stdout, `--json`, el exit code y el lugar del aviso no cambian.
+
+**Nombre del incoterm.** La lista mostraba solo el código (`FOB`). Ahora, debajo, se ve el nombre de la tabla de WSFEX del que está marcado; si la tabla no lo trae o repite el código, no se ve nada. El filtro, que ya encontraba por el nombre, lo que se emite y el comando equivalente no cambian.
 
 </details>
 
