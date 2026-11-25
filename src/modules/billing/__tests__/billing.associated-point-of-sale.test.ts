@@ -223,6 +223,22 @@ describe('sin --apv, el punto de venta del asociado es el de la nota', () => {
     expect(build('30709965812', { ...comprobanteAsociado, puntoVenta: 2 })).toMatchObject({ CbteFch: '20261001' });
   });
 
+  it.each<[string, number | undefined, number | undefined]>([
+    ['con su punto de venta', 2, undefined],
+    ['completado con --apv', undefined, 4],
+  ])('un `--acuit` ajeno sobre un JSON sin `cuit` no contradice nada y conserva la fecha: %s', (_name, own, apv) => {
+    expect(
+      associatedOf('ncc', {
+        file: {
+          ...CONSUMER,
+          comprobanteAsociado: { atajo: 'fc', fecha: '01/10/2026', numero: 5, puntoVenta: own },
+          puntoVenta: 3,
+        },
+        flags: { comprobanteAsociado: { cuit: '30709965812', puntoVenta: apv } },
+      }),
+    ).toEqual({ CbteFch: '20261001', Cuit: '30709965812', Nro: 5, PtoVta: own ?? apv, Tipo: 11 });
+  });
+
   it.each<[VoucherShortcut, string, string, BillingJsonInput]>([
     ['nca', 'fa', 'nda', COMPANY],
     ['ncb', 'fb', 'ndb', CONSUMER],

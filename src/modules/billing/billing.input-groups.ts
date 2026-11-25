@@ -185,11 +185,14 @@ function mergeAssociated(layers: BillingInputLayers): AssociatedJson | undefined
 
   const note = ownerUnknown ? undefined : (written(layers, 'puntoVenta') ?? defaults.defaultPointOfSale);
   const pointOfSale = associatedPointOfSale(merged, note, layers);
+  // Lo que el archivo no trae no contradice: sin `cuit`, es de quien digan los flags.
+  const fileCuit = fromFile?.cuit ?? merged.cuit;
   const filePointOfSale =
-    fromFile && associatedPointOfSale(fromFile, file.puntoVenta ?? defaults.defaultPointOfSale, layers);
+    fromFile &&
+    associatedPointOfSale({ ...fromFile, cuit: fileCuit }, file.puntoVenta ?? defaults.defaultPointOfSale, layers);
   const changesOwner =
     fromFile !== undefined &&
-    isForeignAssociated(fromFile.cuit, defaults.emitterCuit) !== isForeignAssociated(merged.cuit, defaults.emitterCuit);
+    isForeignAssociated(fileCuit, defaults.emitterCuit) !== isForeignAssociated(merged.cuit, defaults.emitterCuit);
   const moved = filePointOfSale !== undefined && pointOfSale !== undefined && filePointOfSale !== pointOfSale;
   // Incompleto o con un punto de venta invalido no se completa: el error es el de lo que falta o el de `--pv`.
   const complete = merged.numero !== undefined && (merged.atajo !== undefined || merged.tipo !== undefined);
