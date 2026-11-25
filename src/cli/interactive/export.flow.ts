@@ -31,12 +31,12 @@ import { activityToSave } from '../../modules/interactive/steps/config-offer';
 import { fieldLens } from '../../modules/interactive/steps/lens';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
-import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { systemClock } from '../../services/time/system-clock';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { isOutputLost } from '../closed-output';
 import { attachExportPdf } from '../commands/export.command.pdf';
 import { recordExportEmission, recordFailedExportPdf, recordMissingExportPdf } from '../emitted-vouchers';
+import { createExportVoucherGateway } from '../export-voucher-gateway';
 import { withSpinner } from '../spinner';
 
 import { closeWithEmission } from './emission-closing';
@@ -430,7 +430,7 @@ export async function emitExportVoucher(
  */
 export async function runExportFlow(session: InteractiveSession): Promise<typeof BACK | void> {
   const { config } = session.runtime;
-  const gateway = new ArcaClientFactory().createExportGateway(session.runtime);
+  const gateway = createExportVoucherGateway(session.runtime);
   const tables = await loadExportTables(gateway);
   const configuredActivity = config.exportacion?.actividad;
   // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15).

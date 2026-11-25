@@ -245,8 +245,7 @@ afterEach(() => {
 });
 
 describe.each(FLOWS)('%s E: preguntar, vista previa, corregir y emitir', (_name, steps, flow, reads) => {
-  // Tests primero (ARQ8-6): pasa a it() al implementarlo.
-  it.fails('consulta cada tabla una sola vez', async () => {
+  it('consulta cada tabla una sola vez', async () => {
     await run(steps, flow);
 
     expect(tableReads()).toEqual(reads);
@@ -279,16 +278,14 @@ const TWO_PREVIEWS: Steps = [
 ];
 
 describe('entre comprobantes y con errores', () => {
-  // Tests primero (ARQ8-6): pasa a it() al implementarlo.
-  it.fails('el comprobante siguiente vuelve a consultar cada tabla, una vez', async () => {
+  it('el comprobante siguiente vuelve a consultar cada tabla, una vez', async () => {
     await run([...GOODS, EMIT, DO_NOT_SAVE], runExportFlow);
     await run([...GOODS, ...CORRECT_AND_EMIT, DO_NOT_SAVE], runExportFlow);
 
     expect(tableReads()).toEqual(eachTable(2));
   });
 
-  // Tests primero (ARQ8-6): pasa a it() al implementarlo.
-  it.fails('una tabla que falló se consulta de nuevo y las demás no', async () => {
+  it('una tabla que falló se consulta de nuevo y las demás no', async () => {
     failures.set('getLanguages', tableError());
     await run(TWO_PREVIEWS, runExportFlow);
 
