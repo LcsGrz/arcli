@@ -51,7 +51,7 @@ interface RunOptions {
 }
 
 let directory = '';
-let running: ChildProcess | undefined;
+let running: { readonly child: ChildProcess; readonly group: boolean } | undefined;
 
 const file = (name: string): string => join(directory, name);
 
@@ -164,6 +164,19 @@ async function waitFor(done: () => boolean, what: string): Promise<void> {
   }
 }
 
+/** Con `npx`, el grupo entero aunque npm ya haya terminado: si no, quedaría vivo el `arcli` que lanzó. */
+function killRunning(): void {
+  if (running?.group && running.child.pid) {
+    try {
+      process.kill(-running.child.pid, 'SIGKILL');
+    } catch {
+      // Ya no queda nadie en el grupo.
+    }
+  } else if (running?.child.exitCode === null && running.child.signalCode === null) {
+    running.child.kill('SIGKILL');
+  }
+}
+
 /** Corre `arcli`, espera a que ARCA reciba la llamada que se demora y manda las señales. */
 async function run(args: readonly string[], options: RunOptions): Promise<Interrupted> {
   const preloads = [blockNetwork(), fakeArca(options.hold), ...(options.preloads ?? [])];
@@ -187,7 +200,7 @@ async function run(args: readonly string[], options: RunOptions): Promise<Interr
   const closed = once(child, 'close') as Promise<[number | null, NodeJS.Signals | null]>;
   let killed = false;
 
-  running = child;
+  running = { child, group: Boolean(options.npx) };
 
   for (const name of ['stdout', 'stderr'] as const) {
     child[name].setEncoding('utf8').on('data', (chunk: string) => (read[name] += chunk));
@@ -215,7 +228,7 @@ async function run(args: readonly string[], options: RunOptions): Promise<Interr
 
   const timer = setTimeout(() => {
     killed = true;
-    child.kill('SIGKILL');
+    killRunning();
   }, HANG_MS);
   const [code, signal] = await closed;
 
@@ -278,10 +291,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  if (running?.exitCode === null && running.signalCode === null) {
-    running.kill('SIGKILL');
-  }
-
+  killRunning();
   running = undefined;
   rmSync(directory, { force: true, recursive: true });
 });
