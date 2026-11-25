@@ -23,9 +23,14 @@ import {
   type ExportVoucherKind,
   getExportVoucherKindByShortcut,
 } from '../../modules/export/export.types';
-import { listRecentVouchers, MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../../modules/vouchers/voucher-history';
 import {
-  formatSkippedVouchers,
+  type ListedVoucher,
+  listRecentVouchers,
+  MAX_RECENT_VOUCHERS,
+  RECENT_VOUCHERS_LIMIT,
+} from '../../modules/vouchers/voucher-history';
+import {
+  formatUnreadableVouchers,
   formatVoucherDetailAsText,
   formatVoucherListAsText,
   serializeVoucherDetail,
@@ -96,6 +101,23 @@ function requirePointOfSale(options: PointOfSaleOptions, runtime: CliArcaRuntime
   return pointOfSale;
 }
 
+/** Con `--json` el aviso va a stderr, como el del certificado. Si fallo stdout, ahi va el JSON que lo dice. */
+async function warnUnreadableInJson(
+  runtime: CliArcaRuntime,
+  pointOfSale: number,
+  vouchers: ReadonlyArray<ListedVoucher<object>>,
+): Promise<void> {
+  if (!runtime.outputJson || !formatUnreadableVouchers(pointOfSale, vouchers)) {
+    return;
+  }
+
+  await settleOutput('stdout');
+
+  if (!outputState.failures.has('stdout')) {
+    writeTerminalNotice(() => formatUnreadableVouchers(pointOfSale, vouchers));
+  }
+}
+
 function createContext(command: Command): ArcaQuery<ArcaVoucherHistoryGateway> {
   return createArcaQuery(command, (arca) => new ArcaVoucherHistoryGateway(arca));
 }
@@ -134,28 +156,17 @@ export function registerVoucherQueryCommands(program: Command): void {
       const { gateway, runtime } = createExportQuery(self);
       const limit = cantidad ?? resolveRowsPerList(runtime.config);
       const pointOfSale = requirePointOfSale(options, runtime);
-      const skipped: number[] = [];
       const vouchers = await withQuerySpinner(runtime, () =>
-        listRecentExportVouchers(gateway, pointOfSale, query.kind.arcaType, {
-          limit,
-          onSkip: (number) => skipped.push(number),
-        }),
+        listRecentExportVouchers(gateway, pointOfSale, query.kind.arcaType, { limit }),
       );
-      const report = { environment: runtime.environment, pointOfSale, skipped, voucherKind: query.kind, vouchers };
+      const report = { environment: runtime.environment, pointOfSale, voucherKind: query.kind, vouchers };
 
       writeQueryOutput(runtime, {
         json: () => serializeExportVoucherList(report),
         text: () => formatExportVoucherListAsText(report),
       });
 
-      // El JSON no tiene donde: va a stderr, como el aviso del certificado. Si fallo stdout, ahi va el JSON que lo dice.
-      if (runtime.outputJson && skipped.length > 0) {
-        await settleOutput('stdout');
-
-        if (!outputState.failures.has('stdout')) {
-          writeTerminalNotice(() => formatSkippedVouchers(pointOfSale, skipped));
-        }
-      }
+      await warnUnreadableInJson(runtime, pointOfSale, vouchers);
 
       return;
     }
@@ -173,6 +184,8 @@ export function registerVoucherQueryCommands(program: Command): void {
       json: () => serializeVoucherList(report),
       text: () => formatVoucherListAsText(report),
     });
+
+    await warnUnreadableInJson(runtime, pointOfSale, vouchers);
   });
 
   const detail = addPointOfSaleOptions(

@@ -1,0 +1,59 @@
+$ arcli ultimos fc --cantidad 2 --json
+exit: 0
+--- stdout ---
+
+{
+  "atajo": "fc",
+  "comprobante": "Factura C",
+  "tipoArca": 11,
+  "comprobantes": [
+    {
+      "cae": "76463926585300",
+      "error": "No se pudieron leer los datos que devolvió ARCA.",
+      "numero": 41
+    },
+    {
+      "cae": "76000000000012",
+      "caeVencimiento": "20261120",
+      "concepto": 2,
+      "cotizacion": 1,
+      "fecha": "20261110",
+      "importes": {
+        "exento": 0,
+        "iva": 0,
+        "neto": 5000,
+        "noGravado": 0,
+        "total": 5000,
+        "tributos": 0
+      },
+      "moneda": "PES",
+      "numero": 40,
+      "numeroDocumento": 0,
+      "resultado": "A",
+      "tipoDocumento": 99,
+      "alicuotasIva": [],
+      "comprobantesAsociados": [],
+      "condicionIvaReceptor": null,
+      "mismaMoneda": null,
+      "observaciones": [],
+      "opcionales": [],
+      "periodoAsociado": null,
+      "servicioDesde": null,
+      "servicioHasta": null,
+      "tributos": [],
+      "vencimientoPago": null
+    }
+  ],
+  "entorno": "testing",
+  "puntoVenta": 3
+}
+
+
+--- stderr ---
+
+┌                                                                                          ┐
+                                                                                            
+    ARCLI no pudo leer los datos de 1 comprobante: 00003-00000041. Existe en ARCA: no lo    
+                                          repitas.                                          
+                                                                                            
+└                                                                                          ┘

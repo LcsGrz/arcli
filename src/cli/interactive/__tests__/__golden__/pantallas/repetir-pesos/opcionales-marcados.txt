@@ -22,6 +22,14 @@
   · # Ingresar el número a mano… — Uno más viejo o de otro punto de venta
   = 00003-00000014  ·   10/11/2026  ·   Consumidor final  ·   $ 150.000  ·  CAE 86400940834693
 
+== pantalla ==
+┌                                                                                          ┐
+
+      Se copian el receptor (consumidor final), el concepto, la moneda y el monto. Las
+                                     fechas son nuevas.
+
+└                                                                                          ┘
+
 ? [lista] ¿Mismo monto?
   arranca en: (ninguna)
   · Sí, $ 150.000

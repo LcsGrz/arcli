@@ -16,7 +16,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - En el mismo caso, una nota A, B, C o FCE que frenaba con "ARCA no tiene…" sigue con un aviso y, con `--emitir`, se emite. Si el punto de venta es de otro sistema ya seguía: cambia el texto del aviso.
 > - Una falla con "no existe" en el texto (`El dominio no existe`) ya no es `VOUCHER_NOT_FOUND`: sale con su error, por ejemplo `UNEXPECTED_ERROR`. Por el asociado de una nota es un aviso, y en FCE sin `--afecha` frena.
 > - Si de lo que ARCA contestó al emitir no se puede saber si hay CAE (la `E` sin respuesta, o un CAE que no es texto ni número), sale `EMISSION_UNCERTAIN`, antes `UNEXPECTED_ERROR`. Si A, B y C contestan vacío ya era `EMISSION_UNCERTAIN`: cambia el texto de `error` y `detalles.causa`, también si contesta HTML o XML cortado (antes `[object Object]`).
-> - Si ARCA contesta la consulta de una `E` sin sus datos, `consultar` sale con `ARCA_VOUCHER_QUERY_ERROR`, antes `VOUCHER_NOT_FOUND`; `ultimos` también, con exit code `1`, antes `0` con la lista incompleta; y una nota `E` sobre ella, antes `INPUT_VALIDATION_ERROR`. Si vino con su número y su CAE, `ultimos` la saltea como antes y avisa, con `--json` en stderr.
+> - Si ARCA contesta la consulta de una `E` sin sus datos, `consultar` sale con `ARCA_VOUCHER_QUERY_ERROR`, antes `VOUCHER_NOT_FOUND`; `ultimos` también, con exit code `1`, antes `0` con la lista incompleta; y una nota `E` sobre ella, antes `INPUT_VALIDATION_ERROR`. Si vino con su número y su CAE, `ultimos` la muestra en su lugar (en `--json`, solo `numero`, `cae` y `error`), antes la salteaba, y avisa, con `--json` en stderr.
 > - Si ARCA contesta a la emisión sin CAE y sin un rechazo, sale `EMISSION_UNCERTAIN` con exit code `1` y un lote se corta ahí. Antes: vacía, `estado: "observado"` y `0`; aprobada u observada sin CAE, `aprobado` u `observado` y `0`; y con errores internos (500, 501 o 502; en la `E`, también 1000) o, en A, B y C, sin código, `rechazado` y `2`. En la `E`, un error sin código salía `observado` o `aprobado` y `0`, y sin `ErrCode` no se mostraba.
 > - Si ARCA contesta `R` y un CAE legible, sale `EMISSION_UNCERTAIN`, con el CAE en `error` y `detalles.causa`; antes `rechazado` y `2`, en A, B y C sin el CAE.
 > - Si ARCA da el CAE y además informa un error, `estado` es `observado` con exit code `0`, antes `rechazado` y `2`. `sugerencias` ya no trae las del error. En la `E` vale también para un error sin código, antes `aprobado` u `observado` y `0`. Una observación con CAE tampoco sugiere ya emitir de nuevo.
@@ -42,6 +42,12 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - Ya no son un error y gana el flag: `--ac`, `--at`, `--ar` o `--apv` con `periodoAsociado` en el JSON, `--periodo-desde` o `--periodo-hasta` con `comprobanteAsociado`, `--vto` con `dia` y `--dia` con `vencimientoPago`.
 > - En `BATCH_EMISSION_ERROR`, `sugerencia` es siempre un texto, antes `null`, y en `error` "Sin procesar" va en su propia línea, como rango desde tres (`#3 a #100 (98)`). La lista completa sigue en `detalles.sinProcesar`.
 > - Si una tabla auxiliar de WSFEX no responde y lo que se emite no sale de ella, los comandos de la `E` y sus notas siguen con un aviso y, con `--emitir`, se emiten; antes salían con el error de la consulta.
+> - Una nota A, B, C o FCE sin `--apv` toma el punto de venta de la nota y, con `--emitir`, se emite; antes, `INPUT_VALIDATION_ERROR`. Sigue siendo error si el asociado es de otro CUIT.
+> - En una nota, `E` incluida, con `--ac`, `--at` o `--ar` de otro comprobante que uno de CUIT ajeno del JSON, su `puntoVenta` tampoco va: sin `--apv`, o `--acuit` propio, `INPUT_VALIDATION_ERROR`; antes se usaba.
+> - En una nota, si el JSON trae el `cuit` del asociado, un `--acuit` que lo cambia entre propio y ajeno descarta su `fecha`: pasá `--afecha`.
+> - En una nota, si el asociado del JSON no trae `puntoVenta`, `--apv` o `--pv` de otro punto de venta descartan su `fecha`: pasá `--afecha`.
+> - Un comprobante A, B, C, FCE o recibo que ARCA devuelve con su número y su CAE pero no se puede leer: `ultimos` lo trae en su lugar, en `--json` solo con `numero`, `cae` y `error`, y avisa, con `--json` en stderr, y `consultar` sale con `ARCA_VOUCHER_QUERY_ERROR`, antes `VOUCHER_NOT_FOUND`.
+> - `estado` suma `servidoresExportacion`, `null` si WSFEX no responde. `listo` y el exit code no cambian.
 > - En los comandos de la `E` con `exportacion.cert` propio, `avisos` ya no trae el vencimiento del certificado general de ese entorno.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
@@ -62,6 +68,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 - **Factura E:** en el asistente, el país de destino y el CUIT del país se eligen de una lista con filtro donde también podés escribir (#257).
 - **Factura E:** en el asistente, "¿Cómo te pagan?" arranca en pesos, como A, B y C; antes, en dólares. "Repetir" propone lo de la factura (#286).
+- **Notas:** sin `--apv`, el asociado de A, B, C y FCE es del punto de venta de la nota, como en la `E` (#288).
+- **Consultas:** `estado` y "Estado de ARCA" muestran también los servidores de exportación, WSFEX (#288).
+- **Asistente:** "Repetir" A, B, C, FCE o recibo dice qué copia y propone cómo te pagaron, como la `E` (#288).
 - **Factura E:** el asistente ofrece euros y las demás monedas de A, B y C que acepta WSFEX, no solo dólares y pesos (#286).
 - **Notas:** en el asistente, una nota `E` sobre un comprobante en otra moneda puede ir en pesos, como en A, B y C (#286).
 - **PDF:** en el asistente, la condición de venta se elige o se escribe en la misma lista, sin la pregunta aparte de "Otra" (#257).
@@ -86,6 +95,12 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **País y CUIT del país de la `E`.** Antes se escribían: el país por nombre o código, y el CUIT por número o buscando el país, que abría una segunda lista. Ahora cada uno es una lista que se filtra escribiendo, con el código o el CUIT a la izquierda; si lo escrito no es una opción, "Usar lo escrito" lo valida como `--pais-destino` o `--cuit-pais`. El CUIT del país trae solo los que acepta `--cuit-pais` para el destino, y en la factura la primera opción, "Sin CUIT del país (solo ID impositivo)", lo deja vacío. "Repetir" E usa la misma lista para el CUIT, sin ninguno marcado la primera vez: es un dato fiscal y Enter vacío pide elegirlo. Los flags, `--cargar`, el `--json` y el comando equivalente no cambian.
 
 **Cómo te pagan una `E`.** El asistente preguntaba "¿Te pagan en dólares?" con Sí primero, así que Enter mandaba `CanMisMonExt` en `S`. Ahora pregunta "¿Cómo te pagan?", con "En pesos" primero: Enter manda `N`, como `arcli fe` sin `--misma-moneda`. "Repetir" copiaba el dato sin preguntar; ahora pregunta siempre que la factura sea en moneda extranjera, con lo que informó marcado o, si ARCA no lo devolvió, "En pesos". Los comandos no cambian.
+
+**Punto de venta del asociado.** En las notas A, B, C y FCE había que pasar siempre `--apv`. Ahora, sin él, es el de la nota (`--pv` o la config), también en `--cargar`; `--ac` o `--at` y `--ar` siguen siendo obligatorios. Si el asociado es de otro CUIT, `--apv` se sigue pidiendo. Si el JSON no dice el punto de venta del asociado y `--apv` o `--pv` lo cambian, su `fecha` del JSON no va; tampoco si el JSON trae su `cuit` y `--acuit` lo cambia entre propio y ajeno. Con otro tipo o número que los de un asociado ajeno del JSON no va su punto de venta ni el de la nota: hay que pasar `--apv`, o `--acuit` si es tuyo, también en la `E`. Si el asociado existe pero ARCLI no pudo leerlo, la nota sigue con un aviso de lo que queda sin controlar; una FCE sin `--afecha` frena y pide la fecha.
+
+**WSFEX en `estado`.** Una línea más, "Exportación (WSFEX)", y en `--json` el campo `servidoresExportacion`, con la forma de `servidores`. Se consulta a la par, sin autenticación. Si falla o no contesta en 5 segundos dice "sin respuesta" (`null`), y `listo`, el exit code y el resto no cambian.
+
+**"Repetir" A, B, C, FCE y recibos.** Al elegir el comprobante, un aviso dice qué se copia. En moneda extranjera, "¿Cómo te pagan?" arranca en lo que informó el original.
 
 **Monedas de la `E`.** La lista es la de A, B y C, limitada a las monedas de la tabla de WSFEX, con los dólares primero. La cotización, la pregunta de cobro y el comando equivalente valen para cualquiera. Si ARCA no devuelve la tabla, quedan dólares, pesos o escribir el código. Si no publica la cotización de aduana de la moneda, en bienes y otros cobrados en pesos la escribís; en servicios o cobrada en la moneda, el asistente avisa y vuelve a elegirla. Si el error aparece en la vista previa (`ARCA_QUOTATION_ERROR`), también en A, B y C, ya no se pierde lo respondido.
 
@@ -136,6 +151,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Facturas:** si la medianoche pasa en "¿Emitimos?", se emite lo que mostró la vista previa, con sus fechas, como en la `E` (#274).
 - **Facturas:** una respuesta sin CAE ni rechazo, o con un error interno de ARCA, sale como `EMISSION_UNCERTAIN`, y con CAE y un error, como emitido (#273).
 - **Factura E:** en texto, la `E` y sus notas muestran el CAE antes de preguntar, instalar y generar el PDF, como A, B y C (#283).
+- **Consultas:** `ultimos` muestra en su lugar, con `error`, un comprobante que existe pero no se puede leer; el asistente lo saltea y avisa (#288).
 - **PDF:** en la `E`, "Generando PDF..." ya no gira sobre la pregunta de instalar el plugin (#283).
 - **Facturas:** un evento u observación con otra forma ya no pierde el CAE; si no se sabe si lo hay, sale `EMISSION_UNCERTAIN` (#272).
 - **Consultas:** `consultar` y `ultimos` dan `ARCA_VOUCHER_QUERY_ERROR` si ARCA contesta con un error, en vez de decir que no existe (#268).

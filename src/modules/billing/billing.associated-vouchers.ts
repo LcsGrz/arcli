@@ -55,14 +55,21 @@ export function resolveAssociatedVouchers(
   const associatedVoucherKind = resolveAssociatedVoucherKind(associatedVoucher, requireVoucherKind);
 
   if (!associatedVoucher?.numero || !associatedVoucher.puntoVenta || !associatedVoucherType) {
+    const identified = Boolean(associatedVoucher?.numero && associatedVoucherType);
+    // El de la nota lo completa `resolveBillingInput`: falta solo si el asociado es de otro CUIT o no se sabe de quien.
+    const needsPointOfSale = !associatedVoucher?.puntoVenta && (identified || associatedCuit !== String(emitterCuit));
+    const numberFlag =
+      associatedVoucher?.puntoVenta || needsPointOfSale
+        ? '`--ar <número>`'
+        : '`--ar <número>` (y `--apv` si es de otro punto de venta)';
     const missing = [
       ...(associatedVoucherType ? [] : [{ flag: '`--ac <tipo>`', label: 'el tipo' }]),
-      ...(associatedVoucher?.puntoVenta ? [] : [{ flag: '`--apv <número>`', label: 'el punto de venta' }]),
-      ...(associatedVoucher?.numero ? [] : [{ flag: '`--ar <número>`', label: 'el número' }]),
+      ...(needsPointOfSale ? [{ flag: '`--apv <número>`', label: 'el punto de venta' }] : []),
+      ...(associatedVoucher?.numero ? [] : [{ flag: numberFlag, label: 'el número' }]),
     ];
 
     // Con alguno de los tres, decir que falta el comprobante entero confundiria.
-    if (missing.length < 3) {
+    if (associatedVoucherType || associatedVoucher?.numero || associatedVoucher?.puntoVenta) {
       const labels = missing.map(({ label }) => label).join(' y ');
       const flags = missing.map(({ flag }) => flag).join(' y ');
 
@@ -72,7 +79,7 @@ export function resolveAssociatedVouchers(
     }
 
     throw new InputValidationError(
-      `${formatVoucherSubject(voucherKind)} requiere comprobante asociado. Usá \`--ac\` o \`--at\`, junto con \`--apv\` o \`--asociado-punto-venta\` y \`--ar\`${voucherKind.isElectronicCredit ? '' : ' (y `--acuit` si es de otro CUIT), o un período con `--periodo-desde` y `--periodo-hasta`'}.`,
+      `${formatVoucherSubject(voucherKind)} requiere comprobante asociado. Usá \`--ac\` o \`--at\` y \`--ar\` (con \`--apv\` si es de otro punto de venta${voucherKind.isElectronicCredit ? ')' : ' y `--acuit` si es de otro CUIT), o un período con `--periodo-desde` y `--periodo-hasta`'}.`,
     );
   }
 

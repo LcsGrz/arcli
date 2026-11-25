@@ -83,7 +83,11 @@ export async function executeExportCommand(
   try {
     const runtime = dependencies.resolveRuntime(globalOptions, { service: 'wsfex' });
     const voucherKind = options.voucherKind ?? EXPORT_VOUCHER_KIND;
-    const plan = parseExportCommandPlan(command, { defaultEmit: runtime.config.output.emitirPorDefecto, voucherKind });
+    const plan = parseExportCommandPlan(command, {
+      defaultEmit: runtime.config.output.emitirPorDefecto,
+      emitterCuit: runtime.cuit,
+      voucherKind,
+    });
     const useRaw = typeof globalOptions.bruto === 'boolean' ? globalOptions.bruto : runtime.outputRaw;
     const interactive = !runtime.outputJson && Boolean(process.stdin.isTTY && process.stdout.isTTY);
     const gateway = dependencies.createGateway(runtime);

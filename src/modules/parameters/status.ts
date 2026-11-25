@@ -1,4 +1,5 @@
 import type { ParametersGateway, SalesPoint, ServerStatus } from './parameters';
+import { areServersOk, probeServers } from './server-status';
 
 export type PointOfSaleCheck =
   | { readonly kind: 'habilitado'; readonly point: SalesPoint }
@@ -10,6 +11,8 @@ export type PointOfSaleCheck =
 
 export interface StatusReport {
   readonly environment: 'produccion' | 'testing';
+  /** Los de WSFEX; sin definir si no respondieron. No cambian `ready`. */
+  readonly exportServers?: ServerStatus;
   readonly latencyMs: number;
   readonly pointOfSale: PointOfSaleCheck;
   readonly pointOfSaleNumber?: number;
@@ -17,8 +20,6 @@ export interface StatusReport {
   /** Se puede emitir: servidores OK y punto de venta habilitado (o no verificable en testing). */
   readonly ready: boolean;
 }
-
-const SERVER_OK = 'OK';
 
 function checkPointOfSale(points: readonly SalesPoint[], number: number | undefined): PointOfSaleCheck {
   if (!number) {
@@ -42,25 +43,41 @@ function checkPointOfSale(points: readonly SalesPoint[], number: number | undefi
   return point.closedOn ? { kind: 'de-baja', point } : { kind: 'habilitado', point };
 }
 
+/** El estado de WSFEX, los servidores de la factura de exportacion. La señal lo cancela. */
+export type ExportServerStatus = (signal: AbortSignal) => Promise<ServerStatus>;
+
 export async function buildStatusReport(options: {
   readonly environment: 'produccion' | 'testing';
-  readonly gateway: ParametersGateway;
+  readonly gateway: Pick<ParametersGateway, 'getSalesPoints' | 'getServerStatus'>;
+  readonly getExportServerStatus: ExportServerStatus;
   readonly now: () => number;
   readonly pointOfSale?: number;
+  /** Cuanto esperar a WSFEX. */
+  readonly timeoutMs?: number;
 }): Promise<StatusReport> {
-  const start = options.now();
-  const servers = await options.gateway.getServerStatus();
-  const latencyMs = options.now() - start;
-  const points = await options.gateway.getSalesPoints();
-  const pointOfSale = checkPointOfSale(points, options.pointOfSale);
-  const serversOk = [servers.app, servers.db, servers.auth].every((value) => value === SERVER_OK);
+  const { gateway } = options;
+  const exportQuery = new AbortController();
+  // A la par: si WSFEX falla o no contesta, lo demas no cambia.
+  const exportProbe = probeServers(async () => options.getExportServerStatus(exportQuery.signal), options.timeoutMs);
 
-  return {
-    environment: options.environment,
-    latencyMs,
-    pointOfSale,
-    pointOfSaleNumber: options.pointOfSale,
-    ready: serversOk && (pointOfSale.kind === 'habilitado' || pointOfSale.kind === 'sin-datos'),
-    servers,
-  };
+  try {
+    const start = options.now();
+    const servers = await gateway.getServerStatus();
+    const latencyMs = options.now() - start;
+    const points = await gateway.getSalesPoints();
+    const pointOfSale = checkPointOfSale(points, options.pointOfSale);
+
+    return {
+      environment: options.environment,
+      exportServers: await exportProbe,
+      latencyMs,
+      pointOfSale,
+      pointOfSaleNumber: options.pointOfSale,
+      ready: areServersOk(servers) && (pointOfSale.kind === 'habilitado' || pointOfSale.kind === 'sin-datos'),
+      servers,
+    };
+  } finally {
+    // Sin esto, una consulta colgada deja el proceso vivo, tambien si lo demas fallo.
+    exportQuery.abort();
+  }
 }

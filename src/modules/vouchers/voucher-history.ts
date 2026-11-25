@@ -64,15 +64,30 @@ export interface IssuedVoucher {
   readonly taxes?: readonly IssuedTax[];
   readonly taxesAmount?: number;
   readonly total: number;
+  /** Solo en los que no se pudieron leer (`UnreadableVoucher`). */
+  readonly unreadable?: undefined;
   readonly untaxedAmount?: number;
 }
+
+/** Lo que se sabe de un comprobante que existe (vino con su numero y su CAE) y no se pudo leer. */
+export interface ExistingVoucher {
+  readonly cae: string;
+  readonly number: number;
+}
+
+export interface UnreadableVoucher extends ExistingVoucher {
+  readonly unreadable: true;
+}
+
+/** Un comprobante de una lista, de wsfe o de wsfex: leido, o que existe y no se pudo leer. */
+export type ListedVoucher<T> = T | UnreadableVoucher;
 
 /** ARCA contesto la consulta de un comprobante y no se sabe si existe. `reason` es el motivo solo, para otra frase. */
 export class VoucherQueryError extends AppError {
   declare public readonly details: Record<string, unknown>;
   declare public readonly suggestion: string;
-  /** Existe (tiene numero y CAE), pero no se entiende: una lista lo saltea en vez de fallar entera. */
-  public readonly exists: boolean;
+  /** Existe, pero no se entiende: una lista no falla entera. Sin definir, no se sabe si existe. */
+  public readonly existing?: ExistingVoucher;
 
   public constructor(
     message: string,
@@ -83,12 +98,16 @@ export class VoucherQueryError extends AppError {
       readonly cause?: unknown;
       /** La `E` sale con `ARCA_EXPORT_ERROR` si ARCA contesta con un error: el codigo es contrato (ARQ-22). */
       readonly code?: ErrorCode;
-      readonly exists?: boolean;
+      readonly existing?: ExistingVoucher;
     } = {},
   ) {
     super(message, { cause: options.cause, code: options.code ?? 'ARCA_VOUCHER_QUERY_ERROR', details, suggestion });
     this.name = 'VoucherQueryError';
-    this.exists = options.exists ?? false;
+    this.existing = options.existing;
+  }
+
+  public get exists(): boolean {
+    return this.existing !== undefined;
   }
 }
 
@@ -137,8 +156,6 @@ export function inferIvaRate(netAmount: number, ivaAmount: number): BillingIvaRa
 export interface ListVouchersOptions {
   readonly concurrency?: number;
   readonly limit?: number;
-  /** Un comprobante que existe y no se pudo leer (`VoucherQueryError.exists`): no va en la lista. */
-  readonly onSkip?: (number: number) => void;
 }
 
 /** Ultimos comprobantes emitidos, del mas nuevo al mas viejo. */
@@ -147,7 +164,7 @@ export async function listRecentVouchers(
   pointOfSale: number,
   voucherType: number,
   options: ListVouchersOptions = {},
-): Promise<IssuedVoucher[]> {
+): Promise<Array<ListedVoucher<IssuedVoucher>>> {
   const lastNumber = await gateway.getLastNumber(pointOfSale, voucherType);
 
   return listVouchersFrom(gateway, pointOfSale, voucherType, lastNumber, options);
@@ -164,40 +181,38 @@ export async function listVouchersFrom(
   voucherType: number,
   fromNumber: number,
   options: ListVouchersOptions = {},
-): Promise<IssuedVoucher[]> {
+): Promise<Array<ListedVoucher<IssuedVoucher>>> {
   return fetchVouchersBackwards(fromNumber, (number) => gateway.getVoucher(number, pointOfSale, voucherType), options);
 }
 
 /**
- * Pide los comprobantes desde `fromNumber` hacia atras, del mas nuevo al mas viejo, y descarta los que no existen y
- * los que existen pero no se entienden (`VoucherQueryError.exists`). Si no se sabe si uno existe, falla la lista.
+ * Pide los comprobantes desde `fromNumber` hacia atras, del mas nuevo al mas viejo, y descarta los que no existen. Los
+ * que existen y no se entienden van en su lugar como `UnreadableVoucher`. Si no se sabe si uno existe, falla la lista.
  * Sirve para wsfe y para wsfex: cada uno sabe como pedir uno.
  */
-export async function fetchVouchersBackwards<T>(
+export async function fetchVouchersBackwards<T extends { readonly unreadable?: undefined }>(
   fromNumber: number,
   fetch: (number: number) => Promise<T | null | undefined>,
   options: ListVouchersOptions = {},
-): Promise<T[]> {
+): Promise<Array<ListedVoucher<T>>> {
   const limit = options.limit ?? RECENT_VOUCHERS_LIMIT;
   const concurrency = options.concurrency ?? 4;
   const numbers = Array.from({ length: Math.max(0, Math.min(limit, fromNumber)) }, (_, index) => fromNumber - index);
-  const vouchers: Array<T | null | undefined> = [];
-  const skipUnreadable =
-    (number: number) =>
-    (error: unknown): undefined => {
-      if (!(error instanceof VoucherQueryError && error.exists)) {
-        throw error;
-      }
+  const vouchers: Array<ListedVoucher<T> | null | undefined> = [];
+  const orUnreadable = (error: unknown): UnreadableVoucher => {
+    if (!(error instanceof VoucherQueryError && error.existing)) {
+      throw error;
+    }
 
-      options.onSkip?.(number);
-    };
+    return { ...error.existing, unreadable: true };
+  };
 
   // Lotes chicos: cada consulta tarda ~0,5 s y no conviene saturar el web service.
   for (let start = 0; start < numbers.length; start += concurrency) {
     const batch = numbers.slice(start, start + concurrency);
 
-    vouchers.push(...(await Promise.all(batch.map((number) => fetch(number).catch(skipUnreadable(number))))));
+    vouchers.push(...(await Promise.all(batch.map((number) => fetch(number).catch(orUnreadable)))));
   }
 
-  return vouchers.filter((voucher): voucher is T => voucher !== null && voucher !== undefined);
+  return vouchers.filter((voucher): voucher is ListedVoucher<T> => voucher !== null && voucher !== undefined);
 }

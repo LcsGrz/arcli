@@ -1,4 +1,5 @@
 import type { ParametersGateway } from './parameters';
+import { areServersOk, probeServers } from './server-status';
 
 /**
  * Estado general de ARCA para la barra del modo interactivo. Sale de FEDummy, que no pide autenticacion:
@@ -10,9 +11,6 @@ import type { ParametersGateway } from './parameters';
 export type ArcaHealth = 'con-demoras' | 'con-problemas' | 'funcionando' | 'sin-respuesta';
 
 const ARCA_SLOW_MS = 3000;
-const ARCA_TIMEOUT_MS = 5000;
-
-const SERVER_OK = 'OK';
 
 export async function checkArcaHealth(options: {
   readonly gateway: Pick<ParametersGateway, 'getServerStatus'>;
@@ -20,29 +18,17 @@ export async function checkArcaHealth(options: {
   readonly slowMs?: number;
   readonly timeoutMs?: number;
 }): Promise<ArcaHealth> {
-  const { gateway, now, slowMs = ARCA_SLOW_MS, timeoutMs = ARCA_TIMEOUT_MS } = options;
+  const { gateway, now, slowMs = ARCA_SLOW_MS, timeoutMs } = options;
   const start = now();
-  let timer: NodeJS.Timeout | undefined;
-  const timeout = new Promise<undefined>((resolve) => {
-    timer = setTimeout(() => resolve(undefined), timeoutMs);
-    timer.unref();
-  });
+  const servers = await probeServers(() => gateway.getServerStatus(), timeoutMs);
 
-  try {
-    const servers = await Promise.race([gateway.getServerStatus(), timeout]);
-
-    if (!servers) {
-      return 'sin-respuesta';
-    }
-
-    if (![servers.app, servers.db, servers.auth].every((value) => value === SERVER_OK)) {
-      return 'con-problemas';
-    }
-
-    return now() - start > slowMs ? 'con-demoras' : 'funcionando';
-  } catch {
+  if (!servers) {
     return 'sin-respuesta';
-  } finally {
-    clearTimeout(timer);
   }
+
+  if (!areServersOk(servers)) {
+    return 'con-problemas';
+  }
+
+  return now() - start > slowMs ? 'con-demoras' : 'funcionando';
 }

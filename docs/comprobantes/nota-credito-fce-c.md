@@ -63,7 +63,7 @@ Ej.: `--cuit 20168598204`
 | Largo | Corto | Qué es |
 | --- | --- | --- |
 | `--ac <atajo>` |  | fcec, fcea o fceb; con --anulacion, también una nota FCE |
-| `--asociado-punto-venta <número>` | `--apv` | Su punto de venta |
+| `--asociado-punto-venta <número>` | `--apv` | Su punto de venta; por defecto, el de la nota |
 | `--ar <número>` |  | Su número |
 | `--at <número>` |  | Tipo ARCA, en vez de --ac |
 

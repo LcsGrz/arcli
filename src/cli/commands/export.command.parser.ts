@@ -12,13 +12,18 @@ import { readExportFlags } from './export.command.flags';
 /** Lee los flags y el archivo de `--cargar`; la mezcla con la config y las reglas son de `resolveExportInput`. */
 export function parseExportCommandPlan(
   command: Command,
-  { defaultEmit, voucherKind = EXPORT_VOUCHER_KIND }: Pick<ExportInputOptions, 'defaultEmit' | 'voucherKind'> = {},
+  {
+    defaultEmit,
+    emitterCuit,
+    voucherKind = EXPORT_VOUCHER_KIND,
+  }: Pick<ExportInputOptions, 'defaultEmit' | 'emitterCuit' | 'voucherKind'> = {},
   clock: Clock = systemClock,
 ): ExportInputPlan {
   const { cargar } = command.optsWithGlobals<Record<string, unknown>>();
 
   return resolveExportInput({
     defaultEmit,
+    emitterCuit,
     file: typeof cargar === 'string' && cargar ? readExportJsonInput(readJsonFile<unknown>(cargar)) : undefined,
     flags: readExportFlags(command, voucherKind),
     now: clock.now(),

@@ -58,6 +58,7 @@ const sdk = vi.hoisted(() => ({
     getVoucherTypes: vi.fn(),
   },
   wsfecred: { consultarMontoObligadoRecepcion: vi.fn() },
+  wsfexStatus: { fetch: vi.fn() },
   wsfex: {
     authorize: vi.fn(),
     checkPermiso: vi.fn(),
@@ -74,6 +75,8 @@ const sdk = vi.hoisted(() => ({
     getParamUMed: vi.fn(),
   },
 }));
+
+vi.mock('../../services/arca/wsfex-status', () => ({ fetchWsfexServerStatus: sdk.wsfexStatus.fetch }));
 
 vi.mock('@arcasdk/core', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -281,6 +284,7 @@ function resetSdk(): void {
   sdk.wsfe.getQuotation.mockResolvedValue({ resultGet: { fchCotiz: '20261116', monCotiz: 1452.5, monId: 'DOL' } });
   sdk.generic.call.mockImplementation(consulting(issuedVoucher()));
   sdk.wsfe.getServerStatus.mockResolvedValue({ appServer: 'OK', authServer: 'OK', dbServer: 'OK' });
+  sdk.wsfexStatus.fetch.mockResolvedValue({ app: 'OK', auth: 'OK', db: 'OK' });
   sdk.padron.getTaxpayerDetails.mockResolvedValue({
     datosGenerales: {
       domicilioFiscal: {
@@ -447,6 +451,24 @@ function prepareConfig(setup: Setup): void {
       ...setup.config,
     }),
   );
+}
+
+const LIST_KEYS = ['atajo', 'comprobante', 'tipoArca', 'comprobantes', 'entorno', 'puntoVenta'];
+
+/** Un comprobante de `ultimos` que existe y no se pudo leer: solo estas claves. */
+const UNREADABLE = (numero: number, cae: string) => ({
+  cae,
+  error: 'No se pudieron leer los datos que devolvió ARCA.',
+  numero,
+});
+
+/** La fila en su lugar, con el CAE en la misma columna que las legibles. */
+function expectUnreadableRow(stdout: string, number: string, cae: string): void {
+  const rows = stdout.split('\n').filter((row) => /\d{5}-\d{8} {2}/.test(row));
+  const row = rows.find((candidate) => candidate.includes(number)) ?? '';
+
+  expect(row).toMatch(new RegExp(`${number}  No se pudieron leer sus datos +${cae}`));
+  expect(new Set(rows.map((candidate) => candidate.indexOf('CAE ')))).toHaveProperty('size', 1);
 }
 
 function writeInput(name: string, content: unknown): string {
@@ -2757,36 +2779,30 @@ describe('otros comandos que van a ARCA', () => {
         fexResult({ ...EXPORT_VOUCHER, Cae: 76463926585300, Cbte_nro: 6, Moneda_Id: '' }),
       ],
       ['una con CAE y sin moneda', fexResult({ ...EXPORT_VOUCHER, Cbte_nro: 6, Moneda_Id: '' })],
-    ])('ultimos fe saltea %s y lo avisa', async (_name, answer) => {
-      sdk.wsfex.getCmp.mockImplementation(answering({ 6: answer }));
-      prepareConfig({});
+    ])('ultimos de la E muestra en su lugar %s y lo avisa', async (_name, answer) => {
+      for (const kind of ['fe', 'nce', 'nde']) {
+        sdk.wsfex.getCmp.mockImplementation(answering({ 6: answer }));
+        prepareConfig({});
 
-      const result = await runCli(['ultimos', 'fe', '--pv', '4', '--cantidad', '3', '--json']);
+        const result = await runCli(['ultimos', kind, '--pv', '4', '--cantidad', '3', '--json']);
+        const { comprobantes } = JSON.parse(result.stdout) as { comprobantes: Array<Record<string, unknown>> };
 
-      expect(result.code).toBe(0);
-      expect(
-        (JSON.parse(result.stdout) as { comprobantes: Array<{ numero: number }> }).comprobantes.map((v) => v.numero),
-      ).toEqual([7, 5]);
-      // La forma del JSON no cambia: el aviso va en stderr, como el del certificado.
-      expect(Object.keys(JSON.parse(result.stdout) as object)).toEqual([
-        'atajo',
-        'comprobante',
-        'tipoArca',
-        'comprobantes',
-        'entorno',
-        'puntoVenta',
-      ]);
-      expect(flat(result.stderr)).toContain(
-        'No se muestra 1 comprobante, porque ARCLI no pudo leer sus datos: 00004-00000006.',
-      );
+        expect(result.code).toBe(0);
+        expect(comprobantes.map(({ numero }) => numero)).toEqual([7, 6, 5]);
+        expect(comprobantes[1]).toEqual(UNREADABLE(6, '76463926585300'));
+        expect(comprobantes[0]).not.toHaveProperty('error');
+        expect(Object.keys(JSON.parse(result.stdout) as object)).toEqual(LIST_KEYS);
+        expect(flat(result.stderr)).toContain(
+          'ARCLI no pudo leer los datos de 1 comprobante: 00004-00000006. Existe en ARCA: no lo repitas.',
+        );
 
-      const text = await runCli(['ultimos', 'fe', '--pv', '4', '--cantidad', '3']);
+        const text = await runCli(['ultimos', kind, '--pv', '4', '--cantidad', '3']);
 
-      expect(text).toMatchObject({ code: 0, stderr: '' });
-      expect(flat(text.stdout)).toContain(
-        'No se muestra 1 comprobante, porque ARCLI no pudo leer sus datos: 00004-00000006.',
-      );
-      expect(text.stdout).toContain('00004-00000007');
+        expect(text).toMatchObject({ code: 0, stderr: '' });
+        expectUnreadableRow(text.stdout, '00004-00000006', 'CAE 76463926585300');
+        expect(flat(text.stdout)).toContain('ARCLI no pudo leer los datos de 1 comprobante: 00004-00000006.');
+        expect(text.stdout).not.toContain('No se muestra');
+      }
     });
 
     const flat = (text: string) => text.replace(/[│┃╏║\s]+/g, ' ');
@@ -2838,7 +2854,7 @@ describe('otros comandos que van a ARCA', () => {
 
       expect(result).toMatchObject({ code: 0, stderr: '' });
       expect(flat(result.stdout)).toContain(
-        'No se muestran 3 comprobantes, porque ARCLI no pudo leer sus datos: 00004-00000007, 00004-00000006 y 00004-00000005.',
+        'ARCLI no pudo leer los datos de 3 comprobantes: 00004-00000007, 00004-00000006 y 00004-00000005. Existen en ARCA: no los repitas.',
       );
       expect(result.stdout).not.toContain('No hay');
     });
@@ -2904,6 +2920,137 @@ describe('otros comandos que van a ARCA', () => {
     );
 
     return golden('ultimos-con-hueco', ['ultimos', 'fc', '--cantidad', '3', '--json']);
+  });
+
+  it('una nota sin --apv: la solicitud y la consulta van al punto de venta de la nota (ARQ-22)', async () => {
+    const note = ['ncc', '-m', '100', '--cs', '--cfinal', '--ac', 'fc', '--ar', '12', '--previsualizar', '--json'];
+
+    for (const [args, pointOfSale] of [
+      [note, 3],
+      [[...note, '--pv', '5'], 5],
+    ] as const) {
+      sdk.generic.call.mockClear();
+      prepareConfig({});
+
+      const result = await runCli(args);
+
+      expect(result).toMatchObject({ code: 0 });
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        solicitud: { CbtesAsoc: [{ Nro: 12, PtoVta: pointOfSale, Tipo: 11 }] },
+      });
+      expect(sdk.generic.call).toHaveBeenCalledWith('wsfe', 'FECompConsultar', {
+        FeCompConsReq: { CbteNro: 12, CbteTipo: 11, PtoVta: pointOfSale },
+      });
+    }
+  });
+
+  it.each([
+    ['nce', 'fe', NCE.slice(1, 3)],
+    ['ncc', 'fc', ['-m', '100', '--cs', '--cfinal']],
+  ])(
+    '%s: con --ar de otro que el asociado ajeno del JSON falta el punto de venta; con el propio, no (ARQ-22)',
+    async (kind, atajo, args) => {
+      const load = async (cuit: number) => {
+        const path = writeInput('nota.json', {
+          comprobanteAsociado: { atajo, cuit: String(cuit), numero: 5, puntoVenta: 4 },
+        });
+
+        prepareConfig({});
+
+        return runCli([kind, ...args, '--pv', '4', '--cargar', path, '--ar', '1', '--previsualizar', '--json']);
+      };
+      const foreign = await load(CLIENT_CUIT);
+
+      expect(foreign.code).toBe(1);
+      expect(JSON.parse(foreign.stderr)).toMatchObject({
+        codigo: 'INPUT_VALIDATION_ERROR',
+        error: expect.stringContaining('Falta el punto de venta del comprobante asociado'),
+      });
+      process.exitCode = undefined;
+      expect(await load(CUIT)).toMatchObject({ code: 0 });
+    },
+  );
+
+  // ARQ-22: como la E.
+  describe('ultimos de A, B y C con uno que existe y no se puede leer', () => {
+    const flat = (text: string) => text.replace(/[│┃╏║\s]+/g, ' ');
+    const answering = (broken: (number: number) => boolean) => {
+      sdk.generic.call.mockImplementation(
+        async (service: string, method: string, params: { FeCompConsReq: { CbteNro: number } }) => {
+          const number = params.FeCompConsReq.CbteNro;
+
+          return broken(number)
+            ? {
+                FECompConsultarResult: {
+                  ResultGet: { CbteDesde: number, CbteHasta: number, CodAutorizacion: '76463926585300' },
+                },
+              }
+            : consulting(issuedVoucher())(service, method);
+        },
+      );
+    };
+
+    it.each(['fa', 'fb', 'fc', 'fcea', 'nca', 'ndc', 'ncec', 'rc'])(
+      '%s: va en su lugar y se avisa; con --json, en stderr',
+      async (kind) => {
+        answering((number) => number === 41);
+        prepareConfig({});
+
+        const json = await runCli(['ultimos', kind, '--cantidad', '3', '--json']);
+        const { comprobantes } = JSON.parse(json.stdout) as { comprobantes: Array<Record<string, unknown>> };
+        const position = comprobantes.findIndex(({ numero }) => numero === 41);
+        const notice = 'ARCLI no pudo leer los datos de 1 comprobante: 00003-00000041. Existe en ARCA: no lo repitas.';
+
+        expect(json.code).toBe(0);
+        expect(Object.keys(JSON.parse(json.stdout) as object)).toEqual(LIST_KEYS);
+        expect(comprobantes).toHaveLength(3);
+        expect(comprobantes.map(({ numero }) => Number(numero))).toEqual(
+          comprobantes.map(({ numero }) => Number(numero)).sort((left, right) => right - left),
+        );
+        expect(comprobantes[position]).toEqual(UNREADABLE(41, '76463926585300'));
+        expect(comprobantes.filter((voucher) => 'error' in voucher)).toHaveLength(1);
+        expect(flat(json.stderr)).toContain(notice);
+
+        const text = await runCli(['ultimos', kind, '--cantidad', '3']);
+
+        expect(text).toMatchObject({ code: 0, stderr: '' });
+        expectUnreadableRow(text.stdout, '00003-00000041', 'CAE 76463926585300');
+        expect(flat(text.stdout)).toContain(notice);
+        expect(text.stdout).not.toContain('No se muestra');
+      },
+    );
+
+    it('la salida entera, con --json y en texto', async () => {
+      answering((number) => number === 41);
+      await golden('ultimos-ilegible', ['ultimos', 'fc', '--cantidad', '2', '--json']);
+      await golden('ultimos-ilegible-texto', ['ultimos', 'fc', '--cantidad', '2']);
+    });
+
+    it('si no se puede leer ninguno, los nombra y no dice que no hay', async () => {
+      answering(() => true);
+      prepareConfig({});
+
+      const text = await runCli(['ultimos', 'fc', '--cantidad', '2']);
+
+      expect(text).toMatchObject({ code: 0, stderr: '' });
+      expect(flat(text.stdout)).toContain('ARCLI no pudo leer los datos de 2 comprobantes: ');
+      expect(text.stdout.match(/No se pudieron leer sus datos/g)).toHaveLength(2);
+      expect(text.stdout).not.toContain('No hay');
+    });
+
+    it('consultar falla con el mismo código', async () => {
+      answering(() => true);
+      prepareConfig({});
+
+      const result = await runCli(['consultar', 'fc', '40', '--json']);
+
+      expect(result.code).toBe(1);
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        codigo: 'ARCA_VOUCHER_QUERY_ERROR',
+        detalles: { errores: [] },
+        error: expect.stringContaining('00003-00000040 existe, con el CAE 76463926585300'),
+      });
+    });
   });
 
   // Con estos comandos se verifica una emisión: no pueden decir que no se emitió ni mandar a emitir.
@@ -3255,6 +3402,13 @@ describe('consultas y comandos sin dorado (REV-49)', () => {
     });
 
     return golden('estado', ['estado', '--json']);
+  });
+
+  it('estado sin respuesta de WSFEX: lo demás y el exit code no cambian (ARQ-22)', () => {
+    sdk.wsfe.getSalesPoints.mockResolvedValue({ resultGet: { ptoVenta: [] } });
+    sdk.wsfexStatus.fetch.mockRejectedValue(new Error('connect ETIMEDOUT'));
+
+    return golden('estado-sin-wsfex', ['estado', '--json']);
   });
 
   it('estado sin punto de venta configurado', () => {

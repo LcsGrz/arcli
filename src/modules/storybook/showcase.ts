@@ -423,6 +423,7 @@ function buildQueriesScene(): string {
     }),
     formatStatusAsText({
       environment: 'testing',
+      exportServers: { app: 'OK', auth: 'OK', db: 'OK' },
       latencyMs: 180,
       pointOfSale: { kind: 'sin-datos' },
       pointOfSaleNumber: 3,
@@ -431,6 +432,7 @@ function buildQueriesScene(): string {
     }),
     formatStatusAsText({
       environment: 'produccion',
+      exportServers: { app: 'OK', auth: 'OK', db: 'OK' },
       latencyMs: 240,
       pointOfSale: { kind: 'bloqueado', point: { blocked: true, emissionType: 'CAE', number: 3 } },
       pointOfSaleNumber: 3,

@@ -267,15 +267,21 @@ describe('al asociado le falta un dato (H20)', () => {
   const PERIOD = ', o un período con `--periodo-desde` y `--periodo-hasta` en vez del comprobante.';
 
   it.each<[string, string[], string]>([
-    ['el punto de venta', ['--ac', 'fb', '--ar', '1'], 'Falta el punto de venta'],
+    [
+      'el punto de venta, de otro CUIT',
+      ['--ac', 'fb', '--ar', '1', '--acuit', '30709965812'],
+      'Falta el punto de venta',
+    ],
     ['el número', ['--ac', 'fb', '--apv', '3'], 'Falta el número'],
     ['el tipo', ['--apv', '3', '--ar', '1'], 'Falta el tipo'],
-    ['dos datos', ['--ac', 'fb'], 'Faltan el punto de venta y el número'],
+    ['el número, sin `--apv`', ['--ac', 'fb'], 'Falta el número'],
+    ['dos datos', ['--apv', '3'], 'Faltan el tipo y el número'],
   ])('%s', async (name, associated, expected) => {
     const use = {
-      'dos datos': '`--apv <número>` y `--ar <número>`',
+      'dos datos': '`--ac <tipo>` y `--ar <número>`',
+      'el número, sin `--apv`': '`--ar <número>` (y `--apv` si es de otro punto de venta)',
       'el número': '`--ar <número>`',
-      'el punto de venta': '`--apv <número>`',
+      'el punto de venta, de otro CUIT': '`--apv <número>`',
       'el tipo': '`--ac <tipo>`',
     }[name];
     const json = await failingJson('ncb', ...NOTE, '--cfinal', ...associated);

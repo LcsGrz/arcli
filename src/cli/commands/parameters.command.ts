@@ -16,6 +16,7 @@ import {
 } from '../../modules/parameters/parameters.presenter';
 import { buildStatusReport } from '../../modules/parameters/status';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
+import { fetchWsfexServerStatus } from '../../services/arca/wsfex-status';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { type ArcaQuery, createArcaQuery, withQuerySpinner, writeQueryOutput } from '../arca-query';
 import { registerQueryOptions, resolveOutputJson } from '../global-options';
@@ -94,6 +95,7 @@ export function registerParametersCommands(program: Command): void {
         return await buildStatusReport({
           environment: runtime.environment,
           gateway,
+          getExportServerStatus: (signal) => fetchWsfexServerStatus(runtime.environment, signal),
           now: Date.now,
           pointOfSale: runtime.pointOfSale,
         });

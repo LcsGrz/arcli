@@ -7,7 +7,15 @@ import { formatCurrencyLabel, formatMoneyLabel, MISSING_CAE_TEXT } from '../bill
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/voucher-names';
 import { formatEnvironmentLabel } from '../config/config.schemas';
-import { alignVoucherPickerRows, formatSkippedVouchers } from '../vouchers/voucher-history.presenter';
+import type { ListedVoucher } from '../vouchers/voucher-history';
+import {
+  alignVoucherPickerRows,
+  formatListColumns,
+  formatUnreadableRow,
+  formatUnreadableVouchers,
+  serializeUnreadable,
+  type VoucherPickerColumns,
+} from '../vouchers/voucher-history.presenter';
 import { formatVoucherNumber } from '../vouchers/voucher-number';
 
 import {
@@ -24,9 +32,7 @@ interface ExportReport {
 }
 
 export interface ExportVoucherListReport extends ExportReport {
-  /** Numeros que existen y no se pudieron leer: se avisan en el texto; la forma del JSON no cambia. */
-  readonly skipped?: readonly number[];
-  readonly vouchers: readonly ExportIssuedVoucher[];
+  readonly vouchers: ReadonlyArray<ListedVoucher<ExportIssuedVoucher>>;
 }
 
 export interface ExportVoucherDetailReport extends ExportReport {
@@ -46,16 +52,14 @@ function formatAssociated(voucher: ExportIssuedVoucher): string | undefined {
   return `${name} ${formatVoucherNumber(associated.pointOfSale, associated.number)}`;
 }
 
-function formatListRow(voucher: ExportIssuedVoucher): string {
-  return [
-    formatVoucherNumber(voucher.pointOfSale, voucher.number),
-    formatArcaDateAsArgentineDate(voucher.date),
-    voucher.clientName.padEnd(20),
-    formatMoneyLabel(voucher.total, voucher.currencyCode).padStart(16),
-    voucher.cae ? `CAE ${voucher.cae}` : '',
-  ]
-    .join('  ')
-    .trimEnd();
+function voucherColumns(voucher: ExportIssuedVoucher): VoucherPickerColumns {
+  return {
+    cae: voucher.cae ? `CAE ${voucher.cae}` : '',
+    date: formatArcaDateAsArgentineDate(voucher.date),
+    number: formatVoucherNumber(voucher.pointOfSale, voucher.number),
+    receiver: voucher.clientName,
+    total: formatMoneyLabel(voucher.total, voucher.currencyCode),
+  };
 }
 
 /** Filas para elegir un comprobante E en el modo interactivo: numero, fecha, cliente, total y CAE. */
@@ -64,28 +68,13 @@ export function formatExportVoucherPickerRows(
   separator: string,
   width?: number,
 ): string[] {
-  return alignVoucherPickerRows(
-    vouchers.map((voucher) => ({
-      cae: voucher.cae ? `CAE ${voucher.cae}` : '',
-      date: formatArcaDateAsArgentineDate(voucher.date),
-      number: formatVoucherNumber(voucher.pointOfSale, voucher.number),
-      receiver: voucher.clientName,
-      total: formatMoneyLabel(voucher.total, voucher.currencyCode),
-    })),
-    separator,
-    width,
-  );
+  return alignVoucherPickerRows(vouchers.map(voucherColumns), separator, width);
 }
 
 export function formatExportVoucherListAsText(report: ExportVoucherListReport): string {
-  const { pointOfSale, skipped = [], voucherKind, vouchers } = report;
-  const skippedNotice = formatSkippedVouchers(pointOfSale, skipped);
+  const { pointOfSale, voucherKind, vouchers } = report;
 
   if (vouchers.length === 0) {
-    if (skippedNotice) {
-      return skippedNotice;
-    }
-
     return noticePanel(`${formatNoVouchersEmitted(voucherKind)} en el punto de venta ${pointOfSale}.`, 'muted');
   }
 
@@ -93,10 +82,12 @@ export function formatExportVoucherListAsText(report: ExportVoucherListReport): 
 
   const listing = listingPanel(
     `${formatLatestVouchersTitle(voucherKind)} ${separator} PV ${pointOfSale} ${separator} ${formatEnvironmentLabel(report.environment)}`,
-    vouchers.map(formatListRow),
+    vouchers.map((voucher) =>
+      voucher.unreadable ? formatUnreadableRow(pointOfSale, voucher) : formatListColumns(voucherColumns(voucher)),
+    ),
   );
 
-  return [listing, skippedNotice].filter(Boolean).join('\n\n');
+  return [listing, formatUnreadableVouchers(pointOfSale, vouchers)].filter(Boolean).join('\n\n');
 }
 
 /** La moneda, con la cotizacion si no es en pesos. Sin moneda, la fila no va. */
@@ -181,7 +172,9 @@ function serializeVoucher(voucher: ExportIssuedVoucher): Record<string, unknown>
 export function serializeExportVoucherList(report: ExportVoucherListReport) {
   return {
     ...serializeKind(report.voucherKind),
-    comprobantes: report.vouchers.map(serializeVoucher),
+    comprobantes: report.vouchers.map((voucher) =>
+      voucher.unreadable ? serializeUnreadable(voucher) : serializeVoucher(voucher),
+    ),
     entorno: report.environment,
     puntoVenta: report.pointOfSale,
   };

@@ -1,6 +1,7 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
+import { joinWithAnd } from '../../lib/text/join-with-and';
 import { attentionPanel, listingPanel, noticePanel, ticketPanel } from '../../ui/components';
 import { renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
 import {
@@ -27,14 +28,14 @@ import { getVoucherKindByArcaType } from '../billing/voucher-kind-map';
 import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/voucher-names';
 import { formatEnvironmentLabel } from '../config/config.schemas';
 
-import type { IssuedVoucher } from './voucher-history';
+import type { IssuedVoucher, ListedVoucher, UnreadableVoucher } from './voucher-history';
 import { formatVoucherNumber } from './voucher-number';
 
 export interface VoucherListReport {
   readonly environment: 'produccion' | 'testing';
   readonly pointOfSale: number;
   readonly voucherKind: VoucherKindDefinition;
-  readonly vouchers: readonly IssuedVoucher[];
+  readonly vouchers: ReadonlyArray<ListedVoucher<IssuedVoucher>>;
 }
 
 export interface VoucherDetailReport {
@@ -44,7 +45,6 @@ export interface VoucherDetailReport {
   readonly voucherKind: VoucherKindDefinition;
 }
 
-/** @internal Exportado para los tests. */
 export function formatReceiver(voucher: IssuedVoucher): string {
   if (voucher.documentTypeCode === CONSUMER_DOCUMENT_TYPE_CODE) {
     return 'Consumidor final';
@@ -69,35 +69,90 @@ function formatVoucherListTitle(report: Omit<VoucherListReport, 'vouchers'>): st
   return `${formatLatestVouchersTitle(report.voucherKind)} ${separator} PV ${report.pointOfSale} ${separator} ${formatEnvironmentLabel(report.environment)}`;
 }
 
-/** Los que ARCA tiene y la lista no muestra, porque no se pudieron leer sus datos. Sin ninguno, vacio. */
-export function formatSkippedVouchers(pointOfSale: number, numbers: readonly number[]): string {
-  if (numbers.length === 0) {
+/** Los que ARCA tiene y no se pudieron leer, con que no hay que repetirlos. Sin ninguno, vacio. */
+function unreadableNotice(
+  pointOfSale: number,
+  vouchers: ReadonlyArray<ListedVoucher<object>>,
+  describe: (count: number) => string,
+): string {
+  const labels = vouchers.filter(isUnreadable).map(({ number }) => formatVoucherNumber(pointOfSale, number));
+
+  if (labels.length === 0) {
     return '';
   }
 
-  const labels = [...numbers]
-    .sort((left, right) => right - left)
-    .map((number) => formatVoucherNumber(pointOfSale, number));
-  const list = labels.length > 1 ? `${labels.slice(0, -1).join(', ')} y ${labels.at(-1)}` : labels[0];
-  const subject = labels.length === 1 ? 'No se muestra 1 comprobante' : `No se muestran ${labels.length} comprobantes`;
-
   return noticePanel(
-    `${subject}, porque ARCLI no pudo leer sus datos: ${list}. ${labels.length === 1 ? 'Existe en ARCA: no lo repitas.' : 'Existen en ARCA: no los repitas.'}`,
+    `${describe(labels.length)}: ${joinWithAnd(labels)}. ${labels.length === 1 ? 'Existe en ARCA: no lo repitas.' : 'Existen en ARCA: no los repitas.'}`,
     'warning',
   );
 }
 
-/** Una fila del listado: numero, fecha, receptor, total y CAE, en columnas alineadas. */
-function formatVoucherListRow(pointOfSale: number, voucher: IssuedVoucher): string {
+function isUnreadable(voucher: ListedVoucher<object>): voucher is UnreadableVoucher {
+  return 'unreadable' in voucher && voucher.unreadable === true;
+}
+
+/** El aviso de `ultimos`, que los muestra en su lugar. */
+export function formatUnreadableVouchers(pointOfSale: number, vouchers: ReadonlyArray<ListedVoucher<object>>): string {
+  return unreadableNotice(
+    pointOfSale,
+    vouchers,
+    (count) => `ARCLI no pudo leer los datos de ${count === 1 ? '1 comprobante' : `${count} comprobantes`}`,
+  );
+}
+
+/** El aviso de las listas del asistente, que no los muestran: no se pueden elegir. */
+export function formatSkippedVouchers(pointOfSale: number, vouchers: ReadonlyArray<ListedVoucher<object>>): string {
+  return unreadableNotice(
+    pointOfSale,
+    vouchers,
+    (count) =>
+      `${count === 1 ? 'No se muestra 1 comprobante' : `No se muestran ${count} comprobantes`}, porque ARCLI no pudo leer sus datos`,
+  );
+}
+
+const DATE_WIDTH = 10;
+const RECEIVER_WIDTH = 20;
+const TOTAL_WIDTH = 16;
+const COLUMN_GAP = '  ';
+
+/** Las columnas de una fila de `ultimos`, A, B, C y E. */
+export function formatListColumns(columns: VoucherPickerColumns): string {
+  return [
+    columns.number,
+    columns.date,
+    columns.receiver.padEnd(RECEIVER_WIDTH),
+    columns.total.padStart(TOTAL_WIDTH),
+    columns.cae,
+  ]
+    .join(COLUMN_GAP)
+    .trimEnd();
+}
+
+/** El que no se pudo leer, en su lugar: el texto ocupa las columnas de la fecha, el receptor y el total. */
+export function formatUnreadableRow(pointOfSale: number, voucher: UnreadableVoucher): string {
   return [
     formatVoucherNumber(pointOfSale, voucher.number),
-    formatArcaDateAsArgentineDate(voucher.date),
-    formatReceiver(voucher).padEnd(20),
-    formatMoneyLabel(voucher.total, voucher.currency).padStart(16),
-    voucher.cae ? `CAE ${voucher.cae}` : '',
-  ]
-    .join('  ')
-    .trimEnd();
+    'No se pudieron leer sus datos'.padEnd(DATE_WIDTH + RECEIVER_WIDTH + TOTAL_WIDTH + 2 * COLUMN_GAP.length),
+    `CAE ${voucher.cae}`,
+  ].join(COLUMN_GAP);
+}
+
+/** El que no se pudo leer en `comprobantes`: solo lo que se sabe de el. */
+export function serializeUnreadable(voucher: UnreadableVoucher): Record<string, unknown> {
+  return {
+    cae: voucher.cae,
+    error: 'No se pudieron leer los datos que devolvió ARCA.',
+    numero: voucher.number,
+  };
+}
+
+/** Una fila del listado: numero, fecha, receptor, total y CAE, en columnas alineadas. */
+function formatVoucherListRow(pointOfSale: number, voucher: ListedVoucher<IssuedVoucher>): string {
+  if (voucher.unreadable) {
+    return formatUnreadableRow(pointOfSale, voucher);
+  }
+
+  return formatListColumns(voucherColumns(pointOfSale, voucher));
 }
 
 /**
@@ -153,6 +208,16 @@ export function alignVoucherPickerRows(
   );
 }
 
+function voucherColumns(pointOfSale: number, voucher: IssuedVoucher): VoucherPickerColumns {
+  return {
+    cae: voucher.cae ? `CAE ${voucher.cae}` : '',
+    date: formatArcaDateAsArgentineDate(voucher.date),
+    number: formatVoucherNumber(pointOfSale, voucher.number),
+    receiver: formatReceiver(voucher),
+    total: formatMoneyLabel(voucher.total, voucher.currency),
+  };
+}
+
 /** Filas para elegir un comprobante A, B o C: numero, fecha, receptor, total y CAE. */
 export function formatVoucherPickerRows(
   pointOfSale: number,
@@ -161,13 +226,7 @@ export function formatVoucherPickerRows(
   width?: number,
 ): string[] {
   return alignVoucherPickerRows(
-    vouchers.map((voucher) => ({
-      cae: voucher.cae ? `CAE ${voucher.cae}` : '',
-      date: formatArcaDateAsArgentineDate(voucher.date),
-      number: formatVoucherNumber(pointOfSale, voucher.number),
-      receiver: formatReceiver(voucher),
-      total: formatMoneyLabel(voucher.total, voucher.currency),
-    })),
+    vouchers.map((voucher) => voucherColumns(pointOfSale, voucher)),
     separator,
     width,
   );
@@ -180,10 +239,12 @@ export function formatVoucherListAsText(report: VoucherListReport): string {
     return noticePanel(`${formatNoVouchersEmitted(voucherKind)} en el punto de venta ${pointOfSale}.`, 'muted');
   }
 
-  return listingPanel(
+  const listing = listingPanel(
     formatVoucherListTitle(report),
     vouchers.map((voucher) => formatVoucherListRow(pointOfSale, voucher)),
   );
+
+  return [listing, formatUnreadableVouchers(pointOfSale, vouchers)].filter(Boolean).join('\n\n');
 }
 
 function serializeVoucher(voucher: IssuedVoucher): Record<string, unknown> {
@@ -256,7 +317,9 @@ function serializeVoucherKind(voucherKind: VoucherKindDefinition): Record<string
 export function serializeVoucherList(report: VoucherListReport) {
   return {
     ...serializeVoucherKind(report.voucherKind),
-    comprobantes: report.vouchers.map(serializeVoucher),
+    comprobantes: report.vouchers.map((voucher) =>
+      voucher.unreadable ? serializeUnreadable(voucher) : serializeVoucher(voucher),
+    ),
     entorno: report.environment,
     puntoVenta: report.pointOfSale,
   };

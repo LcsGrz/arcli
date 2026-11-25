@@ -85,7 +85,7 @@ Para ajustar una factura de exportación ya emitida: un descuento o una devoluci
 
 ### Requisitos
 
-- el número de la factura E (y su punto de venta, si es otro que el de la nota). En bienes y otros (`--tipo-expo 1` o `4`) es opcional: sin `--ar`, cliente, domicilio y destino van por flag
+- el número de la factura E (y su punto de venta, si es otro que el de la nota). En bienes y otros (`--tipo-expo 1` o `4`) es opcional: sin `--ar`, cliente, domicilio y destino van por flag, y va solo por comando (el asistente siempre pide el asociado)
 
 ### Comando
 

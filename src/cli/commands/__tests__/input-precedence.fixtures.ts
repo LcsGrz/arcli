@@ -85,6 +85,7 @@ export function exportPlan(
 
   return parseExportCommandPlan(parseArgs(command, written), {
     defaultEmit: configOf(written.config).output.emitirPorDefecto,
+    emitterCuit: Number(configOf(written.config).cuit),
     voucherKind,
   });
 }

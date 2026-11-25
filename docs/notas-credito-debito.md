@@ -36,7 +36,7 @@ arcli nca -m 5000 --cs --cuit 20168598204 --ir-ri \
 
 ### Errores comunes
 
-- faltan `--apv` o `--ar` (`--acuit` es opcional: sin él, el asociado es tuyo)
+- falta `--ar` (`--apv` y `--acuit` son opcionales: sin ellos, el asociado es del punto de venta de la nota y tuyo; con `--acuit` de otro CUIT, `--apv` es obligatorio)
 - usar `--ac` y `--at` juntos
 - referenciar un comprobante de otra letra
 - en FCE, asociar una nota FCE sin `--anulacion`, o una ND FCE con `--anulacion` sobre la factura

@@ -8,6 +8,7 @@ import { advancedInputFields } from '../../modules/interactive/billing-optionals
 import { exportInvoiceChoice, invoiceKindChoices, reciboChoices } from '../../modules/interactive/choices';
 import {
   asksCopiedExempt,
+  copiedInvoiceNotice,
   copiedReceiverNotice,
   copyInvoiceAmounts,
   copyInvoiceReceiver,
@@ -182,6 +183,9 @@ export function repeatSteps(
         }
 
         const copy = copyInvoiceAmounts(original, voucherKind.letter);
+        const foreign = foreignCurrencyOf(original);
+
+        writeTerminalOutput(noticePanel(copiedInvoiceNotice(original, voucherKind), 'info'));
 
         if (copy.limitation) {
           writeTerminalOutput(
@@ -192,11 +196,12 @@ export function repeatSteps(
         return {
           advanced: {
             // El monto esta en la moneda del original: se repite en esa moneda y despues se pide la cotizacion.
-            currencyCode: foreignCurrencyOf(original) ?? DEFAULT_CURRENCY_CODE,
+            currencyCode: foreign ?? DEFAULT_CURRENCY_CODE,
             exchangeRate: undefined,
             exemptAmount: copy.exemptAmount,
             ivaRate: copy.ivaRate,
-            sameCurrency: false,
+            // "¿Cómo te pagan?" arranca en lo del original, como en la E.
+            sameCurrency: foreign !== undefined && original.sameCurrency === true,
             untaxedAmount: copy.untaxedAmount,
           },
           ...receiver,

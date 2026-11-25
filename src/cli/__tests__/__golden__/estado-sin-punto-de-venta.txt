@@ -23,6 +23,11 @@ exit: 0
     "aplicacion": "OK",
     "autenticacion": "OK",
     "baseDeDatos": "OK"
+  },
+  "servidoresExportacion": {
+    "aplicacion": "OK",
+    "autenticacion": "OK",
+    "baseDeDatos": "OK"
   }
 }
 

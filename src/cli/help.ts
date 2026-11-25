@@ -64,8 +64,8 @@ function createRules(scope: VoucherScope): string {
   if (scope.isNote) {
     rules.push(
       scope.isElectronicCredit
-        ? 'Asociado: la factura FCE con --ac o --at, --apv y --ar (la fecha sale de ARCA si falta --afecha); --acuit toma tu CUIT. Con --anulacion, anula un comprobante que rechazó el comprador: la NC asocia la factura o una ND FCE, y la ND una NC FCE.'
-        : 'Asociado: la factura, el recibo u otra nota de la misma letra con --ac o --at, --apv, --ar y --acuit, o un período con --periodo-desde y --periodo-hasta.',
+        ? 'Asociado: la factura FCE con --ac o --at y --ar, y --apv si es de otro punto de venta (la fecha sale de ARCA si falta --afecha); --acuit toma tu CUIT. Con --anulacion, anula un comprobante que rechazó el comprador: la NC asocia la factura o una ND FCE, y la ND una NC FCE.'
+        : 'Asociado: la factura, el recibo u otra nota de la misma letra con --ac o --at y --ar, más --apv si es de otro punto de venta y --acuit si es de otro CUIT, o un período con --periodo-desde y --periodo-hasta.',
     );
   } else if (scope.isElectronicCredit) {
     rules.push('FCE: necesita CBU (--cbu o la clave cuenta de la config); --transferencia es sca por defecto.');

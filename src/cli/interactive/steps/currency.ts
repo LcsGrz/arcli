@@ -209,7 +209,9 @@ export function currencySteps<S>(def: CurrencyStepsDef<S>): Array<WizardStep<S>>
           writeTerminalOutput(noticePanel(lock.reason, 'info'));
         }
 
-        const sameCurrency = await askPaymentCurrency(codeOf(state), previousOf(previous)?.sameCurrency);
+        // Lo respondido antes o, en "Repetir", lo del original.
+        const proposed = previousOf(previous)?.sameCurrency ?? (currency.get(state)?.sameCurrency || undefined);
+        const sameCurrency = await askPaymentCurrency(codeOf(state), proposed);
 
         return sameCurrency === BACK
           ? BACK

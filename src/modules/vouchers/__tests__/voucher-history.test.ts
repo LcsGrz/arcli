@@ -6,6 +6,7 @@ import {
   listRecentVouchers,
   listVouchersFrom,
   resolveDocumentType,
+  VoucherQueryError,
 } from '../voucher-history';
 
 function voucher(number: number): IssuedVoucher {
@@ -46,6 +47,34 @@ describe('listRecentVouchers', () => {
     );
 
     expect(sparse.map((item) => item.number)).toEqual([3, 1]);
+  });
+});
+
+describe('uno que existe y no se pudo leer (ARQ-22)', () => {
+  const failing = (existing?: { readonly cae: string; readonly number: number }) =>
+    new VoucherQueryError('mensaje', { errores: [] }, 'sugerencia', 'motivo', { existing });
+
+  it('va en su lugar, con los datos del error; el que no existe no va', async () => {
+    const getVoucher = async (number: number) => {
+      if (number === 3) throw failing({ cae: '75123456789012', number: 3 });
+
+      return number === 2 ? undefined : voucher(number);
+    };
+
+    expect(await listRecentVouchers({ getLastNumber: async () => 4, getVoucher }, 3, 6)).toEqual([
+      voucher(4),
+      { cae: '75123456789012', number: 3, unreadable: true },
+      voucher(1),
+    ]);
+  });
+
+  it('si no se sabe si existe, falla la lista', async () => {
+    const error = failing();
+
+    expect(error.exists).toBe(false);
+    await expect(
+      listRecentVouchers({ getLastNumber: async () => 1, getVoucher: () => Promise.reject(error) }, 3, 6),
+    ).rejects.toBe(error);
   });
 });
 

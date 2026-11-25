@@ -295,6 +295,158 @@ describe('repetir un comprobante', () => {
   });
 });
 
+describe('repetir: lo que se copia, como en la E (ARQ-22)', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  const notice = () => printed().replace(/[│┃╏║\s]+/g, ' ');
+  const payment = () => script.chooseStep.mock.calls.filter(([message]) => /Cómo te pagan/.test(message));
+
+  it('lo dice al elegir el comprobante', async () => {
+    script = createScript([
+      [/comprobante querés repetir/, 'Factura C'],
+      [/Cuál repetimos/, '00003-00000014'],
+      [/Mismo monto/, BACK],
+      [/Cuál repetimos/, BACK],
+      [/comprobante querés repetir/, BACK],
+    ]);
+
+    await repeat(createSession([invoice()]));
+
+    expect(notice()).toContain(
+      'Se copian el receptor (consumidor final), el concepto, la moneda y el monto. Las fechas son nuevas.',
+    );
+  });
+
+  it('con la alícuota, la moneda extranjera y sin el receptor que la letra no admite', async () => {
+    script = createScript([
+      [/comprobante querés repetir/, 'Factura A'],
+      [/Cuál repetimos/, '00003-00000014'],
+      [/CUIT del receptor/, BACK],
+      [/Cuál repetimos/, BACK],
+      [/comprobante querés repetir/, BACK],
+    ]);
+
+    await repeat(
+      createSession([
+        invoice({ currency: 'DOL', documentNumber: 20123456, documentTypeCode: 96, ivaAmount: 21, netAmount: 100 }),
+      ]),
+    );
+
+    expect(notice()).toContain(
+      'Se copian el concepto, la moneda, el monto y la alícuota. Las fechas y la cotización son nuevas.',
+    );
+  });
+
+  it.each<[string, Partial<IssuedVoucher>, string]>([
+    [
+      'sin concepto',
+      { concept: undefined },
+      'Se copian el receptor (consumidor final), la moneda, el monto y la alícuota.',
+    ],
+    [
+      'con exento y no gravado',
+      { exemptAmount: 10, ivaAmount: 21, netAmount: 100, untaxedAmount: 5 },
+      'el monto, la alícuota, el importe exento y el no gravado.',
+    ],
+    ['con no gravado', { ivaAmount: 21, netAmount: 100, untaxedAmount: 5 }, 'la alícuota y el importe no gravado.'],
+  ])('%s', async (_name, overrides, expected) => {
+    script = createScript([
+      [/comprobante querés repetir/, 'Factura B'],
+      [/Cuál repetimos/, '00003-00000014'],
+      [/Mismo monto/, BACK],
+      [/Cuál repetimos/, BACK],
+      [/comprobante querés repetir/, BACK],
+    ]);
+
+    await repeat(createSession([invoice(overrides)]));
+
+    expect(notice()).toContain(expected);
+  });
+
+  it('si no se puede reproducir el monto no dice que lo copia', async () => {
+    script = createScript([
+      [/comprobante querés repetir/, 'Factura C'],
+      [/Cuál repetimos/, '00003-00000014'],
+      [/Monto total/, BACK],
+      [/Cuál repetimos/, BACK],
+      [/comprobante querés repetir/, BACK],
+    ]);
+
+    await repeat(createSession([invoice({ taxesAmount: 10 })]));
+
+    expect(notice()).toContain('Se copian el receptor (consumidor final), el concepto y la moneda. Las fechas');
+    expect(notice()).toContain('tributos o percepciones');
+  });
+
+  it.each([
+    [true, 'moneda'],
+    [false, undefined],
+    [undefined, undefined],
+  ])('cómo te pagan arranca en lo del original (%s: %s)', async (sameCurrency, marked) => {
+    script = createScript([
+      [/comprobante querés repetir/, 'Factura C'],
+      [/Cuál repetimos/, '00003-00000014'],
+      [/Mismo monto/, 'Sí'],
+      [/Cómo te pagan/, 'En dólares'],
+      [/Período del servicio/, 'Un solo día'],
+      [/Agregamos/, []],
+    ]);
+
+    expect(await repeat(createSession([invoice({ currency: 'DOL', exchangeRate: 980, sameCurrency })]))).toMatchObject({
+      currencyCode: 'USD',
+      sameCurrency: true,
+    });
+    expect(payment().map((call) => call[2])).toEqual([marked]);
+  });
+
+  it('otra respuesta gana, y con otro comprobante arranca en lo de ese', async () => {
+    script = createScript([
+      [/comprobante querés repetir/, 'Factura C'],
+      [/Cuál repetimos/, '00003-00000014'],
+      [/Mismo monto/, 'Sí'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de USD/, BACK],
+      [/Cómo te pagan/, BACK],
+      [/Mismo monto/, BACK],
+      [/Cuál repetimos/, '00003-00000015'],
+      [/Mismo monto/, 'Sí'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de USD/, '1.200'],
+      [/Período del servicio/, 'Un solo día'],
+      [/Agregamos/, []],
+    ]);
+
+    const foreign = { currency: 'DOL', exchangeRate: 980, sameCurrency: true };
+
+    expect(await repeat(createSession([invoice(foreign), invoice({ ...foreign, number: 15 })]))).toMatchObject({
+      exchangeRate: 1200,
+      sameCurrency: false,
+    });
+    expect(payment().map((call) => call[2])).toEqual(['moneda', 'pesos', 'moneda']);
+  });
+
+  it('en pesos, un `sameCurrency` del original no va', async () => {
+    script = createScript([
+      [/comprobante querés repetir/, 'Factura C'],
+      [/Cuál repetimos/, '00003-00000014'],
+      [/Mismo monto/, 'Sí'],
+      [/Período del servicio/, 'Un solo día'],
+      [/Agregamos/, []],
+    ]);
+
+    expect(await repeat(createSession([invoice({ currency: 'PES', sameCurrency: true })]))).toMatchObject({
+      sameCurrency: false,
+    });
+  });
+});
+
 describe('runRepeatFlow', () => {
   beforeEach(() => {
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);

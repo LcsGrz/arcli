@@ -87,7 +87,7 @@ export function registerBillingOptions(command: Command): void {
     .option('--at <numero>', 'tipo ARCA del comprobante asociado', integerOption('--at'))
     .option(
       '--apv <numero>',
-      'punto de venta del comprobante asociado (alias: --asociado-punto-venta)',
+      'punto de venta del comprobante asociado; por defecto el de la nota (alias: --asociado-punto-venta)',
       integerOption('--apv'),
     )
     .option(

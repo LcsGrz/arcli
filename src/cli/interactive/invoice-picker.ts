@@ -3,14 +3,23 @@ import { Separator } from '@inquirer/core';
 import { asQuery } from '../../lib/errors/query-error';
 import { classifyAssociatedPointOfSale, describeQueryFailure } from '../../modules/billing/billing.associated-lookup';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
-import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/voucher-names';
+import {
+  formatNoVouchersEmitted,
+  formatVoucherSubject,
+  formatVoucherWithArticle,
+} from '../../modules/billing/voucher-names';
 import { resolveRowsPerList } from '../../modules/config/config.schemas';
 import { formatExportVoucherPickerRows } from '../../modules/export/export.history.presenter';
 import type { ExportGateway, ExportIssuedVoucher, ExportVoucherKind } from '../../modules/export/export.types';
 import type { OtherSystemInvoice } from '../../modules/interactive/note-input';
 import { validatePositiveInteger } from '../../modules/interactive/validators';
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { fetchVouchersBackwards, type IssuedVoucher, VoucherQueryError } from '../../modules/vouchers/voucher-history';
+import {
+  fetchVouchersBackwards,
+  type IssuedVoucher,
+  type UnreadableVoucher,
+  VoucherQueryError,
+} from '../../modules/vouchers/voucher-history';
 import { formatSkippedVouchers, formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
@@ -49,15 +58,19 @@ interface MissingVoucher<M> {
  * De donde salen los comprobantes de la lista: wsfe para A, B y C, wsfex para la E. Cada uno sabe pedir el ultimo
  * numero, pedir uno y armar las filas. `M` es lo que se devuelve si un comprobante que no existe igual sirve.
  */
-interface VoucherSource<T extends { readonly number: number }, M = never> {
+interface VoucherSource<T extends { readonly number: number; readonly unreadable?: undefined }, M = never> {
   getLastNumber(pointOfSale: number): Promise<number>;
   getVoucher(number: number, pointOfSale: number): Promise<T | null | undefined>;
   formatRows(pointOfSale: number, vouchers: readonly T[], separator: string, width: number): string[];
   /**
    * Si el comprobante ingresado a mano no existe y hay algo mas que decir que "No existe", o igual sirve. Con
-   * `queryReason`, ARCA contesto con un error (ese es el motivo) y no se sabe si existe: sin respuesta, se muestra ese error.
+   * `queryError`, ARCA contesto con un error o existe y no se pudo leer (`exists`): sin respuesta, se muestra ese error.
    */
-  describeMissing?(pointOfSale: number, number: number, queryReason?: string): Promise<MissingVoucher<M> | undefined>;
+  describeMissing?(
+    pointOfSale: number,
+    number: number,
+    queryError?: VoucherQueryError,
+  ): Promise<MissingVoucher<M> | undefined>;
 }
 
 /** Solo el nombre y la familia: tambien la E, que no es un VoucherKindDefinition. */
@@ -149,7 +162,7 @@ export async function orShowQueryError<T>(search: () => Promise<T>): Promise<T |
  * Pide punto de venta y numero, y lo busca en ARCA. Volver, un comprobante inexistente o un error de ARCA vuelven a la
  * lista, salvo que la fuente acepte el inexistente igual (`describeMissing`).
  */
-async function askVoucherByNumber<T extends { readonly number: number }, M>(
+async function askVoucherByNumber<T extends { readonly number: number; readonly unreadable?: undefined }, M>(
   source: VoucherSource<T, M>,
   voucherKind: PickerVoucherKind,
   defaultPointOfSale: number,
@@ -173,9 +186,7 @@ async function askVoucherByNumber<T extends { readonly number: number }, M>(
         };
       } catch (error) {
         const missing =
-          error instanceof VoucherQueryError
-            ? await source.describeMissing?.(pointOfSale, number, error.reason)
-            : undefined;
+          error instanceof VoucherQueryError ? await source.describeMissing?.(pointOfSale, number, error) : undefined;
 
         if (!missing) {
           throw error;
@@ -252,7 +263,14 @@ export async function pickNoteInvoice(
 
   return pickVoucher(session, options, {
     ...invoiceSource(session, voucherKind),
-    describeMissing: async (pointOfSale: number, number: number, queryReason?: string) => {
+    describeMissing: async (pointOfSale: number, number: number, queryError?: VoucherQueryError) => {
+      if (queryError?.exists) {
+        return {
+          notice: `${formatVoucherSubject(voucherKind)} ${formatVoucherNumber(pointOfSale, number)} existe en ARCA, pero ARCLI no pudo leer sus datos para copiarlos. Elegí otro comprobante o emití la nota con un comando.`,
+        };
+      }
+
+      const queryReason = queryError?.reason;
       const origin = await classifyAssociatedPointOfSale({
         history: session.historyGateway,
         pointOfSale,
@@ -307,7 +325,7 @@ export async function pickExportVoucher(
  * Elegir un comprobante emitido: los ultimos del punto de venta configurado, con opciones para cargar mas
  * o ingresar el numero a mano (por ejemplo, uno viejo o de otro punto de venta).
  */
-async function pickVoucher<T extends { readonly number: number }, M = never>(
+async function pickVoucher<T extends { readonly number: number; readonly unreadable?: undefined }, M = never>(
   session: InteractiveSession,
   options: PickVoucherOptions<T>,
   source: VoucherSource<T, M>,
@@ -316,20 +334,24 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
   // Comprobantes por tanda: los primeros y cada "cargar mas".
   const pageSize = resolveRowsPerList(session.runtime.config);
   // Los que cada tanda salteo porque existen y no se pudieron leer: se avisan si la tanda se muestra.
-  const skippedIn = new WeakMap<T[], readonly number[]>();
+  const skippedIn = new WeakMap<T[], readonly UnreadableVoucher[]>();
   let skippedAny = false;
   const listFrom = async (fromNumber: number): Promise<T[]> => {
-    const skipped: number[] = [];
-    const batch = await fetchVouchersBackwards(
+    const listed = await fetchVouchersBackwards(
       fromNumber,
       (number) => asQuery(() => source.getVoucher(number, pointOfSale)),
       {
         limit: pageSize,
-        onSkip: (number) => skipped.push(number),
       },
     );
 
-    skippedIn.set(batch, skipped);
+    // Los que no se pudieron leer no se pueden elegir.
+    const batch = listed.filter((voucher): voucher is T => !voucher.unreadable);
+
+    skippedIn.set(
+      batch,
+      listed.filter((voucher): voucher is UnreadableVoucher => voucher.unreadable === true),
+    );
 
     return batch;
   };

@@ -637,3 +637,36 @@ describe('cruces que quedan así (decidido)', () => {
     expect(() => buildRequest(written, 'fb')).toThrow('El concepto "productos" no usa fechas de servicio.');
   });
 });
+
+describe('el punto de venta del asociado sin `--apv` (ARQ-22)', () => {
+  const config = { puntoVentaPorDefecto: 7 };
+  const associated = { atajo: 'fc', numero: 5 };
+
+  it('en un lote, cada nota toma el suyo: el del comprobante o el de la config', () => {
+    const item = (extra: Json = {}) => ({
+      comprobanteAsociado: associated,
+      concepto: 'servicios',
+      montoTotal: 10,
+      tipoDocumento: 'consumidor-final',
+      ...extra,
+    });
+    const json = [
+      item({ puntoVenta: 2 }),
+      item(),
+      item({ comprobanteAsociado: { ...associated, puntoVenta: 9 }, puntoVenta: 4 }),
+    ];
+    const points = (args: readonly string[]) =>
+      billingPlan({ args, config, json }, 'ncc').inputs.map(({ associatedVoucher }) => associatedVoucher?.puntoVenta);
+
+    expect(points([])).toEqual([2, 7, 9]);
+    expect(points(['--pv', '3'])).toEqual([3, 3, 9]);
+    expect(points(['--apv', '1'])).toEqual([1, 1, 1]);
+  });
+
+  it('un `--pv` inválido da un solo error, el suyo', () => {
+    const args = ['--cs', '-m', '10', '--cfinal', '--ac', 'fc', '--ar', '5', '--pv', '99999'];
+
+    expect(() => billingInput({ args, config }, 'ncc')).toThrow(/10004/);
+    expect(() => billingInput({ args, config }, 'ncc')).not.toThrow(/10058/);
+  });
+});

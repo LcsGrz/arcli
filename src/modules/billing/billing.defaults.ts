@@ -12,6 +12,10 @@ export interface BillingDefaults {
   readonly defaultCurrencyCode?: string;
   readonly defaultEmit?: boolean;
   readonly defaultExchangeRate?: number;
+  /** El punto de venta de la config: el de la nota es el de su asociado propio. */
+  readonly defaultPointOfSale?: number;
+  /** El CUIT emisor, para saber si un asociado es propio. */
+  readonly emitterCuit?: number;
   readonly defaultIvaCondition?: BillingCommandInput['ivaCondition'];
   /** Con un CUIT y sin IVA receptor explicito, se va a consultar el padron: no hace falta un default. */
   readonly lookupIvaConditionInPadron?: boolean;
@@ -55,6 +59,8 @@ export function billingDefaultsFromConfig(config: ArcliConfig): BillingDefaults 
     defaultConcept: config.conceptoPorDefecto,
     defaultEmit: config.output.emitirPorDefecto,
     defaultIvaCondition: config.ivaReceptorPorDefecto,
+    defaultPointOfSale: config.puntoVentaPorDefecto,
+    emitterCuit: config.cuit === undefined ? undefined : Number(config.cuit),
     lookupIvaConditionInPadron: isPadronLookupEnabled(config),
   };
 }

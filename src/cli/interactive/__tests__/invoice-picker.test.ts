@@ -111,6 +111,22 @@ function failQueryOf(session: InteractiveSession, failing: number, { code = 600,
   });
 }
 
+/** El gateway real con un comprobante que tiene número y CAE, y no tiene fecha (ARQ-22). */
+function makeUnreadable(session: InteractiveSession, broken: number): void {
+  const real = new ArcaVoucherHistoryGateway({
+    genericService: {
+      call: async () => ({
+        FECompConsultarResult: { ResultGet: { CbteDesde: broken, CodAutorizacion: '86400940834693' } },
+      }),
+    },
+  } as unknown as ArcaClient);
+  const find = vi.mocked(session.historyGateway.getVoucher).getMockImplementation()!;
+
+  vi.mocked(session.historyGateway.getVoucher).mockImplementation(async (number, pointOfSale, voucherType) =>
+    number === broken ? real.getVoucher(number, pointOfSale, voucherType) : find(number, pointOfSale, voucherType),
+  );
+}
+
 const FC = getVoucherKindByShortcut('fc')!;
 const options = { message: '¿Cuál?', pointOfSale: 3, voucherKind: FC };
 
@@ -770,4 +786,51 @@ describe('pickNoteInvoice', () => {
 
 it('el aviso de un PV de otro sistema lo nombra', () => {
   expect(missingNonWebServiceInvoiceNotice(FC, 50, 15, 'other')).toContain('el punto de venta 50 no es de web service');
+});
+
+describe('una A, B o C que existe y no se puede leer (ARQ-22)', () => {
+  it('la lista la saltea con un aviso; a mano, dice que existe', async () => {
+    const session = createSession([invoice(2), invoice(3)]);
+
+    makeUnreadable(session, 2);
+    script = createScript([
+      [/Cuál/, 'Ingresar el número a mano'],
+      [/Punto de venta/, '3'],
+      [/Número/, '2'],
+      [/Cuál/, '00003-00000003'],
+    ]);
+
+    expect(await pickInvoice(session, options)).toMatchObject({ invoice: { number: 3 } });
+    expect(stripAnsi(output).replace(/[│┃╏║\s]+/g, ' ')).toContain(
+      'No se muestra 1 comprobante, porque ARCLI no pudo leer sus datos: 00003-00000002.',
+    );
+    expect(shownErrors()).toContain('00003-00000002 existe, con el CAE');
+  });
+});
+
+describe('una nota sobre una A, B o C que existe y no se puede leer (ARQ-22)', () => {
+  it('no la toma como de otro sistema ni habla de emitir, y vuelve a la lista', async () => {
+    const session = createSession([invoice(2), invoice(3)]);
+
+    makeUnreadable(session, 2);
+    // El punto de venta no figura como de web service.
+    getSalesPoints.mockResolvedValueOnce([{ blocked: false, number: 99 }]);
+    script = createScript([
+      [/Cuál/, 'Ingresar el número a mano'],
+      [/Punto de venta/, '3'],
+      [/Número/, '2'],
+      [/Cuál/, '00003-00000003'],
+    ]);
+
+    expect(await pickNoteInvoice(session, options)).toMatchObject({ invoice: { number: 3 } });
+
+    const shown = stripAnsi(output).replace(/[│┃╏║\s]+/g, ' ');
+
+    expect(shown).toContain(
+      'La factura C 00003-00000002 existe en ARCA, pero ARCLI no pudo leer sus datos para copiarlos. Elegí otro comprobante o emití la nota con un comando.',
+    );
+    expect(errors).toBe('');
+    expect(shown).not.toContain('Comprobantes en línea');
+    getSalesPoints.mockReset();
+  });
 });
