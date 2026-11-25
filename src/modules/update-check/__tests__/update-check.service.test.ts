@@ -115,6 +115,9 @@ describe('isNewerVersion', () => {
     ['2.5.3', '2.5.2', true],
     ['2.5.2', '2.5.3', false],
     ['2.5.2', '2.5.2', false],
+    ['3.0.1', '3.0.0', true],
+    ['2.6.0', '2.6.1', false],
+    ['2.6.10', '2.6.9', true],
   ])('%s contra la instalada %s: %s', (latest, current, expected) => {
     expect(isNewerVersion(latest, current)).toBe(expected);
   });
@@ -203,6 +206,45 @@ describe('checkForUpdate: cancelada', () => {
     expect(await cancelled(cwd)).toEqual({ currentVersion: '0.1.0', latestVersion: '0.2.0' });
     expect(cached(cwd)).toEqual(before);
     expect(await cancelled(cwd, '0.2.0')).toBeNull();
+  });
+
+  it('corta el pedido en curso, sin esperar su tope', async () => {
+    const controller = new AbortController();
+    let received: AbortSignal | undefined;
+    const result = checkForUpdate('0.1.0', {
+      cwd: createCwd(),
+      request: async (url, { signal }) => {
+        expect(url).toBe('https://registry.npmjs.org/arcli/latest');
+        received = signal;
+
+        return new Promise((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(new Error('cortado')));
+        });
+      },
+      signal: controller.signal,
+    });
+
+    expect(received?.aborted).toBe(false);
+    controller.abort();
+    expect(received?.aborted).toBe(true);
+    expect(await result).toBeNull();
+  });
+
+  it('cancelar después de la respuesta no toca ese pedido', async () => {
+    const controller = new AbortController();
+    let received: AbortSignal | undefined;
+
+    await checkForUpdate('0.1.0', {
+      cwd: createCwd(),
+      request: async (_url, { signal }) => {
+        received = signal;
+
+        return { json: async () => ({ version: '0.2.0' }), ok: true };
+      },
+      signal: controller.signal,
+    });
+    controller.abort();
+    expect(received?.aborted).toBe(false);
   });
 
   it('una falla de npm se anota igual que siempre, también si después se cancela', async () => {

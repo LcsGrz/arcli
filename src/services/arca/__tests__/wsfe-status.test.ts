@@ -33,11 +33,18 @@ describe('fetchWsfeServerStatus', () => {
       db: 'D',
     });
 
-    const [calledUrl, xml, , , options] = http.request.mock.calls[0] as unknown as [string, string, 0, 0, object];
+    const [calledUrl, xml, , headers, options] = http.request.mock.calls[0] as unknown as [
+      string,
+      string,
+      0,
+      Record<string, string>,
+      object,
+    ];
 
     expect(calledUrl).toBe(url);
     expect(xml).toContain('FEDummy');
     expect(xml).not.toMatch(/Token|Cuit/);
+    expect(headers['Content-Type']).toContain('application/soap+xml');
     expect(options).toMatchObject({ signal });
   });
 
