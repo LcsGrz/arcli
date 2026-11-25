@@ -180,16 +180,18 @@ describe('generatePdfs al cortar', () => {
     expect(exported).toHaveBeenCalledTimes(2);
   });
 
-  it('tampoco espera a que se cargue el plugin', async () => {
+  it('mientras se carga el plugin: espera a que se corte, y el error es el del corte', async () => {
     const controller = new AbortController();
     const outcomes = generatePdfs({
       config: CONFIG,
-      loadExporter: never,
+      loadExporter: async () => {
+        controller.abort();
+
+        throw new Error('npm no pudo instalar');
+      },
       signal: controller.signal,
       vouchers: VOUCHERS,
     });
-
-    controller.abort();
 
     expect(await outcomes).toEqual([CUT, CUT, CUT]);
   });

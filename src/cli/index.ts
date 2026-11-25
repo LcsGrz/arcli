@@ -7,7 +7,7 @@ import { checkForUpdate } from '../modules/update-check/update-check.service';
 import { requestNpmRegistry } from '../services/npm/npm-registry';
 import { writeTerminalError } from '../ui';
 
-import { settleOutput, watchOutputs } from './closed-output';
+import { isOutputLost, settleOutput, watchOutputs } from './closed-output';
 import { isInteractiveTerminal } from './commands/interactive.command';
 import { isSilentExit, reportCliError, reportOutputFailure, shouldPrintErrorAsJson } from './error-output';
 import { normalizeHelpArgv } from './help-argv';
@@ -46,7 +46,7 @@ program
   .parseAsync(argv)
   .finally(() => updateCheck.abort())
   .then(async () => {
-    await finishCut(reportLostOutput, exitIfWritten);
+    await finishCut(reportLostOutput, () => exitWhenWritten());
 
     const updateResult = await updateCheckPromise;
 
@@ -72,7 +72,7 @@ program
 
     process.exitCode = reportCliError(error, shouldPrintErrorsAsJson(), outputFailures);
     // Cortado por una señal no hay `beforeExit`.
-    await finishCut(reportLostOutput, exitIfWritten);
+    await finishCut(reportLostOutput, () => exitWhenWritten());
   });
 
 function reportLostOutput(): void {
@@ -87,12 +87,24 @@ function reportLostOutput(): void {
   }
 }
 
-/** El plugin de PDF abandonado no suelta lo suyo. Puppeteer cierra el navegador al salir. */
-function exitIfWritten(): void {
-  if (process.stdout.writableLength === 0 && process.stderr.writableLength === 0) {
-    reportLostOutput();
-    process.exit();
+const PENDING_OUTPUT_STEP_MS = 200;
+/** Un lector que nunca lee no puede dejar vivo el navegador del plugin. */
+const PENDING_OUTPUT_TIMEOUT_MS = 30_000;
+
+/** Se abandono un PDF: Puppeteer cierra el navegador al salir. Antes se espera a quien lee la salida. */
+function exitWhenWritten(deadline = performance.now() + PENDING_OUTPUT_TIMEOUT_MS): void {
+  const isPending = (['stdout', 'stderr'] as const).some(
+    (output) => process[output].writableLength > 0 && !isOutputLost(output),
+  );
+
+  if (isPending && performance.now() < deadline) {
+    setTimeout(() => exitWhenWritten(deadline), PENDING_OUTPUT_STEP_MS).unref();
+
+    return;
   }
+
+  reportLostOutput();
+  process.exit();
 }
 
 // Recien aca no queda ninguna escritura pendiente: todo error de las salidas ya se sabe.

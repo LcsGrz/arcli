@@ -176,13 +176,24 @@ export async function confirmPdfs(
   return answerPdfDecisions(decisions, accepted);
 }
 
-/** Al cortar se detiene antes de que se escriba nada. */
-function startPdfSpinner(text: string, deps: PdfStepDependencies): ReturnType<typeof startSpinner> {
+/** Gira mientras dura `run`; al cortar se detiene enseguida, antes de que se escriba nada. */
+async function withPdfSpinner<T>(
+  text: string,
+  deps: PdfStepDependencies,
+  run: (spinner: ReturnType<typeof startSpinner>) => Promise<T>,
+): Promise<T> {
   const spinner = startSpinner(text);
+  const signal = deps.interruption?.signal;
+  const stop = () => spinner?.stop();
 
-  deps.interruption?.signal.addEventListener('abort', () => spinner?.stop(), { once: true });
+  signal?.addEventListener('abort', stop, { once: true });
 
-  return spinner;
+  try {
+    return await run(spinner);
+  } finally {
+    signal?.removeEventListener('abort', stop);
+    stop();
+  }
 }
 
 /** Si falta el plugin, en una terminal se ofrece instalarlo; sin terminal nunca se descarga solo. */
@@ -204,38 +215,24 @@ async function loadPdfRenderer(
       });
     }
 
-    const spinner = startPdfSpinner('Instalando el plugin de PDF...', deps);
-
-    try {
-      await plugin.install((message) => {
+    await withPdfSpinner('Instalando el plugin de PDF...', deps, (spinner) =>
+      plugin.install((message) => {
         if (spinner) {
           spinner.text = message;
         }
-      }, deps.interruption?.signal);
-    } finally {
-      spinner?.stop();
-    }
+      }, deps.interruption?.signal),
+    );
 
     if (deps.interruption?.signal.aborted) {
       throw interruptedPdfError();
     }
   }
 
-  return plugin.load(deps.interruption?.signal);
+  return plugin.load();
 }
 
 function withSpinner(exporter: PdfExporter, deps: PdfStepDependencies): PdfExporter {
-  return {
-    export: async (...args) => {
-      const spinner = startPdfSpinner('Generando PDF...', deps);
-
-      try {
-        return await exporter.export(...args);
-      } finally {
-        spinner?.stop();
-      }
-    },
-  };
+  return { export: (...args) => withPdfSpinner('Generando PDF...', deps, () => exporter.export(...args)) };
 }
 
 /** El plugin cargado, con la carpeta de la config: el exportador que usa `generatePdfs`, con un spinner por PDF. */

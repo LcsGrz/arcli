@@ -150,8 +150,8 @@ function fakeArca([method, call]: RunOptions['hold']): string {
 
 /**
  * Un plugin falso con lo que hace el de verdad (puppeteer 25) con las señales: abre un navegador (acá, un Node que no
- * hace nada) en otro grupo de procesos, con SIGINT lo cierra y sale con 130, con SIGTERM y al salir lo cierra, y si
- * abortan `signal` también. Se demora al abrirlo (`navegador`), al generar (`pdf`) o no termina nunca (`colgado`).
+ * hace nada) en otro grupo de procesos, con SIGINT lo cierra y sale con 130, y con SIGTERM y al salir lo cierra, lo
+ * abran con las opciones que lo abran. Es otra instancia, la del SDK, y no se le puede reemplazar nada. Se demora al abrirlo (`navegador`), al generar (`pdf`) o no termina nunca (`colgado`).
  */
 function writePdfPlugin([step, call]: RunOptions['hold']): void {
   const modules = join(directory, 'plugins', 'pdf', 'node_modules');
@@ -162,37 +162,34 @@ function writePdfPlugin([step, call]: RunOptions['hold']): void {
   };
 
   write(
-    'puppeteer',
+    '@arcasdk/pdf/node_modules/puppeteer',
     '25.0.2',
     `const { spawn } = require('node:child_process');
      const { appendFileSync, existsSync, writeFileSync } = require('node:fs');
      const { setTimeout } = require('node:timers/promises');
      let calls = 0;
-     exports.hold = async (name) => {
+     const hold = async (name) => {
        if (name !== ${JSON.stringify(step)} || (calls += 1) !== ${call}) return;
        writeFileSync(${JSON.stringify(file('llego'))}, '');
        while (!existsSync(${JSON.stringify(file('seguir'))})) await setTimeout(10);
      };
-     exports.default = {
-       launch: async ({ handleSIGINT = true, handleSIGTERM = true, signal }) => {
+     module.exports = Object.freeze({ hold, default: Object.freeze({
+       launch: async () => {
          const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true, stdio: 'ignore' });
          appendFileSync(${JSON.stringify(file('navegadores.txt'))}, child.pid + '\\n');
          const kill = () => { try { process.kill(-child.pid, 'SIGKILL'); } catch {} };
          const onSigint = () => { kill(); process.exit(130); };
          process.on('exit', kill);
-         if (handleSIGINT) process.on('SIGINT', onSigint);
-         if (handleSIGTERM) process.on('SIGTERM', kill);
-         signal?.addEventListener('abort', kill, { once: true });
-         if (signal?.aborted) kill();
+         process.on('SIGINT', onSigint).on('SIGTERM', kill);
          const died = new Promise((_resolve, reject) => child.once('exit', () => {
            process.off('exit', kill).off('SIGINT', onSigint).off('SIGTERM', kill);
            reject(new Error('se cerró el navegador'));
          }));
          died.catch(() => {});
-         await Promise.race([died, exports.hold('navegador')]);
+         await Promise.race([died, hold('navegador')]);
          return { close: () => { kill(); return died.catch(() => {}); }, died };
        },
-     };`,
+     }) });`,
   );
   write(
     '@arcasdk/pdf',
@@ -593,7 +590,7 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
 
     expect(JSON.parse(result.stdout)).toMatchObject({ cae: '75123456789012', pdf: CUT });
     expect(result).toMatchObject({ code: 0, killed: false, signal: null, stderr: '' });
-    expect(aliveBrowsers()).toEqual([]);
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
   });
 
   it('en texto: el CAE, el aviso y el cursor', async () => {
@@ -617,7 +614,7 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
     expect(items).toMatchObject([{ pdf: { ruta: expect.any(String) } }, { pdf: CUT }, { pdf: CUT }]);
     expect(existsSync(items[0].pdf.ruta ?? '')).toBe(true);
     expect(result).toMatchObject({ code: 0, killed: false, signal: null, stderr: '' });
-    expect(aliveBrowsers()).toEqual([]);
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
   });
 
   it('dos señales casi juntas son una: exit 0', async () => {
@@ -635,8 +632,8 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
     const result = await run([...INVOICE, '--pdf', '--json'], { hold: ['pdf', 1], npx: true, signals: ['SIGINT'] });
 
     expect(JSON.parse(result.stdout)).toMatchObject({ cae: '75123456789012', pdf: CUT });
-    expect(result.killed).toBe(false);
-    expect(aliveBrowsers()).toEqual([]);
+    expect(result).toMatchObject({ code: 0, killed: false, signal: null });
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
   });
 
   it('con el plugin colgado: el CAE, exit 0 y sin navegadores', async () => {
@@ -644,14 +641,44 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
 
     expect(JSON.parse(result.stdout)).toMatchObject({ cae: '75123456789012', pdf: CUT });
     expect(result).toMatchObject({ code: 0, killed: false, signal: null });
-    expect(aliveBrowsers()).toEqual([]);
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
+  });
+
+  /** Con 200, más de lo que entra en un pipe: queda sin escribir hasta que alguien lea. */
+  const resizeBatch = (count: number): void => {
+    const [item] = JSON.parse(readFileSync(file('lote.json'), 'utf8')) as unknown[];
+
+    writeFileSync(file('lote.json'), JSON.stringify(Array.from({ length: count }, () => item)));
+  };
+
+  it('con el plugin colgado, un lote grande y quien lee stdout después de dos segundos: completo y exit 0', async () => {
+    resizeBatch(200);
+
+    const result = await run([...batch(), '--pdf', '--json'], {
+      hold: ['colgado', 1],
+      lateReader: true,
+      signalMs: 3000,
+      signals: ['SIGINT'],
+    });
+
+    expect(result.stdout.length).toBeGreaterThan(65_536);
+    expect(JSON.parse(result.stdout)).toHaveLength(200);
+    expect(result).toMatchObject({ code: 0, killed: false, signal: null, stderr: '' });
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
+  });
+
+  it('un lote de 20 PDF: todos, sin avisos en stderr', async () => {
+    resizeBatch(20);
+
+    const result = await run([...batch(), '--pdf', '--json'], { answers: true, hold: ['pdf', 20], signals: [] });
+    const items = JSON.parse(result.stdout) as Array<{ pdf: { ruta?: string } }>;
+
+    expect(items.filter(({ pdf }) => pdf.ruta)).toHaveLength(20);
+    expect(result).toMatchObject({ code: 0, stderr: '' });
   });
 
   it('con quien lee stdout lento y otra señal después: el documento completo', async () => {
-    const [item] = JSON.parse(readFileSync(file('lote.json'), 'utf8')) as unknown[];
-
-    // Más de lo que entra en un pipe: queda sin escribir hasta que alguien lea.
-    writeFileSync(file('lote.json'), JSON.stringify(Array.from({ length: 200 }, () => item)));
+    resizeBatch(200);
 
     const result = await run([...batch(), '--pdf', '--json'], {
       hold: ['pdf', 1],
@@ -663,7 +690,7 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
     expect(JSON.parse(result.stdout)).toHaveLength(200);
     expect(cutBySignal(result)).toBe(true);
     expect(result.killed).toBe(false);
-    expect(aliveBrowsers()).toEqual([]);
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
   });
 
   it('con stdout cerrado: termina con 0 y sin navegadores', async () => {
@@ -673,9 +700,8 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
       signals: ['SIGINT'],
     });
 
-    expect(result).toMatchObject({ killed: false, signal: null });
-    expect(result.code).not.toBe(130);
-    expect(aliveBrowsers()).toEqual([]);
+    expect(result).toMatchObject({ code: 0, killed: false, signal: null });
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
   });
 
   it('sin señal: la ruta, y el navegador cerrado', async () => {
@@ -683,7 +709,7 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
 
     expect(JSON.parse(result.stdout)).toMatchObject({ cae: '75123456789012', pdf: { ruta: expect.any(String) } });
     expect(result).toMatchObject({ code: 0, stderr: '' });
-    expect(aliveBrowsers()).toEqual([]);
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
   });
 
   it('la E sin PDF: el CAE', async () => {

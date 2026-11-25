@@ -42,7 +42,7 @@ export type ProcessRunner = (
   options: {
     readonly cwd: string;
     readonly env: NodeJS.ProcessEnv;
-    /** Al abortarse, lo corta como al pasar `timeoutMs`. */
+    /** Al abortarse, lo corta y espera a que termine, hasta `STOP_TIMEOUT_MS`. */
     readonly signal?: AbortSignal;
     readonly timeoutMs: number;
   },
@@ -67,37 +67,6 @@ interface InvoicePdfGeneratorModule {
   };
 }
 
-/** Lo que se usa de Puppeteer, que abre el SDK con `puppeteer.launch({ headless: true })`. */
-interface Puppeteer {
-  launch: (options?: Record<string, unknown>) => Promise<unknown>;
-}
-
-/** El mismo Puppeteer que carga el SDK. Si no se encuentra, el PDF se genera igual, sin atarlo a las señales. */
-function loadPuppeteer(sdkPath: string): Puppeteer | undefined {
-  try {
-    return (createRequire(sdkPath)('puppeteer') as { readonly default?: Puppeteer }).default;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Corre `generate` con el navegador atado a `signal`: abortarla lo cierra. Puppeteer escucha SIGINT y SIGTERM por su
- * cuenta y con SIGINT sale del proceso (130): aca no, porque quien aborta todavia tiene que escribir el comprobante
- * emitido. El SDK no deja pasar opciones, asi que se reemplaza `launch` mientras dura: el CLI genera de a uno (API-1).
- */
-async function withBrowserTiedTo<T>(puppeteer: Puppeteer, signal: AbortSignal, generate: () => Promise<T>): Promise<T> {
-  const { launch } = puppeteer;
-
-  puppeteer.launch = (options) => launch({ ...options, handleSIGINT: false, handleSIGTERM: false, signal });
-
-  try {
-    return await generate();
-  } finally {
-    puppeteer.launch = launch;
-  }
-}
-
 export interface PdfPluginOptions {
   /** Ruta de `pdfNavegador` en la config. */
   readonly configuredBrowser?: string;
@@ -108,6 +77,9 @@ export interface PdfPluginOptions {
   readonly runProcess?: ProcessRunner;
 }
 
+/** Cuanto se espera a que un proceso cortado por `signal` termine por las suyas. */
+const STOP_TIMEOUT_MS = 2_000;
+
 /** @internal Exportado para los tests. */
 export const runProcessWithSpawn: ProcessRunner = (command, args, options) =>
   new Promise((resolve) => {
@@ -116,18 +88,23 @@ export const runProcessWithSpawn: ProcessRunner = (command, args, options) =>
     const shell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(command);
     const child = spawn(command, args, { cwd: options.cwd, env: options.env, shell });
     let output = '';
-    const stop = (timedOut: boolean) => {
-      child.kill();
+    let stopTimer: NodeJS.Timeout | undefined;
+    const stop = (timedOut: boolean, signal?: NodeJS.Signals) => {
+      child.kill(signal);
       // Con shell, el kill no llega a los nietos y sus pipes mantendrian vivo el proceso: se sueltan.
       child.stdout.destroy();
       child.stderr.destroy();
       child.unref();
       finish({ code: null, output, timedOut });
     };
-    const onAbort = () => stop(false);
+    const onAbort = () => {
+      child.kill();
+      stopTimer = setTimeout(() => stop(false, 'SIGKILL'), STOP_TIMEOUT_MS);
+    };
     const timer = setTimeout(() => stop(true), options.timeoutMs);
     const finish = (result: ProcessResult) => {
       clearTimeout(timer);
+      clearTimeout(stopTimer);
       options.signal?.removeEventListener('abort', onAbort);
       resolve(result);
     };
@@ -152,6 +129,8 @@ function lastLines(output: string, count = 5): string {
   return output.trim().split('\n').slice(-count).join('\n');
 }
 
+const incompleteMark = (target: string): string => `${target}.incompleto`;
+
 export class PdfPlugin {
   private readonly env: NodeJS.ProcessEnv;
   private readonly findSystemBrowser: () => string | undefined;
@@ -167,10 +146,38 @@ export class PdfPlugin {
     return join(this.options.path, 'browsers');
   }
 
-  private readInstalledVersion(): string | undefined {
-    const manifest = join(this.options.path, 'node_modules', ...PDF_PLUGIN_PACKAGE.split('/'), 'package.json');
+  private get modulesPath(): string {
+    return join(this.options.path, 'node_modules');
+  }
 
-    if (!existsSync(manifest)) {
+  private isIncomplete(target: string): boolean {
+    return existsSync(incompleteMark(target));
+  }
+
+  /**
+   * Deja `target` marcado hasta que `run` termina bien: cortado a la mitad (una señal, el plazo, la luz) no pasa por
+   * instalado, y la proxima vez empieza de cero.
+   */
+  private async fill(target: string, run: () => Promise<ProcessResult>): Promise<ProcessResult> {
+    if (this.isIncomplete(target)) {
+      rmSync(target, { force: true, recursive: true });
+    }
+
+    writeFileSync(incompleteMark(target), '');
+
+    const result = await run();
+
+    if (result.code === 0) {
+      rmSync(incompleteMark(target), { force: true });
+    }
+
+    return result;
+  }
+
+  private readInstalledVersion(): string | undefined {
+    const manifest = join(this.modulesPath, ...PDF_PLUGIN_PACKAGE.split('/'), 'package.json');
+
+    if (!existsSync(manifest) || this.isIncomplete(this.modulesPath)) {
       return undefined;
     }
 
@@ -195,7 +202,7 @@ export class PdfPlugin {
 
     const downloaded = findDownloadedBrowser(this.browsersPath);
 
-    return downloaded ? { path: downloaded, source: 'descargado' } : undefined;
+    return downloaded && !this.isIncomplete(this.browsersPath) ? { path: downloaded, source: 'descargado' } : undefined;
   }
 
   public getStatus(): PdfPluginStatus {
@@ -230,18 +237,20 @@ export class PdfPlugin {
 
       // --ignore-scripts: npm 12 ya los bloquea; asi se comporta igual con cualquier version y el navegador lo
       // resolvemos nosotros.
-      const result = await this.runProcess(
-        process.platform === 'win32' ? 'npm.cmd' : 'npm',
-        [
-          'install',
-          `${PDF_PLUGIN_PACKAGE}@${PDF_PLUGIN_VERSION}`,
-          '--omit=dev',
-          '--ignore-scripts',
-          '--no-audit',
-          '--no-fund',
-          '--save-exact',
-        ],
-        { cwd: this.options.path, env: this.env, signal, timeoutMs: NPM_INSTALL_TIMEOUT_MS },
+      const result = await this.fill(this.modulesPath, () =>
+        this.runProcess(
+          process.platform === 'win32' ? 'npm.cmd' : 'npm',
+          [
+            'install',
+            `${PDF_PLUGIN_PACKAGE}@${PDF_PLUGIN_VERSION}`,
+            '--omit=dev',
+            '--ignore-scripts',
+            '--no-audit',
+            '--no-fund',
+            '--save-exact',
+          ],
+          { cwd: this.options.path, env: this.env, signal, timeoutMs: NPM_INSTALL_TIMEOUT_MS },
+        ),
       );
 
       if (result.code !== 0) {
@@ -261,15 +270,13 @@ export class PdfPlugin {
 
       const require = createRequire(join(this.options.path, 'package.json'));
       const puppeteerCli = join(require.resolve('puppeteer/package.json'), '..', 'lib', 'puppeteer', 'node', 'cli.js');
-      const result = await this.runProcess(
-        process.execPath,
-        [puppeteerCli, 'browsers', 'install', 'chrome-headless-shell'],
-        {
+      const result = await this.fill(this.browsersPath, () =>
+        this.runProcess(process.execPath, [puppeteerCli, 'browsers', 'install', 'chrome-headless-shell'], {
           cwd: this.options.path,
           env: { ...this.env, PUPPETEER_CACHE_DIR: this.browsersPath },
           signal,
           timeoutMs: BROWSER_DOWNLOAD_TIMEOUT_MS,
-        },
+        }),
       );
 
       if (result.code !== 0 || !findDownloadedBrowser(this.browsersPath)) {
@@ -292,8 +299,7 @@ export class PdfPlugin {
     rmSync(this.options.path, { force: true, recursive: true });
   }
 
-  /** Con `signal`, abortarla cierra el navegador, y las señales del proceso quedan para quien la aborta. */
-  public load(signal?: AbortSignal): PdfRenderer {
+  public load(): PdfRenderer {
     const installedVersion = this.readInstalledVersion();
 
     if (installedVersion !== PDF_PLUGIN_VERSION) {
@@ -321,14 +327,11 @@ export class PdfPlugin {
 
     const require = createRequire(join(this.options.path, 'package.json'));
     const sdk = require(PDF_PLUGIN_PACKAGE) as InvoicePdfGeneratorModule;
-    const puppeteer = signal && loadPuppeteer(require.resolve(PDF_PLUGIN_PACKAGE));
 
     return {
       render: async (data, options) => {
         try {
-          const generate = () => new sdk.InvoicePdfGenerator(options).generate(data);
-
-          return await (signal && puppeteer ? withBrowserTiedTo(puppeteer, signal, generate) : generate());
+          return await new sdk.InvoicePdfGenerator(options).generate(data);
         } catch (error) {
           throw new PdfError('PDF_GENERATION_ERROR', `No se pudo generar el PDF: ${errorText(error)}`, {
             suggestion: 'Si el navegador falla, probá con otro: `arcli config establecer pdfNavegador <ruta>`.',

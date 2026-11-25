@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { EXPORT_CREDIT_NOTE_KIND, EXPORT_DEBIT_NOTE_KIND } from '../../../modules/export/export.kinds';
-import { REPEATED_SIGNAL_MS } from '../../interruption';
+import { guardEmission, REPEATED_SIGNAL_MS } from '../../interruption';
 
 import {
   batch,
@@ -142,8 +142,10 @@ beforeEach(() => {
   vi.spyOn(process, 'kill').mockImplementation(() => true);
 });
 
-afterEach(() => {
+afterEach(async () => {
   vi.restoreAllMocks();
+  // Otra emisión suelta lo que la anterior todavía escucha por el eco.
+  await guardEmission({ json: true, onCut: () => undefined }, async () => ({ results: [] }));
 });
 
 describe('un lote, una señal', () => {
@@ -386,7 +388,8 @@ describe('quién escucha las señales', () => {
       ['authorize', exporting(FE)],
     ] as const) {
       await interrupt({ method, times }, (hook) => run({ ...hook, arca: [step] }));
-      expect(listeners()).toEqual(signals);
+      // Con una señal reciente, recién cuando pasa su eco.
+      await vi.waitFor(() => expect(listeners()).toEqual(signals), { timeout: 4000 });
     }
   });
 
@@ -578,7 +581,7 @@ it('un listener de otro que reenvía la señal, como el de when-exit, no cuenta 
 
     expect(details(run)).toMatchObject({ codigoCausa: 'CANCELLED', procesados: 2 });
     expect(resend).not.toHaveBeenCalled();
-    expect(process.listeners('SIGINT')).toContain(resend);
+    await vi.waitFor(() => expect(process.listeners('SIGINT')).toContain(resend), { timeout: 2000 });
   } finally {
     process.off('SIGINT', resend);
   }

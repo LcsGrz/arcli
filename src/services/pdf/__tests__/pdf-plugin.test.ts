@@ -418,49 +418,6 @@ describe('exportBillingPdf', () => {
 });
 
 describe('al cortar', () => {
-  /** Un SDK que abre el navegador y devuelve las opciones con que lo abrió. */
-  function pluginWithPuppeteer(): PdfPlugin {
-    const path = join(createTempDir(), 'pdf');
-
-    fakeNpmInstall(path);
-    writeFileSync(
-      join(path, 'node_modules', '@arcasdk', 'pdf', 'index.js'),
-      `const puppeteer = require('puppeteer');
-       exports.InvoicePdfGenerator = class { async generate() {
-         globalThis.arcliTestLaunch = await puppeteer.default.launch({ headless: true });
-         return Buffer.from('');
-       } };`,
-    );
-    writeFileSync(
-      join(path, 'node_modules', 'puppeteer', 'index.js'),
-      'exports.default = { launch: async (options) => options };',
-    );
-
-    return new PdfPlugin({ env: {}, findSystemBrowser: () => '/Applications/Chrome', path });
-  }
-
-  const launchOptions = async (plugin: PdfPlugin, signal?: AbortSignal): Promise<unknown> => {
-    vi.stubEnv('PUPPETEER_EXECUTABLE_PATH', '');
-    await plugin.load(signal).render({} as never, {} as never);
-    vi.unstubAllEnvs();
-
-    return (globalThis as { arcliTestLaunch?: unknown }).arcliTestLaunch;
-  };
-
-  it('el navegador se cierra con la señal y Puppeteer no ataja las del proceso', async () => {
-    const { signal } = new AbortController();
-    const plugin = pluginWithPuppeteer();
-
-    expect(await launchOptions(plugin, signal)).toEqual({
-      handleSIGINT: false,
-      handleSIGTERM: false,
-      headless: true,
-      signal,
-    });
-    // Sin nadie que escriba el resultado al cortar (el asistente), Puppeteer sigue como siempre.
-    expect(await launchOptions(plugin)).toEqual({ headless: true });
-  });
-
   it.each(['antes', 'durante'])('corta el proceso de la instalación (%s)', async (when) => {
     const controller = new AbortController();
 
@@ -478,7 +435,81 @@ describe('al cortar', () => {
       timeoutMs: 20_000,
     });
 
-    expect(result).toMatchObject({ code: null, timedOut: false });
+    expect(result).toEqual({ code: null, output: '' });
     expect(performance.now() - start).toBeLessThan(10_000);
+  });
+
+  it('a un proceso que no hace caso lo mata, y recién ahí sigue', async () => {
+    const controller = new AbortController();
+    const folder = createTempDir();
+    const pidFile = join(folder, 'pid');
+    const result = runProcessWithSpawn(
+      process.execPath,
+      [
+        '-e',
+        "process.on('SIGTERM', () => {}); require('fs').writeFileSync('pid', String(process.pid)); setInterval(() => {}, 1000)",
+      ],
+      { cwd: folder, env: process.env, signal: controller.signal, timeoutMs: 20_000 },
+    );
+
+    await vi.waitFor(() => expect(readFileSync(pidFile, 'utf8')).not.toBe(''), { timeout: 10_000 });
+    controller.abort();
+    expect(await result).toMatchObject({ code: null });
+    await vi.waitFor(() => expect(() => process.kill(Number(readFileSync(pidFile, 'utf8')), 0)).toThrow());
+  });
+
+  it('una instalación a medias no pasa por instalada, y la siguiente empieza de cero', async () => {
+    const path = join(createTempDir(), 'pdf');
+    const leftover = join(path, 'node_modules', 'a-medias');
+    let cut = true;
+    const plugin = new PdfPlugin({
+      env: {},
+      findSystemBrowser: () => '/Applications/Chrome',
+      path,
+      runProcess: async () => {
+        fakeNpmInstall(path);
+
+        if (cut) {
+          writeFileSync(leftover, '');
+        }
+
+        return { code: cut ? null : 0, output: '' };
+      },
+    });
+
+    await expect(plugin.install()).rejects.toMatchObject({ code: 'PDF_PLUGIN_INSTALL_ERROR' });
+    expect(plugin.getStatus().installed).toBe(false);
+    expect(() => plugin.load()).toThrow(/falta instalar/);
+
+    cut = false;
+    expect((await plugin.install()).installed).toBe(true);
+    expect(existsSync(leftover)).toBe(false);
+  });
+
+  it('un navegador descargado a medias no se usa', async () => {
+    const path = join(createTempDir(), 'pdf');
+    let cut = true;
+    const plugin = new PdfPlugin({
+      env: {},
+      findSystemBrowser: () => undefined,
+      path,
+      runProcess: async (_command, args, options) => {
+        if (args[0] === 'install') {
+          fakeNpmInstall(path);
+
+          return { code: 0, output: '' };
+        }
+
+        fakeBrowserDownload(options.env.PUPPETEER_CACHE_DIR ?? '');
+
+        return { code: cut ? null : 0, output: '' };
+      },
+    });
+
+    await expect(plugin.install()).rejects.toMatchObject({ code: 'PDF_PLUGIN_INSTALL_ERROR' });
+    expect(plugin.getStatus()).toMatchObject({ browser: undefined, installed: false });
+
+    cut = false;
+    expect((await plugin.install()).installed).toBe(true);
   });
 });

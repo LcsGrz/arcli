@@ -54,7 +54,10 @@ export interface GeneratePdfsOptions {
    * ninguno tiene PDF.
    */
   readonly loadExporter: () => Promise<PdfExporter>;
-  /** Al abortarse, lo que falta no se espera: cada PDF sin terminar sale como no generado. */
+  /**
+   * Al abortarse, lo que falta no se espera: cada PDF sin terminar sale como no generado. A `loadExporter` si, para no
+   * dejar una instalacion a medias: le toca cortarse.
+   */
   readonly signal?: AbortSignal;
   readonly vouchers: readonly PdfVoucher[];
 }
@@ -102,9 +105,14 @@ export async function generatePdfs({
 
   try {
     resolvePdfIssuer(config, first.result.voucherKind.letter);
-    exporter = await unlessAborted(signal, loadExporter);
+
+    if (signal?.aborted) {
+      throw interruptedPdfError();
+    }
+
+    exporter = await loadExporter();
   } catch (error) {
-    return vouchers.map(() => toPdfFailure(error));
+    return vouchers.map(() => toPdfFailure(signal?.aborted ? interruptedPdfError() : error));
   }
 
   const outcomes: PdfOutcome[] = [];
