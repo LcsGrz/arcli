@@ -1216,7 +1216,7 @@ Si el CAE se lee, no es este caso: el comprobante se muestra con su CAE aunque A
 
 `detalles` trae además `numero` (el que se le pidió a ARCA), `entorno`, `puntoVenta` y `tipoArca` (el código de ARCA del comprobante), para conciliarlo sin leer la `sugerencia`. En A, B y C ese número no queda reservado: si otro programa emitió a la vez, puede figurar con un comprobante suyo; compará el receptor y el importe.
 
-Los pasos previos no cuentan: si falla el login en WSAA (por ejemplo, un certificado no autorizado; uno vencido corta antes, con [`CERTIFICATE_EXPIRED`](#certificado-vencido)) o el pedido del último número, no se envió nada: sale como `ARCA_LAST_VOUCHER_ERROR` si ARCA devolvió errores, o como `UNEXPECTED_ERROR` o `TRANSIENT_ERROR` si falló o no contestó a tiempo la red o WSAA. La excepción es el ticket que vence justo entre esos pasos y la emisión: ese login va en la misma llamada que emite, y si falla sale `EMISSION_UNCERTAIN`.
+Los pasos previos no cuentan: si falla el login en WSAA (por ejemplo, un certificado no autorizado; uno vencido corta antes, con [`CERTIFICATE_EXPIRED`](#certificado-vencido)) o el pedido del último número, no se envió nada: sale como `ARCA_LAST_VOUCHER_ERROR` si ARCA devolvió errores, o como `UNEXPECTED_ERROR` o `TRANSIENT_ERROR` si falló o no contestó a tiempo la red o WSAA. La excepción es el ticket que vence justo entre esos pasos y la emisión: ese login va en la misma llamada que emite, y si falla o no contesta a tiempo sale `EMISSION_UNCERTAIN`: verificá antes de repetirla.
 
 ```json
 {

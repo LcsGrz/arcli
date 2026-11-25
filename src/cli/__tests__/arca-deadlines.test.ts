@@ -383,13 +383,16 @@ describe('una consulta vencida', () => {
       .mockImplementation(((done: () => void, ms?: number) =>
         startTimer(done, ms === 5_000 ? 50 : ms)) as typeof setTimeout);
 
+    arca.holdDeadlines();
+
     const result = await run(['estado']);
 
     timers.mockRestore();
     expect(result.error).toBeUndefined();
     expect(JSON.parse(result.stdout)).toMatchObject({ servidores: { aplicacion: 'OK' } });
-    await vi.waitFor(() =>
-      expect(arca.server.requests.find(({ operation }) => operation === 'FEXDummy')?.dropped).toBe(true),
+    await vi.waitFor(
+      () => expect(arca.server.requests.find(({ operation }) => operation === 'FEXDummy')?.dropped).toBe(true),
+      { timeout: 10_000 },
     );
   });
 });
@@ -399,7 +402,7 @@ describe('con Ctrl+C', () => {
 
   /** Manda las señales cuando ARCA ya recibió la emisión. */
   async function interrupt(times: number): Promise<void> {
-    await vi.waitFor(() => expect(requested('FECAESolicitar')).toBe(1), { interval: 5, timeout: 5_000 });
+    await vi.waitFor(() => expect(requested('FECAESolicitar')).toBe(1), { interval: 5, timeout: 10_000 });
 
     const now = performance.now();
     const clock = vi.spyOn(performance, 'now');
@@ -411,6 +414,7 @@ describe('con Ctrl+C', () => {
     }
 
     clock.mockRestore();
+    arca.releaseDeadlines();
   }
 
   beforeEach(() => {
@@ -419,6 +423,8 @@ describe('con Ctrl+C', () => {
   });
 
   it('uno solo y después vence: EMISSION_UNCERTAIN, una vez', async () => {
+    arca.holdDeadlines();
+
     const [result] = await Promise.all([run([...FC, '--emitir']), interrupt(1)]);
 
     expect(result.error).toMatchObject({ codigo: 'EMISSION_UNCERTAIN', detalles: { numero: 42 } });
@@ -432,13 +438,17 @@ describe('con Ctrl+C', () => {
     process.on('unhandledRejection', unhandled);
 
     try {
+      arca.holdDeadlines();
+
       const [result] = await Promise.all([run([...FC, '--emitir']), interrupt(2)]);
       const atEnd = written();
 
       expect(result.error).toMatchObject({ codigo: 'EMISSION_UNCERTAIN', detalles: { numero: 42 } });
       expect(details(result).causa).not.toContain('120 segundos');
-      // Más que el plazo, acortado.
-      await pause(1_500);
+      await vi.waitFor(() => expect(arca.deadlines.at(-1)).toEqual({ ms: 120_000, state: 'vencido' }), {
+        timeout: 10_000,
+      });
+      await pause(100);
       expect(written()).toBe(atEnd);
       expect(unhandled).not.toHaveBeenCalled();
       expect(requested('FECAESolicitar')).toBe(1);

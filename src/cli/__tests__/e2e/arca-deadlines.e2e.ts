@@ -9,19 +9,20 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   ARCA_HOSTS,
   type ArcaServer,
-  DEADLINE_SCALE,
   DEADLINES_MS,
   PROXY_VARIABLES,
   startArcaServer,
 } from '../../../testing/arca-server';
 
 /**
- * ARQ-11: el `arcli` compilado contra un ARCA local que no contesta. Vencido el plazo (acortado 100 veces), muestra el
+ * ARQ-11: el `arcli` compilado contra un ARCA local que no contesta. Vencido el plazo (acortado), muestra el
  * error y el proceso termina solo: no queda una conexión, un timer ni otra consulta en vuelo. Nada sale a la red.
  */
 const CLI = resolve('dist/cli/index.js');
 /** De sobra para arrancar y vencer el plazo más largo, acortado. */
-const HANG_MS = 10_000;
+const HANG_MS = 45_000;
+/** Menos que en los otros tests: acá el reloj es de otro proceso y los plazos vencen por tiempo, también con la CPU cargada. */
+const DEADLINE_SCALE = 15;
 
 let directory = '';
 let server: ArcaServer;

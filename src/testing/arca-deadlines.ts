@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, expect } from 'vitest';
 
-import { type ArcaServer, DEADLINE_SCALE, startArcaServer, trackDeadlines, type TrackedDeadline } from './arca-server';
+import { type ArcaServer, startArcaServer, trackDeadlines, type TrackedDeadline } from './arca-server';
 
 /** Como termino una llamada. `sigue colgada`: ARCA no contesta y no hay ningun plazo corriendo que la vaya a cortar. */
 type Settled =
@@ -13,13 +13,16 @@ type Settled =
 
 const CHECK_MS = 50;
 /** Cuanto tiene que estar colgada, sin un plazo corriendo, para darla por colgada. */
-const HANG_MS = 600;
-/** Con un plazo corriendo o sin nada colgado, el tope: bastante mas que el de 120 s acortado. */
-const MAX_MS = (120_000 / DEADLINE_SCALE) * 10;
+const HANG_MS = 3_000;
+/** Con un plazo corriendo o sin nada colgado, el tope: menos que el de los tests. */
+const MAX_MS = 25_000;
 
 export interface ArcaDeadlines {
   readonly certPath: string;
+  /** Ningun plazo vence hasta soltarlos: para lo que tiene que pasar antes. */
+  holdDeadlines(): void;
   readonly keyPath: string;
+  releaseDeadlines(): void;
   /** Los plazos que se pusieron en el test en curso. */
   readonly deadlines: readonly TrackedDeadline[];
   readonly server: ArcaServer;
@@ -31,9 +34,21 @@ export interface ArcaDeadlines {
 export function useArcaDeadlines(): ArcaDeadlines {
   let directory = '';
   let server: ArcaServer;
+  let held = false;
   let tracked: ReturnType<typeof trackDeadlines>;
   const calls: Array<Promise<unknown>> = [];
   const { setTimeout: startTimer, clearTimeout: stopTimer } = globalThis;
+
+  /** Solo vencen los pedidos que ARCA no va a contestar: mientras haya otros en curso, se los espera. */
+  function canExpire(deadlines: readonly TrackedDeadline[]): boolean {
+    const hung = server.requests.filter(({ hangs }) => hangs);
+    const expired = deadlines.filter(({ state }) => state === 'vencido').length;
+    const pending = deadlines.filter(({ state }) => state === 'pendiente').length;
+    // El que vencio sigue abierto un momento del lado del servidor: no cuenta por otro.
+    const waiting = Math.min(hung.length - expired, hung.filter(({ dropped }) => !dropped).length);
+
+    return !held && pending <= waiting;
+  }
 
   beforeAll(() => {
     directory = mkdtempSync(join(tmpdir(), 'arcli-plazos-'));
@@ -45,7 +60,8 @@ export function useArcaDeadlines(): ArcaDeadlines {
 
   beforeEach(async () => {
     server = await startArcaServer({ redirect: true });
-    tracked = trackDeadlines();
+    held = false;
+    tracked = trackDeadlines(canExpire);
     writeFileSync(join(directory, 'cert.pem'), server.cert);
     writeFileSync(join(directory, 'key.pem'), server.key);
   });
@@ -67,8 +83,14 @@ export function useArcaDeadlines(): ArcaDeadlines {
     get deadlines() {
       return tracked.deadlines;
     },
+    holdDeadlines: () => {
+      held = true;
+    },
     get keyPath() {
       return join(directory, 'key.pem');
+    },
+    releaseDeadlines: () => {
+      held = false;
     },
     get server() {
       return server;

@@ -1,4 +1,4 @@
-import { MemoryTicketStorage } from '@arcasdk/core';
+import { MemoryTicketStorage, SoapClient } from '@arcasdk/core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -11,6 +11,7 @@ import { ArcaClientFactory } from '../arca-client.factory';
 import { ArcaFceObligationGateway } from '../arca-fce-obligation.gateway';
 import { ArcaPadronGateway } from '../arca-padron.gateway';
 import { ArcaVoucherHistoryGateway } from '../arca-voucher-history.gateway';
+import { installSoapDeadlines } from '../soap-deadline';
 import { fetchWsfeServerStatus } from '../wsfe-status';
 import { fetchWsfexServerStatus } from '../wsfex-status';
 
@@ -23,6 +24,9 @@ import { createSoapArca } from './arca-soap.fixture';
 vi.setConfig({ testTimeout: 30_000 });
 
 const arca = useArcaDeadlines();
+
+/** De sobra para una máquina cargada. */
+const WAIT = { timeout: 10_000 };
 
 const QUERY_MS = 30_000;
 const WSAA_MS = 60_000;
@@ -197,7 +201,7 @@ describe.each(CALLS)('$service: $operation', (call) => {
     expect(message).not.toMatch(/no se emitió/i);
     expect(arca.server.count(operation)).toBe(1);
     // El pedido se cortó de verdad: no queda una conexión esperando.
-    await vi.waitFor(() => expect(arca.server.requests.at(-1)?.dropped).toBe(true));
+    await vi.waitFor(() => expect(arca.server.requests.at(-1)?.dropped).toBe(true), WAIT);
   });
 
   it('el plazo de cada pedido, uno solo por pedido', async () => {
@@ -254,6 +258,26 @@ describe('contrato', () => {
 
     await fetchWsfexServerStatus('testing', never());
     expect(arca.deadlines.slice(before).map(({ ms }) => ms)).toEqual([QUERY_MS]);
+  });
+});
+
+describe('instalar dos veces no apila', () => {
+  it.each([
+    ['el mismo módulo', false],
+    ['el módulo cargado otra vez', true],
+  ])('%s: el método es el mismo y hay un solo plazo por pedido', async (_name, reload) => {
+    installSoapDeadlines();
+
+    const { createClient } = SoapClient.prototype as { createClient: unknown };
+
+    if (reload) {
+      vi.resetModules();
+    }
+
+    (await import('../soap-deadline')).installSoapDeadlines();
+    expect((SoapClient.prototype as { createClient: unknown }).createClient).toBe(createClient);
+    await fetchWsfeServerStatus('testing', never());
+    expect(arca.deadlines).toEqual([{ ms: QUERY_MS, state: 'cancelado' }]);
   });
 });
 
@@ -318,9 +342,11 @@ describe('el error de un plazo vencido', () => {
 
     arca.server.respond(() => 'cuelga');
 
+    arca.holdDeadlines();
+
     const call = arca.settle(fetchWsfeServerStatus('testing', controller.signal));
 
-    await vi.waitFor(() => expect(arca.server.count('FEDummy')).toBe(1));
+    await vi.waitFor(() => expect(arca.server.count('FEDummy')).toBe(1), WAIT);
     controller.abort();
 
     const settled = await call;
@@ -328,7 +354,7 @@ describe('el error de un plazo vencido', () => {
     expect(settled).toMatchObject({ end: 'se cortó', error: { code: 'ERR_CANCELED' } });
     expect((settled as { error: Error }).error.message).not.toContain('no contestó');
     expect(isConnectionError((settled as { error: Error }).error)).toBe(false);
-    await vi.waitFor(() => expect(arca.server.requests.at(-1)?.dropped).toBe(true));
+    await vi.waitFor(() => expect(arca.server.requests.at(-1)?.dropped).toBe(true), WAIT);
   });
 
   it('cortado por otro, el plazo no queda pendiente', async () => {
@@ -336,9 +362,11 @@ describe('el error de un plazo vencido', () => {
 
     arca.server.respond(() => 'cuelga');
 
+    arca.holdDeadlines();
+
     const call = arca.settle(fetchWsfexServerStatus('testing', controller.signal));
 
-    await vi.waitFor(() => expect(arca.server.count('FEXDummy')).toBe(1));
+    await vi.waitFor(() => expect(arca.server.count('FEXDummy')).toBe(1), WAIT);
     controller.abort();
     await call;
     expect(arca.deadlines).toEqual([{ ms: QUERY_MS, state: 'cancelado' }]);
@@ -361,9 +389,11 @@ describe('una respuesta antes del plazo', () => {
 
     arca.server.respond((operation) => (operation === 'FECompUltimoAutorizado' ? 'cuelga' : undefined));
 
+    arca.holdDeadlines();
+
     const call = arca.settle(getLastNumber());
 
-    await vi.waitFor(() => expect(arca.server.count('FECompUltimoAutorizado')).toBe(2));
+    await vi.waitFor(() => expect(arca.server.count('FECompUltimoAutorizado')).toBe(2), WAIT);
     arca.server.drop();
     expect(await call).toMatchObject({ end: 'se cortó', error: { message: 'socket hang up' } });
     expect(arca.deadlines.slice(2).map(({ state }) => state)).toEqual(['cancelado', 'cancelado']);
@@ -372,9 +402,11 @@ describe('una respuesta antes del plazo', () => {
   it('la red caída da el error de siempre, y cuenta como de conexión', async () => {
     arca.server.respond(() => 'cuelga');
 
+    arca.holdDeadlines();
+
     const call = arca.settle(fetchWsfeServerStatus('testing', never()));
 
-    await vi.waitFor(() => expect(arca.server.count('FEDummy')).toBe(1));
+    await vi.waitFor(() => expect(arca.server.count('FEDummy')).toBe(1), WAIT);
     arca.server.drop();
 
     const settled = await call;

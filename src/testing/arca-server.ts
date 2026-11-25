@@ -92,20 +92,23 @@ function loginAnswer(): string {
 
 const FEX_OK = '<FEXErr><ErrCode>0</ErrCode><ErrMsg>OK</ErrMsg></FEXErr>';
 
-const FEX_TABLES: Readonly<Record<string, string>> = {
-  FEXCheck_Permiso: '<Status>OK</Status>',
-  FEXGetLast_ID: '<Id>41</Id>',
-  FEXGetPARAM_Actividades:
-    '<ClsFEXResponse_ActividadTipo><Id>620100</Id><Desc>CONSULTORES</Desc></ClsFEXResponse_ActividadTipo>',
-  FEXGetPARAM_DST_CUIT:
-    '<ClsFEXResponse_DST_cuit><DST_CUIT>55000002126</DST_CUIT><DST_Ds>ESTADOS UNIDOS - Persona Juridica</DST_Ds></ClsFEXResponse_DST_cuit>',
-  FEXGetPARAM_DST_pais:
-    '<ClsFEXResponse_DST_pais><DST_Codigo>212</DST_Codigo><DST_Ds>ESTADOS UNIDOS</DST_Ds></ClsFEXResponse_DST_pais>',
-  FEXGetPARAM_Idiomas: '<ClsFEXResponse_Idi><Idi_Id>1</Idi_Id><Idi_Ds>Espanol</Idi_Ds></ClsFEXResponse_Idi>',
-  FEXGetPARAM_Incoterms: '<ClsFEXResponse_Inc><Inc_Id>FOB</Inc_Id><Inc_Ds>Free on Board</Inc_Ds></ClsFEXResponse_Inc>',
-  FEXGetPARAM_MON: '<ClsFEXResponse_Mon><Mon_Id>DOL</Mon_Id><Mon_Ds>Dolar</Mon_Ds></ClsFEXResponse_Mon>',
-  FEXGetPARAM_UMed: '<ClsFEXResponse_UMed><Umed_Id>7</Umed_Id><Umed_Ds>unidades</Umed_Ds></ClsFEXResponse_UMed>',
-};
+const FEX_TABLES: ReadonlyMap<string, string> = new Map(
+  Object.entries({
+    FEXCheck_Permiso: '<Status>OK</Status>',
+    FEXGetLast_ID: '<Id>41</Id>',
+    FEXGetPARAM_Actividades:
+      '<ClsFEXResponse_ActividadTipo><Id>620100</Id><Desc>CONSULTORES</Desc></ClsFEXResponse_ActividadTipo>',
+    FEXGetPARAM_DST_CUIT:
+      '<ClsFEXResponse_DST_cuit><DST_CUIT>55000002126</DST_CUIT><DST_Ds>ESTADOS UNIDOS - Persona Juridica</DST_Ds></ClsFEXResponse_DST_cuit>',
+    FEXGetPARAM_DST_pais:
+      '<ClsFEXResponse_DST_pais><DST_Codigo>212</DST_Codigo><DST_Ds>ESTADOS UNIDOS</DST_Ds></ClsFEXResponse_DST_pais>',
+    FEXGetPARAM_Idiomas: '<ClsFEXResponse_Idi><Idi_Id>1</Idi_Id><Idi_Ds>Espanol</Idi_Ds></ClsFEXResponse_Idi>',
+    FEXGetPARAM_Incoterms:
+      '<ClsFEXResponse_Inc><Inc_Id>FOB</Inc_Id><Inc_Ds>Free on Board</Inc_Ds></ClsFEXResponse_Inc>',
+    FEXGetPARAM_MON: '<ClsFEXResponse_Mon><Mon_Id>DOL</Mon_Id><Mon_Ds>Dolar</Mon_Ds></ClsFEXResponse_Mon>',
+    FEXGetPARAM_UMed: '<ClsFEXResponse_UMed><Umed_Id>7</Umed_Id><Umed_Ds>unidades</Umed_Ds></ClsFEXResponse_UMed>',
+  }),
+);
 
 const readTag = (xml: string, tag: string): string => new RegExp(`<(?:\\w+:)?${tag}>([^<]*)<`).exec(xml)?.[1] ?? '';
 
@@ -113,39 +116,44 @@ const servers = (operation: string): string =>
   `<${operation}Result><AppServer>OK</AppServer><DbServer>OK</DbServer><AuthServer>OK</AuthServer></${operation}Result>`;
 
 /** Lo que contesta cada operacion que no es una tabla de la E. El ultimo numero es el 41, y en la E el 7. */
-const ANSWERS: Readonly<Record<string, (xml: string, emitted: number) => string>> = {
-  FECAESolicitar: (xml) => {
-    const number = readTag(xml, 'CbteDesde');
+const ANSWERS = new Map<string, (xml: string, emitted: number) => string>(
+  Object.entries({
+    FECAESolicitar: (xml: string) => {
+      const number = readTag(xml, 'CbteDesde');
 
-    return `<FECAESolicitarResult><FeCabResp><Resultado>A</Resultado></FeCabResp><FeDetResp><FECAEDetResponse><CbteDesde>${number}</CbteDesde><CbteHasta>${number}</CbteHasta><Resultado>A</Resultado><CAE>75123456789012</CAE><CAEFchVto>20991231</CAEFchVto></FECAEDetResponse></FeDetResp></FECAESolicitarResult>`;
-  },
-  FECompConsultar: () =>
-    '<FECompConsultarResult><Errors><Err><Code>602</Code><Msg>Sin Resultados</Msg></Err></Errors></FECompConsultarResult>',
-  FECompUltimoAutorizado: (_xml, emitted) =>
-    `<FECompUltimoAutorizadoResult><PtoVta>3</PtoVta><CbteTipo>11</CbteTipo><CbteNro>${41 + emitted}</CbteNro></FECompUltimoAutorizadoResult>`,
-  FEDummy: () => servers('FEDummy'),
-  FEParamGetCotizacion: () =>
-    '<FEParamGetCotizacionResult><ResultGet><MonId>DOL</MonId><MonCotiz>1450</MonCotiz><FchCotiz>20261109</FchCotiz></ResultGet></FEParamGetCotizacionResult>',
-  FEParamGetPtosVenta: () =>
-    '<FEParamGetPtosVentaResult><Errors><Err><Code>602</Code><Msg>Sin Resultados</Msg></Err></Errors></FEParamGetPtosVentaResult>',
-  FEXAuthorize: (xml) =>
-    `<FEXAuthorizeResult><FEXResultAuth><Id>${readTag(xml, 'Id')}</Id><Cbte_tipo>19</Cbte_tipo><Punto_vta>3</Punto_vta><Cbte_nro>${readTag(xml, 'Cbte_nro')}</Cbte_nro><Cae>75123456789012</Cae><Fch_venc_Cae>20991231</Fch_venc_Cae><Resultado>A</Resultado></FEXResultAuth>${FEX_OK}</FEXAuthorizeResult>`,
-  FEXDummy: () => servers('FEXDummy'),
-  FEXGetLast_CMP: () =>
-    `<FEXGetLast_CMPResult><FEXResult_LastCMP><Cbte_nro>7</Cbte_nro></FEXResult_LastCMP>${FEX_OK}</FEXGetLast_CMPResult>`,
-  consultarMontoObligadoRecepcion: () =>
-    '<consultarMontoObligadoRecepcionReturn><obligado>N</obligado><montoDesde>3958316</montoDesde></consultarMontoObligadoRecepcionReturn>',
-  getPersona_v2: () =>
-    '<personaReturn><datosGenerales><estadoClave>ACTIVO</estadoClave><razonSocial>PRUEBA SA</razonSocial></datosGenerales></personaReturn>',
-  loginCms: loginAnswer,
-};
+      return `<FECAESolicitarResult><FeCabResp><Resultado>A</Resultado></FeCabResp><FeDetResp><FECAEDetResponse><CbteDesde>${number}</CbteDesde><CbteHasta>${number}</CbteHasta><Resultado>A</Resultado><CAE>75123456789012</CAE><CAEFchVto>20991231</CAEFchVto></FECAEDetResponse></FeDetResp></FECAESolicitarResult>`;
+    },
+    FECompConsultar: () =>
+      '<FECompConsultarResult><Errors><Err><Code>602</Code><Msg>Sin Resultados</Msg></Err></Errors></FECompConsultarResult>',
+    FECompUltimoAutorizado: (_xml: string, emitted: number) =>
+      `<FECompUltimoAutorizadoResult><PtoVta>3</PtoVta><CbteTipo>11</CbteTipo><CbteNro>${41 + emitted}</CbteNro></FECompUltimoAutorizadoResult>`,
+    FEDummy: () => servers('FEDummy'),
+    FEParamGetCotizacion: () =>
+      '<FEParamGetCotizacionResult><ResultGet><MonId>DOL</MonId><MonCotiz>1450</MonCotiz><FchCotiz>20261109</FchCotiz></ResultGet></FEParamGetCotizacionResult>',
+    FEParamGetPtosVenta: () =>
+      '<FEParamGetPtosVentaResult><Errors><Err><Code>602</Code><Msg>Sin Resultados</Msg></Err></Errors></FEParamGetPtosVentaResult>',
+    FEXAuthorize: (xml: string) =>
+      `<FEXAuthorizeResult><FEXResultAuth><Id>${readTag(xml, 'Id')}</Id><Cbte_tipo>19</Cbte_tipo><Punto_vta>3</Punto_vta><Cbte_nro>${readTag(xml, 'Cbte_nro')}</Cbte_nro><Cae>75123456789012</Cae><Fch_venc_Cae>20991231</Fch_venc_Cae><Resultado>A</Resultado></FEXResultAuth>${FEX_OK}</FEXAuthorizeResult>`,
+    FEXDummy: () => servers('FEXDummy'),
+    FEXGetLast_CMP: () =>
+      `<FEXGetLast_CMPResult><FEXResult_LastCMP><Cbte_nro>7</Cbte_nro></FEXResult_LastCMP>${FEX_OK}</FEXGetLast_CMPResult>`,
+    consultarMontoObligadoRecepcion: () =>
+      '<consultarMontoObligadoRecepcionReturn><obligado>N</obligado><montoDesde>3958316</montoDesde></consultarMontoObligadoRecepcionReturn>',
+    getPersona_v2: () =>
+      '<personaReturn><datosGenerales><estadoClave>ACTIVO</estadoClave><razonSocial>PRUEBA SA</razonSocial></datosGenerales></personaReturn>',
+    loginCms: loginAnswer,
+  }),
+);
 
 function successAnswer(operation: string, xml: string, emitted: number): string {
-  const table = FEX_TABLES[operation];
+  const table = FEX_TABLES.get(operation);
+  const answer = ANSWERS.get(operation);
 
-  return table === undefined
-    ? (ANSWERS[operation]?.(xml, emitted) ?? `<${operation}Result></${operation}Result>`)
-    : `<${operation}Result><FEXResultGet>${table}</FEXResultGet>${FEX_OK}</${operation}Result>`;
+  if (table !== undefined) {
+    return `<${operation}Result><FEXResultGet>${table}</FEXResultGet>${FEX_OK}</${operation}Result>`;
+  }
+
+  return answer === undefined ? `<${operation}Result></${operation}Result>` : answer(xml, emitted);
 }
 
 function envelope(operation: string, xml: string, emitted: number): string {
@@ -306,6 +314,7 @@ export async function startArcaServer({ redirect }: { readonly redirect: boolean
 /** Los plazos de ARQ-11, en milisegundos, y por cuanto se dividen en los tests. */
 export const DEADLINES_MS: readonly number[] = [30_000, 60_000, 120_000];
 export const DEADLINE_SCALE = 100;
+const RECHECK_MS = 10;
 
 export interface TrackedDeadline {
   readonly ms: number;
@@ -315,8 +324,14 @@ export interface TrackedDeadline {
 /**
  * Anota cada plazo de 30, 60 o 120 s que se pone con `setTimeout` o `AbortSignal.timeout` y lo acorta, sin tocar los
  * demas. Es el unico supuesto sobre como se implementan: los globales, no los de `node:timers`.
+ *
+ * Acortado, vence solo si `canExpire` da `true`; si no, espera. Asi una maquina cargada no vence un pedido que ARCA
+ * iba a contestar.
  */
-export function trackDeadlines(): { readonly deadlines: readonly TrackedDeadline[]; readonly restore: () => void } {
+export function trackDeadlines(canExpire: (deadlines: readonly TrackedDeadline[]) => boolean): {
+  readonly deadlines: readonly TrackedDeadline[];
+  readonly restore: () => void;
+} {
   const { clearTimeout, setTimeout } = globalThis;
   const { timeout } = AbortSignal;
   const deadlines: TrackedDeadline[] = [];
@@ -328,10 +343,19 @@ export function trackDeadlines(): { readonly deadlines: readonly TrackedDeadline
     }
 
     const deadline: TrackedDeadline = { ms, state: 'pendiente' };
-    const timer = setTimeout(() => {
-      deadline.state = 'vencido';
-      run(...args);
-    }, ms / DEADLINE_SCALE);
+    const expire = (): void => {
+      if (deadline.state !== 'pendiente') {
+        return;
+      }
+
+      if (canExpire(deadlines)) {
+        deadline.state = 'vencido';
+        run(...args);
+      } else {
+        setTimeout(expire, RECHECK_MS);
+      }
+    };
+    const timer = setTimeout(expire, ms / DEADLINE_SCALE);
 
     deadlines.push(deadline);
     byTimer.set(timer, deadline);
