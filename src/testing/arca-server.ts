@@ -153,7 +153,7 @@ function successAnswer(operation: string, xml: string, emitted: number): string 
     return `<${operation}Result><FEXResultGet>${table}</FEXResultGet>${FEX_OK}</${operation}Result>`;
   }
 
-  return answer === undefined ? `<${operation}Result></${operation}Result>` : answer(xml, emitted);
+  return typeof answer === 'function' ? answer(xml, emitted) : `<${operation}Result></${operation}Result>`;
 }
 
 function envelope(operation: string, xml: string, emitted: number): string {
