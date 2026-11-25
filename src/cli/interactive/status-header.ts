@@ -67,10 +67,10 @@ function environmentSegment(environment: ArcliEnvironment): StatusBarSegment {
  * Recuadro de los certificados por vencer o vencidos, de cualquier entorno, debajo de la barra: queda arriba de
  * todo lo que se haga en la sesion.
  */
-function withCertificateBox(bar: string, notices: readonly CertificateExpiryNotice[]): string {
+function certificateBox(notices: readonly CertificateExpiryNotice[]): string {
   const box = renderCertificateNotices(notices);
 
-  return box ? `${bar}\n\n${box}` : bar;
+  return box ? `\n\n${box}` : '';
 }
 
 /**
@@ -114,7 +114,7 @@ function renderWithoutSession(error: unknown): string {
       { rightSeparator: 'rule' },
     );
 
-    return withCertificateBox(bar, noticesWithExpired(error.notice));
+    return `${bar}${certificateBox(noticesWithExpired(error.notice))}`;
   }
 
   return statusBar([{ text: 'falta completar la configuración' }], [{ color: 'muted', text: UNVERIFIED }]);
@@ -137,15 +137,14 @@ function renderLateNotice(health: ArcaHealth): string {
  * A la izquierda, quien emite (razon social, o el CUIT si no esta configurada) y el punto de venta; a la derecha, como
  * esta ARCA y el entorno, cada uno en su color.
  */
-function renderWithSession({ runtime }: InteractiveSession, arca: StatusBarSegment): string {
-  const { certificateNotices, config, cuit, environment, pointOfSale } = runtime;
-  const bar = statusBar(
+function renderSessionBar({ runtime }: InteractiveSession, arca: StatusBarSegment): string {
+  const { config, cuit, environment, pointOfSale } = runtime;
+
+  return statusBar(
     [{ text: formatIssuer(config.emisor?.razonSocial, cuit) }, { text: `PV ${pointOfSale ?? 'sin configurar'}` }],
     [arca, environmentSegment(environment)],
     { rightSeparator: 'rule' },
   );
-
-  return withCertificateBox(bar, certificateNotices);
 }
 
 /** Arma la barra y empieza a consultar como esta ARCA. `margin` va antes, por ejemplo una linea en blanco. */
@@ -159,6 +158,8 @@ export function openStatusHeader(options: GlobalCliOptions, margin = ''): Status
     fixed = renderWithoutSession(error);
   }
 
+  // Una vez: la barra se dibuja con cada tecla y armar el recuadro es lo que mas tarda.
+  const box = session ? certificateBox(session.runtime.certificateNotices) : '';
   const environment = session?.runtime.environment;
   const query =
     environment &&
@@ -171,7 +172,7 @@ export function openStatusHeader(options: GlobalCliOptions, margin = ''): Status
       'sin-respuesta',
     );
   const render = (arca: StatusBarSegment): string =>
-    sanitizeTerminalText(`${margin}${session ? renderWithSession(session, arca) : fixed}`);
+    sanitizeTerminalText(`${margin}${session ? `${renderSessionBar(session, arca)}${box}` : fixed}`);
   const renderNow = (pending: StatusBarSegment): string => {
     const health = query?.value();
 

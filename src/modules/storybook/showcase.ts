@@ -265,6 +265,14 @@ function buildBordersScene(): string {
       ],
       { rightSeparator: 'rule' },
     )}`,
+    `${colorize('Barra de estado, mientras se consulta ARCA:', 'muted')}\n${statusBar(
+      [{ text: '20-33333333-4' }, { text: 'PV 3' }],
+      [
+        { color: 'muted', text: `COMPROBANDO ARCA${uiSymbol('ellipsis')}` },
+        { color: 'testing', text: 'TESTING' },
+      ],
+      { rightSeparator: 'rule' },
+    )}`,
     `${colorize('Sección (arcli ejemplos):', 'muted')}\n${sectionHeading('Factura C')}`,
     `${colorize('Comando para copiar:', 'muted')}\n${command}`,
   ].join('\n\n');

@@ -577,6 +577,21 @@ describe('terminal angosta, baja o ASCII (TUI-49)', () => {
     expect(marked()).toEqual([UPDATE_ROW]);
   });
 
+  it('en 80x24 con el recuadro de certificados no entra: espera como siempre', async () => {
+    vi.mocked(createInteractiveSession).mockImplementation(
+      () => ({ arca: {}, runtime: { ...runtime, certificateNotices: [expiring] } }) as never,
+    );
+    resize(80, 24);
+    start();
+    await pause(50);
+    expect(text()).not.toContain('¿Qué querés hacer?');
+    health[0]?.resolve('funcionando');
+    update.resolve(null);
+    await seen('Emitir factura');
+    expect(count(/ARCA FUNCIONANDO/g)).toBe(1);
+    expect(count(/vence el 20\/11\/2026/g)).toBe(1);
+  });
+
   it('en 80x24 no espera y nada se duplica, tampoco con filtro y con la versión', async () => {
     resize(80, 24);
     start();
