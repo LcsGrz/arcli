@@ -139,21 +139,19 @@ export async function executeExportCommand(
 
     spinner = runtime.outputJson ? null : startSpinner(`Emitiendo ${formatVoucherWithArticle(voucherKind)} en ARCA...`);
 
-    const outcome = await guardEmission(
-      { batch: false, json: runtime.outputJson, onCut: () => spinner?.stop() },
-      (interruption) =>
-        emitExport({
-          ...interruption,
-          clock: systemClock,
-          gateway,
-          input,
-          onEmitted: (result) => {
-            recordExportEmission(result);
-          },
-          resolved,
-          runtime,
-          warnings,
-        }),
+    const outcome = await guardEmission({ json: runtime.outputJson, onCut: () => spinner?.stop() }, (interruption) =>
+      emitExport({
+        ...interruption,
+        clock: systemClock,
+        gateway,
+        input,
+        onEmitted: (result) => {
+          recordExportEmission(result);
+        },
+        resolved,
+        runtime,
+        warnings,
+      }),
     );
 
     if ('error' in outcome) {

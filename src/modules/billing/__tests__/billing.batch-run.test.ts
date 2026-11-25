@@ -283,7 +283,10 @@ describe('emitBatch, interrumpido', () => {
 
     next();
     await new Promise((resolve) => setImmediate(resolve));
-    expect(outcome).toMatchObject({ error: { code: 'CANCELLED' }, results: [] });
+    expect(outcome).toMatchObject({
+      error: { code: 'CANCELLED', message: 'Se cortó antes de enviarlo a ARCA.' },
+      results: [],
+    });
     expect(send).not.toHaveBeenCalled();
   });
 
@@ -303,7 +306,7 @@ describe('emitBatch, interrumpido', () => {
     });
 
     expect(batchError(outcome).details).toMatchObject({ codigoCausa: 'CANCELLED', fallo: 1, sinProcesar: [1, 2] });
-    expect(batchError(outcome).message).not.toMatch(/ya se emiti/i);
+    expect(batchError(outcome).message).toBe('Se cortó el lote.\nProcesados: 0 de 2.\nSin procesar: #1, #2.');
     expect(onSending).not.toHaveBeenCalled();
   });
 

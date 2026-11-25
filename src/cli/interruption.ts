@@ -1,3 +1,4 @@
+import { constants } from 'node:os';
 import { setTimeout } from 'node:timers/promises';
 
 import type { EmissionOutcome } from '../modules/billing/billing.batch-run';
@@ -13,6 +14,26 @@ const SIGNALS = ['SIGINT', 'SIGTERM'] as const;
 
 /** Con un listener de otro (signal-exit) la señal reenviada tarda un turno: sin nada pendiente el proceso terminaria antes. */
 const RESEND_GRACE_MS = 100;
+
+/**
+ * Una señal tan cerca de la primera es la misma: con `npx`, la terminal se la manda a todo el grupo y npm se la reenvia
+ * a `arcli`. Es menos de lo que se tarda en apretar Ctrl+C otra vez despues de leer el aviso.
+ *
+ * @internal Exportado para los tests.
+ */
+export const REPEATED_SIGNAL_MS = 500;
+
+/** Ya se reenvio la señal: el proceso esta por terminar y no se escribe nada. */
+export class ResentSignalError extends Error {
+  /** El que da una shell a lo que corta esa señal, por si la señal no lo corta. */
+  public readonly exitCode: number;
+
+  public constructor(signal: NodeJS.Signals) {
+    super(`Cortado por ${signal}.`);
+    this.name = 'ResentSignalError';
+    this.exitCode = 128 + constants.signals[signal];
+  }
+}
 
 /** Se dejo de esperar a ARCA: falta escribir lo que se sabe y cortar. Mientras tanto se siguen atajando las señales. */
 let cut: { readonly signal: NodeJS.Signals; readonly stopListening: () => void } | undefined;
@@ -49,17 +70,15 @@ function takeOverSignals(listener: NodeJS.SignalsListener): () => void {
 }
 
 export interface GuardedEmissionOptions {
-  readonly batch: boolean;
   /** Con `--json` no hay aviso intermedio. */
   readonly json: boolean;
   /** Antes de cortar por la señal: el spinner, para devolver el cursor. */
   readonly onCut: () => void;
 }
 
-function waitingNotice(signal: NodeJS.Signals, batch: boolean): string {
+function waitingNotice(signal: NodeJS.Signals): string {
   return [
     'Esperamos a que ARCA conteste, para no dejar la emisión sin confirmar.',
-    ...(batch ? ['Después se corta el lote.'] : []),
     ...(signal === 'SIGINT' ? ['Con otro Ctrl+C salís sin esperar la respuesta.'] : []),
   ].join(' ');
 }
@@ -73,7 +92,8 @@ export async function guardEmission<R>(
   options: GuardedEmissionOptions,
   emit: (interruption: EmissionInterruption) => Promise<EmissionOutcome<R>>,
 ): Promise<EmissionOutcome<R>> {
-  const received: NodeJS.Signals[] = [];
+  let first: { readonly at: number; readonly signal: NodeJS.Signals } | undefined;
+  let resent: NodeJS.Signals | undefined;
   let hasSent = false;
   let abandon: (() => void) | undefined;
   const abandoned = new Promise<void>((resolve) => {
@@ -83,20 +103,28 @@ export async function guardEmission<R>(
   const stopListening = takeOverSignals(onSignal);
 
   function onSignal(signal: NodeJS.Signals): void {
-    received.push(signal);
+    const now = performance.now();
+    const isFirst = first === undefined;
+
+    first ??= { at: now, signal };
 
     if (!hasSent) {
+      resent = signal;
       options.onCut();
       // Primero los listeners: signal-exit (el cursor, @inquirer) solo corta si el propio no esta.
       stopListening();
       process.kill(process.pid, signal);
-    } else if (received.length === 1 && !options.json) {
+    } else if (isFirst) {
+      if (options.json) {
+        return;
+      }
+
       try {
-        writeTerminalError(() => noticePanel(waitingNotice(signal, options.batch), 'warning'));
+        writeTerminalError(() => noticePanel(waitingNotice(signal), 'warning'));
       } catch {
         // Un error aca cortaria el proceso con algo enviado: sin aviso, igual se espera.
       }
-    } else if (received.length === 2) {
+    } else if (!cut && now - first.at >= REPEATED_SIGNAL_MS) {
       cut = { signal, stopListening };
       abandon?.();
     }
@@ -110,9 +138,15 @@ export async function guardEmission<R>(
       onSending: () => {
         hasSent = true;
       },
-      shouldStop: () => received.length > 0,
-      stopMessage: () => (received[0] === 'SIGINT' ? 'Cortaste el lote con Ctrl+C.' : 'Se cortó el lote.'),
+      shouldStop: () => first !== undefined,
+      stopMessage: () => (first?.signal === 'SIGINT' ? 'Cortaste el lote con Ctrl+C.' : 'Se cortó el lote.'),
     });
+
+    if (resent) {
+      await setTimeout(RESEND_GRACE_MS);
+
+      throw new ResentSignalError(resent);
+    }
 
     failed = 'error' in outcome;
 

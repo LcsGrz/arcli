@@ -9,7 +9,7 @@ import { writeTerminalError } from '../ui';
 
 import { settleOutput, watchOutputs } from './closed-output';
 import { isInteractiveTerminal } from './commands/interactive.command';
-import { isCommanderExit, reportCliError, reportOutputFailure, shouldPrintErrorAsJson } from './error-output';
+import { isSilentExit, reportCliError, reportOutputFailure, shouldPrintErrorAsJson } from './error-output';
 import { normalizeHelpArgv } from './help-argv';
 import { wasAssistantOpened } from './interactive/output-guard';
 import { finishCut } from './interruption';
@@ -63,7 +63,7 @@ program
     commandError = error;
 
     // Con JSON se espera a saber si stdout fallo, para que stderr siga siendo un solo documento.
-    if (shouldPrintErrorsAsJson() && !isCommanderExit(error)) {
+    if (shouldPrintErrorsAsJson() && !isSilentExit(error)) {
       await settleOutput('stdout');
       outputFailureReported = outputFailures.has('stdout');
     }

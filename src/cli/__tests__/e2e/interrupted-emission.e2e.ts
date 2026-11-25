@@ -24,8 +24,10 @@ const CLI = resolve('dist/cli/index.js');
 const CUIT = '20409509763';
 const HEALTHY_DAYS = 365;
 const HANG_MS = 15_000;
+/** Entre señales que cuentan por separado (`REPEATED_SIGNAL_MS`). */
+const SIGNAL_MS = 700;
 /** Para que el proceso atienda una señal antes de la siguiente: dos iguales pendientes son una. */
-const SIGNAL_MS = 200;
+const REPEATED_MS = 20;
 
 interface Interrupted {
   readonly code: number | null;
@@ -41,7 +43,10 @@ interface RunOptions {
   readonly closeStdout?: boolean;
   /** La llamada que se demora, y cuál (desde 1). */
   readonly hold: readonly [method: string, call: number];
+  /** Por `npm exec`, con cada señal al grupo, como Ctrl+C en una terminal. */
+  readonly npx?: boolean;
   readonly preloads?: readonly string[];
+  readonly signalMs?: number;
   readonly signals: readonly NodeJS.Signals[];
 }
 
@@ -162,7 +167,12 @@ async function waitFor(done: () => boolean, what: string): Promise<void> {
 /** Corre `arcli`, espera a que ARCA reciba la llamada que se demora y manda las señales. */
 async function run(args: readonly string[], options: RunOptions): Promise<Interrupted> {
   const preloads = [blockNetwork(), fakeArca(options.hold), ...(options.preloads ?? [])];
-  const child = spawn(process.execPath, [...preloads.flatMap((preload) => ['--import', preload]), CLI, ...args], {
+  const node = [...preloads.flatMap((preload) => ['--import', preload]), CLI, ...args];
+  const [command, commandArgs] = options.npx
+    ? ['npm', ['exec', '--offline', '-c', [process.execPath, ...node].map((part) => `'${part}'`).join(' ')]]
+    : [process.execPath, node];
+  const child = spawn(command, commandArgs, {
+    detached: Boolean(options.npx),
     env: {
       ...process.env,
       ARCLI_CONFIG_DIR: directory,
@@ -190,8 +200,13 @@ async function run(args: readonly string[], options: RunOptions): Promise<Interr
   await waitFor(() => existsSync(file('llego')) || child.exitCode !== null, 'la llamada a ARCA');
 
   for (const signal of options.signals) {
-    child.kill(signal);
-    await pause(SIGNAL_MS);
+    if (options.npx) {
+      process.kill(-(child.pid ?? 0), signal);
+    } else {
+      child.kill(signal);
+    }
+
+    await pause(options.signalMs ?? SIGNAL_MS);
   }
 
   if (options.answers) {
@@ -290,6 +305,35 @@ describe.skipIf(process.platform === 'win32')('un lote interrumpido en el 2.º',
       });
     },
   );
+
+  it('dos señales casi juntas son una: los 2 CAE y el 3.º sin procesar', async () => {
+    const result = await run([...batch(), '--json'], {
+      answers: true,
+      hold: ['createVoucher', 2],
+      signalMs: REPEATED_MS,
+      signals: ['SIGINT', 'SIGINT'],
+    });
+
+    expect(sent()).toEqual(['42', '43']);
+    expect(result).toMatchObject({ code: 1, killed: false, signal: null });
+    expect(JSON.parse(result.stdout)).toHaveLength(2);
+    expect(JSON.parse(result.stderr)).toMatchObject({ detalles: { codigoCausa: 'CANCELLED', sinProcesar: [3] } });
+  });
+
+  it('por npm exec, un Ctrl+C (que llega dos veces): los 2 CAE y el 3.º sin procesar', async () => {
+    const result = await run([...batch(), '--json'], {
+      answers: true,
+      hold: ['createVoucher', 2],
+      npx: true,
+      signals: ['SIGINT'],
+    });
+
+    expect(sent()).toEqual(['42', '43']);
+    expect(result.killed).toBe(false);
+    expect(JSON.parse(result.stdout)).toHaveLength(2);
+    expect(result.stderr).toContain('"codigoCausa": "CANCELLED"');
+    expect(result.stderr).not.toContain('EMISSION_UNCERTAIN');
+  });
 
   it('una señal, en texto: los 2 CAE y qué falta', async () => {
     const result = await run(batch(), { answers: true, hold: ['createVoucher', 2], signals: ['SIGINT'] });

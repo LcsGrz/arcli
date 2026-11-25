@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { EXPORT_CREDIT_NOTE_KIND, EXPORT_DEBIT_NOTE_KIND } from '../../../modules/export/export.kinds';
+import { REPEATED_SIGNAL_MS } from '../../interruption';
 
 import {
   batch,
@@ -27,7 +28,7 @@ import {
 vi.mock('../../spinner', () => ({ startSpinner: () => null }));
 vi.mock('../../interactive/list-select', () => ({ listSelect: vi.fn() }));
 
-const ANSWER_MS = 300;
+const ANSWER_MS = 3000;
 const CAE = /75123456789012/g;
 /** Nunca de un comprobante que se pudo haber enviado. */
 const DENIED = /no se (emitió|envió)/i;
@@ -38,6 +39,8 @@ type Signal = keyof typeof signals;
 interface Interruption {
   /** En cuál llamada a `method` llega la señal. */
   readonly call?: number;
+  /** Cuánto pasa entre una señal y la otra. Por defecto, lo justo para que cuenten por separado. */
+  readonly gap?: number;
   readonly method?: string;
   /** Con varias, una por vez en ese orden. */
   readonly signal?: Signal | readonly Signal[];
@@ -63,27 +66,36 @@ const written = () =>
 
 /** Corre `run` y, en esa llamada a ARCA, manda las señales y después deja que ARCA conteste. */
 async function interrupt(
-  { call = 1, method = 'createVoucher', signal = 'SIGINT', times }: Interruption,
+  { call = 1, gap = REPEATED_SIGNAL_MS, method = 'createVoucher', signal = 'SIGINT', times }: Interruption,
   run: (hook: Pick<RunOptions, 'onArcaCall'>) => Promise<Run>,
 ): Promise<InterruptedRun> {
   let answered = false;
   let seen = 0;
   let whileWaiting = '';
   let waiting: Promise<void> | undefined;
+  let finish: () => void = () => undefined;
+  const finished = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
 
   async function sendSignals(): Promise<void> {
     const before = written();
+    const now = Math.floor(performance.now());
+    const clock = vi.spyOn(performance, 'now');
 
     for (let sent = 0; sent < times; sent += 1) {
+      clock.mockReturnValue(now + sent * gap);
+
       const next = typeof signal === 'string' ? signal : signal[sent];
 
       process.emit(next, next);
       await pause(5);
     }
 
+    clock.mockRestore();
     whileWaiting = written().replace(before, '');
-    // Con una sola señal se espera la respuesta: no hace falta demorarla.
-    await pause(times > 1 ? ANSWER_MS : 0);
+    // Si se tiene que esperar la respuesta, no hace falta demorarla.
+    await (gap * (times - 1) >= REPEATED_SIGNAL_MS ? Promise.race([pause(ANSWER_MS), finished]) : pause(0));
     answered = true;
   }
 
@@ -98,6 +110,9 @@ async function interrupt(
     },
   });
   const answeredAtEnd = answered;
+
+  finish();
+
   const atEnd = written();
 
   // Lo que ARCA conteste tarde no escribe nada ni queda como un rechazo sin atender.
@@ -536,12 +551,21 @@ describe('por qué señal se corta', () => {
     expect(atKill).toEqual(signals);
   });
 
-  it('sin nada enviado, la primera corta como siempre y no se envía aunque ARCA dé el número', async () => {
-    const run = await runBatch({ method: 'getNextVoucherNumber', times: 1 }, { json: true });
+  it.each(['SIGINT', 'SIGTERM'] as const)(
+    'sin nada enviado, la primera (%s) corta como siempre: sin salida, aunque ARCA dé el número',
+    async (signal) => {
+      for (const json of [false, true]) {
+        vi.mocked(process.kill).mockClear();
 
-    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGINT');
-    expect(sent(run)).toEqual([]);
-  });
+        const run = await runBatch({ method: 'getNextVoucherNumber', signal, times: 1 }, { json });
+
+        expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, signal);
+        expect(sent(run)).toEqual([]);
+        expect([run.stdout, run.stderr]).toEqual(['', '']);
+        expect(run.exit).toBe(`fin: exit ${signal === 'SIGINT' ? 130 : 143}`);
+      }
+    },
+  );
 });
 
 it('un listener de otro que reenvía la señal, como el de when-exit, no cuenta como la segunda', async () => {
@@ -570,4 +594,34 @@ it('tras dos señales no se genera ningún PDF: sale como no generado, con su CA
       pdf: { error: { codigo: 'PDF_GENERATION_ERROR', mensaje: 'Se cortó antes de generar el PDF.' } },
     },
   ]);
+});
+
+describe('la misma señal dos veces, como llega con npx', () => {
+  it.each([
+    ['dos SIGINT', 5, 'SIGINT', 2],
+    ['dos SIGINT, justo antes del límite', REPEATED_SIGNAL_MS - 1, 'SIGINT', 2],
+    ['una de cada una', 5, ['SIGTERM', 'SIGINT'], 2],
+    ['cinco seguidas', 5, 'SIGINT', 5],
+  ] as const)('%s: sigue esperando y entrega el CAE', async (_name, gap, signal, times) => {
+    const run = await runBatch({ call: 2, gap, signal, times }, { json: true });
+
+    expect(JSON.parse(run.stdout)).toHaveLength(2);
+    expect(details(run)).toMatchObject({ codigoCausa: 'CANCELLED', procesados: 2, sinProcesar: [3] });
+    expect(run.answered).toBe(true);
+    expect(process.kill).not.toHaveBeenCalled();
+  });
+
+  it('en texto, un solo aviso', async () => {
+    const run = await interrupt({ gap: 5, times: 2 }, (hook) => runBilling([...FC, '--emitir'], hook));
+
+    expect(run.whileWaiting.match(/esperamos/gi)).toHaveLength(1);
+    expect(run.exit).toBe('fin: exit 0');
+  });
+
+  it('después, otra de verdad corta: se cuenta desde la primera', async () => {
+    const run = await runBatch({ call: 2, gap: REPEATED_SIGNAL_MS / 2, times: 3 }, { json: true });
+
+    expect(details(run)).toMatchObject({ sinConfirmar: 2 });
+    expect(run.answered).toBe(false);
+  });
 });

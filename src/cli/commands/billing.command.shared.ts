@@ -199,20 +199,18 @@ export async function executeBillingCommand(
         raw: useRaw,
       },
     };
-    const outcome = await guardEmission(
-      { batch: plan.isBatch, json: runtime.outputJson, onCut: () => spinner?.stop() },
-      (interruption) =>
-        emitBilling({
-          ...interruption,
-          clock: systemClock,
-          gateway: gateways.billing,
-          items: planBillingEmission(preview.items),
-          onEmitted: (result) => {
-            recordEmission(result);
-          },
-          runtime,
-          scope: plan,
-        }),
+    const outcome = await guardEmission({ json: runtime.outputJson, onCut: () => spinner?.stop() }, (interruption) =>
+      emitBilling({
+        ...interruption,
+        clock: systemClock,
+        gateway: gateways.billing,
+        items: planBillingEmission(preview.items),
+        onEmitted: (result) => {
+          recordEmission(result);
+        },
+        runtime,
+        scope: plan,
+      }),
     );
     const { results } = outcome;
 

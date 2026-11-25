@@ -18,6 +18,7 @@ import { EmissionCancelledError } from './emission-cancelled';
 import { describeEmittedInThisRun } from './emitted-vouchers';
 import { readJsonDefault } from './global-options';
 import { isPromptCancellation } from './interactive/prompts';
+import { ResentSignalError } from './interruption';
 import { UsageErrorWithSuggestion } from './usage-error';
 
 /** Cualquier error, como panel. Los de un esquema los describe billing: la UI no conoce sus campos. */
@@ -58,8 +59,13 @@ export function shouldPrintErrorAsJson(argv: readonly string[], readDefault = re
 const COMMANDER_NON_ERROR_CODES = new Set(['commander.help', 'commander.helpDisplayed', 'commander.version']);
 
 /** Ayuda o version: commander ya las imprimio y solo queda salir con su exit code. */
-export function isCommanderExit(error: unknown): error is CommanderError {
+function isCommanderExit(error: unknown): error is CommanderError {
   return error instanceof CommanderError && COMMANDER_NON_ERROR_CODES.has(error.code);
+}
+
+/** Solo da el exit code: no hay nada que escribir. */
+export function isSilentExit(error: unknown): error is CommanderError | ResentSignalError {
+  return isCommanderExit(error) || error instanceof ResentSignalError;
 }
 
 /** Un error de uso de commander: opcion desconocida, valor faltante, argumento de mas, etc. */
@@ -155,7 +161,7 @@ export function reportCliError(
   errorsAsJson: boolean,
   outputFailures: OutputFailures = new Map(),
 ): number {
-  if (isCommanderExit(error)) {
+  if (isSilentExit(error)) {
     return error.exitCode;
   }
 
@@ -216,7 +222,7 @@ export function reportOutputFailure(
   } else if (!options.json) {
     writeTerminalOutput(formatNotice());
 
-    if (options.commandError !== undefined && !isCommanderExit(options.commandError)) {
+    if (options.commandError !== undefined && !isSilentExit(options.commandError)) {
       writeTerminalOutput(formatErrorPanel(options.commandError));
     }
   }
