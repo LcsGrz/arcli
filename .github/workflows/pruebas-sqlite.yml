@@ -1,0 +1,36 @@
+# Temporal (ARQ-12): mide node:sqlite por sistema y versión de Node. No se mergea.
+name: Pruebas de node:sqlite
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  sqlite:
+    if: github.head_ref == 'chore/arq-12-pruebas-sqlite'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node-version: ['22.22.1', '22', '24', '26']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node-version }}
+          check-latest: true
+          package-manager-cache: false
+
+      - name: Pruebas
+        run: node scripts/pruebas-sqlite/correr.mjs
