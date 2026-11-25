@@ -116,6 +116,22 @@ async function run(
   return { code, elapsed: Date.now() - start, stderr: read.stderr, stdout: stripVTControlCharacters(read.stdout) };
 }
 
+/** `estado` con ARCA de mentira que tarda: npm contesta antes de que termine. */
+function slowStatus(): string {
+  const gateway = pathToFileURL(resolve('dist/services/arca/arca-parameters.gateway.js')).href;
+
+  return `
+     const { ArcaParametersGateway } = await import(${JSON.stringify(gateway)});
+     const { createRequire } = await import('node:module');
+     const { SoapClient } = createRequire(${JSON.stringify(pathToFileURL(CLI).href)})('@arcasdk/core');
+     SoapClient.prototype.createClient = async () => { throw new Error('sin WSFEX'); };
+     ArcaParametersGateway.prototype.getServerStatus = async () => {
+       await new Promise((done) => setTimeout(done, 500));
+       return { app: 'OK', auth: 'OK', db: 'OK' };
+     };
+     ArcaParametersGateway.prototype.getSalesPoints = async () => [];`;
+}
+
 const cachePath = () => join(directory, 'update-cache.json');
 const lastCheckedAt = (): number =>
   existsSync(cachePath())
@@ -193,8 +209,8 @@ describe('un comando con npm colgado', () => {
 
 describe('un comando sin npm colgado', () => {
   it('lo que llega antes de terminar se avisa y se anota', async () => {
-    const result = await run(['config', 'ruta'], {
-      registry: `answer('{"version":"99.0.0"}');`,
+    const result = await run(['estado'], {
+      registry: `${slowStatus()} answer('{"version":"99.0.0"}');`,
     });
 
     expect(result.code).toBe(0);

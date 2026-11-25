@@ -71,8 +71,8 @@ beforeEach(async () => {
   });
   await new Promise<void>((resolve) => registry.listen(0, 'localhost', resolve));
   await new Promise<void>((resolve) => proxy.listen(0, '127.0.0.1', resolve));
-  // El certificado es ficticio.
-  agentOptions.rejectUnauthorized = false;
+  // El certificado es ficticio y de otro nombre.
+  Object.assign(agentOptions, { ca: readFileSync(certPath), servername: 'arcli-test' });
   delete agentOptions.proxyEnv;
   connects.length = 0;
 });
