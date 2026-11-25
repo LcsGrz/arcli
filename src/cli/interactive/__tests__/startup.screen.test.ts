@@ -8,6 +8,7 @@ import { checkForUpdate, type UpdateCheckResult } from '../../../modules/update-
 import { runConfigMenu, runGuidedSetup } from '../config.flow';
 import { runInteractiveMode } from '../interactive-mode';
 import { runInvoiceFlow } from '../invoice.flow';
+import { runNoteFlow } from '../note.flow';
 import { withOutputGuard } from '../output-guard';
 import { createInteractiveSession } from '../session';
 import { runStatusFlow } from '../status.flow';
@@ -204,7 +205,7 @@ afterEach(async () => {
 });
 
 describe('el asistente abre sin esperar (TUI-49)', () => {
-  it.fails('con ARCA y npm pendientes el menú ya está y responde a flechas, filtro y Enter', async () => {
+  it('con ARCA y npm pendientes el menú ya está y responde a flechas, filtro y Enter', async () => {
     start();
     await seen('¿Qué querés hacer?');
     expect(screen()).toMatch(/━━ 20-33333333-4 · PV 3 ━+ COMPROBANDO ARCA… ━ TESTING ━━/);
@@ -222,7 +223,7 @@ describe('el asistente abre sin esperar (TUI-49)', () => {
     expect(runStatusFlow).toHaveBeenCalledTimes(1);
   });
 
-  it.fails.each<[ArcaHealth, string]>([
+  it.each<[ArcaHealth, string]>([
     ['funcionando', 'ARCA FUNCIONANDO'],
     ['con-demoras', 'ARCA CON DEMORAS'],
     ['con-problemas', 'ARCA CON PROBLEMAS'],
@@ -247,7 +248,7 @@ describe('el asistente abre sin esperar (TUI-49)', () => {
     expect(text()).not.toContain('SIN VERIFICAR');
   });
 
-  it.fails('si la consulta falla, es sin respuesta', async () => {
+  it('si la consulta falla, es sin respuesta', async () => {
     start();
     await seen(PENDING);
     health[0]?.reject(new Error('falló'));
@@ -256,7 +257,7 @@ describe('el asistente abre sin esperar (TUI-49)', () => {
     expect(unhandled).not.toHaveBeenCalled();
   });
 
-  it.fails('el historial queda como siempre: logo, barra y respuesta, con las mismas líneas en blanco', async () => {
+  it('el historial queda como siempre: logo, barra y respuesta, con las mismas líneas en blanco', async () => {
     const flow = deferred<void>();
 
     vi.mocked(runInvoiceFlow).mockImplementationOnce(() => flow.promise as never);
@@ -287,7 +288,7 @@ describe('se elige antes de saber cómo está ARCA (TUI-49)', () => {
     return flow;
   }
 
-  it.fails.each<[ArcaHealth, RegExp]>([
+  it.each<[ArcaHealth, RegExp]>([
     ['con-demoras', /ARCA con demoras/g],
     ['con-problemas', /ARCA con problemas/g],
     ['sin-respuesta', /ARCA sin respuesta/g],
@@ -316,7 +317,7 @@ describe('se elige antes de saber cómo está ARCA (TUI-49)', () => {
     expect(count(/ TESTING /g)).toBe(1);
   });
 
-  it.fails('si está bien, no avisa nada', async () => {
+  it('si está bien, no avisa nada', async () => {
     const flow = openInvoice();
 
     start();
@@ -329,7 +330,7 @@ describe('se elige antes de saber cómo está ARCA (TUI-49)', () => {
     expect(text()).not.toMatch(/ARCA funcionando/i);
   });
 
-  it.fails('si el resultado llega con el menú ya abierto otra vez, avisa ahí, sin duplicar nada', async () => {
+  it('si el resultado llega con el menú ya abierto otra vez, avisa ahí, sin duplicar nada', async () => {
     start();
     await seen(PENDING);
     await press(ENTER);
@@ -345,7 +346,7 @@ describe('se elige antes de saber cómo está ARCA (TUI-49)', () => {
     expect(count(/ARCA sin respuesta/g)).toBe(1);
   });
 
-  it.fails('la versión que llega con un flujo abierto aparece en el próximo menú', async () => {
+  it('la versión que llega con un flujo abierto aparece en el próximo menú', async () => {
     const flow = openInvoice();
 
     start();
@@ -369,7 +370,7 @@ describe('la versión nueva llega con el menú abierto (TUI-49)', () => {
     await pause();
   }
 
-  it.fails('aparece arriba de todo y la marcada no cambia', async () => {
+  it('aparece arriba de todo y la marcada no cambia', async () => {
     start();
     await seen(PENDING);
     await arrive();
@@ -385,7 +386,7 @@ describe('la versión nueva llega con el menú abierto (TUI-49)', () => {
     expect(runUpdateFlow).not.toHaveBeenCalled();
   });
 
-  it.fails('se llega con las flechas y Enter la elige', async () => {
+  it('se llega con las flechas y Enter la elige', async () => {
     start();
     await seen(PENDING);
     await arrive();
@@ -396,7 +397,7 @@ describe('la versión nueva llega con el menú abierto (TUI-49)', () => {
     expect(text()).toContain(`✔ ¿Qué querés hacer? ${UPDATE_ROW}`);
   });
 
-  it.fails('con un filtro que la incluye entre otras, aparece sin marcarse', async () => {
+  it('con un filtro que la incluye entre otras, aparece sin marcarse', async () => {
     start();
     await seen(PENDING);
     // "ac" deja "Emitir factura", "Estado de ARCA"… y la de actualizar.
@@ -411,7 +412,7 @@ describe('la versión nueva llega con el menú abierto (TUI-49)', () => {
     expect(marked()).toEqual(row);
   });
 
-  it.fails('con un filtro que solo la incluye a ella, no se marca sola y Enter no elige nada', async () => {
+  it('con un filtro que solo la incluye a ella, no se marca sola y Enter no elige nada', async () => {
     start();
     await seen(PENDING);
     await press('a', 'c', 't', 'u', 'a');
@@ -427,21 +428,21 @@ describe('la versión nueva llega con el menú abierto (TUI-49)', () => {
     expect(runUpdateFlow).toHaveBeenCalledTimes(1);
   });
 
-  it.fails('con un filtro que no la incluye, no se ve hasta borrarlo', async () => {
+  it('con un filtro que no la incluye, no se ve hasta borrarlo', async () => {
     start();
     await seen(PENDING);
-    await press('e', 's', 't', 'a', 'd');
+    await press('d');
     await arrive();
     expect(screen()).not.toContain(UPDATE_ROW);
-    expect(marked()).toEqual(['Estado de ARCA']);
-    await press(BACKSPACE, BACKSPACE, BACKSPACE, BACKSPACE, BACKSPACE);
+    expect(marked()).toEqual(['Emitir nota de crédito']);
+    await press(BACKSPACE);
     await seen(UPDATE_ROW);
-    expect(marked()).toEqual(['Estado de ARCA']);
+    expect(marked()).toEqual(['Emitir nota de crédito']);
     await press(ENTER);
-    expect(runStatusFlow).toHaveBeenCalledTimes(1);
+    expect(runNoteFlow).toHaveBeenCalledTimes(1);
   });
 
-  it.fails('con "Salir" marcada, Enter sale', async () => {
+  it('con "Salir" marcada, Enter sale', async () => {
     start();
     await seen(PENDING);
     await press(...Array.from({ length: 8 }, () => DOWN));
@@ -459,7 +460,7 @@ describe('la versión nueva llega con el menú abierto (TUI-49)', () => {
 describe('volver de Configuración (TUI-49)', () => {
   const openConfig = () => press('c', 'o', 'n', 'f', 'i', 'g', ENTER);
 
-  it.fails('la barra se rearma sin esperar', async () => {
+  it('la barra se rearma sin esperar', async () => {
     start();
     await seen(PENDING);
     await openConfig();
@@ -472,7 +473,7 @@ describe('volver de Configuración (TUI-49)', () => {
     expect(text()).not.toContain(PENDING);
   });
 
-  it.fails('con otro entorno, la respuesta vieja no se muestra', async () => {
+  it('con otro entorno, la respuesta vieja no se muestra', async () => {
     vi.mocked(runConfigMenu).mockImplementationOnce(async () => {
       vi.mocked(createInteractiveSession).mockImplementation(
         () => ({ arca: {}, runtime: { ...runtime, environment: 'produccion' } }) as never,
@@ -490,7 +491,7 @@ describe('volver de Configuración (TUI-49)', () => {
     expect(text()).not.toMatch(/ARCA sin respuesta/i);
   });
 
-  it.fails('la que llega después de cancelar Configuración, tampoco: pudo cambiar el entorno', async () => {
+  it('la que llega después de cancelar Configuración, tampoco: pudo cambiar el entorno', async () => {
     vi.mocked(runConfigMenu).mockRejectedValueOnce(Object.assign(new Error('x'), { name: 'ExitPromptError' }));
     start();
     await seen(PENDING);
@@ -503,7 +504,7 @@ describe('volver de Configuración (TUI-49)', () => {
 });
 
 describe('primera configuración y certificados (TUI-49)', () => {
-  it.fails('si falta algo y hay sesión, la guía se ofrece sin esperar y la barra se completa', async () => {
+  it('si falta algo y hay sesión, la guía se ofrece sin esperar y la barra se completa', async () => {
     vi.mocked(listMissingSetupKeys).mockImplementationOnce(() => ['puntoVenta']);
     start();
     await seen('Falta completar la configuración');
@@ -540,7 +541,7 @@ describe('primera configuración y certificados (TUI-49)', () => {
     expect(checkArcaHealth).not.toHaveBeenCalled();
   });
 
-  it.fails('el recuadro de certificados por vencer queda bajo la barra', async () => {
+  it('el recuadro de certificados por vencer queda bajo la barra', async () => {
     vi.mocked(createInteractiveSession).mockImplementation(
       () => ({ arca: {}, runtime: { ...runtime, certificateNotices: [expiring] } }) as never,
     );
@@ -576,7 +577,7 @@ describe('terminal angosta, baja o ASCII (TUI-49)', () => {
     expect(marked()).toEqual([UPDATE_ROW]);
   });
 
-  it.fails('en 80x24 no espera y nada se duplica, tampoco con filtro y con la versión', async () => {
+  it('en 80x24 no espera y nada se duplica, tampoco con filtro y con la versión', async () => {
     resize(80, 24);
     start();
     await seen(PENDING);
@@ -592,7 +593,7 @@ describe('terminal angosta, baja o ASCII (TUI-49)', () => {
     expect(count(/ARCA CON PROBLEMAS/g)).toBe(1);
   });
 
-  it.fails('angosta: la barra de dos líneas y las filas cortadas no se duplican', async () => {
+  it('angosta: la barra de dos líneas y las filas cortadas no se duplican', async () => {
     resize(40, 60);
     start();
     await seen(PENDING);
@@ -610,7 +611,7 @@ describe('terminal angosta, baja o ASCII (TUI-49)', () => {
     expect(count(/ PV 3 /g)).toBe(1);
   });
 
-  it.fails('sin Unicode, "COMPROBANDO ARCA..."', async () => {
+  it('sin Unicode, "COMPROBANDO ARCA..."', async () => {
     vi.stubEnv('ARCLI_ASCII', '1');
 
     try {
@@ -624,7 +625,7 @@ describe('terminal angosta, baja o ASCII (TUI-49)', () => {
 });
 
 describe('salir con consultas pendientes (TUI-49)', () => {
-  it.fails.each<[string, readonly string[]]>([
+  it.each<[string, readonly string[]]>([
     ['Salir', [...Array.from({ length: 8 }, () => DOWN), ENTER]],
     ['Esc', [ESCAPE]],
     ['Ctrl+C', [CTRL_C]],

@@ -210,7 +210,7 @@ describe('un comando sin npm colgado', () => {
     expect(result).toMatchObject({ code: 0, stderr: '' });
   }, 70_000);
 
-  it.fails.each([
+  it.each([
     ['--json', ['config', 'ver', '--json'], false],
     ['autocompletado', ['__completar', 'arcli', ''], false],
     ['NO_UPDATE_NOTIFIER', ['config', 'ruta'], true],
@@ -230,7 +230,7 @@ describe('un comando sin npm colgado', () => {
 });
 
 describe('el asistente con ARCA y npm colgados', () => {
-  it.fails.each([
+  it.each([
     ['Esc', '\u001B'],
     ['Ctrl+C', '\u0003'],
     ['Salir', `${'\u001B[B'.repeat(8)}\r`],

@@ -1,46 +1,31 @@
 import { Separator } from '@inquirer/core';
 
-import { formatCuit } from '../../lib/identity/format-cuit';
 import { DOCS_SITE_URL } from '../../lib/links';
-import {
-  CertificateExpiredError,
-  type CertificateExpiryNotice,
-  inspectConfiguredCertificates,
-} from '../../modules/config/certificate-expiry';
-import { type ArcliEnvironment, formatEnvironmentLabel } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { listMissingSetupKeys, resolveActiveEnvironment } from '../../modules/interactive/config-fields';
 import { CONFIG_MENU_NEW_OPTIONS } from '../../modules/interactive/new-options';
-import { type ArcaHealth, checkArcaHealth } from '../../modules/parameters/health';
 import { checkForUpdate, type UpdateCheckResult } from '../../modules/update-check/update-check.service';
-import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
-import {
-  colorize,
-  noticePanel,
-  renderLogo,
-  statusBar,
-  type StatusBarSegment,
-  uiSymbol,
-  type UiTextColor,
-  writeTerminalOutput,
-  writeTerminalRaw,
-} from '../../ui';
-import { renderCertificateNotices } from '../arca-runtime';
+import { requestNpmRegistry } from '../../services/npm/npm-registry';
+import { colorize, noticePanel, renderLogo, writeTerminalOutput, writeTerminalRaw } from '../../ui';
 import { CANCELLED_NOTICE } from '../emission-texts';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 import { CLI_VERSION } from '../version';
 
+import { type BackgroundQuery, startBackgroundQuery } from './background-query';
 import { runConfigMenu, runGuidedSetup } from './config.flow';
 import { runInvoiceFlow } from './invoice.flow';
+import { topBlock } from './list-select';
+import { liveListFits } from './live-list';
 import { markIfNew } from './new-mark';
 import { runNoteFlow } from './note.flow';
-import { chooseOne, confirm, isPromptCancellation } from './prompts';
+import { type Choice, chooseOne, confirm, isPromptCancellation, type LiveChoices } from './prompts';
 import { runQueriesMenu } from './queries.flow';
 import { runRepeatFlow } from './repeat.flow';
 import { createInteractiveSession, type InteractiveSession } from './session';
 import { showAssistantError } from './show-assistant-error';
 import { runStatusFlow } from './status.flow';
+import { openStatusHeader, type StatusHeader } from './status-header';
 import { runUpdateFlow } from './update.flow';
 
 type MenuOption =
@@ -82,15 +67,9 @@ async function resolveSession(options: GlobalCliOptions): Promise<InteractiveSes
 }
 
 async function runOption(
-  option: Exclude<MenuOption, 'actualizar' | 'salir'>,
+  option: Exclude<MenuOption, 'actualizar' | 'config' | 'salir'>,
   options: GlobalCliOptions,
 ): Promise<void> {
-  if (option === 'config') {
-    await runConfigMenu(options);
-
-    return;
-  }
-
   const session = await resolveSession(options);
 
   if (!session) {
@@ -106,125 +85,157 @@ async function runOption(
   if (option === 'estado') await runStatusFlow(session);
 }
 
-const HEALTH_LABELS: Record<ArcaHealth, readonly [label: string, color: UiTextColor]> = {
-  'con-demoras': ['ARCA con demoras', 'warning'],
-  'con-problemas': ['ARCA con problemas', 'danger'],
-  funcionando: ['ARCA funcionando', 'success'],
-  'sin-respuesta': ['ARCA sin respuesta', 'danger'],
-};
-
-/** La razon social, si es tan larga que no entra en la barra, se corta. */
-const MAX_ISSUER_NAME_LENGTH = 32;
-
-function environmentSegment(environment: ArcliEnvironment): StatusBarSegment {
-  return {
-    color: environment === 'produccion' ? 'production' : 'testing',
-    text: formatEnvironmentLabel(environment).toUpperCase(),
-  };
-}
-
-/**
- * Recuadro de los certificados por vencer o vencidos, de cualquier entorno, debajo de la barra: queda arriba de
- * todo lo que se haga en la sesion.
- */
-function withCertificateBox(bar: string, notices: readonly CertificateExpiryNotice[]): string {
-  const box = renderCertificateNotices(notices);
-
-  return box ? `${bar}\n\n${box}` : bar;
-}
-
-/**
- * Con el certificado activo vencido la sesion no se crea, asi que los del resto de los entornos se leen aparte de
- * la config. Si no se puede, queda solo el vencido.
- */
-function noticesWithExpired(expired: CertificateExpiryNotice): CertificateExpiryNotice[] {
-  const service = new ConfigService();
-
-  try {
-    const others = inspectConfiguredCertificates(service.getConfig(), {
-      activeEnvironment: expired.environment,
-      now: new Date(),
-    }).filter((notice) => notice.environment !== expired.environment || notice.use !== expired.use);
-
-    return [expired, ...others];
-  } catch {
-    return [expired];
-  } finally {
-    service.close();
-  }
-}
-
-/**
- * Barra de estado: a la izquierda, quien emite (razon social, o el CUIT si no esta configurada) y el punto de
- * venta; a la derecha, como esta ARCA y el entorno, cada uno en su color. Con el certificado por vencer o
- * vencido, debajo va su recuadro.
- */
-async function buildHeader(options: GlobalCliOptions): Promise<string> {
-  let session: InteractiveSession;
-
-  try {
-    session = createInteractiveSession(options);
-  } catch (error) {
-    // Vencido no se consulta ARCA (WSAA lo rechazaria): se dice por que en lugar de "falta configurar".
-    if (error instanceof CertificateExpiredError) {
-      const bar = statusBar(
-        [{ text: 'certificado vencido' }],
-        [{ color: 'danger', text: 'ARCA SIN VERIFICAR' }, environmentSegment(error.notice.environment)],
-        { rightSeparator: 'rule' },
-      );
-
-      return withCertificateBox(bar, noticesWithExpired(error.notice));
-    }
-
-    return statusBar([{ text: 'falta completar la configuración' }], [{ color: 'muted', text: 'ARCA SIN VERIFICAR' }]);
-  }
-
-  const spinner = startSpinner('Consultando el estado de ARCA...');
-  const health = await checkArcaHealth({ gateway: new ArcaParametersGateway(session.arca), now: Date.now });
-
-  spinner?.stop();
-
-  const [label, color] = HEALTH_LABELS[health];
-  const { certificateNotices, config, cuit, environment, pointOfSale } = session.runtime;
-  const bar = statusBar(
-    [{ text: formatIssuer(config.emisor?.razonSocial, cuit) }, { text: `PV ${pointOfSale ?? 'sin configurar'}` }],
-    [{ color, text: label.toUpperCase() }, environmentSegment(environment)],
-    { rightSeparator: 'rule' },
-  );
-
-  return withCertificateBox(bar, certificateNotices);
-}
-
-function formatIssuer(businessName: string | undefined, cuit: number): string {
-  if (!businessName) {
-    return formatCuit(cuit);
-  }
-
-  return businessName.length > MAX_ISSUER_NAME_LENGTH
-    ? `${businessName.slice(0, MAX_ISSUER_NAME_LENGTH - 1).trimEnd()}${uiSymbol('ellipsis')}`
-    : businessName;
-}
-
 function updateChoice(update: UpdateCheckResult) {
   const name = `Actualizar a la versión ${update.latestVersion}`;
 
   return { name: colorize(name, 'highlight'), short: name, value: 'actualizar' as const };
 }
 
+/** Un turno, para que lo que no espera nada (`NO_UPDATE_NOTIFIER`) ya se sepa antes de dibujar. */
+function nextTurn(): Promise<void> {
+  return new Promise((resolve) => {
+    setImmediate(resolve);
+  });
+}
+
+const SETUP_QUESTION = 'Falta completar la configuración. ¿La hacemos ahora, paso a paso?';
+
+/** Las opciones del menu, sin la de actualizar. */
+function menuChoices(): Array<Choice<MenuOption> | Separator> {
+  return [
+    {
+      description: 'Factura A, B o C, de crédito (FCE) o de exportación (E)',
+      name: 'Emitir factura',
+      value: 'factura',
+    },
+    markIfNew({ description: 'Recibo A, B o C por un cobro', name: 'Emitir recibo', value: 'recibo' }, [
+      'recibo',
+      'recibos-a-b',
+    ]),
+    {
+      description: 'Copia una de las últimas, con fechas nuevas',
+      name: 'Repetir un comprobante anterior',
+      value: 'repetir',
+    },
+    {
+      description: 'Descuento, devolución o anulación de una factura',
+      name: 'Emitir nota de crédito',
+      value: 'nota-credito',
+    },
+    { description: 'Cargo adicional sobre una factura', name: 'Emitir nota de débito', value: 'nota-debito' },
+    markIfNew(
+      {
+        description: 'Tus comprobantes, CUITs, cotizaciones, monotributo y tablas de ARCA',
+        name: 'Consultas',
+        value: 'consultas',
+      },
+      ['consultas', 'monotributo'],
+    ),
+    { description: 'Servidores, punto de venta y cotización del dólar', name: 'Estado de ARCA', value: 'estado' },
+    markIfNew(
+      {
+        description: 'Revisar, configuración guiada, cambiar un dato y PDF',
+        name: 'Configuración',
+        value: 'config',
+      },
+      CONFIG_MENU_NEW_OPTIONS,
+    ),
+    new Separator(' '),
+    { name: 'Salir', value: 'salir' },
+  ];
+}
+
+/** Lo de arriba de la pregunta, que se completa mientras espera la respuesta. */
+function liveHeader(header: StatusHeader): Omit<LiveChoices<never>, 'firstChoice'> {
+  return {
+    settleTop: header.settle,
+    subscribe: (listener) => header.query?.subscribe(listener) ?? (() => undefined),
+    top: header.text,
+  };
+}
+
+/**
+ * Antes de una pregunta: si lo que falta no puede aparecer con la pregunta abierta, espera a ARCA (la primera vez que
+ * se ve la barra) y escribe lo que hay. Devuelve si la pregunta tiene que seguir actualizandose.
+ */
+async function prepareHeader(header: StatusHeader, choices: ReadonlyArray<Choice<MenuOption> | Separator>) {
+  const query = header.query;
+  const pending = query !== undefined && query.value() === undefined;
+
+  if (pending && liveListFits(choices, header.possibleTexts())) {
+    return true;
+  }
+
+  if (pending && !header.settled()) {
+    const spinner = startSpinner('Consultando el estado de ARCA...');
+
+    await query.settled;
+    spinner?.stop();
+  }
+
+  writeTerminalRaw(topBlock(header.settle()));
+
+  return false;
+}
+
 /** Asistente paso a paso encima del CLI. Ctrl+C cancela el flujo actual; en el menu, sale. */
 export async function runInteractiveMode(options: GlobalCliOptions = {}): Promise<void> {
-  // En el modo interactivo se consulta npm siempre (no una vez por dia): la consulta va en paralelo con ARCA.
-  const updatePromise = checkForUpdate(CLI_VERSION, { maxAgeMs: 0 }).catch(() => null);
+  // En el modo interactivo se consulta npm siempre (no una vez por dia).
+  const updateQuery = startBackgroundQuery<null | UpdateCheckResult>(
+    (signal) => checkForUpdate(CLI_VERSION, { maxAgeMs: 0, request: requestNpmRegistry, signal }),
+    null,
+  );
+  const headers: StatusHeader[] = [];
+  const openHeader = (margin?: string): StatusHeader => {
+    const header = openStatusHeader(options, margin);
 
-  // Dos lineas en blanco entre el logo y la barra. La barra se escribe aparte porque, mientras se consulta ARCA,
-  // en su lugar va el spinner. Debajo, una linea en blanco fija: al responder el menu, @inquirer saca las lineas
-  // de su prefijo y sin esta la respuesta quedaria pegada a la barra (ver `compactTop` en el primer menu).
+    headers.push(header);
+
+    return header;
+  };
+
+  try {
+    await runAssistant(options, updateQuery, openHeader);
+  } finally {
+    // Sin esto, una consulta colgada deja el proceso vivo.
+    updateQuery.cancel();
+    headers.forEach((header) => header.cancel());
+  }
+}
+
+async function runAssistant(
+  options: GlobalCliOptions,
+  updateQuery: BackgroundQuery<null | UpdateCheckResult>,
+  openHeader: (margin?: string) => StatusHeader,
+): Promise<void> {
+  // Dos lineas en blanco entre el logo y la barra. Debajo, una linea en blanco fija: al responder el menu, @inquirer
+  // saca las lineas de su prefijo y sin esta la respuesta quedaria pegada a la barra (ver `compactTop` en el menu).
   writeTerminalRaw(`\n\n${renderLogo(CLI_VERSION)}\n\n\n`);
-  writeTerminalRaw(`${await buildHeader(options)}\n\n`);
 
-  const update = await updatePromise;
+  let header = openHeader();
   // El menu va justo debajo de la barra solo la primera vez; despues, debajo de lo que mostro cada flujo.
   let menuUnderHeader = true;
+
+  // Con lo que se haga ahi puede cambiar el entorno: la consulta de antes ya no vale y la barra se arma de nuevo, para
+  // no seguir diciendo TESTING cuando la proxima factura ya sale en produccion.
+  const runAndReopenHeader = async (run: () => Promise<void>): Promise<void> => {
+    header.cancel();
+    await run();
+    header = openHeader('\n');
+    menuUnderHeader = true;
+    await nextTurn();
+  };
+
+  await nextTurn();
+
+  const choices = menuChoices();
+  // La primera vez, si no entra lo que falta, se espera a npm como a ARCA: despues, recien en el proximo menu.
+  const waitsForUpdate = !liveListFits(choices, header.possibleTexts());
+  let headerIsLive = await prepareHeader(header, choices);
+
+  if (waitsForUpdate) {
+    await updateQuery.settled;
+  }
 
   // Primera vez: sin CUIT, certificado o punto de venta no se puede hacer nada, asi que se ofrece la guia.
   if (listMissingSetup(options).length > 0) {
@@ -232,69 +243,41 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
 
     try {
       if (
-        await confirm('Falta completar la configuración. ¿La hacemos ahora, paso a paso?', 'Sí, configurar', 'Después')
+        await confirm(
+          SETUP_QUESTION,
+          'Sí, configurar',
+          'Después',
+          headerIsLive ? { ...liveHeader(header), firstChoice: () => undefined } : undefined,
+        )
       ) {
-        await runGuidedSetup(options);
-        writeTerminalOutput(await buildHeader(options));
-        menuUnderHeader = true;
+        await runAndReopenHeader(() => runGuidedSetup(options));
       }
     } catch (error) {
       if (!isPromptCancellation(error)) {
         throw error;
       }
     }
+
+    headerIsLive = await prepareHeader(header, choices);
   }
 
   for (;;) {
     let option: MenuOption;
+    // La que ya se sabe es una opcion mas; la que llega despues aparece con el menu abierto, si entra.
+    const update = updateQuery.value() ?? undefined;
+    const updateIsLive = updateQuery.value() === undefined && liveListFits(choices, header.possibleTexts());
 
     try {
       option = await chooseOne<MenuOption>(
         '¿Qué querés hacer?',
-        [
-          ...(update ? [updateChoice(update), new Separator(' ')] : []),
-          {
-            description: 'Factura A, B o C, de crédito (FCE) o de exportación (E)',
-            name: 'Emitir factura',
-            value: 'factura',
-          },
-          markIfNew({ description: 'Recibo A, B o C por un cobro', name: 'Emitir recibo', value: 'recibo' }, [
-            'recibo',
-            'recibos-a-b',
-          ]),
-          {
-            description: 'Copia una de las últimas, con fechas nuevas',
-            name: 'Repetir un comprobante anterior',
-            value: 'repetir',
-          },
-          {
-            description: 'Descuento, devolución o anulación de una factura',
-            name: 'Emitir nota de crédito',
-            value: 'nota-credito',
-          },
-          { description: 'Cargo adicional sobre una factura', name: 'Emitir nota de débito', value: 'nota-debito' },
-          markIfNew(
-            {
-              description: 'Tus comprobantes, CUITs, cotizaciones, monotributo y tablas de ARCA',
-              name: 'Consultas',
-              value: 'consultas',
-            },
-            ['consultas', 'monotributo'],
-          ),
-          { description: 'Servidores, punto de venta y cotización del dólar', name: 'Estado de ARCA', value: 'estado' },
-          markIfNew(
-            {
-              description: 'Revisar, configuración guiada, cambiar un dato y PDF',
-              name: 'Configuración',
-              value: 'config',
-            },
-            CONFIG_MENU_NEW_OPTIONS,
-          ),
-          new Separator(' '),
-          { name: 'Salir', value: 'salir' },
-        ],
+        [...(update ? [updateChoice(update), new Separator(' ')] : []), ...choices],
         undefined,
-        { compactTop: menuUnderHeader, escapeLabel: 'salir', escapeValue: 'salir' },
+        {
+          compactTop: menuUnderHeader,
+          escapeLabel: 'salir',
+          escapeValue: 'salir',
+          live: headerIsLive || updateIsLive ? liveMenu(header, updateIsLive ? updateQuery : undefined) : undefined,
+        },
       );
       menuUnderHeader = false;
     } catch (error) {
@@ -311,20 +294,15 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
 
     try {
       if (option === 'actualizar') {
-        if (update && (await runUpdateFlow(update))) {
+        const chosen = updateQuery.value();
+
+        if (chosen && (await runUpdateFlow(chosen))) {
           return;
         }
-
-        continue;
-      }
-
-      await runOption(option, options);
-
-      // Desde Configuracion se puede cambiar el entorno, el punto de venta o la razon social: la barra se rearma
-      // para no seguir diciendo TESTING cuando la proxima factura ya sale en produccion.
-      if (option === 'config') {
-        writeTerminalOutput(await buildHeader(options));
-        menuUnderHeader = true;
+      } else if (option === 'config') {
+        await runAndReopenHeader(() => runConfigMenu(options));
+      } else {
+        await runOption(option, options);
       }
     } catch (error) {
       if (isPromptCancellation(error)) {
@@ -333,7 +311,32 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
         await showAssistantError(error);
       }
     }
+
+    headerIsLive = await prepareHeader(header, choices);
   }
 
   writeTerminalOutput(colorize(`¡Hasta la próxima! Guías y ayuda: ${DOCS_SITE_URL}`, 'muted'));
+}
+
+/** El menu que se completa mientras espera: la barra (o el aviso) y la version nueva. */
+function liveMenu(
+  header: StatusHeader,
+  updateQuery: BackgroundQuery<null | UpdateCheckResult> | undefined,
+): LiveChoices<MenuOption> {
+  const live = liveHeader(header);
+  let choice: Choice<MenuOption> | undefined;
+
+  return {
+    ...live,
+    firstChoice: () => {
+      const update = updateQuery?.value();
+
+      return (choice ??= update ? updateChoice(update) : undefined);
+    },
+    subscribe: (listener) => {
+      const stops = [live.subscribe(listener), updateQuery?.subscribe(listener)];
+
+      return () => stops.forEach((stop) => stop?.());
+    },
+  };
 }
