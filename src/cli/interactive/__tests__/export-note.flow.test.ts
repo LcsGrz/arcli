@@ -2,12 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppError } from '../../../lib/errors/app-error';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
-import {
-  EXPORT_CREDIT_NOTE_KIND,
-  EXPORT_DEBIT_NOTE_KIND,
-  type ExportGateway,
-  type ExportIssuedVoucher,
-} from '../../../modules/export/export.types';
+import type { ExportGateway } from '../../../modules/export/export.gateway';
+import { EXPORT_CREDIT_NOTE_KIND, EXPORT_DEBIT_NOTE_KIND } from '../../../modules/export/export.kinds';
+import type { ExportIssuedVoucher } from '../../../modules/export/export.types';
 import { buildExportNoteInput } from '../../../modules/interactive/export-note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import { VoucherQueryError } from '../../../modules/vouchers/voucher-history';

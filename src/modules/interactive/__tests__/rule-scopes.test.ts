@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { VOUCHER_KIND_MAP } from '../../billing/voucher-kind-map';
-import { EXPORT_CREDIT_NOTE_KIND, type ExportIssuedVoucher } from '../../export/export.types';
+import { EXPORT_CREDIT_NOTE_KIND } from '../../export/export.kinds';
+import type { ExportIssuedVoucher } from '../../export/export.types';
 import type { IssuedVoucher } from '../../vouchers/voucher-history';
 import { advancedInputFields } from '../billing-optionals';
 import { exportFinalize, type ExportFlowState, exportRuleScope } from '../export-input';

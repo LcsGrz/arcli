@@ -1,11 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ArcliConfig } from '../../../modules/config/config.schemas';
-import {
-  EXPORT_VOUCHER_KIND,
-  type ExportExecutionResult,
-  type ExportVoucherInput,
-} from '../../../modules/export/export.types';
+import { EXPORT_VOUCHER_KIND } from '../../../modules/export/export.kinds';
+import type { ExportExecutionResult, ExportVoucherInput } from '../../../modules/export/export.types';
 import { exportExportacionPdf } from '../../../services/pdf/pdf-exporter';
 import type { PdfPlugin } from '../../../services/pdf/pdf-plugin';
 import type { PdfStepDependencies } from '../billing.command.pdf';

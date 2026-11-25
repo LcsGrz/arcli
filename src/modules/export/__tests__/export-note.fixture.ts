@@ -1,6 +1,7 @@
 import { arcliConfigSchema } from '../../config/config.schemas';
+import type { ExportGateway } from '../export.gateway';
 import { ExportService } from '../export.service';
-import type { ExportGateway, ExportIssuedVoucher, ExportVoucherInput } from '../export.types';
+import type { ExportIssuedVoucher, ExportVoucherInput } from '../export.types';
 
 /** Una nota E con su asociado y un WSFEX falso, para mirar la solicitud que sale de una entrada. */
 

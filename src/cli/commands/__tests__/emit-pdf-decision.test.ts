@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import type { ArcliPdfMode } from '../../../modules/config/config.schemas';
-import { EXPORT_VOUCHER_KIND } from '../../../modules/export/export.types';
+import { EXPORT_VOUCHER_KIND } from '../../../modules/export/export.kinds';
 import { type PdfDecision, resolvePdfDecision } from '../../../modules/pdf/pdf-decision';
 import { parseBillingCommandPlan, registerBillingOptions } from '../billing.command.parser';
 import { registerExportOptions } from '../export.command.options';

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { stripAnsi, visibleWidth } from '../../../ui/primitives';
+import { EXPORT_VOUCHER_KIND } from '../export.kinds';
 import { formatExportResultAsText } from '../export.text';
-import { EXPORT_VOUCHER_KIND, type ExportExecutionResult, type ExportVoucherPayload } from '../export.types';
+import type { ExportExecutionResult, ExportVoucherPayload } from '../export.types';
 
 function result(
   payload: Partial<ExportVoucherPayload> = {},

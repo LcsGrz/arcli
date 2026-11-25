@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
-import type { ExportGateway, ExportIssuedVoucher, ExportVoucherPayload } from '../../../modules/export/export.types';
+import type { ExportGateway } from '../../../modules/export/export.gateway';
+import type { ExportIssuedVoucher, ExportVoucherPayload } from '../../../modules/export/export.types';
 import { exportAnswer } from '../../../testing/arca-answers';
 import { fakeBillingGateway } from '../../../testing/arca-gateways';
 import { stripAnsi } from '../../../ui';

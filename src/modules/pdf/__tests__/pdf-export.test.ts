@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  EXPORT_CREDIT_NOTE_KIND,
-  EXPORT_DEBIT_NOTE_KIND,
-  EXPORT_VOUCHER_KIND,
-  type ExportExecutionResult,
-} from '../../export/export.types';
+import { EXPORT_CREDIT_NOTE_KIND, EXPORT_DEBIT_NOTE_KIND, EXPORT_VOUCHER_KIND } from '../../export/export.kinds';
+import type { ExportExecutionResult } from '../../export/export.types';
 import { mapExportResultToPdfData } from '../pdf-data.mapper';
 import { resolvePdfIssuer } from '../pdf-issuer';
 import { EXPORT_IVA_LEGEND } from '../pdf-legends';

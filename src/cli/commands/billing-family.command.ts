@@ -8,7 +8,7 @@ import {
   VOUCHER_FAMILIES,
   VOUCHER_KIND_MAP,
 } from '../../modules/billing/voucher-kind-map';
-import { getExportVoucherKindByFamily } from '../../modules/export/export.types';
+import { getExportVoucherKindByFamily } from '../../modules/export/export.kinds';
 import { configureSpanishHelp, createFamilyHelp } from '../help';
 import { GLOBAL_OPTION_FLAGS } from '../ignored-global-options';
 import { findPassedOptions, formatSkippedOptionsWarning } from '../skipped-options';

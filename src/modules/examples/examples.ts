@@ -8,7 +8,7 @@ import {
   type ExportVoucherKind,
   getExportVoucherKindByFamily,
   isExportNote,
-} from '../export/export.types';
+} from '../export/export.kinds';
 
 const ISSUER_HINT =
   'Estos ejemplos asumen que ya resolviste CUIT emisor, credenciales y, en la versión mínima, también punto de venta por config.';

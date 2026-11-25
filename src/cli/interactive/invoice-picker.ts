@@ -9,8 +9,10 @@ import {
   formatVoucherWithArticle,
 } from '../../modules/billing/voucher-names';
 import { resolveRowsPerList } from '../../modules/config/config.schemas';
+import type { ExportGateway } from '../../modules/export/export.gateway';
 import { formatExportVoucherPickerRows } from '../../modules/export/export.history.presenter';
-import type { ExportGateway, ExportIssuedVoucher, ExportVoucherKind } from '../../modules/export/export.types';
+import type { ExportVoucherKind } from '../../modules/export/export.kinds';
+import type { ExportIssuedVoucher } from '../../modules/export/export.types';
 import type { OtherSystemInvoice } from '../../modules/interactive/note-input';
 import { validatePositiveInteger } from '../../modules/interactive/validators';
 import { BACK, type Back } from '../../modules/interactive/wizard';

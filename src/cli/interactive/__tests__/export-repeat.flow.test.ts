@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
-import type { ExportGateway, ExportIssuedVoucher } from '../../../modules/export/export.types';
+import type { ExportGateway } from '../../../modules/export/export.gateway';
+import type { ExportIssuedVoucher } from '../../../modules/export/export.types';
 import { buildExportRepeatInput } from '../../../modules/interactive/export-repeat-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import { exportAnswer } from '../../../testing/arca-answers';

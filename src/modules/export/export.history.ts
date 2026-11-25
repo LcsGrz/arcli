@@ -1,6 +1,7 @@
 import { fetchVouchersBackwards, type ListedVoucher, type ListVouchersOptions } from '../vouchers/voucher-history';
 
-import type { ExportGateway, ExportIssuedVoucher } from './export.types';
+import type { ExportGateway } from './export.gateway';
+import type { ExportIssuedVoucher } from './export.types';
 
 /** Los ultimos comprobantes E de un tipo en el punto de venta, del mas nuevo al mas viejo. Son lecturas. */
 export async function listRecentExportVouchers(

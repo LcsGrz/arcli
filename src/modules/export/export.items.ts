@@ -5,7 +5,7 @@ import { formatArgentineAmount, parseArgentineAmount } from '../../lib/numbers/a
 import { assertRules } from '../../lib/rules/rules';
 import { roundAmount } from '../billing/billing.amounts';
 
-import type { ExportRule } from './export.rules';
+import type { ExportRule } from './export.rule-types';
 import {
   DEFAULT_EXPORT_UNIT_CODE,
   EXPORT_TOTAL_ONLY_UNIT_CODES,

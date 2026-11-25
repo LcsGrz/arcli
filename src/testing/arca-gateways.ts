@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 
 import type { BillingGateway } from '../modules/billing/billing.types.internal';
-import type { ExportGateway } from '../modules/export/export.types';
+import type { ExportGateway } from '../modules/export/export.gateway';
 
 const refuseToEmit = async (): Promise<never> => {
   throw new Error('Este test no emite: pasá la llamada que emite con `billingAnswer` o `exportAnswer`.');

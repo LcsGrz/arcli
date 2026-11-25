@@ -1,5 +1,5 @@
-import { resolveExportClientCountryCuit } from '../export/export.mappers';
-import type { ExportRuleContext } from '../export/export.rules';
+import { resolveExportClientCountryCuit } from '../export/export.country-cuit';
+import type { ExportRuleContext } from '../export/export.rule-types';
 import type {
   ExportCountry,
   ExportCountryCuit,

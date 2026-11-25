@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { EXPORT_VOUCHER_KIND } from '../../../modules/export/export.types';
+import { EXPORT_VOUCHER_KIND } from '../../../modules/export/export.kinds';
 import { registerExportOptions } from '../export.command.options';
 import { parseExportCommandPlan } from '../export.command.parser';
 

@@ -8,14 +8,14 @@ import { BillingService } from '../../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import type { BillingGateway } from '../../../modules/billing/billing.types.internal';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
-import { ExportService } from '../../../modules/export/export.service';
+import type { ExportGateway } from '../../../modules/export/export.gateway';
 import {
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
-  type ExportGateway,
-  type ExportVoucherInput,
   type ExportVoucherKind,
-} from '../../../modules/export/export.types';
+} from '../../../modules/export/export.kinds';
+import { ExportService } from '../../../modules/export/export.service';
+import type { ExportVoucherInput } from '../../../modules/export/export.types';
 import { initialAdvancedOptions } from '../../../modules/interactive/billing-optionals';
 import { buildEquivalentCommand } from '../../../modules/interactive/equivalent-command';
 import { buildExportEquivalentCommand } from '../../../modules/interactive/export-equivalent-command';

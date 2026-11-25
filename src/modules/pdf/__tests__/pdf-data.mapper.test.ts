@@ -4,7 +4,8 @@ import { billingAnswer } from '../../../testing/arca-answers';
 import type { BillingExecutionResult } from '../../billing/billing.types.internal';
 import { getVoucherKindByShortcut } from '../../billing/voucher-kind-map';
 import type { UnnumberedVoucherRequest } from '../../billing/voucher-request';
-import { EXPORT_VOUCHER_KIND, type ExportExecutionResult } from '../../export/export.types';
+import { EXPORT_VOUCHER_KIND } from '../../export/export.kinds';
+import type { ExportExecutionResult } from '../../export/export.types';
 import { mapBillingResultToPdfData, mapExportResultToPdfData } from '../pdf-data.mapper';
 import { resolvePdfIssuer } from '../pdf-issuer';
 

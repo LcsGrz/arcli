@@ -3,12 +3,8 @@ import type { Command } from 'commander';
 import { AppError } from '../../lib/errors/app-error';
 import type { ExportFlags } from '../../modules/export/export.input';
 import type { ExportJsonInput } from '../../modules/export/export.json-input';
-import {
-  type ExportItemInput,
-  type ExportType,
-  type ExportVoucherKind,
-  isExportNote,
-} from '../../modules/export/export.types';
+import { type ExportVoucherKind, isExportNote } from '../../modules/export/export.kinds';
+import type { ExportItemInput, ExportType } from '../../modules/export/export.types';
 import { resolvePdfFlag } from '../../modules/pdf/pdf-decision';
 
 import { type OptionValues, pickNumber, pickString, pickSwitch } from './option-values';

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
-import { EXPORT_VOUCHER_KIND } from '../../../modules/export/export.types';
+import { EXPORT_VOUCHER_KIND } from '../../../modules/export/export.kinds';
 import { BACK } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../../modules/vouchers/voucher-history';
 import type { ArcaClient } from '../../../services/arca/arca-client.factory';

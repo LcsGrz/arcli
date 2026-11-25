@@ -1,61 +1,8 @@
-import type { LastNumberPurpose } from '../../lib/errors/query-error';
-import type { AuthorizationAnswer } from '../billing/authorization-answer';
 import type { EmitDecisionSource } from '../billing/billing.emit-decision';
 import { ARCA_DOLLAR_CODE } from '../billing/currency-codes';
 import type { PdfOutcome } from '../pdf/pdf.types';
 
-/** WSFEX solo emite comprobantes de exportacion, asi que la letra es siempre E. 19 es la Factura E. */
-export const EXPORT_VOUCHER_KIND = {
-  arcaType: 19,
-  displayName: 'Factura de exportación E',
-  /** El titulo de la E de Comprobantes en linea, en lugar del "FACTURA" de la plantilla del PDF. */
-  pdfTitle: 'FACTURA DE EXPORTACIÓN',
-  family: 'factura',
-  letter: 'e',
-  shortcut: 'fe',
-} as const;
-
-/** 20, "Nota de Débito por operaciones con el Exterior". */
-export const EXPORT_DEBIT_NOTE_KIND = {
-  arcaType: 20,
-  displayName: 'Nota de débito de exportación E',
-  pdfTitle: 'NOTA DE DÉBITO DE EXPORTACIÓN',
-  family: 'nota-debito',
-  letter: 'e',
-  shortcut: 'nde',
-} as const;
-
-/** 21, "Nota de Crédito por operaciones con el Exterior". */
-export const EXPORT_CREDIT_NOTE_KIND = {
-  arcaType: 21,
-  displayName: 'Nota de crédito de exportación E',
-  pdfTitle: 'NOTA DE CRÉDITO DE EXPORTACIÓN',
-  family: 'nota-credito',
-  letter: 'e',
-  shortcut: 'nce',
-} as const;
-
-export const EXPORT_VOUCHER_KINDS = [EXPORT_VOUCHER_KIND, EXPORT_DEBIT_NOTE_KIND, EXPORT_CREDIT_NOTE_KIND] as const;
-
-export type ExportVoucherKind = (typeof EXPORT_VOUCHER_KINDS)[number];
-
-/** La E de una familia de A, B y C (`factura`, `nota-credito`, `nota-debito`), si la tiene. */
-export function getExportVoucherKindByFamily(family: string): ExportVoucherKind | undefined {
-  return EXPORT_VOUCHER_KINDS.find((kind) => kind.family === family);
-}
-
-export function getExportVoucherKindByShortcut(shortcut: string): ExportVoucherKind | undefined {
-  return EXPORT_VOUCHER_KINDS.find((kind) => kind.shortcut === shortcut.trim().toLowerCase());
-}
-
-export function getExportVoucherKindByArcaType(arcaType: number): ExportVoucherKind | undefined {
-  return EXPORT_VOUCHER_KINDS.find((kind) => kind.arcaType === arcaType);
-}
-
-/** Las notas E llevan comprobante asociado y no llevan permisos, fecha de pago ni `CanMisMonExt`. */
-export function isExportNote(kind: ExportVoucherKind): boolean {
-  return kind.arcaType !== EXPORT_VOUCHER_KIND.arcaType;
-}
+import type { ExportVoucherKind } from './export.kinds';
 
 /** Tabla FEXGetPARAM_Tipo_Expo. */
 export const EXPORT_TYPES = {
@@ -353,43 +300,6 @@ interface ExportAssociatedVoucherDisplay {
   readonly displayName: string;
   readonly total: number;
 }
-
-/** Lo que el modulo necesita de ARCA. `authorize` es la unica llamada que emite. */
-export interface ExportGateway {
-  authorize(payload: ExportVoucherPayload): Promise<AuthorizationAnswer>;
-  /** Tabla de actividades de WSFEX: el `Cmp` solo acepta estos codigos, no los del padron. */
-  getActivities(): Promise<readonly ExportActivity[]>;
-  /**
-   * `FEXCheck_Permiso`: el `Status` que ARCA devuelve para un permiso de embarque y su pais de destino (`OK` o
-   * `NO`), tal cual. Es una lectura: no emite nada.
-   */
-  checkPermit(permit: string, destinationCountry: number): Promise<string>;
-  /** Un comprobante E ya emitido (`FEXGetCMP`), o `null` solo si ARCA dice que no existe; si no, `VoucherQueryError`. */
-  getVoucher(query: ExportVoucherQuery): Promise<ExportIssuedVoucher | null>;
-  getCurrencies(): Promise<readonly ExportCurrency[]>;
-  getDestinationCountries(): Promise<readonly ExportCountry[]>;
-  getDestinationCountryCuits(): Promise<readonly ExportCountryCuit[]>;
-  getIncoterms(): Promise<readonly ExportIncoterm[]>;
-  getLanguages(): Promise<readonly ExportLanguage[]>;
-  getLastRequestId(): Promise<number>;
-  /**
-   * El ultimo numero autorizado de ese tipo en el punto de venta (`FEXGetLast_CMP`); 0 si no hay ninguno. `purpose`
-   * (por defecto, consultar) decide la sugerencia si ARCA contesta con un error.
-   */
-  getLastVoucherNumber(arcaType: number, pointOfSale: number, purpose?: LastNumberPurpose): Promise<number>;
-  /**
-   * Cotizaciones de aduana que WSFEX tiene publicadas para `arcaDate` (`yyyymmdd`). Devuelve solo las monedas con
-   * cotizacion y, en `date`, el dia al que corresponde: si la del dia pedido todavia no salio, es la anterior.
-   */
-  getQuotations(arcaDate: string): Promise<readonly ExportQuotation[]>;
-  getUnits(): Promise<readonly ExportUnit[]>;
-}
-
-/** Las lecturas de WSFEX: lo que consulta la vista previa, sin la llamada que emite. */
-export type ExportPreviewGateway = Omit<ExportGateway, 'authorize'>;
-
-/** La llamada que emite. */
-export type ExportEmissionGateway = Pick<ExportGateway, 'authorize'>;
 
 export interface ExportItemInput {
   readonly code?: string;

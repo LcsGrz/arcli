@@ -8,13 +8,11 @@ import { discardExportOverridden } from './export.input-overrides';
 import { type ExportJsonInput, exportJsonInputWarnings, mapExportJsonItems } from './export.json-input';
 import {
   EXPORT_VOUCHER_KIND,
-  type ExportAssociatedVoucherInput,
-  type ExportModeSource,
-  type ExportVoucherInput,
   type ExportVoucherKind,
   getExportVoucherKindByShortcut,
   isExportNote,
-} from './export.types';
+} from './export.kinds';
+import type { ExportAssociatedVoucherInput, ExportModeSource, ExportVoucherInput } from './export.types';
 
 const ITEMS_DESCRIPTION_WARNING =
   '`--descripcion` se usa solo cuando no hay `--item`: el detalle del comprobante sale de los items.';

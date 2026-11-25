@@ -1,13 +1,13 @@
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
-import { resolveExportClientCountryCuit } from '../../modules/export/export.mappers';
+import { resolveExportClientCountryCuit } from '../../modules/export/export.country-cuit';
+import type { ExportGateway } from '../../modules/export/export.gateway';
+import { EXPORT_VOUCHER_KIND } from '../../modules/export/export.kinds';
 import {
   BILLS_EXPORT_TYPE,
   DEFAULT_EXPORT_CURRENCY_CODE,
   DEFAULT_EXPORT_TYPE,
-  EXPORT_VOUCHER_KIND,
   type ExportCountry,
   type ExportCountryCuit,
-  type ExportGateway,
 } from '../../modules/export/export.types';
 import { copyExportInvoice, copyExportItems, type ExportInvoiceCopy } from '../../modules/interactive/export-copy';
 import { type ExportOptions, isCountryCuitMissing } from '../../modules/interactive/export-optionals';

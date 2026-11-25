@@ -1,7 +1,8 @@
 import { InputValidationError } from '../../lib/errors/app-error';
 
+import type { ExportGateway } from './export.gateway';
 import { describeQueryFailure } from './export.tables';
-import type { ExportGateway, ExportPermitCheck, ExportPermitCheckStatus, ExportVoucherPayload } from './export.types';
+import type { ExportPermitCheck, ExportPermitCheckStatus, ExportVoucherPayload } from './export.types';
 
 /** `Status` de `FEXCheck_Permiso`. */
 const PERMIT_VALID_STATUS = 'OK';

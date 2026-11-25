@@ -18,12 +18,8 @@ import {
 } from '../vouchers/voucher-history.presenter';
 import { formatVoucherNumber } from '../vouchers/voucher-number';
 
-import {
-  EXPORT_TYPES,
-  type ExportIssuedVoucher,
-  type ExportVoucherKind,
-  getExportVoucherKindByArcaType,
-} from './export.types';
+import { type ExportVoucherKind, getExportVoucherKindByArcaType } from './export.kinds';
+import { EXPORT_TYPES, type ExportIssuedVoucher } from './export.types';
 
 interface ExportReport {
   readonly environment: 'produccion' | 'testing';

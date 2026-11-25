@@ -4,7 +4,7 @@ import {
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_DEBIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
-} from '../../../modules/export/export.types';
+} from '../../../modules/export/export.kinds';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { createProgram } from '../../program';

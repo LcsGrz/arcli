@@ -21,32 +21,34 @@ import { formatNextVouchers } from '../billing/voucher-names';
 import type { ArcliConfig } from '../config/config.schemas';
 
 import {
+  exportEmptyTableWarning,
+  resolveExportActivity,
+  resolveExportDestinationCountry,
+  resolveExportLanguage,
+  resolveExportType,
+} from './export.catalogs';
+import { assertExportClientIdentification, resolveExportClientCountryCuit } from './export.country-cuit';
+import {
+  type ExportQuotationDate,
+  resolveExportCurrency,
+  resolveExportQuotation,
+  resolveExportQuotationDate,
+} from './export.currency';
+import { exportTypeTakesPaymentDate, resolveExportVoucherDate } from './export.dates';
+import type { ExportEmissionGateway, ExportPreviewGateway } from './export.gateway';
+import { assertExportIncoterm, resolveExportIncoterm } from './export.incoterm';
+import {
   assertExportItemsTotal,
   assertExportItemTexts,
   buildExportItems,
   DEFAULT_EXPORT_ITEM_DESCRIPTION,
 } from './export.items';
 import {
-  assertExportClientIdentification,
-  assertExportIncoterm,
-  assertExportTextLengths,
-  buildExportPayload,
-  exportEmptyTableWarning,
-  type ExportQuotationDate,
-  exportTypeTakesPaymentDate,
-  resolveExportActivity,
-  resolveExportClientCountryCuit,
-  resolveExportCurrency,
-  resolveExportDestinationCountry,
-  resolveExportIncoterm,
-  resolveExportLanguage,
-  resolveExportNumber,
-  resolveExportPointOfSale,
-  resolveExportQuotation,
-  resolveExportQuotationDate,
-  resolveExportType,
-  resolveExportVoucherDate,
-} from './export.mappers';
+  EXPORT_VOUCHER_KIND,
+  type ExportVoucherKind,
+  getExportVoucherKindByArcaType,
+  isExportNote,
+} from './export.kinds';
 import {
   applyExportAssociatedDefaults,
   assertExportNoteFields,
@@ -57,6 +59,8 @@ import {
   missingExportAssociatedVoucherError,
   resolveExportAssociatedQuery,
 } from './export.notes';
+import { resolveExportNumber, resolveExportPointOfSale } from './export.numbering';
+import { buildExportPayload } from './export.payload';
 import { checkExportPermits } from './export.permits';
 import { createDryRunExportResponse, mapExportResponse } from './export.response';
 import { EXPORT_DATE_RULES } from './export.rules';
@@ -66,22 +70,17 @@ import {
   type ExportTableReader,
   unreadExportTableWarnings,
 } from './export.tables';
+import { assertExportTextLengths } from './export.text-fields';
 import {
   DEFAULT_EXPORT_UNIT_CODE,
-  EXPORT_VOUCHER_KIND,
   type ExportAssociatedVoucherPayload,
   type ExportDisplayInfo,
-  type ExportEmissionGateway,
   type ExportExecutionResult,
   type ExportIssuedVoucher,
-  type ExportPreviewGateway,
   type ExportQuotation,
   type ExportResponseSummary,
   type ExportType,
   type ExportVoucherInput,
-  type ExportVoucherKind,
-  getExportVoucherKindByArcaType,
-  isExportNote,
   MAX_EXPORT_REQUEST_ID,
   MAX_EXPORT_VOUCHER_NUMBER,
   type ResolvedExportVoucher,

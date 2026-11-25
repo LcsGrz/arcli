@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { VOUCHER_KIND_MAP } from '../../../modules/billing/voucher-kind-map';
-import { EXPORT_VOUCHER_KINDS, isExportNote } from '../../../modules/export/export.types';
+import { EXPORT_VOUCHER_KINDS, isExportNote } from '../../../modules/export/export.kinds';
 import { argsForKind } from '../../__tests__/voucher-args.fixture';
 
 import {

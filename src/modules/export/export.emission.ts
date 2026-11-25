@@ -2,12 +2,11 @@ import type { Clock } from '../../lib/time/clock';
 import { type EmissionOutcome, emitBatch, notifyEmitted, type OnEmitted } from '../billing/billing.batch-run';
 import { shouldEmit } from '../billing/billing.emit-decision';
 
+import type { ExportEmissionGateway, ExportPreviewGateway } from './export.gateway';
 import { type ExportRuntime, ExportService } from './export.service';
 import type {
-  ExportEmissionGateway,
   ExportExecutionResult,
   ExportIssuedVoucher,
-  ExportPreviewGateway,
   ExportVoucherInput,
   ResolvedExportVoucher,
 } from './export.types';

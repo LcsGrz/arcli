@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 
-import { EXPORT_VOUCHER_KINDS } from '../../modules/export/export.types';
+import { EXPORT_VOUCHER_KINDS } from '../../modules/export/export.kinds';
 import { registerGlobalOptions } from '../global-options';
 import { configureSpanishHelp, createExportShortcutHelp } from '../help';
 

@@ -1,13 +1,12 @@
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
 import { formatShellCommand } from '../../lib/shell/shell-argument';
-import { DEFAULT_EXPORT_PAYMENT_TERMS } from '../export/export.mappers';
+import { EXPORT_VOUCHER_KIND, isExportNote } from '../export/export.kinds';
+import { DEFAULT_EXPORT_PAYMENT_TERMS } from '../export/export.payload';
 import {
   DEFAULT_EXPORT_TYPE,
   DEFAULT_EXPORT_UNIT_CODE,
-  EXPORT_VOUCHER_KIND,
   type ExportItemInput,
   type ExportVoucherInput,
-  isExportNote,
 } from '../export/export.types';
 
 /** Un `--item` en el formato del CLI: `codigo|descripcion|cantidad|precio|unidad`, sin las partes por defecto. */

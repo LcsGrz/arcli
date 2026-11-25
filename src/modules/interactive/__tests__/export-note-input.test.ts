@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  EXPORT_CREDIT_NOTE_KIND,
-  EXPORT_DEBIT_NOTE_KIND,
-  EXPORT_VOUCHER_KIND,
-  type ExportIssuedVoucher,
-} from '../../export/export.types';
+import { EXPORT_CREDIT_NOTE_KIND, EXPORT_DEBIT_NOTE_KIND, EXPORT_VOUCHER_KIND } from '../../export/export.kinds';
+import type { ExportIssuedVoucher } from '../../export/export.types';
 import { buildExportNoteInput, type ExportNoteState } from '../export-note-input';
 
 const INVOICE = { number: 7, pointOfSale: 4 } as ExportIssuedVoucher;

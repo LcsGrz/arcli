@@ -2,13 +2,13 @@ import { Command } from 'commander';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
+import type { ExportGateway } from '../../../modules/export/export.gateway';
 import {
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
-  type ExportGateway,
-  type ExportIssuedVoucher,
   type ExportVoucherKind,
-} from '../../../modules/export/export.types';
+} from '../../../modules/export/export.kinds';
+import type { ExportIssuedVoucher } from '../../../modules/export/export.types';
 import { exportAnswer } from '../../../testing/arca-answers';
 import { fakeExportGateway } from '../../../testing/arca-gateways';
 import type { CliArcaRuntime } from '../../arca-runtime';

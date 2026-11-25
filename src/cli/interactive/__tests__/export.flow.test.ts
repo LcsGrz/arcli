@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppError } from '../../../lib/errors/app-error';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
-import type { ExportGateway } from '../../../modules/export/export.types';
+import type { ExportGateway } from '../../../modules/export/export.gateway';
 import { BACK } from '../../../modules/interactive/wizard';
 import { exportAnswer } from '../../../testing/arca-answers';
 import { fakeBillingGateway } from '../../../testing/arca-gateways';

@@ -1,7 +1,7 @@
 import { isIvaConditionAllowed } from '../../modules/billing/billing.iva-receptor';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { isReceipt } from '../../modules/billing/voucher-kind-map';
-import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
+import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.kinds';
 import { initialAdvancedOptions } from '../../modules/interactive/billing-optionals';
 import {
   conceptChoices,

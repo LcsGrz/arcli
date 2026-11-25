@@ -4,12 +4,8 @@ import { InputValidationError } from '../../lib/errors/app-error';
 import { EXCHANGE_RATE_DECIMALS } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { parseExportItemArgument } from '../../modules/export/export.items';
-import {
-  type ExportItemInput,
-  type ExportType,
-  type ExportVoucherKind,
-  isExportNote,
-} from '../../modules/export/export.types';
+import { type ExportVoucherKind, isExportNote } from '../../modules/export/export.kinds';
+import type { ExportItemInput, ExportType } from '../../modules/export/export.types';
 import { amountOption, cuitOption, integerOption } from '../option-parsers';
 
 function exportTypeOption(value: string): ExportType {

@@ -12,7 +12,7 @@ import { findRuleFailure } from '../../lib/rules/rules';
 import { BILLING_DATE_WINDOW_RULE } from '../billing/billing.rules';
 import type { BillingConcept } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
-import { assertExportVoucherDate } from '../export/export.mappers';
+import { assertExportVoucherDate } from '../export/export.dates';
 import type { ExportType } from '../export/export.types';
 
 export function validateAmount(value: string): string | true {

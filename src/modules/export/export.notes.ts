@@ -8,23 +8,26 @@ import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/vouch
 import { VoucherQueryError, voucherQueryErrorMessage } from '../vouchers/voucher-history';
 import { formatVoucherNumber } from '../vouchers/voucher-number';
 
-import { assertExportPointOfSaleRange, resolveExportRuleDate } from './export.mappers';
-import type { ExportRule, ExportRuleContext } from './export.rules';
-import { isSameExportClient, isSameExportCountry, isSameExportIncoterm } from './export.same';
+import { resolveExportRuleDate } from './export.dates';
+import type { ExportGateway } from './export.gateway';
 import {
-  DEFAULT_EXPORT_TYPE,
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_DEBIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
   EXPORT_VOUCHER_KINDS,
-  type ExportAssociatedVoucherInput,
-  type ExportGateway,
-  type ExportIssuedVoucher,
-  type ExportVoucherInput,
   type ExportVoucherKind,
-  type ExportVoucherQuery,
   getExportVoucherKindByArcaType,
   getExportVoucherKindByShortcut,
+} from './export.kinds';
+import { assertExportPointOfSaleRange } from './export.numbering';
+import type { ExportRule, ExportRuleContext } from './export.rule-types';
+import { isSameExportClient, isSameExportCountry, isSameExportIncoterm } from './export.same';
+import {
+  DEFAULT_EXPORT_TYPE,
+  type ExportAssociatedVoucherInput,
+  type ExportIssuedVoucher,
+  type ExportVoucherInput,
+  type ExportVoucherQuery,
   SERVICES_EXPORT_TYPE,
 } from './export.types';
 

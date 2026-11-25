@@ -1,6 +1,6 @@
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import { noteSide } from '../billing/voucher-kind-map';
-import { EXPORT_CREDIT_NOTE_KIND, EXPORT_DEBIT_NOTE_KIND, type ExportVoucherKind } from '../export/export.types';
+import { EXPORT_CREDIT_NOTE_KIND, EXPORT_DEBIT_NOTE_KIND, type ExportVoucherKind } from '../export/export.kinds';
 
 import {
   associableNoteChoices,

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { VOUCHER_KIND_MAP } from '../../modules/billing/voucher-kind-map';
-import { EXPORT_VOUCHER_KINDS } from '../../modules/export/export.types';
+import { EXPORT_VOUCHER_KINDS } from '../../modules/export/export.kinds';
 import { type Operation, OPERATIONS, type SurfaceCoverage } from '../../modules/operations/operations';
 import { stripAnsi } from '../../ui';
 import { runInteractiveMode } from '../interactive/interactive-mode';

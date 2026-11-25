@@ -7,12 +7,12 @@ import { AppError } from '../../../lib/errors/app-error';
 import { hasAtMostDecimals } from '../../../lib/numbers/argentine-amount';
 import { systemClock } from '../../../services/time/system-clock';
 import { arcliConfigSchema } from '../../config/config.schemas';
+import type { ExportGateway } from '../export.gateway';
 import { buildExportItems, parseExportItemArgument, sumExportItems } from '../export.items';
 import { readExportJsonInput } from '../export.json-input';
 import { ExportService } from '../export.service';
 import {
   EXPORT_TYPES_WITH_PAYMENT_DATE,
-  type ExportGateway,
   type ExportItemInput,
   type ExportType,
   type ExportUnit,

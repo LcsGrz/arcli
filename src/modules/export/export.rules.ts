@@ -1,34 +1,17 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
-import type { Rule } from '../../lib/rules/rules';
 
-import { EXPORT_ITEMS_TOTAL_RULE } from './export.items';
+import { EXPORT_EXCHANGE_RATE_RULE } from './export.currency';
 import {
   earliestExportVoucherDate,
-  EXPORT_EXCHANGE_RATE_RULE,
   EXPORT_VOUCHER_DATE_WINDOW_RULE,
   exportTypeTakesPaymentDate,
   resolveExportRuleDate,
-} from './export.mappers';
+} from './export.dates';
+import { EXPORT_ITEMS_TOTAL_RULE } from './export.items';
+import { EXPORT_VOUCHER_KIND, isExportNote } from './export.kinds';
 import { EXPORT_NOTE_AFTER_ASSOCIATED_RULE } from './export.notes';
-import { DEFAULT_EXPORT_TYPE, EXPORT_VOUCHER_KIND, type ExportVoucherInput, isExportNote } from './export.types';
-
-/**
- * Lo que una regla de la E necesita ademas de la entrada: hoy (yyyymmdd) y, en una nota, la fecha y el nombre del
- * comprobante que ajusta (lo trae ARCA). Las reglas que necesitan uno que falta no corren.
- */
-export interface ExportRuleContext {
-  readonly associated?: { readonly date: string; readonly label: string };
-  readonly today?: string;
-  /**
-   * La fecha del comprobante todavia no se eligio (en el asistente, "Fecha de pago" se pregunta antes que los
-   * opcionales, TUI-22): sin `voucherDate`, la fecha de pago se compara con la mas temprana que acepta ARCA
-   * (`earliestExportVoucherDate`), no con hoy, para no rechazar una que valdria con la fecha que se elija despues. La
-   * comparacion exacta la hacen "Fecha del comprobante" y `finalize`.
-   */
-  readonly undecidedVoucherDate?: boolean;
-}
-
-export type ExportRule = Rule<ExportVoucherInput, ExportRuleContext>;
+import type { ExportRule } from './export.rule-types';
+import { DEFAULT_EXPORT_TYPE } from './export.types';
 
 /**
  * 1674 (WSFEX v3.1.0): en la factura de servicios y otros, la fecha de pago es igual o posterior a la del comprobante

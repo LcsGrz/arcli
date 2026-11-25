@@ -1,7 +1,7 @@
 import { DEFAULT_CURRENCY_CODE } from '../../../modules/billing/billing.constants';
 import { formatMoneyLabel } from '../../../modules/billing/billing.labels';
 import { sumExportItems } from '../../../modules/export/export.items';
-import { exportTextFieldError } from '../../../modules/export/export.mappers';
+import { exportTextFieldError } from '../../../modules/export/export.text-fields';
 import {
   DEFAULT_EXPORT_UNIT_CODE,
   EXPORT_TOTAL_ONLY_UNIT_CODES,

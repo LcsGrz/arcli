@@ -4,17 +4,16 @@ import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { creditNoteOverTotalHint, isCreditNoteOverTotal } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
-import { assertExportNoteMatchesAssociated, fetchExportAssociatedVoucher } from '../../modules/export/export.notes';
+import type { ExportGateway } from '../../modules/export/export.gateway';
 import {
-  BILLS_EXPORT_TYPE,
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_DEBIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
-  type ExportGateway,
-  type ExportIssuedVoucher,
   type ExportVoucherKind,
   getExportVoucherKindByArcaType,
-} from '../../modules/export/export.types';
+} from '../../modules/export/export.kinds';
+import { assertExportNoteMatchesAssociated, fetchExportAssociatedVoucher } from '../../modules/export/export.notes';
+import { BILLS_EXPORT_TYPE, type ExportIssuedVoucher } from '../../modules/export/export.types';
 import { copyExportItems } from '../../modules/interactive/export-copy';
 import {
   buildExportNoteInput,

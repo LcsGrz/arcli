@@ -4,13 +4,13 @@ import { AppError } from '../../lib/errors/app-error';
 import { lastNumberErrorSuggestion, type LastNumberPurpose } from '../../lib/errors/query-error';
 import type { AuthorizationAnswer } from '../../modules/billing/authorization-answer';
 import { readRejectedCae } from '../../modules/billing/emission-response';
+import type { ExportGateway } from '../../modules/export/export.gateway';
 import {
   DEFAULT_EXPORT_UNIT_CODE,
   type ExportActivity,
   type ExportCountry,
   type ExportCountryCuit,
   type ExportCurrency,
-  type ExportGateway,
   type ExportIncoterm,
   type ExportIssuedItem,
   type ExportIssuedVoucher,

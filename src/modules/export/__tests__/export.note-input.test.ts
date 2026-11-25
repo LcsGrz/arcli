@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { type ExportInputOptions, resolveExportInput } from '../export.input';
-import { EXPORT_CREDIT_NOTE_KIND, type ExportVoucherKind } from '../export.types';
+import { EXPORT_CREDIT_NOTE_KIND, type ExportVoucherKind } from '../export.kinds';
 
 import { BRAZIL_CUIT, NOW, resolveExportPayload } from './export-note.fixture';
 

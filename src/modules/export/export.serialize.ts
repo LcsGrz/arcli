@@ -1,7 +1,8 @@
 import { DEPRECATED_EXPORT_RESPONSE_KEYS } from '../../lib/json/deprecations';
 import { serializePdfOutcome } from '../pdf/pdf.serialize';
 
-import { type ExportExecutionResult, type ExportResponseError, getExportVoucherKindByArcaType } from './export.types';
+import { getExportVoucherKindByArcaType } from './export.kinds';
+import type { ExportExecutionResult, ExportResponseError } from './export.types';
 
 interface ExportSerializeOptions {
   readonly raw?: boolean;

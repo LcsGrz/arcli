@@ -13,13 +13,13 @@ import { FCE_OPTIONAL_IDS } from '../../../modules/billing/billing.fce';
 import { billingDocumentTypeSchema, billingIvaConditionSchema } from '../../../modules/billing/billing.schemas';
 import { ARCA_CURRENCIES } from '../../../modules/billing/currency-codes';
 import { VOUCHER_KIND_MAP } from '../../../modules/billing/voucher-kind-map';
-import { EXPORT_TEXT_LIMITS } from '../../../modules/export/export.mappers';
+import { EXPORT_VOUCHER_KINDS } from '../../../modules/export/export.kinds';
+import { EXPORT_TEXT_LIMITS } from '../../../modules/export/export.text-fields';
 import {
   DEFAULT_EXPORT_LANGUAGE,
   DEFAULT_EXPORT_UNIT_CODE,
   EXPORT_TOTAL_ONLY_UNIT_CODES,
   EXPORT_TYPE_VALUES,
-  EXPORT_VOUCHER_KINDS,
 } from '../../../modules/export/export.types';
 import { type ArcaClient, ArcaClientFactory } from '../../../services/arca/arca-client.factory';
 import type { ArcaExportGateway } from '../../../services/arca/arca-export.gateway';
