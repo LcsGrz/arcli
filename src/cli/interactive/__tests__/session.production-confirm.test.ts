@@ -7,7 +7,6 @@ import { systemClock } from '../../../services/time/system-clock';
 import { billingAnswer } from '../../../testing/arca-answers';
 import { fakeBillingGateway } from '../../../testing/arca-gateways';
 import type { CliArcaRuntime } from '../../arca-runtime';
-import { EMIT_IN_PRODUCTION_LABEL } from '../emission-closing';
 import { DO_NOT_EMIT_LABEL, EMIT_NOW_LABEL } from '../emission-prompt';
 import { listSelect } from '../list-select';
 import { confirm } from '../prompts';
@@ -92,23 +91,24 @@ describe('confirmación de producción con el prompt real', () => {
     expect(await confirm('¿Seguro?', 'Sí', 'No')).toBe(false);
   });
 
-  it('"No, dejar sin emitir" en la segunda confirmación de producción no emite', async () => {
+  it('"No, dejar sin emitir" en producción no emite', async () => {
     const { createVoucher, session } = createSession('produccion');
-    const asked = pickByName(EMIT_NOW_LABEL, DO_NOT_EMIT_LABEL);
+    const asked = pickByName(DO_NOT_EMIT_LABEL);
 
     await previewAndEmit(session, input);
 
-    expect(asked).toHaveLength(2);
-    expect(asked[1]).toContain('PRODUCCIÓN');
+    expect(asked).toEqual([expect.stringContaining('en PRODUCCIÓN')]);
     expect(createVoucher).not.toHaveBeenCalled();
   });
 
-  it('"Sí, emitir en producción" emite una sola vez', async () => {
+  it('"Sí, emitir ahora" en producción emite una sola vez, sin otra pregunta (REV-53)', async () => {
     const { createVoucher, session } = createSession('produccion');
+    const asked = pickByName(EMIT_NOW_LABEL);
 
-    pickByName(EMIT_NOW_LABEL, EMIT_IN_PRODUCTION_LABEL);
     await previewAndEmit(session, input);
 
+    expect(asked).toEqual([expect.stringContaining('en PRODUCCIÓN')]);
+    expect(selectMock).toHaveBeenCalledTimes(1);
     expect(createVoucher).toHaveBeenCalledTimes(1);
   });
 });

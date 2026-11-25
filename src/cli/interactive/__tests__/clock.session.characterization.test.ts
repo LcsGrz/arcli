@@ -506,11 +506,11 @@ describe('la medianoche pasa en "¿Emitimos?": se emite lo que mostró la vista 
     expect(stripAnsi(profile.stdout.slice(shownBefore))).toMatch(/Fecha del comprobante\s+10\/11\/2026/);
   });
 
-  it('producción: si pasa en la segunda confirmación, también', async () => {
+  it('producción: si pasa en la confirmación, también', async () => {
     await run(
       () => runInvoiceFlow(createInteractiveSession({ produccion: true })),
-      [...INVOICE_C, [/Agregamos/, []], EMIT, [/Vas a emitir/, 'Sí, emitir en producción']],
-      /Vas a emitir/,
+      [...INVOICE_C, [/Agregamos/, []], EMIT],
+      /Emitimos/,
     );
 
     expect(wsfeRequests()).toEqual([expect.objectContaining({ CbteFch: '20261110', FchVtoPago: '20261110' })]);

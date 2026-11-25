@@ -37,7 +37,7 @@ arcli
 
 ## Antes de emitir
 
-Siempre ves la vista previa y el **comando equivalente**: copialo y la próxima vez lo hacés en una línea. Nada se emite hasta que confirmás, y en producción pide una segunda confirmación.
+Siempre ves la vista previa y el **comando equivalente**: copialo y la próxima vez lo hacés en una línea. Nada se emite hasta que confirmás, y en producción la pregunta lo dice.
 
 <details>
 <summary>Ver cómo es consultar comprobantes</summary>

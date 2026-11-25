@@ -15,48 +15,27 @@ import type { CliArcaRuntime } from '../arca-runtime';
 import { formatEmissionQuestion, NOTHING_EMITTED_NOTICE } from '../emission-texts';
 import { withSpinner } from '../spinner';
 
-import { askEmission, DO_NOT_EMIT_LABEL } from './emission-prompt';
+import { askEmission } from './emission-prompt';
 import { assertOutputVisible } from './output-guard';
-import { confirm } from './prompts';
 import { showAssistantError } from './show-assistant-error';
 
 /**
- * La segunda confirmacion, en produccion. Los botones de "¿Emitimos?" estan en `emission-prompt`.
- *
- * @internal Exportado para los tests.
- */
-export const EMIT_IN_PRODUCTION_LABEL = 'Sí, emitir en producción';
-const PRODUCTION_CONFIRMATION = 'Vas a emitir un comprobante real en PRODUCCIÓN. ¿Confirmás?';
-
-/**
- * "¿Emitimos?" y, en produccion, la segunda confirmacion. Si no, avisa que no se emitio nada. Las opciones salen de
- * `planEmissionConfirmation`: siempre se puede elegir emitir con o sin PDF, y lo elegido decide (despues de emitir no
- * se pregunta nada mas del PDF). Esc en "¿Emitimos?" devuelve BACK, sin aviso: el asistente vuelve a su ultima pregunta
- * (TUI-15). En la segunda confirmacion, Esc sigue contando como no.
+ * "¿Emitimos?", la unica confirmacion, tambien en produccion (la pregunta lo dice). Con "No" avisa que no se emitio
+ * nada. Las opciones salen de `planEmissionConfirmation`: siempre se puede elegir emitir con o sin PDF, y lo elegido
+ * decide (despues de emitir no se pregunta nada mas del PDF). Esc devuelve BACK, sin aviso: el asistente vuelve a su
+ * ultima pregunta (TUI-15).
  */
 async function confirmEmission(
   question: string,
-  environment: CliArcaRuntime['environment'],
   plan: EmissionConfirmationPlan,
 ): Promise<Back | EmissionChoice | false> {
   const answer = await askEmission(question, plan, 'volver');
 
-  if (answer === BACK) {
-    return BACK;
-  }
-
-  const confirmed =
-    answer &&
-    (environment !== 'produccion' ||
-      (await confirm(PRODUCTION_CONFIRMATION, EMIT_IN_PRODUCTION_LABEL, DO_NOT_EMIT_LABEL)))
-      ? answer
-      : false;
-
-  if (!confirmed) {
+  if (answer === false) {
     writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
   }
 
-  return confirmed;
+  return answer;
 }
 
 function formatEquivalentCommand(command: string): string {
@@ -153,7 +132,6 @@ export async function closeWithEmission<R extends ClosingResult, P extends { rea
   const label = formatVoucherWithArticle(previewed.preview.voucherKind);
   const choice = await confirmEmission(
     formatEmissionQuestion(label, runtime.environment),
-    runtime.environment,
     planEmissionConfirmation({ flags: [pdf], mode: runtime.config.pdf }),
   );
 

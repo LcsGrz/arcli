@@ -89,6 +89,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Factura E:** si una tabla auxiliar de WSFEX no responde, los comandos y la vista previa avisan y siguen, salvo que emitan algo suyo (#287).
 - **Certificados:** el propio de exportación avisa que vence en los comandos y el asistente, y dice cómo renovarlo (#287).
 - **Fechas:** en un lote que cruza la medianoche, `hoy` y las demás fechas relativas son del mismo día en todos los comprobantes (#282).
+- **Asistente:** en producción pregunta una sola vez antes de emitir, como los comandos (#289).
 
 <details><summary>Detalle</summary>
 
@@ -133,6 +134,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **Certificado de exportación.** El de `exportacion.cert`, con su clave, entra en los avisos de vencimiento, como "El certificado de exportación de testing", también en los comandos de A, B y C. Los comandos de la `E` que lo usan no avisan por el general de ese entorno. Vencido, `CERTIFICATE_EXPIRED` lo nombra y ya no manda a `arcli certificado generar`, que renueva el general; `config revisar` tampoco.
 
 **Moneda y actividad de exportación en la config.** La moneda lista las monedas de ARCA, que se buscan por nombre, código de ARCA o ISO (`usd`), y elegir una guarda el código de ARCA (`DOL`), como el default `PES`. La actividad lista la tabla de WSFEX, consultada como en `arcli fe`: hacen falta el CUIT y el certificado y la clave de facturación del entorno, y el de exportación se usa si está configurado; sin eso o si ARCA no responde, se escribe el código como antes. Sin valor guardado, la lista arranca en "Dejar sin configurar": Enter ya no guarda la primera opción sin elegirla, también en la condición de venta. Lo escrito se valida como `arcli config establecer`, y las claves no cambian.
+
+**Una sola confirmación en producción.** El asistente preguntaba "¿Emitimos…?" y, en producción, otra vez con **Sí, emitir en producción**. Ahora pregunta una sola vez, como los comandos con flags, en la factura, el recibo, las notas, "Repetir" y la `E`. La pregunta sigue diciendo PRODUCCIÓN. **No, dejar sin emitir** termina sin emitir y Esc vuelve a la última pregunta. Los comandos no cambian.
 
 </details>
 

@@ -10,6 +10,7 @@ import { chooseOne } from './prompts';
  */
 export const EMIT_NOW_LABEL = 'Sí, emitir ahora';
 const EMIT_WITH_PDF_LABEL = 'Sí, emitir y generar el PDF';
+/** @internal Exportado para los tests. */
 export const DO_NOT_EMIT_LABEL = 'No, dejar sin emitir';
 
 /**

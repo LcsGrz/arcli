@@ -384,8 +384,7 @@ describe('producción', () => {
     expect(command.requests).toHaveLength(1);
   });
 
-  // Tests primero (REV-53): pasa a it() al implementarlo.
-  it.fails.each(FAMILIES)('$name: el asistente emite con una sola confirmación', async ({ steps }) => {
+  it.each(FAMILIES)('$name: el asistente emite con una sola confirmación', async ({ steps }) => {
     const assistant = await runAssistant(productionInvoiceFlow, { steps: [...steps, EMIT] });
 
     expect(assistant.asked.slice(steps.length)).toEqual([expect.stringContaining('en PRODUCCIÓN')]);

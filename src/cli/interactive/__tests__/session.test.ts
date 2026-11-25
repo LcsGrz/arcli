@@ -258,11 +258,10 @@ describe('previewAndEmit', () => {
     );
   });
 
-  it('en produccion, emitir con PDF pide la segunda confirmacion y respeta el PDF', async () => {
+  it('en producción, "No" no emite y emitir con PDF respeta el PDF, con una sola pregunta (REV-53)', async () => {
     const declined = createSession('produccion', 3, 'nunca');
 
-    chooseOneMock.mockResolvedValueOnce('emitir-con-pdf');
-    confirmMock.mockResolvedValueOnce(false);
+    chooseOneMock.mockResolvedValueOnce(false);
     await previewAndEmit(declined, input);
     expect(declined.createVoucher).not.toHaveBeenCalled();
     expect(offerPdf).not.toHaveBeenCalled();
@@ -270,36 +269,14 @@ describe('previewAndEmit', () => {
     const accepted = createSession('produccion', 3, 'nunca');
 
     chooseOneMock.mockResolvedValueOnce('emitir-con-pdf');
-    confirmMock.mockResolvedValueOnce(true);
     await previewAndEmit(accepted, input);
-    expect(confirmMock).toHaveBeenCalledWith(
-      expect.stringContaining('PRODUCCIÓN'),
-      'Sí, emitir en producción',
-      'No, dejar sin emitir',
-    );
+    expect(chooseOneMock.mock.calls.map(([question]) => question)).toEqual([
+      expect.stringContaining('en PRODUCCIÓN'),
+      expect.stringContaining('en PRODUCCIÓN'),
+    ]);
+    expect(confirmMock).not.toHaveBeenCalled();
     expect(accepted.createVoucher).toHaveBeenCalledTimes(1);
     expect(offerPdf).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ pdf: true }), expect.anything());
-  });
-
-  it('en produccion pide una segunda confirmacion antes de emitir', async () => {
-    const declined = createSession('produccion');
-
-    chooseOneMock.mockResolvedValueOnce('emitir');
-    confirmMock.mockResolvedValueOnce(false);
-    await previewAndEmit(declined, input);
-    expect(declined.createVoucher).not.toHaveBeenCalled();
-
-    const accepted = createSession('produccion');
-
-    chooseOneMock.mockResolvedValueOnce('emitir');
-    confirmMock.mockResolvedValueOnce(true);
-    await previewAndEmit(accepted, input);
-    expect(accepted.createVoucher).toHaveBeenCalledTimes(1);
-    expect(confirmMock).toHaveBeenLastCalledWith(
-      expect.stringContaining('PRODUCCIÓN'),
-      'Sí, emitir en producción',
-      'No, dejar sin emitir',
-    );
   });
 
   it('el comando equivalente lleva nombre y domicilio del padrón, porque con --ir el CLI no lo consulta', async () => {
@@ -408,11 +385,10 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
     expect(session.createVoucher).not.toHaveBeenCalled();
   });
 
-  it('Ctrl+C en la segunda confirmación de producción tampoco emite', async () => {
+  it('Ctrl+C en la pregunta de producción tampoco emite', async () => {
     const session = createSession('produccion');
 
-    chooseOneMock.mockResolvedValueOnce('emitir');
-    confirmMock.mockRejectedValueOnce(cancellation());
+    chooseOneMock.mockRejectedValueOnce(cancellation());
 
     await expect(previewAndEmit(session, input)).rejects.toMatchObject({ name: 'ExitPromptError' });
     expect(session.createVoucher).not.toHaveBeenCalled();
