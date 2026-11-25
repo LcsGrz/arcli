@@ -6,7 +6,10 @@ import type { ArcaProfile } from '../../../modules/config/arca-profile';
 import { CertificateExpiredError, type CertificateExpiryNotice } from '../../../modules/config/certificate-expiry';
 import { ArcaClientFactory } from '../arca-client.factory';
 
-vi.mock('@arcasdk/core', () => ({ Arca: vi.fn() }));
+vi.mock('@arcasdk/core', async (original) => ({
+  ...(await original<typeof import('@arcasdk/core')>()),
+  Arca: vi.fn(),
+}));
 vi.mock('../../../lib/security/pem', () => ({ readPemFile: (path: string) => `pem:${path}` }));
 
 const productionContext = {

@@ -37,7 +37,7 @@ export interface StartedExportTables {
  * WSAA; si salieron de la memoria y el ticket vencio, las que van a la vez esperan un mismo login (`ArcaExportGateway`).
  * Un error que no se tolera va a cortar la resolucion, asi que lo que esta en la cola ya no arranca. Al cortar, las que
  * estan en vuelo no se abortan y sus respuestas se ignoran: el error se muestra enseguida, pero el proceso termina recien
- * cuando contestan (el SDK no tiene timeout propio).
+ * cuando contestan o vence su plazo.
  */
 export function startExportTables(request: ExportRequest, gateway: ExportPreviewGateway): StartedExportTables {
   const queue = createTaskQueue(MAX_SIMULTANEOUS_TABLES);
