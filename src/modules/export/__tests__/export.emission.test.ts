@@ -6,15 +6,9 @@ import { fakeExportGateway } from '../../../testing/arca-gateways';
 import { EmissionUncertainError } from '../../billing/billing.errors';
 import { arcliConfigSchema } from '../../config/config.schemas';
 import { emitExport, previewExport } from '../export.emission';
-import {
-  EXPORT_CREDIT_NOTE_KIND,
-  EXPORT_DEBIT_NOTE_KIND,
-  EXPORT_VOUCHER_KIND,
-  type ExportGateway,
-  type ExportIssuedVoucher,
-  type ExportPreviewGateway,
-  type ExportVoucherInput,
-} from '../export.types';
+import type { ExportGateway, ExportPreviewGateway } from '../export.gateway';
+import { EXPORT_CREDIT_NOTE_KIND, EXPORT_DEBIT_NOTE_KIND, EXPORT_VOUCHER_KIND } from '../export.kinds';
+import type { ExportIssuedVoucher, ExportVoucherInput } from '../export.types';
 
 /** Los casos de uso de la E sin el CLI (REV-50): como los va a llamar otro adaptador. */
 

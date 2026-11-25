@@ -9,7 +9,8 @@ import {
   serializeExportVoucherDetail,
   serializeExportVoucherList,
 } from '../export.history.presenter';
-import { EXPORT_CREDIT_NOTE_KIND, EXPORT_VOUCHER_KIND, type ExportIssuedVoucher } from '../export.types';
+import { EXPORT_CREDIT_NOTE_KIND, EXPORT_VOUCHER_KIND } from '../export.kinds';
+import type { ExportIssuedVoucher } from '../export.types';
 
 /** La nota de credito E 4-1 de testing, como la devuelve FEXGetCMP. */
 const NOTE: ExportIssuedVoucher = {

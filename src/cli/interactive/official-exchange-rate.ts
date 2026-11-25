@@ -1,12 +1,10 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { resolveBillingCurrencyCode } from '../../modules/billing/currency-codes';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
-import {
-  resolveExportQuotation,
-  resolveExportQuotationDate,
-  resolveExportVoucherDate,
-} from '../../modules/export/export.mappers';
-import type { ExportGateway, ExportType } from '../../modules/export/export.types';
+import { resolveExportQuotation, resolveExportQuotationDate } from '../../modules/export/export.currency';
+import { resolveExportVoucherDate } from '../../modules/export/export.dates';
+import type { ExportGateway } from '../../modules/export/export.gateway';
+import type { ExportType } from '../../modules/export/export.types';
 import { configExchangeRateFor, type ExchangeRateSuggestion } from '../../modules/interactive/billing-optionals';
 import { startSpinner } from '../spinner';
 

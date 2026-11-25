@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { EXPORT_CREDIT_NOTE_KIND, EXPORT_VOUCHER_KIND } from '../export.kinds';
 import { serializeExportResult } from '../export.serialize';
-import {
-  EXPORT_CREDIT_NOTE_KIND,
-  EXPORT_VOUCHER_KIND,
-  type ExportExecutionResult,
-  type ExportVoucherPayload,
-} from '../export.types';
+import type { ExportExecutionResult, ExportVoucherPayload } from '../export.types';
 
 import { emitWithExportAnswer } from './export-answer.fixture';
 

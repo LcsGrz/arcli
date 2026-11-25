@@ -7,12 +7,9 @@ import { afterEach, beforeEach, vi } from 'vitest';
 
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
-import {
-  EXPORT_VOUCHER_KIND,
-  type ExportGateway,
-  type ExportIssuedVoucher,
-  type ExportVoucherKind,
-} from '../../../modules/export/export.types';
+import type { ExportGateway } from '../../../modules/export/export.gateway';
+import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../../modules/export/export.kinds';
+import type { ExportIssuedVoucher } from '../../../modules/export/export.types';
 import type { IssuedVoucher } from '../../../modules/vouchers/voucher-history';
 import { PdfPlugin } from '../../../services/pdf/pdf-plugin';
 import { billingAnswer, exportAnswer } from '../../../testing/arca-answers';

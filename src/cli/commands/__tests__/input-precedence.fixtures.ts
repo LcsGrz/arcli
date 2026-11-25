@@ -7,7 +7,7 @@ import { afterAll, expect, it } from 'vitest';
 import { billingDefaultsFromConfig } from '../../../modules/billing/billing.defaults';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
-import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../../modules/export/export.types';
+import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../../modules/export/export.kinds';
 import { parseBillingCommandPlan, registerBillingOptions } from '../billing.command.parser';
 import { registerExportOptions } from '../export.command.options';
 import { parseExportCommandPlan } from '../export.command.parser';

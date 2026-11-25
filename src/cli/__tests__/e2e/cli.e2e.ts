@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { VOUCHER_SHORTCUTS } from '../../../modules/billing/voucher-kind-map';
-import { EXPORT_VOUCHER_KINDS } from '../../../modules/export/export.types';
+import { EXPORT_VOUCHER_KINDS } from '../../../modules/export/export.kinds';
 
 /**
  * El `arcli` compilado, como lo usa la gente: un proceso aparte, con su salida, su JSON y su exit code. Sin red ni

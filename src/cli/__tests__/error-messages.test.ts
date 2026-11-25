@@ -210,7 +210,7 @@ describe('una regla, un texto (H16 y H17)', () => {
   );
 
   it('la E, sin punto de venta y con uno inválido, dice lo mismo', async () => {
-    const { resolveExportPointOfSale } = await import('../../modules/export/export.mappers');
+    const { resolveExportPointOfSale } = await import('../../modules/export/export.numbering');
 
     expect(() => resolveExportPointOfSale(undefined, {})).toThrow(MISSING_POINT_OF_SALE);
     expect(() => resolveExportPointOfSale(0, {})).toThrow(INVALID_POINT_OF_SALE);

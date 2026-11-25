@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { EXPORT_VOUCHER_KIND } from '../../../modules/export/export.types';
+import { EXPORT_VOUCHER_KIND } from '../../../modules/export/export.kinds';
 import { checkArcaHealth } from '../../../modules/parameters/health';
 import type { ArcaClient } from '../../../services/arca/arca-client.factory';
 import { ArcaExportGateway } from '../../../services/arca/arca-export.gateway';

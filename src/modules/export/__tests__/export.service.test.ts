@@ -4,14 +4,10 @@ import { AppError } from '../../../lib/errors/app-error';
 import { exportAnswer } from '../../../testing/arca-answers';
 import { EmissionUncertainError } from '../../billing/billing.errors';
 import { arcliConfigSchema } from '../../config/config.schemas';
+import type { ExportGateway } from '../export.gateway';
+import { EXPORT_CREDIT_NOTE_KIND, EXPORT_DEBIT_NOTE_KIND } from '../export.kinds';
 import { ExportService } from '../export.service';
-import {
-  EXPORT_CREDIT_NOTE_KIND,
-  EXPORT_DEBIT_NOTE_KIND,
-  type ExportGateway,
-  type ExportIssuedVoucher,
-  type ExportVoucherInput,
-} from '../export.types';
+import type { ExportIssuedVoucher, ExportVoucherInput } from '../export.types';
 
 const NOW = new Date('2026-06-01T15:00:00Z');
 

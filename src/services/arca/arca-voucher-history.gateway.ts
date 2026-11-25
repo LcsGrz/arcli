@@ -11,6 +11,7 @@ import type {
 
 import type { Arca } from './arca-sdk.types';
 import { getLastAuthorizedNumber, rethrowIfWsfeNotAuthorized } from './last-voucher';
+import { readNumber, readOptionalText, readText } from './soap-values';
 import { unreadableVoucherError, voucherQueryError } from './voucher-query-error';
 
 type Row = Record<string, unknown>;
@@ -206,18 +207,4 @@ function readRows(value: unknown, key: string): Row[] {
   }
 
   return Array.isArray(rows) ? rows : [rows];
-}
-
-function readText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function readOptionalText(value: unknown): string | undefined {
-  return readText(value) || undefined;
-}
-
-function readNumber(value: unknown): number | undefined {
-  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
-
-  return typeof parsed === 'number' && Number.isFinite(parsed) ? parsed : undefined;
 }

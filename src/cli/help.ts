@@ -22,7 +22,7 @@ import {
   type ExportVoucherKind,
   getExportVoucherKindByFamily,
   isExportNote,
-} from '../modules/export/export.types';
+} from '../modules/export/export.kinds';
 import { CONFIG_FIELDS } from '../modules/interactive/config-fields';
 import { resolveUpdateCommand } from '../modules/update-check/package-manager';
 import { renderLogo, uiSymbol } from '../ui';

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveExportCurrency } from '../export.mappers';
+import { resolveExportCurrency } from '../export.currency';
+import { EXPORT_CREDIT_NOTE_KIND, EXPORT_DEBIT_NOTE_KIND, type ExportVoucherKind } from '../export.kinds';
 import {
   applyExportAssociatedDefaults,
   assertExportNoteFields,
@@ -8,13 +9,7 @@ import {
   exportAssociatedVoucherWarnings,
   resolveExportAssociatedQuery,
 } from '../export.notes';
-import {
-  EXPORT_CREDIT_NOTE_KIND,
-  EXPORT_DEBIT_NOTE_KIND,
-  type ExportIssuedVoucher,
-  type ExportVoucherInput,
-  type ExportVoucherKind,
-} from '../export.types';
+import type { ExportIssuedVoucher, ExportVoucherInput } from '../export.types';
 
 /** La factura E de servicios que devolvio FEXGetCMP en testing (punto de venta 4, numero 1). */
 const INVOICE: ExportIssuedVoucher = {

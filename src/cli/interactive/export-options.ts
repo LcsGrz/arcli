@@ -1,14 +1,13 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
+import { exportDestinationCountryChoices, resolveExportDestinationCountry } from '../../modules/export/export.catalogs';
 import {
   exportClientCountryCuitChoices,
-  exportDestinationCountryChoices,
-  type ExportTextField,
-  exportTextFieldError,
   resolveExportClientCountryCuit,
-  resolveExportDestinationCountry,
-} from '../../modules/export/export.mappers';
-import { EXPORT_RULES, type ExportRuleContext } from '../../modules/export/export.rules';
+} from '../../modules/export/export.country-cuit';
+import type { ExportRuleContext } from '../../modules/export/export.rule-types';
+import { EXPORT_RULES } from '../../modules/export/export.rules';
+import { type ExportTextField, exportTextFieldError } from '../../modules/export/export.text-fields';
 import {
   DEFAULT_EXPORT_LANGUAGE,
   type ExportCountry,

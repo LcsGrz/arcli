@@ -5,14 +5,10 @@ import type { VoucherKindDefinition } from '../billing/billing.types';
 import { getVoucherKindByShortcut, VOUCHER_SHORTCUTS } from '../billing/voucher-kind-map';
 import { formatVoucherWithArticle } from '../billing/voucher-names';
 import { type ArcliEnvironment, formatEnvironmentLabel, MISSING_POINT_OF_SALE_MESSAGE } from '../config/config.schemas';
+import type { ExportGateway } from '../export/export.gateway';
 import { listRecentExportVouchers } from '../export/export.history';
-import {
-  EXPORT_VOUCHER_KINDS,
-  type ExportGateway,
-  type ExportIssuedVoucher,
-  type ExportVoucherKind,
-  getExportVoucherKindByShortcut,
-} from '../export/export.types';
+import { EXPORT_VOUCHER_KINDS, type ExportVoucherKind, getExportVoucherKindByShortcut } from '../export/export.kinds';
+import type { ExportIssuedVoucher } from '../export/export.types';
 
 import {
   type IssuedVoucher,

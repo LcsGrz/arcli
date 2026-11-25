@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { formatDateAsArcaDate } from '../../../lib/dates/arca-date';
-import { resolveExportClientCountryCuit } from '../../../modules/export/export.mappers';
-import { EXPORT_CREDIT_NOTE_KIND } from '../../../modules/export/export.types';
+import { resolveExportClientCountryCuit } from '../../../modules/export/export.country-cuit';
+import { EXPORT_CREDIT_NOTE_KIND } from '../../../modules/export/export.kinds';
 import {
   type ExportOptionalsContext,
   type ExportOptions,

@@ -1,8 +1,9 @@
 import { isSameCurrency } from '../billing/currency-codes';
 
 import type { ExportJsonInput } from './export.json-input';
+import { type ExportVoucherKind, isExportNote } from './export.kinds';
 import { isSameExportClient, isSameExportCountry, isSameExportIncoterm } from './export.same';
-import { DEFAULT_EXPORT_CURRENCY_CODE, type ExportVoucherKind, isExportNote } from './export.types';
+import { DEFAULT_EXPORT_CURRENCY_CODE } from './export.types';
 
 interface Levels {
   readonly file: ExportJsonInput;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { EXPORT_CREDIT_NOTE_KIND } from '../../export/export.types';
+import { EXPORT_CREDIT_NOTE_KIND } from '../../export/export.kinds';
 import { buildExportEquivalentCommand } from '../export-equivalent-command';
 
 describe('buildExportEquivalentCommand', () => {

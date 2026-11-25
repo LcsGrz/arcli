@@ -3,13 +3,12 @@ import { expect } from 'vitest';
 
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { resolveBillingCurrencyCode } from '../../../modules/billing/currency-codes';
-import { DEFAULT_EXPORT_PAYMENT_TERMS } from '../../../modules/export/export.mappers';
+import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../../modules/export/export.kinds';
+import { DEFAULT_EXPORT_PAYMENT_TERMS } from '../../../modules/export/export.payload';
 import {
   DEFAULT_EXPORT_TYPE,
   DEFAULT_EXPORT_UNIT_CODE,
-  EXPORT_VOUCHER_KIND,
   type ExportItemInput,
-  type ExportVoucherKind,
 } from '../../../modules/export/export.types';
 import { createProgram } from '../../program';
 

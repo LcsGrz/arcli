@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { InputValidationError } from '../../../lib/errors/app-error';
 import { type ExportInputOptions, resolveExportInput } from '../export.input';
-import { EXPORT_CREDIT_NOTE_KIND, EXPORT_VOUCHER_KIND } from '../export.types';
+import { EXPORT_CREDIT_NOTE_KIND, EXPORT_VOUCHER_KIND } from '../export.kinds';
 
 /** REV-52: la entrada de la E sin commander ni disco, como la arma quien no es el CLI. */
 

@@ -15,6 +15,7 @@ import type { ArcliEnvironment } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { systemClock } from '../../services/time/system-clock';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
+import { withCertificateService } from '../certificate-service';
 import { getGlobalOptions, registerEnvironmentOptions, registerJsonOption, resolveOutputJson } from '../global-options';
 import { configureSpanishHelp } from '../help';
 import { confirm, isPromptCancellation } from '../interactive/prompts';
@@ -22,19 +23,6 @@ import { confirm, isPromptCancellation } from '../interactive/prompts';
 interface CertificateCommandOptions {
   readonly alias?: string;
   readonly reemplazar?: boolean;
-}
-
-function withService<T>(run: (service: CertificateService, config: ConfigService) => T): T {
-  const config = new ConfigService();
-
-  try {
-    return run(
-      new CertificateService({ certificatesRoot: config.getCertificatesPath(), clock: systemClock, config }),
-      config,
-    );
-  } finally {
-    config.close();
-  }
 }
 
 /** `--testing` / `--produccion`; sin ninguno, `undefined` (cada subcomando decide su default). */
@@ -94,7 +82,7 @@ export function registerCertificateCommand(program: Command): void {
     .option('--alias <alias>', 'nombre del certificado en ARCA (por defecto "arcli")')
     .option('--reemplazar', 'descartar un pedido anterior que todavía no importaste')
     .action((options: CertificateCommandOptions, command: Command) => {
-      withService((service, config) => {
+      withCertificateService((service, config) => {
         const json = resolveOutputJson(command, config.getConfig());
         const request = service.generate({
           alias: options.alias,

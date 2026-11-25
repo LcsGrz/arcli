@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { EXPORT_EXCHANGE_RATE_RULE } from '../export.currency';
+import { EXPORT_VOUCHER_DATE_WINDOW_RULE } from '../export.dates';
 import { EXPORT_ITEMS_TOTAL_RULE } from '../export.items';
-import { EXPORT_EXCHANGE_RATE_RULE, EXPORT_VOUCHER_DATE_WINDOW_RULE } from '../export.mappers';
+import { EXPORT_CREDIT_NOTE_KIND } from '../export.kinds';
 import { EXPORT_NOTE_AFTER_ASSOCIATED_RULE } from '../export.notes';
 import { EXPORT_PAYMENT_DATE_RULE, EXPORT_RULES } from '../export.rules';
-import { EXPORT_CREDIT_NOTE_KIND } from '../export.types';
 
 const today = '20261118';
 

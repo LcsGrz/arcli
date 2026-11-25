@@ -3,12 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { fakeExportGateway } from '../../../testing/arca-gateways';
 import { arcliConfigSchema } from '../../config/config.schemas';
 import { previewExport, type PreviewExportOptions } from '../export.emission';
-import {
-  EXPORT_CREDIT_NOTE_KIND,
-  EXPORT_DEBIT_NOTE_KIND,
-  type ExportIssuedVoucher,
-  type ExportVoucherInput,
-} from '../export.types';
+import { EXPORT_CREDIT_NOTE_KIND, EXPORT_DEBIT_NOTE_KIND } from '../export.kinds';
+import type { ExportIssuedVoucher, ExportVoucherInput } from '../export.types';
 
 /**
  * REV-53: quien ya leyo el asociado de una nota E (el asistente) se lo pasa a `previewExport`. No se consulta de nuevo y

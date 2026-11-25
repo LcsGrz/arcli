@@ -12,13 +12,9 @@ import { VOUCHER_FAMILIES, VOUCHER_SHORTCUTS } from '../../modules/billing/vouch
 import { ConfigService } from '../../modules/config/config.service';
 import { acceptsAlias } from '../../modules/config/config-keys';
 import { renderExamples } from '../../modules/examples/examples';
+import type { ExportGateway } from '../../modules/export/export.gateway';
+import { EXPORT_VOUCHER_KIND, EXPORT_VOUCHER_KINDS, type ExportVoucherKind } from '../../modules/export/export.kinds';
 import { ExportService } from '../../modules/export/export.service';
-import {
-  EXPORT_VOUCHER_KIND,
-  EXPORT_VOUCHER_KINDS,
-  type ExportGateway,
-  type ExportVoucherKind,
-} from '../../modules/export/export.types';
 import type { PadronGateway } from '../../modules/padron/padron';
 import { systemClock } from '../../services/time/system-clock';
 import { stripAnsi } from '../../ui';

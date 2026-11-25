@@ -4,7 +4,7 @@ import { readJsonFile } from '../../lib/files/read-json-file';
 import type { Clock } from '../../lib/time/clock';
 import { type ExportInputOptions, type ExportInputPlan, resolveExportInput } from '../../modules/export/export.input';
 import { readExportJsonInput } from '../../modules/export/export.json-input';
-import { EXPORT_VOUCHER_KIND } from '../../modules/export/export.types';
+import { EXPORT_VOUCHER_KIND } from '../../modules/export/export.kinds';
 import { systemClock } from '../../services/time/system-clock';
 
 import { readExportFlags } from './export.command.flags';

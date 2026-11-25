@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { EXPORT_VOUCHER_KIND } from '../../export/export.types';
+import { EXPORT_VOUCHER_KIND } from '../../export/export.kinds';
 import { VOUCHER_KIND_MAP, VOUCHER_SHORTCUTS } from '../voucher-kind-map';
 import {
   formatLatestVouchersTitle,

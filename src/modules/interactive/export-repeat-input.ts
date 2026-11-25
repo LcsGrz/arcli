@@ -1,4 +1,5 @@
-import { EXPORT_RULES, type ExportRuleContext } from '../export/export.rules';
+import type { ExportRuleContext } from '../export/export.rule-types';
+import { EXPORT_RULES } from '../export/export.rules';
 import type { ExportCountry, ExportIssuedVoucher, ExportItemInput, ExportVoucherInput } from '../export/export.types';
 
 import type { ExportInvoiceCopy } from './export-copy';

@@ -4,14 +4,14 @@ import { formatExchangeRate } from '../../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../../lib/numbers/strict-integer';
 import { isForeignCurrency } from '../../../modules/billing/billing.currency';
 import { toArcaCurrencyCode, toIsoCurrencyCode } from '../../../modules/billing/currency-codes';
-import { exportActivityProblem } from '../../../modules/export/export.mappers';
+import { exportActivityProblem } from '../../../modules/export/export.catalogs';
+import type { ExportGateway } from '../../../modules/export/export.gateway';
 import { EXPORT_RULES } from '../../../modules/export/export.rules';
 import type {
   ExportActivity,
   ExportCountry,
   ExportCountryCuit,
   ExportCurrency,
-  ExportGateway,
   ExportType,
 } from '../../../modules/export/export.types';
 import { DEFAULT_EXPORT_CURRENCY_CODE, EXPORT_TYPES_WITH_PAYMENT_DATE } from '../../../modules/export/export.types';

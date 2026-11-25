@@ -7,7 +7,7 @@ import {
   EXPORT_VOUCHER_KIND,
   type ExportVoucherKind,
   isExportNote,
-} from '../../../modules/export/export.types';
+} from '../../../modules/export/export.kinds';
 
 import { CBU_A, CUIT_A, CUIT_B } from './billing-fields.fixtures';
 import {

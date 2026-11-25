@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { resolveExportInput } from '../export.input';
 import type { ExportJsonInput } from '../export.json-input';
-import { EXPORT_VOUCHER_KINDS } from '../export.types';
+import { EXPORT_VOUCHER_KINDS } from '../export.kinds';
 
 /** ARQ-22: como en A, B, C y FCE, el punto de venta de un asociado ajeno no vale para otro comprobante. */
 const EMITTER = 20123456786;

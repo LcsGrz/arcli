@@ -6,7 +6,7 @@ import {
   EXPORT_DEBIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
   type ExportVoucherKind,
-} from '../../../modules/export/export.types';
+} from '../../../modules/export/export.kinds';
 
 import { exportInput, exportPlan, type Json, pick, type Written } from './input-precedence.fixtures';
 

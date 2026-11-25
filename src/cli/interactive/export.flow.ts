@@ -2,17 +2,17 @@ import { isForeignCurrency } from '../../modules/billing/billing.currency';
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { emitExport, type ExportPreview, previewExport } from '../../modules/export/export.emission';
-import { EXPORT_PAYMENT_TERMS_SUGGESTIONS } from '../../modules/export/export.mappers';
+import type { ExportGateway } from '../../modules/export/export.gateway';
+import { EXPORT_VOUCHER_KIND } from '../../modules/export/export.kinds';
+import { EXPORT_PAYMENT_TERMS_SUGGESTIONS } from '../../modules/export/export.payload';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
 import {
   BILLS_EXPORT_TYPE,
   DEFAULT_EXPORT_CURRENCY_CODE,
   DEFAULT_EXPORT_TYPE,
-  EXPORT_VOUCHER_KIND,
   type ExportActivity,
   type ExportCurrency,
   type ExportExecutionResult,
-  type ExportGateway,
   type ExportIssuedVoucher,
   type ExportType,
   type ExportVoucherInput,

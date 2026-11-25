@@ -31,7 +31,7 @@ import {
 } from '../../modules/completion/shell-scripts';
 import { configPublicKeySchema } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
-import { getExportVoucherKindByFamily } from '../../modules/export/export.types';
+import { getExportVoucherKindByFamily } from '../../modules/export/export.kinds';
 import { CONFIG_FIELDS } from '../../modules/interactive/config-fields';
 import { PARAMETER_TABLE_NAMES } from '../../modules/parameters/parameters';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';

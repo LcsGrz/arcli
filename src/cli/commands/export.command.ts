@@ -2,14 +2,11 @@ import type { Command } from 'commander';
 
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import { emitExport, previewExport } from '../../modules/export/export.emission';
+import type { ExportGateway } from '../../modules/export/export.gateway';
+import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.kinds';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
 import { serializeExportResult } from '../../modules/export/export.serialize';
-import {
-  EXPORT_VOUCHER_KIND,
-  type ExportExecutionResult,
-  type ExportGateway,
-  type ExportVoucherKind,
-} from '../../modules/export/export.types';
+import type { ExportExecutionResult } from '../../modules/export/export.types';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';

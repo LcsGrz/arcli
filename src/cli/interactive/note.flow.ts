@@ -4,7 +4,7 @@ import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { discriminatesIva, isNote, isReceipt, noteSide } from '../../modules/billing/voucher-kind-map';
 import { formatVoucherLabel, formatVoucherWithArticle } from '../../modules/billing/voucher-names';
-import { EXPORT_VOUCHER_KINDS, type ExportVoucherKind } from '../../modules/export/export.types';
+import { EXPORT_VOUCHER_KINDS, type ExportVoucherKind } from '../../modules/export/export.kinds';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
 import {
   type AssociatedFamily,

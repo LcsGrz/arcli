@@ -17,12 +17,12 @@ import {
   VOUCHER_KIND_MAP,
 } from '../billing/voucher-kind-map';
 import {
-  DEFAULT_EXPORT_CURRENCY_CODE,
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_DEBIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
   type ExportVoucherKind,
-} from '../export/export.types';
+} from '../export/export.kinds';
+import { DEFAULT_EXPORT_CURRENCY_CODE } from '../export/export.types';
 
 export interface InteractiveChoice<T> {
   readonly description?: string;
