@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { InputValidationError } from '../../lib/errors/app-error';
-import { describeJsonIssue, describeReceived, type JsonInputKeys } from '../../lib/json/json-input-issues';
+import { describeReceived, jsonInputError, type JsonInputKeys } from '../../lib/json/json-input-issues';
 import { associatedVoucherJsonSchema } from '../vouchers/associated-voucher.json-input';
 
 import type { BillingCommandInput } from './billing.schemas';
@@ -179,11 +179,7 @@ export function parseBillingJsonInput(value: unknown): BillingJsonInput {
     return result.data;
   }
 
-  const issues = result.error.issues.flatMap((issue) => describeJsonIssue(issue, JSON_KEYS));
-
-  throw new InputValidationError(`En el JSON de \`--cargar\`: ${issues.map((issue) => issue.mensaje).join(' ')}`, {
-    campos: issues,
-  });
+  throw jsonInputError(result.error.issues, JSON_KEYS);
 }
 
 /** El JSON de `--cargar` es un comprobante (objeto) o un lote (array no vacio). Devuelve los items sin validar. */

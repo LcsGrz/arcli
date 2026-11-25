@@ -420,6 +420,8 @@ export async function fetchExportAssociatedVoucher(
 /** El asociado no existe en ARCA. */
 export function missingExportAssociatedVoucherError(query: ExportVoucherQuery): InputValidationError {
   return new InputValidationError(
-    `ARCA no tiene ${describeVoucher(query)}. Revisá \`--ar\`, \`--apv\` y \`--ac\`: el asociado tiene que estar emitido por WSFEX.`,
+    `ARCA no tiene ${describeVoucher(query)}.`,
+    undefined,
+    'Revisá `--ar`, `--apv` y `--ac`: el asociado tiene que estar emitido por WSFEX.',
   );
 }

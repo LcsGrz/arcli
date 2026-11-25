@@ -2060,8 +2060,8 @@ describe('el certificado sin autorizar, en las consultas (ERR-7)', () => {
       expect(await failure(['ultimos', shortcut])).toEqual({
         codigo: 'WSFEX_SERVICE_NOT_AUTHORIZED',
         detalles: null,
-        error: expect.stringContaining('El certificado no está autorizado para el servicio wsfex'),
-        sugerencia: null,
+        error: 'El certificado no está autorizado para el servicio wsfex (factura de exportación).',
+        sugerencia: expect.stringContaining('Autorizalo igual que wsfe'),
       });
       expect(sdk.wsfex.getLastCmp).not.toHaveBeenCalled();
     },
@@ -3128,7 +3128,10 @@ describe('otros comandos que van a ARCA', () => {
 
       expect(await failure(['ultimos', 'fc'])).toEqual({
         codigo: 'ARCA_LAST_VOUCHER_ERROR',
-        detalles: { errores: [{ code: 501, codigo: 501, mensaje: 'Error interno', msg: 'Error interno' }] },
+        detalles: {
+          deprecado: ['`code` y `msg` de `detalles.errores` se sacan en la 3.0.0: usá `codigo` y `mensaje`.'],
+          errores: [{ code: 501, codigo: 501, mensaje: 'Error interno', msg: 'Error interno' }],
+        },
         error: 'ARCA devolvió un error al pedir el último comprobante del punto de venta 3: 501 Error interno',
         sugerencia: `Revisá el mensaje de ARCA: si es pasajero, volvé a consultar en unos minutos; si no, corregí lo que dice. Si se repite, no insistas. ${VERIFY}`,
       });
@@ -3840,5 +3843,382 @@ describe('lo que suma el JSON de error (REV-49)', () => {
         'Se emitió: fc del punto de venta 3, 42. Verificalo con `arcli ultimos fc --pv 3 --cantidad 2 --testing`.',
       ].join(' '),
     );
+  });
+});
+
+describe('los mismos datos en los errores de todas las familias (REV-58)', () => {
+  const NOT_AUTHORIZED = new Error('ns1:coe.notAuthorized: Computador no autorizado a acceder al servicio');
+  const ARCA_ERROR = { code: 501, msg: 'Error interno' };
+  const NDE = ['nde', ...NCE.slice(1)];
+
+  async function failure(args: readonly string[]): Promise<Record<string, unknown>> {
+    prepareConfig({});
+
+    const result = await runCli([...args, '--json']);
+
+    expect(result).toMatchObject({ code: 1, stdout: '' });
+
+    return JSON.parse(result.stderr) as Record<string, unknown>;
+  }
+
+  async function panel(args: readonly string[]): Promise<string> {
+    prepareConfig({});
+
+    const result = await runCli(args);
+
+    expect(result.code).toBe(1);
+
+    return result.stderr.replace(/[│┃\s]+/g, ' ');
+  }
+
+  describe('el asociado que ARCA no tiene (F15)', () => {
+    beforeEach(() => {
+      sdk.generic.call.mockImplementation(consulting(null));
+      sdk.wsfe.getSalesPoints.mockResolvedValue({
+        resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', fchBaja: 'NULL', nro: 3 }] },
+      });
+      sdk.wsfex.getCmp.mockResolvedValue({
+        FEXGetCMPResult: { FEXErr: { ErrCode: 1020, ErrMsg: 'Comprobante inexistente' } },
+      });
+    });
+
+    it.each([
+      ['nce', NCE],
+      ['nde', NDE],
+    ])('%s: qué revisar va en la sugerencia, como en A, B y C', async (_name, args) => {
+      expect(await failure(args)).toEqual({
+        codigo: 'INPUT_VALIDATION_ERROR',
+        detalles: null,
+        error: 'ARCA no tiene la factura de exportación E 00004-00000001.',
+        sugerencia: 'Revisá `--ar`, `--apv` y `--ac`: el asociado tiene que estar emitido por WSFEX.',
+      });
+    });
+
+    it('sin cambios: el panel de la E dice qué pasó y qué revisar', async () => {
+      const shown = await panel(NCE);
+
+      expect(shown).toContain('ARCA no tiene la factura de exportación E 00004-00000001.');
+      expect(shown).toContain('Revisá `--ar`, `--apv` y `--ac`: el asociado tiene que estar emitido por WSFEX.');
+    });
+
+    it('sin cambios: en A, B y C', async () => {
+      expect(await failure([...NCC, '--previsualizar'])).toEqual({
+        codigo: 'INPUT_VALIDATION_ERROR',
+        detalles: null,
+        error: 'ARCA no tiene la factura C 00003-00000012.',
+        sugerencia: 'Revisá `--ar`, `--apv` y `--ac`: el asociado tiene que ser un comprobante tuyo ya emitido.',
+      });
+    });
+  });
+
+  describe('el certificado sin autorizar (F20 y F21)', () => {
+    const WSFEX_CASES: ReadonlyArray<readonly [string, string[], () => unknown]> = [
+      ['fe, una tabla', FE, () => sdk.wsfex.getParamActividades.mockRejectedValue(NOT_AUTHORIZED)],
+      ['fe, el último número', FE, () => sdk.wsaa.login.mockRejectedValue(NOT_AUTHORIZED)],
+      ['fe, el ID de solicitud', FE, () => sdk.wsfex.getLastId.mockRejectedValue(NOT_AUTHORIZED)],
+      ['nce, el ID de solicitud', NCE, () => sdk.wsfex.getLastId.mockRejectedValue(NOT_AUTHORIZED)],
+      ['nde, el ID de solicitud', NDE, () => sdk.wsfex.getLastId.mockRejectedValue(NOT_AUTHORIZED)],
+      ['nce, el asociado', NCE, () => sdk.wsfex.getCmp.mockRejectedValue(NOT_AUTHORIZED)],
+      ['ultimos fe', ['ultimos', 'fe'], () => sdk.wsaa.login.mockRejectedValue(NOT_AUTHORIZED)],
+      ['consultar fe', ['consultar', 'fe', '8'], () => sdk.wsfex.getCmp.mockRejectedValue(NOT_AUTHORIZED)],
+    ];
+
+    it.each(WSFEX_CASES)('%s: cómo autorizarlo va en la sugerencia, como en wsfe', async (_name, args, fail) => {
+      fail();
+
+      expect(await failure(args)).toEqual({
+        codigo: 'WSFEX_SERVICE_NOT_AUTHORIZED',
+        detalles: null,
+        error: 'El certificado no está autorizado para el servicio wsfex (factura de exportación).',
+        sugerencia: expect.stringMatching(
+          /^Autorizalo .*en testing desde WSASS \("Crear autorización a servicio"\).* en producción desde el Administrador de Relaciones/,
+        ),
+      });
+    });
+
+    it.each(WSFEX_CASES)('sin cambios: %s, el panel dice cómo autorizarlo', async (_name, args, fail) => {
+      fail();
+
+      const shown = await panel(args);
+
+      expect(shown).toContain('El certificado no está autorizado para el servicio wsfex (factura de exportación).');
+      expect(shown).toMatch(/Autorizalo .*WSASS \("Crear autorización a servicio"\).*el Administrador de Relaciones/);
+    });
+
+    it.each([
+      ['fe', FE],
+      ['nce', NCE],
+      ['nde', NDE],
+    ])('%s: un error de ARCA al pedir el ID de solicitud trae la sugerencia del último número', async (_name, args) => {
+      sdk.wsfex.getLastId.mockResolvedValue({ FEXGetLast_IDResult: { FEXErr: { ErrCode: 1000, ErrMsg: 'x' } } });
+
+      expect(await failure(args)).toEqual({
+        codigo: 'ARCA_EXPORT_ERROR',
+        detalles: { errores: [{ codigo: 1000, mensaje: 'x' }] },
+        error: 'ARCA devolvió un error al consultar el último ID de solicitud: x',
+        sugerencia: 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.',
+      });
+    });
+
+    it('sin cambios: el aviso de una FCE cita a wsfecred con cómo autorizarlo', async () => {
+      sdk.wsfecred.consultarMontoObligadoRecepcion.mockRejectedValue(NOT_AUTHORIZED);
+      prepareConfig({ config: { verificarFce: true } });
+
+      const { code, stdout } = await runCli([...FCEA, '--previsualizar', '--json']);
+
+      expect(code).toBe(0);
+      expect((JSON.parse(stdout) as { avisos: string[] }).avisos.join('\n')).toContain(
+        'El certificado no está autorizado para el servicio wsfecred (Factura de Crédito Electrónica). Autorizalo igual que wsfe: en testing desde WSASS ("Crear autorización a servicio") y en producción desde el Administrador de Relaciones.',
+      );
+    });
+  });
+
+  describe('--cargar de la E con un dato inválido: detalles.campos', () => {
+    const ITEM = { cantidad: 1, descripcion: 'x', precioUnitario: 1 };
+    const load = (command: readonly string[], content: unknown) =>
+      failure([...command, '--cargar', writeInput('entrada.json', content)]);
+
+    const INVALID: ReadonlyArray<readonly [string, string[], unknown, Array<{ mensaje: string; ruta: string[] }>]> = [
+      [
+        'fe, una clave desconocida',
+        ['fe'],
+        { montototal: 1000 },
+        [{ mensaje: 'La clave "montototal" no existe: ¿quisiste decir "montoTotal"?', ruta: ['montototal'] }],
+      ],
+      [
+        'nce, un tipo incorrecto',
+        ['nce'],
+        { puntoVenta: '4' },
+        [
+          {
+            mensaje: '"puntoVenta" tiene que ser un número y llegó el texto "4". Escribilo sin comillas.',
+            ruta: ['puntoVenta'],
+          },
+        ],
+      ],
+      [
+        'nde, una clave anidada',
+        ['nde'],
+        { comprobanteAsociado: { punto_venta: 1 } },
+        [
+          {
+            mensaje: 'La clave "comprobanteAsociado.punto_venta" no existe: ¿quisiste decir "puntoVenta"?',
+            ruta: ['comprobanteAsociado', 'punto_venta'],
+          },
+        ],
+      ],
+      [
+        'factura e, un dato que falta en un ítem',
+        ['factura', 'e'],
+        { items: [ITEM, { cantidad: 1, precioUnitario: 1 }] },
+        [{ mensaje: 'Falta "items[1].descripcion".', ruta: ['items', '1', 'descripcion'] }],
+      ],
+      [
+        'fe, un valor que no está entre los permitidos',
+        ['fe'],
+        { tipoExpo: 3 },
+        [{ mensaje: '"tipoExpo" tiene que ser 1, 2 o 4 y llegó 3.', ruta: ['tipoExpo'] }],
+      ],
+      [
+        'fe, varios problemas',
+        ['fe'],
+        { cliente: 1, x: 1, y: 2 },
+        [
+          { mensaje: '"cliente" tiene que ser un texto y llegó 1.', ruta: ['cliente'] },
+          { mensaje: 'La clave "x" no existe.', ruta: ['x'] },
+          { mensaje: 'La clave "y" no existe.', ruta: ['y'] },
+        ],
+      ],
+    ];
+
+    it.each(INVALID)('%s', async (_name, command, content, campos) => {
+      expect((await load(command, content)).detalles).toEqual({ campos });
+    });
+
+    it.each(INVALID)('sin cambios: %s, el código y el texto', async (_name, command, content, campos) => {
+      expect(await load(command, content)).toMatchObject({
+        codigo: 'INPUT_VALIDATION_ERROR',
+        error: `En el JSON de \`--cargar\`: ${campos.map(({ mensaje }) => mensaje).join(' ')}`,
+        sugerencia: null,
+      });
+    });
+
+    it('el mismo problema da el mismo error en la E y en A, B y C', async () => {
+      const content = { comprobanteAsociado: { numero: '1' }, montototal: 1000, puntoVenta: '4' };
+      const fc = await load(['fc'], content);
+
+      process.exitCode = undefined;
+
+      expect(await load(['fe'], content)).toEqual(fc);
+    });
+
+    it.each<[string, string, unknown, string]>([
+      ['una E que no es un objeto', 'fe', 5, 'El JSON de `--cargar` de una E tiene que ser un objeto'],
+      ['un lote de E', 'fe', [{ montoTotal: 1 }], 'El JSON de `--cargar` de una E tiene que ser un objeto'],
+      ['monto y montoTotal en la E', 'fe', { monto: 1, montoTotal: 1 }, 'En el JSON de `--cargar`: usá "montoTotal"'],
+      ['un valor que no es un objeto en A, B y C', 'fc', 5, 'El JSON de `--cargar` tiene que ser un objeto'],
+      ['un lote vacío en A, B y C', 'fc', [], 'El JSON de `--cargar` es un lote vacío'],
+    ])('sin cambios: %s sale sin detalles', async (_name, command, content, error) => {
+      expect(await load([command], content)).toMatchObject({
+        codigo: 'INPUT_VALIDATION_ERROR',
+        detalles: null,
+        error: expect.stringContaining(error),
+      });
+    });
+  });
+
+  describe('ARCA_QUOTATION_ERROR en la E', () => {
+    beforeEach(() => {
+      sdk.wsfex.getParamMonConCotizacion.mockResolvedValue({
+        FEXGetPARAM_MON_CON_COTIZACIONResult: {
+          ...NO_FEX_ERROR,
+          FEXResultGet: { ClsFEXResponse_Mon_CON_Cotizacion: [] },
+        },
+      });
+    });
+
+    it('detalles.errores vacío, sin las claves viejas que la E nunca tuvo', async () => {
+      expect((await failure(FE)).detalles).toEqual({ errores: [] });
+    });
+
+    it('sin cambios: el texto, y el panel no muestra los detalles', async () => {
+      const error =
+        'ARCA no informó la cotización de DOL para el 16/11/2026. Informá la cotización con `--cotizacion-moneda`.';
+
+      expect(await failure(FE)).toMatchObject({ codigo: 'ARCA_QUOTATION_ERROR', error, sugerencia: null });
+      process.exitCode = undefined;
+
+      const shown = await panel(FE);
+
+      expect(shown).toContain(error);
+      expect(shown).not.toContain('errores');
+    });
+  });
+
+  describe('detalles.errores[].code y .msg de wsfe, deprecados', () => {
+    const RC = ['rc', '-m', '1000', '--cs', '--cfinal'];
+    const DETAILS_ERRORS = '`detalles.errors` se saca en la 3.0.0: usá `detalles.errores`.';
+    const ENTRY = { code: 501, codigo: 501, mensaje: 'Error interno', msg: 'Error interno' };
+    /** No fija el texto entero: que nombre las dos claves, dónde están, la versión y qué usar. */
+    const CODE_AND_MSG = expect.stringMatching(
+      /(?=.*`code`)(?=.*`msg`)(?=.*detalles\.errores)(?=.*3\.0\.0)(?=.*`codigo`)(?=.*`mensaje`)/,
+    ) as unknown;
+
+    const lastVoucher = () => sdk.wsfe.getLastVoucher.mockResolvedValue({ errors: { err: [ARCA_ERROR] } });
+    const quotation = () => sdk.wsfe.getQuotation.mockResolvedValue({ errors: { err: [ARCA_ERROR] } });
+    const query = (error: Record<string, unknown>) =>
+      sdk.generic.call.mockResolvedValue({ FECompConsultarResult: { Errors: { Err: [error] } } });
+
+    const WITH_OLD_KEYS: ReadonlyArray<readonly [string, readonly string[], Record<string, unknown>, () => unknown]> = [
+      ...[FA, FB, FC, RC, NCC, FCEA].map(
+        (args) => [`${args[0]} sin el último número`, [...args, '--emitir'], ENTRY, lastVoucher] as const,
+      ),
+      ['ultimos', ['ultimos', 'fc'], ENTRY, lastVoucher],
+      ['consultar', ['consultar', 'fc', '9'], ENTRY, () => query({ Code: 501, Msg: 'Error interno' })],
+      [
+        'consultar, sin el código de ARCA',
+        ['consultar', 'fc', '9'],
+        { ...ENTRY, code: null, codigo: null },
+        () => query({ Msg: 'Error interno' }),
+      ],
+      [
+        'parametros de una tabla',
+        ['parametros', 'comprobantes'],
+        ENTRY,
+        () => sdk.wsfe.getVoucherTypes.mockResolvedValue({ errors: { err: [ARCA_ERROR] } }),
+      ],
+    ];
+    const WITH_BOTH: ReadonlyArray<readonly [string, string[], () => unknown]> = [
+      ['parametros cotizacion', ['parametros', 'cotizacion', 'USD'], quotation],
+      ['fc en dólares', [...FC, '--mda', 'USD', '--previsualizar'], quotation],
+      [
+        'fc en dólares, con misma moneda y una fecha pasada',
+        [...FC, '--mda', 'USD', '--misma-moneda', '-f', '10/11', '--previsualizar'],
+        () =>
+          sdk.generic.call.mockResolvedValue({
+            FEParamGetCotizacionResult: { Errors: { Err: [{ Code: 501, Msg: 'Error interno' }] } },
+          }),
+      ],
+    ];
+
+    it.each(WITH_OLD_KEYS)('%s: avisa', async (_name, args, entry, fail) => {
+      fail();
+
+      expect((await failure(args)).detalles).toEqual({ deprecado: [CODE_AND_MSG], errores: [entry] });
+    });
+
+    it.each(WITH_BOTH)('%s: avisa también por detalles.errors', async (_name, args, fail) => {
+      fail();
+
+      const { deprecado } = (await failure(args)).detalles as { deprecado: string[] };
+
+      expect(deprecado).toHaveLength(2);
+      expect(deprecado).toEqual(expect.arrayContaining([DETAILS_ERRORS, CODE_AND_MSG]));
+    });
+
+    it.each(WITH_OLD_KEYS)('sin cambios: %s, code y msg siguen saliendo', async (_name, args, entry, fail) => {
+      fail();
+
+      expect((await failure(args)).detalles).toMatchObject({ errores: [entry] });
+    });
+
+    it.each(WITH_BOTH)('sin cambios: %s, code, msg y errors siguen saliendo', async (_name, args, fail) => {
+      fail();
+
+      expect(await failure(args)).toMatchObject({
+        codigo: 'ARCA_QUOTATION_ERROR',
+        detalles: { errores: [ENTRY], errors: { err: [ARCA_ERROR] } },
+      });
+    });
+
+    it('sin cambios: la terminal no muestra el aviso', async () => {
+      lastVoucher();
+
+      const shown = await panel(['ultimos', 'fc']);
+
+      expect(shown).toContain('501 Error interno');
+      expect(shown).not.toContain('3.0.0');
+    });
+
+    it.each<[string, string[], () => unknown, unknown]>([
+      [
+        'una cotización sin errores',
+        ['parametros', 'cotizacion', 'USD'],
+        () => sdk.wsfe.getQuotation.mockResolvedValue({ resultGet: null }),
+        { deprecado: [DETAILS_ERRORS], errores: [] },
+      ],
+      [
+        'una consulta sin errores',
+        ['consultar', 'fc', '9'],
+        () => sdk.generic.call.mockResolvedValue({ FECompConsultarResult: {} }),
+        { errores: [] },
+      ],
+      [
+        'la E',
+        FE,
+        () =>
+          sdk.wsfex.getLastId.mockResolvedValue({ FEXGetLast_IDResult: { FEXErr: { ErrCode: 1000, ErrMsg: 'x' } } }),
+        { errores: [{ codigo: 1000, mensaje: 'x' }] },
+      ],
+      [
+        'fce-obligado',
+        ['fce-obligado', String(CLIENT_CUIT)],
+        () =>
+          sdk.wsfecred.consultarMontoObligadoRecepcion.mockResolvedValue({
+            consultarMontoObligadoRecepcionReturn: {
+              arrayErrores: { codigoDescripcion: [{ codigo: 1, descripcion: 'x' }] },
+            },
+          }),
+        {
+          deprecado: [DETAILS_ERRORS],
+          errores: [{ codigo: 1, mensaje: 'x' }],
+          errors: [{ codigo: 1, descripcion: 'x' }],
+        },
+      ],
+    ])('sin cambios: %s no trae code ni msg y no avisa por ellos', async (_name, args, fail, detalles) => {
+      fail();
+
+      expect((await failure(args)).detalles).toEqual(detalles);
+    });
   });
 });

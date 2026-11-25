@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { DEPRECATED_DETAILS_ERROR_KEYS, DEPRECATED_DETAILS_ERRORS } from '../../../lib/json/deprecations';
 import { ArcaBillingGateway } from '../arca-billing.gateway';
 import type { Arca } from '../arca-sdk.types';
 
@@ -118,7 +119,11 @@ describe('ArcaBillingGateway', () => {
 
     await expect(gateway.getQuotation('XXX')).rejects.toMatchObject({
       code: 'ARCA_QUOTATION_ERROR',
-      details: { deprecado: [expect.any(String)], errores: [{ codigo: 600, mensaje: 'Moneda inexistente' }], errors },
+      details: {
+        deprecado: [DEPRECATED_DETAILS_ERRORS, DEPRECATED_DETAILS_ERROR_KEYS],
+        errores: [{ codigo: 600, mensaje: 'Moneda inexistente' }],
+        errors,
+      },
     });
   });
 

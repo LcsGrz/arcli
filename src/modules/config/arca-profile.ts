@@ -1,4 +1,4 @@
-import { ConfigurationError } from '../../lib/errors/app-error';
+import { ConfigurationError, InputValidationError } from '../../lib/errors/app-error';
 
 import type { CertificateExpiryNotice } from './certificate-expiry';
 import {
@@ -48,10 +48,10 @@ export interface EnvironmentFlags {
 
 const BOTH_ENVIRONMENT_FLAGS_MESSAGE = 'Usá `--testing` o `--produccion`, pero no ambos a la vez.';
 
-/** El entorno pedido con un flag, o `undefined` sin ninguno. Los dos juntos son un error de configuracion. */
+/** El entorno pedido con un flag, o `undefined` sin ninguno. Los dos juntos son un error de entrada. */
 export function explicitEnvironment(flags: EnvironmentFlags): ArcliEnvironment | undefined {
   if (flags.testing && flags.produccion) {
-    throw new ConfigurationError(BOTH_ENVIRONMENT_FLAGS_MESSAGE);
+    throw new InputValidationError(BOTH_ENVIRONMENT_FLAGS_MESSAGE);
   }
 
   return flags.testing ? 'testing' : flags.produccion ? 'produccion' : undefined;

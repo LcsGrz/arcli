@@ -107,13 +107,13 @@ describe('entorno: flags y config', () => {
   });
 
   it.each(['testing', 'produccion'] as const)(
-    '--testing y --produccion juntos es un error de configuracion, con entorno %s en la config',
+    '--testing y --produccion juntos es un error de entrada, con entorno %s en la config',
     (configured) => {
       profile.writeConfig(profile.configWith(profile.healthy, { entornoPorDefecto: configured }));
 
       expect(() => resolveArcaRuntime({ produccion: true, testing: true })).toThrow(
         expect.objectContaining({
-          code: 'CONFIGURATION_ERROR',
+          code: 'INPUT_VALIDATION_ERROR',
           message: 'Usá `--testing` o `--produccion`, pero no ambos a la vez.',
         }),
       );

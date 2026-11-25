@@ -1,5 +1,7 @@
 import type { z } from 'zod';
 
+import { InputValidationError } from '../errors/app-error';
+
 /**
  * Como se explican los errores de forma del JSON de `--cargar`, igual en A, B, C y en la E. Las claves y los nombres
  * de flags los pone cada familia.
@@ -111,7 +113,7 @@ interface JsonFieldIssue {
 }
 
 /** Un problema de forma del JSON, con la clave como la escribe quien lo carga. Una clave de mas da uno por clave. */
-export function describeJsonIssue(issue: z.core.$ZodIssue, keys: JsonInputKeys): JsonFieldIssue[] {
+function describeJsonIssue(issue: z.core.$ZodIssue, keys: JsonInputKeys): JsonFieldIssue[] {
   const path = issue.path.map((segment) => (typeof segment === 'number' ? segment : String(segment)));
   const pathLabel = formatPath(path);
 
@@ -154,4 +156,13 @@ export function describeJsonIssue(issue: z.core.$ZodIssue, keys: JsonInputKeys):
   }
 
   return [{ mensaje: `"${pathLabel}" ${issue.message}.`, ruta: path.map(String) }];
+}
+
+/** El error de un JSON de `--cargar` con la forma mal: todos los problemas en el texto y, cada uno, en `detalles.campos`. */
+export function jsonInputError(issues: readonly z.core.$ZodIssue[], keys: JsonInputKeys): InputValidationError {
+  const campos = issues.flatMap((issue) => describeJsonIssue(issue, keys));
+
+  return new InputValidationError(`En el JSON de \`--cargar\`: ${campos.map(({ mensaje }) => mensaje).join(' ')}`, {
+    campos,
+  });
 }

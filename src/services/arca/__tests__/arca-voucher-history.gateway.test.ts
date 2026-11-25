@@ -1,6 +1,7 @@
 import type { Arca } from '@arcasdk/core';
 import { describe, expect, it, vi } from 'vitest';
 
+import { DEPRECATED_DETAILS_ERROR_KEYS } from '../../../lib/json/deprecations';
 import { ArcaVoucherHistoryGateway } from '../arca-voucher-history.gateway';
 
 function createGateway(
@@ -186,6 +187,7 @@ describe('ArcaVoucherHistoryGateway', () => {
         'Revisá el mensaje de ARCA: si es pasajero, volvé a consultar en unos minutos; si no, corregí lo que dice. Si se repite, no insistas. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.',
     });
     expect(error).toHaveProperty('details', {
+      deprecado: [DEPRECATED_DETAILS_ERROR_KEYS],
       errores: [{ code: 600, codigo: 600, mensaje: INVALID_TOKEN.Msg, msg: INVALID_TOKEN.Msg }],
     });
   });
