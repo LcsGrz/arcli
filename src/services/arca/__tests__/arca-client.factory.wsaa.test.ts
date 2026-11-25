@@ -108,13 +108,19 @@ function resolveInvoice(gateway: ExportGateway) {
   );
 }
 
+/** Lo unico que ARCLI le suma a un pedido: la señal de su plazo (`soap-deadline.ts`). */
+const withDeadline = { signal: expect.any(AbortSignal) as AbortSignal };
+
 /** WSFE y WSFEX: los dos servicios piden y guardan su ticket. */
 async function useBothServices(factory: ArcaClientFactory): Promise<void> {
   await factory.create(runtime()).electronicBillingService.getSalesPoints();
 
   expect(await factory.createExportGateway(runtime()).getLastVoucherNumber(19, 3)).toBe(41);
-  expect(wsfe).toHaveBeenCalledWith(expect.objectContaining({ Auth: expect.objectContaining({ Token: 'TOKEN' }) }));
-  expect(wsfex).toHaveBeenCalledWith({ Auth: expect.objectContaining({ Token: 'TOKEN' }) });
+  expect(wsfe).toHaveBeenCalledWith(
+    expect.objectContaining({ Auth: expect.objectContaining({ Token: 'TOKEN' }) }),
+    withDeadline,
+  );
+  expect(wsfex).toHaveBeenCalledWith({ Auth: expect.objectContaining({ Token: 'TOKEN' }) }, withDeadline);
   // Uno por servicio: el ticket de WSFEX del autenticador lo reusa el cliente.
   expect(login).toHaveBeenCalledTimes(2);
 }

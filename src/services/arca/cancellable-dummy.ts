@@ -3,6 +3,7 @@ import { SoapClient } from '@arcasdk/core';
 import type { ArcliEnvironment } from '../../modules/config/config.schemas';
 import type { ServerStatus } from '../../modules/parameters/parameters';
 
+import { installSoapDeadlines } from './soap-deadline';
 import { avoidWeakDhe } from './tls';
 
 type SoapOptions = NonNullable<Parameters<SoapClient['createClient']>[1]>;
@@ -23,7 +24,7 @@ type DummyClient = Record<
 
 /**
  * El `Dummy` de un servicio de facturacion, que no autentica. Con el cliente SOAP del SDK y no con sus servicios, que
- * no se pueden cancelar: un servidor colgado dejaria el proceso vivo despues de la salida.
+ * no se pueden cancelar: un servidor colgado dejaria el proceso vivo hasta que venza el plazo.
  */
 export async function fetchDummyStatus(options: {
   readonly environment: ArcliEnvironment;
@@ -36,6 +37,7 @@ export async function fetchDummyStatus(options: {
   const { environment, httpClient, operation, signal, wsdl } = options;
 
   avoidWeakDhe(environment === 'produccion');
+  installSoapDeadlines();
 
   const soapOptions: SoapOptions = { forceSoap12Headers: true, ...(httpClient ? { httpClient } : {}) };
   const client = (await new SoapClient().createClient(wsdl, soapOptions)) as unknown as DummyClient;

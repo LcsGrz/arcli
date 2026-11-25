@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { AppError, ConfigurationError, InputValidationError } from '../../../lib/errors/app-error';
+import { ArcaDeadlineError } from '../../../lib/errors/deadline-error';
 import type { ErrorCode } from '../../../lib/errors/error-codes';
 import { serializeError } from '../../../lib/errors/serialize-error';
 import { formatAppError } from '../errors.presenter';
@@ -106,6 +107,14 @@ describe('errors.presenter', () => {
       sugerencia: null,
     });
     expect(formatAppError(error)).toContain('ERROR INESPERADO');
+  });
+
+  it.each(['ARCA', 'WSAA'] as const)('a deadline of %s hints at the connection, not at the config', (service) => {
+    const text = formatAppError(new ArcaDeadlineError(service, 30_000));
+
+    expect(text).toContain(`${service} no contestó en 30 segundos.`);
+    expect(text).toContain('Revisá tu conexión a internet');
+    expect(text).not.toContain('arcli config revisar');
   });
 
   it.each([

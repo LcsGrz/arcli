@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout as pause } from 'node:timers/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -126,8 +126,7 @@ describe('sin nada vencido', () => {
 });
 
 describe('la emisión vencida', () => {
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['fa', ['fa', ...TO_CUIT, '--ir-ri'], 'FECAESolicitar', 42, 1],
     ['fb', ['fb', '-m', '1210', '--cs', '--cfinal'], 'FECAESolicitar', 42, 6],
     ['fc', FC, 'FECAESolicitar', 42, 11],
@@ -150,8 +149,7 @@ describe('la emisión vencida', () => {
     },
   );
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('que gotea: lo mismo, el plazo es total y no por inactividad', async () => {
+  it('que gotea: lo mismo, el plazo es total y no por inactividad', async () => {
     hang('FECAESolicitar', undefined, 'gotea');
 
     const result = await run([...FC, '--emitir']);
@@ -160,14 +158,12 @@ describe('la emisión vencida', () => {
     expect(requested('FECAESolicitar')).toBe(1);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('en la E lleva también la solicitud', async () => {
+  it('en la E lleva también la solicitud', async () => {
     hang('FEXAuthorize');
     expect(details(await run([...FE, '--emitir']))).toMatchObject({ idSolicitud: 42, numero: 8 });
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('en un lote: el 2.º queda sin confirmar, el 3.º no se pide y el 1.º se entrega', async () => {
+  it('en un lote: el 2.º queda sin confirmar, el 3.º no se pide y el 1.º se entrega', async () => {
     const path = join(profile.configDirectory, 'lote.json');
     const item = {
       concepto: 'servicios',
@@ -200,8 +196,7 @@ describe('la emisión vencida', () => {
 });
 
 describe('vencido lo de antes de emitir', () => {
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['el último número', FC, 'FECompUltimoAutorizado', 30, 'FECAESolicitar'],
     ['el último número de la E', FE, 'FEXGetLast_CMP', 30, 'FEXAuthorize'],
     ['el último ID de la E', FE, 'FEXGetLast_ID', 30, 'FEXAuthorize'],
@@ -222,11 +217,38 @@ describe('vencido lo de antes de emitir', () => {
   });
 });
 
+describe('vencido el login que el SDK pide dentro de la llamada que emite', () => {
+  it.each([
+    ['fc', FC, 'FECompUltimoAutorizado', 'FECAESolicitar', 42],
+    ['fe', FE, 'FEXGetLast_ID', 'FEXAuthorize', 8],
+  ] as const)(
+    '%s: no se distingue de la emisión, así que queda sin confirmar',
+    async (_name, args, last, emission, numero) => {
+      let expired = false;
+
+      // El ticket deja de estar después de pedir los números: la emisión vuelve a pedir el login.
+      arca.server.respond((operation) => {
+        if (operation === last) {
+          rmSync(join(profile.configDirectory, 'tickets'), { force: true, recursive: true });
+          expired = true;
+        }
+
+        return expired && operation === 'loginCms' ? 'cuelga' : undefined;
+      });
+
+      const result = await run([...args, '--emitir']);
+
+      expect(result.error).toMatchObject({ codigo: 'EMISSION_UNCERTAIN', detalles: { numero } });
+      expect(details(result).causa).toContain('WSAA no contestó en 60 segundos');
+      expect(requested(emission)).toBe(0);
+    },
+  );
+});
+
 describe('las tablas de la E', () => {
   const preview = [...FE, '--previsualizar'];
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('una vencida avisa y sigue', async () => {
+  it('una vencida avisa y sigue', async () => {
     hang('FEXGetPARAM_Idiomas');
 
     const result = await run(preview);
@@ -236,8 +258,7 @@ describe('las tablas de la E', () => {
     expect(requested('FEXGetPARAM_Idiomas')).toBe(1);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('dos vencidas cortan, y no se emite', async () => {
+  it('dos vencidas cortan, y no se emite', async () => {
     arca.server.respond((operation) =>
       ['FEXGetPARAM_Idiomas', 'FEXGetPARAM_MON'].includes(operation) ? 'cuelga' : undefined,
     );
@@ -249,8 +270,7 @@ describe('las tablas de la E', () => {
     expect(requested('FEXAuthorize')).toBe(0);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('una obligatoria corta, y no se emite', async () => {
+  it('una obligatoria corta, y no se emite', async () => {
     hang('FEXGetPARAM_Incoterms');
 
     expect((await run([...FE_GOODS, '--emitir'])).error).toMatchObject({
@@ -260,16 +280,14 @@ describe('las tablas de la E', () => {
     expect(requested('FEXAuthorize')).toBe(0);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('los países, que son obligatorios, cortan antes de pedir otra tabla', async () => {
+  it('los países, que son obligatorios, cortan antes de pedir otra tabla', async () => {
     hang('FEXGetPARAM_DST_pais');
 
     expect((await run(preview)).error).toMatchObject({ codigo: 'UNEXPECTED_ERROR' });
     expect(arca.server.requests.map(({ operation }) => operation)).toEqual(['loginCms', 'FEXGetPARAM_DST_pais']);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('el permiso vencido avisa y sigue', async () => {
+  it('el permiso vencido avisa y sigue', async () => {
     hang('FEXCheck_Permiso');
 
     const result = await run([...FE_GOODS, '--previsualizar']);
@@ -278,8 +296,7 @@ describe('las tablas de la E', () => {
     expect(expiredWarnings(result)).toEqual([expect.stringContaining('permiso de embarque') as string]);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('una tabla y el permiso, vencidos, cortan', async () => {
+  it('una tabla y el permiso, vencidos, cortan', async () => {
     arca.server.respond((operation) =>
       ['FEXCheck_Permiso', 'FEXGetPARAM_Idiomas'].includes(operation) ? 'cuelga' : undefined,
     );
@@ -290,8 +307,7 @@ describe('las tablas de la E', () => {
 });
 
 describe('las consultas que solo avisan, avisan si vencen', () => {
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('el régimen FCE', async () => {
+  it('el régimen FCE', async () => {
     hang('consultarMontoObligadoRecepcion');
 
     const result = await run(['fa', ...TO_CUIT, '--ir-ri', '--previsualizar']);
@@ -300,8 +316,7 @@ describe('las consultas que solo avisan, avisan si vencen', () => {
     expect(expiredWarnings(result)).toEqual([expect.stringContaining('régimen FCE') as string]);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('el rango de la cotización', async () => {
+  it('el rango de la cotización', async () => {
     hang('FEParamGetCotizacion');
 
     const result = await run([...FC, '--mda', 'USD', '--cm', '1450', '--previsualizar']);
@@ -310,8 +325,7 @@ describe('las consultas que solo avisan, avisan si vencen', () => {
     expect(expiredWarnings(result)).toEqual([expect.stringContaining('la cotización') as string]);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('el padrón, con un IVA receptor en la config', async () => {
+  it('el padrón, con un IVA receptor en la config', async () => {
     profile.writeConfig({
       cert: { testing: arca.certPath },
       cuit: String(cuit),
@@ -330,8 +344,7 @@ describe('las consultas que solo avisan, avisan si vencen', () => {
 });
 
 describe('una consulta vencida', () => {
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['ultimos', ['ultimos', 'fc'], 'FECompUltimoAutorizado'],
     ['ultimos de la E', ['ultimos', 'fe'], 'FEXGetLast_CMP'],
     ['consultar', ['consultar', 'fc', '12'], 'FECompConsultar'],
@@ -351,8 +364,7 @@ describe('una consulta vencida', () => {
     expect(requested(operation)).toBe(1);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('estado sigue dando ARCA_UNAVAILABLE', async () => {
+  it('estado sigue dando ARCA_UNAVAILABLE', async () => {
     hang('FEDummy');
 
     expect((await run(['estado'])).error).toMatchObject({
@@ -406,8 +418,7 @@ describe('con Ctrl+C', () => {
     hang('FECAESolicitar');
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('uno solo y después vence: EMISSION_UNCERTAIN, una vez', async () => {
+  it('uno solo y después vence: EMISSION_UNCERTAIN, una vez', async () => {
     const [result] = await Promise.all([run([...FC, '--emitir']), interrupt(1)]);
 
     expect(result.error).toMatchObject({ codigo: 'EMISSION_UNCERTAIN', detalles: { numero: 42 } });
@@ -436,8 +447,7 @@ describe('con Ctrl+C', () => {
     }
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('vencida, una señal tardía corta como siempre: no queda nadie atajándola', async () => {
+  it('vencida, una señal tardía corta como siempre: no queda nadie atajándola', async () => {
     const before = process.listenerCount('SIGINT');
     const result = await run([...FC, '--emitir']);
 

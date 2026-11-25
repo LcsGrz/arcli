@@ -184,36 +184,30 @@ describe.each(CALLS)('$service: $operation', (call) => {
     expect(arca.server.count(operation)).toBe(1);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails.each(['cuelga', 'gotea'] as const)(
-    'si ARCA %s, se corta en el plazo y no se reintenta',
-    async (behavior) => {
-      arca.server.respond((name) => (name === operation ? behavior : undefined));
+  it.each(['cuelga', 'gotea'] as const)('si ARCA %s, se corta en el plazo y no se reintenta', async (behavior) => {
+    arca.server.respond((name) => (name === operation ? behavior : undefined));
 
-      const settled = await arca.settle(run());
+    const settled = await arca.settle(run());
 
-      expect(settled).toMatchObject({ end: 'se cortó' });
+    expect(settled).toMatchObject({ end: 'se cortó' });
 
-      const { message } = (settled as { error: Error }).error;
+    const { message } = (settled as { error: Error }).error;
 
-      expect(message).toContain(`no contestó en ${ms / 1000} segundos`);
-      expect(message).not.toMatch(/no se emitió/i);
-      expect(arca.server.count(operation)).toBe(1);
-      // El pedido se cortó de verdad: no queda una conexión esperando.
-      await vi.waitFor(() => expect(arca.server.requests.at(-1)?.dropped).toBe(true));
-    },
-  );
+    expect(message).toContain(`no contestó en ${ms / 1000} segundos`);
+    expect(message).not.toMatch(/no se emitió/i);
+    expect(arca.server.count(operation)).toBe(1);
+    // El pedido se cortó de verdad: no queda una conexión esperando.
+    await vi.waitFor(() => expect(arca.server.requests.at(-1)?.dropped).toBe(true));
+  });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('el plazo de cada pedido, uno solo por pedido', async () => {
+  it('el plazo de cada pedido, uno solo por pedido', async () => {
     await arca.settle(run());
     expect(arca.deadlines.map((deadline) => deadline.ms)).toEqual(plannedMs(call));
   });
 });
 
 describe('las operaciones que no están en la tabla', () => {
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     'FEParamGetTiposPaises',
     // Parecidas a las que emiten, pero no son.
     'FECAEASolicitar',
@@ -250,8 +244,7 @@ describe('contrato', () => {
     expect([...new Set(sdkClasses)].sort()).toEqual(['Arca', 'AuthRepository', 'SoapClient']);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('crear más clientes no suma plazos: uno por pedido', async () => {
+  it('crear más clientes no suma plazos: uno por pedido', async () => {
     client();
     exportGateway();
     await fetchWsfeServerStatus('testing', never());
@@ -275,15 +268,13 @@ describe('el error de un plazo vencido', () => {
     return (settled as { error: unknown }).error;
   }
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('el texto de una consulta', async () => {
+  it('el texto de una consulta', async () => {
     expect(await expire('FECompUltimoAutorizado', getLastNumber)).toMatchObject({
       message: 'ARCA no contestó en 30 segundos.',
     });
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['una tabla de la E', 'FEXGetPARAM_DST_pais', () => exportGateway().getDestinationCountries()],
     [
       'el régimen FCE',
@@ -299,8 +290,7 @@ describe('el error de un plazo vencido', () => {
     expect(isTolerableTableError(error)).toBe(true);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['desde el cliente', getLastNumber],
     ['desde AuthRepository', () => exportGateway().getLastVoucherNumber(19, 3)],
     ['antes de una tabla de la E', () => exportGateway().getUnits()],
@@ -314,8 +304,7 @@ describe('el error de un plazo vencido', () => {
     expect(arca.server.requests.map(({ operation }) => operation)).toEqual(['loginCms']);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('dos logins vencidos no comparten estado: el segundo pedido vuelve a pedir el ticket', async () => {
+  it('dos logins vencidos no comparten estado: el segundo pedido vuelve a pedir el ticket', async () => {
     const gateway = exportGateway();
 
     await expire('loginCms', () => gateway.getUnits());
@@ -342,8 +331,7 @@ describe('el error de un plazo vencido', () => {
     await vi.waitFor(() => expect(arca.server.requests.at(-1)?.dropped).toBe(true));
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('cortado por otro, el plazo no queda pendiente', async () => {
+  it('cortado por otro, el plazo no queda pendiente', async () => {
     const controller = new AbortController();
 
     arca.server.respond(() => 'cuelga');
@@ -364,8 +352,7 @@ describe('una respuesta antes del plazo', () => {
     expect(await arca.settle(getLastNumber())).toEqual({ end: 'contestó', value: 41 });
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('no deja plazos pendientes: ni con respuesta ni con un error de red', async () => {
+  it('no deja plazos pendientes: ni con respuesta ni con un error de red', async () => {
     await getLastNumber();
     expect(arca.deadlines).toEqual([
       { ms: WSAA_MS, state: 'cancelado' },
@@ -510,8 +497,7 @@ describe('un cliente con httpClient inyectado', () => {
     expect((options.signal as AbortSignal).aborted).toBe(true);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('con un httpClient inyectado, el plazo tampoco queda pendiente', async () => {
+  it('con un httpClient inyectado, el plazo tampoco queda pendiente', async () => {
     await fetchWsfeServerStatus('testing', never(), injected() as never);
     expect(arca.deadlines).toEqual([{ ms: QUERY_MS, state: 'cancelado' }]);
   });

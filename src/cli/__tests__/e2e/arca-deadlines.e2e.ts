@@ -146,8 +146,7 @@ describe('si ARCA contesta', () => {
 });
 
 describe('si ARCA no contesta, avisa y el proceso termina', () => {
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['una consulta', ['ultimos', 'fc'], 'FECompUltimoAutorizado', 'cuelga', 'UNEXPECTED_ERROR'],
     ['una consulta que gotea', ['ultimos', 'fc'], 'FECompUltimoAutorizado', 'gotea', 'UNEXPECTED_ERROR'],
     ['el login', INVOICE, 'loginCms', 'cuelga', 'UNEXPECTED_ERROR'],
@@ -163,8 +162,7 @@ describe('si ARCA no contesta, avisa y el proceso termina', () => {
     expect(server.count(operation)).toBe(1);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('las tablas de la E que quedaron en vuelo tampoco lo dejan vivo', async () => {
+  it('las tablas de la E que quedaron en vuelo tampoco lo dejan vivo', async () => {
     server.respond((name) =>
       ['FEXGetPARAM_DST_CUIT', 'FEXGetPARAM_Idiomas', 'FEXGetPARAM_MON'].includes(name) ? 'cuelga' : undefined,
     );
