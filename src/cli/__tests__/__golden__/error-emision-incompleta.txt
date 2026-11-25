@@ -8,6 +8,7 @@ exit: 1
   "codigo": "EMISSION_UNCERTAIN",
   "detalles": {
     "causa": "ARCA contestó sin CAE, sin resultado y con errores: 501 Error interno de base de datos",
+    "numero": 42,
     "entorno": "testing",
     "puntoVenta": 3,
     "tipoArca": 11

@@ -5,6 +5,7 @@ import {
   certificateBanner,
   dataPanel,
   errorListPanel,
+  productionBanner,
   renderRowActionsList,
   sectionHeading,
   sheetPanel,
@@ -265,6 +266,14 @@ function buildBordersScene(): string {
       ],
       { rightSeparator: 'rule' },
     )}`,
+    `${colorize('Barra de estado, mientras se consulta ARCA:', 'muted')}\n${statusBar(
+      [{ text: '20-33333333-4' }, { text: 'PV 3' }],
+      [
+        { color: 'muted', text: 'COMPROBANDO ARCA' },
+        { color: 'testing', text: 'TESTING' },
+      ],
+      { rightSeparator: 'rule' },
+    )}`,
     `${colorize('Sección (arcli ejemplos):', 'muted')}\n${sectionHeading('Factura C')}`,
     `${colorize('Comando para copiar:', 'muted')}\n${command}`,
   ].join('\n\n');
@@ -357,9 +366,18 @@ function buildConfigScene(): string {
   const doctor = buildConfigDoctorReport(config, SAMPLE_NOW, [{ environment: 'testing' }]);
 
   return [
-    sceneTitle('Configuración', 'Vista actual y revisión'),
+    sceneTitle('Configuración', 'Vista actual, revisión y paso a producción'),
     formatConfigAsText(config, { pdfFolder: '~/arcli/comprobantes', ticketPath: '/Users/demo/.arcli/tickets' }),
     formatConfigDoctorAsText(doctor),
+    productionBanner({ certificate: 'ok', key: 'ok', sessionInTesting: false }),
+    productionBanner({ certificate: 'falta', key: 'falta', sessionInTesting: false }),
+    productionBanner({
+      certificate: 'ok',
+      expiredSummary: 'El certificado de producción venció el 20/11/2026.',
+      key: 'ok',
+      sessionInTesting: false,
+    }),
+    productionBanner({ certificate: 'ok', key: 'ok', sessionInTesting: true }),
   ].join('\n\n');
 }
 

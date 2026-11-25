@@ -270,12 +270,16 @@ function driveAssistant(answers: ReadonlyArray<readonly [question: string, keys:
 
   return writePreload(
     'asistente.mjs',
-    `import { PassThrough } from 'node:stream';
+    `import { createRequire } from 'node:module';
+     import { PassThrough } from 'node:stream';
      import { stripVTControlCharacters } from 'node:util';
      import { ArcaParametersGateway } from ${JSON.stringify(gateway)};
      for (const name of Object.getOwnPropertyNames(ArcaParametersGateway.prototype)) {
        if (name !== 'constructor') ArcaParametersGateway.prototype[name] = async () => { throw new Error('sin ARCA'); };
      }
+     // El FEDummy de la barra, que no pasa por el gateway (\`wsfe-status\`).
+     const { SoapClient } = createRequire(${JSON.stringify(pathToFileURL(CLI).href)})('@arcasdk/core');
+     SoapClient.prototype.createClient = async () => { throw new Error('sin ARCA'); };
      const stdin = Object.assign(new PassThrough(), { isTTY: true, setRawMode: () => stdin, ref() {}, unref() {} });
      Object.defineProperty(process, 'stdin', { value: stdin });
      Object.assign(process.stdout, { columns: 120, isTTY: true, rows: 60 });
@@ -605,7 +609,7 @@ describe('con stdout que no se puede escribir', () => {
     expect(result.code).toBe(1);
     expect(JSON.parse(result.stderr)).toMatchObject({
       codigo: 'BATCH_EMISSION_ERROR',
-      detalles: { fallo: 2, procesados: 1, sinConfirmar: 2, sinProcesar: [3], total: 3 },
+      detalles: { fallo: 2, numero: 43, procesados: 1, sinConfirmar: 2, sinProcesar: [3], total: 3 },
       sugerencia: `${UNCONFIRMED} ${UNWRITTEN} ${SINGLE}`,
     });
   });

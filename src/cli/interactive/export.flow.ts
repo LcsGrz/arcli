@@ -74,6 +74,13 @@ interface ExportFlowLoaders {
 
 const optional = (value: string): string | undefined => value.trim() || undefined;
 
+/** El nombre del incoterm, debajo de la opcion marcada. Sin nombre, o si repite el codigo, no hay nada que sumar. */
+function incotermDescription(entry: { readonly code: string; readonly name: string }): string | undefined {
+  const name = entry.name.trim();
+
+  return name && name.toUpperCase() !== entry.code.trim().toUpperCase() ? name : undefined;
+}
+
 /**
  * Permisos de embarque de una E de bienes, separados por coma o espacio. Vacio, ninguno. arcli no da de alta
  * permisos: los que se informan ya existen en ARCA (en la factura van con `--permiso-existente`).
@@ -277,7 +284,12 @@ function exportSteps(
         const incoterm = await chooseStep(
           'Incoterm:',
           // El nombre tambien lo encuentra al escribir: "free on board" marca FOB.
-          list.map((entry) => ({ keywords: entry.name, name: entry.code, value: entry.code })),
+          list.map((entry) => ({
+            description: incotermDescription(entry),
+            keywords: entry.name,
+            name: entry.code,
+            value: entry.code,
+          })),
           previous?.incoterm,
         );
 

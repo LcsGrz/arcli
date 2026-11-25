@@ -42,12 +42,15 @@ export function isNewerVersion(latestVersion: string, currentVersion: string): b
   return latestPatch > currentPatch;
 }
 
-async function fetchLatestVersion(): Promise<string | null> {
+async function fetchLatestVersion({ request = fetch, signal }: CheckForUpdateOptions): Promise<string | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const cancel = () => controller.abort();
+  const timeout = setTimeout(cancel, FETCH_TIMEOUT_MS);
+
+  signal?.addEventListener('abort', cancel);
 
   try {
-    const response = await fetch(REGISTRY_URL, { signal: controller.signal });
+    const response = await request(REGISTRY_URL, { signal: controller.signal });
 
     if (!response.ok) {
       return null;
@@ -60,6 +63,7 @@ async function fetchLatestVersion(): Promise<string | null> {
     return null;
   } finally {
     clearTimeout(timeout);
+    signal?.removeEventListener('abort', cancel);
   }
 }
 
@@ -73,10 +77,20 @@ function createCacheStore(cwd?: string): Conf<UpdateCheckCache> {
   });
 }
 
+/** Lo que se usa de `fetch` para consultar el registry. */
+export type RegistryRequest = (
+  url: string,
+  options: { readonly signal: AbortSignal },
+) => Promise<{ readonly json: () => Promise<unknown>; readonly ok: boolean }>;
+
 export interface CheckForUpdateOptions {
   readonly cwd?: string;
   /** Cada cuanto se consulta el registry; por defecto, una vez por dia. */
   readonly maxAgeMs?: number;
+  /** Por defecto, `fetch`. */
+  readonly request?: RegistryRequest;
+  /** Cancela la consulta sin anotarla: la proxima vez se reintenta. Con lo guardado se avisa igual. */
+  readonly signal?: AbortSignal;
 }
 
 export async function checkForUpdate(
@@ -92,14 +106,16 @@ export async function checkForUpdate(
   let latestVersion = cache.get('latestVersion');
 
   if (isCacheStale) {
-    const fetchedVersion = await fetchLatestVersion();
+    const fetchedVersion = await fetchLatestVersion(options);
 
     if (fetchedVersion) {
       latestVersion = fetchedVersion;
       cache.set('latestVersion', fetchedVersion);
     }
 
-    cache.set('lastCheckedAt', Date.now());
+    if (fetchedVersion || !options.signal?.aborted) {
+      cache.set('lastCheckedAt', Date.now());
+    }
   }
 
   if (!latestVersion || !isNewerVersion(latestVersion, currentVersion)) {
