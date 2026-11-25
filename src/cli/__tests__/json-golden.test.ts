@@ -2922,6 +2922,31 @@ describe('otros comandos que van a ARCA', () => {
     return golden('ultimos-con-hueco', ['ultimos', 'fc', '--cantidad', '3', '--json']);
   });
 
+  // REV-54: la salida entera de cada servicio que no estaba en otro dorado.
+  describe('ultimos y consultar, la salida entera', () => {
+    it.each<[string, string[]]>([
+      ['ultimos-fc-texto', ['ultimos', 'fc', '--cantidad', '2']],
+      ['ultimos-fe-texto', ['ultimos', 'fe', '--pv', '4', '--cantidad', '2']],
+      ['consultar-fc', ['consultar', 'fc', '12', '--json']],
+      ['consultar-fc-texto', ['consultar', 'fc', '12']],
+      ['consultar-fe-texto', ['consultar', 'fe', '1', '--pv', '4']],
+    ])('%s', (name, args) => golden(name, args));
+
+    it.each<[string, string[]]>([
+      ['ultimos-fc-vacio', ['ultimos', 'fc', '--json']],
+      ['ultimos-fc-vacio-texto', ['ultimos', 'fc']],
+      ['ultimos-fe-vacio', ['ultimos', 'fe', '--pv', '4', '--json']],
+      ['ultimos-fe-vacio-texto', ['ultimos', 'fe', '--pv', '4']],
+    ])('%s', (name, args) => {
+      sdk.wsfe.getLastVoucher.mockResolvedValue({ cbteNro: 0 });
+      sdk.wsfex.getLastCmp.mockResolvedValue({
+        FEXGetLast_CMPResult: { ...NO_FEX_ERROR, FEXResult_LastCMP: { Cbte_nro: 0 } },
+      });
+
+      return golden(name, args);
+    });
+  });
+
   it('una nota sin --apv: la solicitud y la consulta van al punto de venta de la nota (ARQ-22)', async () => {
     const note = ['ncc', '-m', '100', '--cs', '--cfinal', '--ac', 'fc', '--ar', '12', '--previsualizar', '--json'];
 

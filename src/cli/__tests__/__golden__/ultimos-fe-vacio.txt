@@ -1,0 +1,15 @@
+$ arcli ultimos fe --pv 4 --json
+exit: 0
+--- stdout ---
+
+{
+  "atajo": "fe",
+  "comprobante": "Factura de exportación E",
+  "tipoArca": 19,
+  "comprobantes": [],
+  "entorno": "testing",
+  "puntoVenta": 4
+}
+
+
+--- stderr ---

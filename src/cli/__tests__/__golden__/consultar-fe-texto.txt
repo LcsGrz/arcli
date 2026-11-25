@@ -1,0 +1,27 @@
+$ arcli consultar fe 1 --pv 4
+exit: 0
+--- stdout ---
+
+      ╒══════════════════════════ FACTURA DE EXPORTACIÓN E ══════════════════════════╕
+      │                                                                              │
+      │  Número                           00004-00000001                             │
+      │  Fecha del comprobante            30/10/2026                                 │
+      │  Cliente                          ACME LLC                                   │
+      │  Domicilio del cliente            123 Main St                                │
+      │  CUIT del país del cliente        55-00000212-6                              │
+      │  País de destino                  212                                        │
+      │  Tipo de exportación              2 - Servicios                              │
+      │  Moneda                           Dólares estadounidenses (USD), cotización  │
+      │                                   1.000                                      │
+      │  Importe total                    1.500 USD                                  │
+      │  CAE                              76463926585300                             │
+      │  Vencimiento CAE                  10/11/2026                                 │
+      │                                                                              │
+      ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+      │                                                                              │
+      │                                   APROBADO                                   │
+      │                                                                              │
+      ╘══════════════════════════════════════════════════════════════════════════════╛
+
+
+--- stderr ---

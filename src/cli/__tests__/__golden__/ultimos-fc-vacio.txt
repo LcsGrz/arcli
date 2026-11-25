@@ -1,0 +1,15 @@
+$ arcli ultimos fc --json
+exit: 0
+--- stdout ---
+
+{
+  "atajo": "fc",
+  "comprobante": "Factura C",
+  "tipoArca": 11,
+  "comprobantes": [],
+  "entorno": "testing",
+  "puntoVenta": 3
+}
+
+
+--- stderr ---

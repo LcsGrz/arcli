@@ -1,0 +1,12 @@
+$ arcli ultimos fc
+exit: 0
+--- stdout ---
+
+┌                                                                                          ┐
+                                                                                            
+                     No hay facturas C emitidas en el punto de venta 3.                     
+                                                                                            
+└                                                                                          ┘
+
+
+--- stderr ---
