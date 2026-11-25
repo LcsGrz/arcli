@@ -313,7 +313,7 @@ export async function startArcaServer({ redirect }: { readonly redirect: boolean
 
 /** Los plazos de ARQ-11, en milisegundos, y por cuanto se dividen en los tests. */
 export const DEADLINES_MS: readonly number[] = [30_000, 60_000, 120_000];
-export const DEADLINE_SCALE = 100;
+const DEADLINE_SCALE = 100;
 const RECHECK_MS = 10;
 
 export interface TrackedDeadline {
