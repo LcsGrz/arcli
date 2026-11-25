@@ -30,6 +30,7 @@ yarn dev --ayuda
 | `yarn test:arca`           | Tests contra ARCA testing con tu config; solo local (antes, `yarn build`)                  |
 | `yarn lint`                | ESLint, Prettier y los guardarraíles (`lint:eslint`, `lint:prettier`, `lint:guardrails`)   |
 | `yarn lint:guardrails`     | Código muerto, duplicación, ciclos y lockfile (ver [Guardarraíles](#guardarraíles))        |
+| `yarn check:repo`          | Los tests del formato del CHANGELOG y de las docs al día con el código                     |
 | `yarn lint:eslint:fix`     | Corrige lo que ESLint puede arreglar solo                                                  |
 | `yarn lint:prettier:fix`   | Formatea con Prettier                                                                      |
 | `yarn docs:comprobantes`   | Escribe `docs/comprobantes/` desde `scripts/docs/comprobantes.ts`                          |
@@ -39,7 +40,7 @@ yarn dev --ayuda
 | `yarn pack:check`          | Empaqueta `dist`, lo instala en una carpeta temporal y corre `arcli --version` y `--ayuda` |
 | `yarn open-source:check`   | `typecheck`, `test:coverage`, `build`, publint, `test:e2e` y `pack:check`                  |
 
-Husky corre `lint-staged` en cada commit: chequeo de tipos, ESLint, Prettier y los tests relacionados con lo modificado.
+Husky corre `lint-staged` en cada commit: chequeo de tipos, ESLint, Prettier y los tests relacionados con lo modificado. Antes de cada push corre `lint:guardrails` y `check:repo` (unos 15 segundos), que miran el repo entero; no corre al borrar una rama ni al subir un tag. Los errores que solo aparecen en otro sistema operativo o en otra versión de Node los encuentra el CI.
 
 ### Guardarraíles
 
