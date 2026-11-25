@@ -1,0 +1,56 @@
+# establecer o eliminar noExiste
+{
+  "codigo": "INPUT_VALIDATION_ERROR",
+  "detalles": [
+    {
+      "mensaje": "El valor no está entre los soportados. Valores válidos: alicuota, cert.produccion, cert.testing, concepto, condicionVenta, cuenta, cuit, cotizacion, emisor.condicionIva, emisor.domicilio, emisor.iibb, emisor.inicioActividades, emisor.logo, emisor.razonSocial, entorno, emitir, exportacion.actividad, exportacion.cert.produccion, exportacion.cert.testing, exportacion.key.produccion, exportacion.key.testing, filasPorLista, ivaReceptor, json, key.produccion, key.testing, moneda, monotributo.tope, bruto, pdf, pdfCarpeta, pdfNavegador, puntoVenta, ticketPath, verificarFce, consultarPadron.",
+      "ruta": []
+    }
+  ],
+  "error": "La clave `noExiste` no existe.",
+  "sugerencia": "Mirá cada clave con sus valores válidos en `arcli config establecer --ayuda`, y la config actual con `arcli config`."
+}
+
+# Las claves al completar establecer
+alicuota cert.produccion cert.testing concepto condicionVenta cuenta cuit cotizacion emisor.condicionIva emisor.domicilio emisor.iibb emisor.inicioActividades emisor.logo emisor.razonSocial entorno emitir exportacion.actividad exportacion.cert.produccion exportacion.cert.testing exportacion.key.produccion exportacion.key.testing filasPorLista ivaReceptor json key.produccion key.testing moneda monotributo.tope bruto pdf pdfCarpeta pdfNavegador puntoVenta ticketPath verificarFce consultarPadron
+
+# Las claves al completar eliminar
+alicuota cert.produccion cert.testing concepto condicionVenta cuenta cuit cotizacion emisor.condicionIva emisor.domicilio emisor.iibb emisor.inicioActividades emisor.logo emisor.razonSocial entorno emitir exportacion.actividad exportacion.cert.produccion exportacion.cert.testing exportacion.key.produccion exportacion.key.testing filasPorLista ivaReceptor json key.produccion key.testing moneda monotributo.tope bruto pdf pdfCarpeta pdfNavegador puntoVenta ticketPath verificarFce consultarPadron
+
+# Los valores de cada clave al completar establecer
+alicuota: 21 10.5 27 5 2.5 0
+cert.produccion: (nada)
+cert.testing: (nada)
+concepto: productos productos-servicios servicios
+condicionVenta: contado tarjeta-debito tarjeta-credito cuenta-corriente cheque transferencia otros-medios-electronicos otra
+cuenta: (nada)
+cuit: (nada)
+cotizacion: (nada)
+emisor.condicionIva: cliente-del-exterior consumidor-final iva-liberado iva-no-alcanzado monotributista-social monotributo-trabajador-independiente-promovido proveedor-del-exterior responsable-inscripto responsable-monotributo sujeto-exento sujeto-no-categorizado
+emisor.domicilio: (nada)
+emisor.iibb: (nada)
+emisor.inicioActividades: (nada)
+emisor.logo: (nada)
+emisor.razonSocial: (nada)
+entorno: testing produccion
+emitir: (nada)
+exportacion.actividad: (nada)
+exportacion.cert.produccion: (nada)
+exportacion.cert.testing: (nada)
+exportacion.key.produccion: (nada)
+exportacion.key.testing: (nada)
+filasPorLista: (nada)
+ivaReceptor: cliente-del-exterior consumidor-final iva-liberado iva-no-alcanzado monotributista-social monotributo-trabajador-independiente-promovido proveedor-del-exterior responsable-inscripto responsable-monotributo sujeto-exento sujeto-no-categorizado
+json: (nada)
+key.produccion: (nada)
+key.testing: (nada)
+moneda: (nada)
+monotributo.tope: (nada)
+bruto: (nada)
+pdf: siempre preguntar nunca
+pdfCarpeta: (nada)
+pdfNavegador: (nada)
+puntoVenta: (nada)
+ticketPath: (nada)
+verificarFce: si no
+consultarPadron: si no

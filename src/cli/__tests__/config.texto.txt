@@ -1,0 +1,247 @@
+# Ninguna clave
+
+┌ CONFIGURACIÓN ───────────────────────────────────────────────────────────────────────────┐
+│                                                                                          │
+│  Cuenta                                                                                  │
+│    CUIT del emisor                          sin configurar                               │
+│    Punto de venta                           sin configurar                               │
+│    Entorno                                  testing                                      │
+│                                                                                          │
+│  Certificados                                                                            │
+│    Certificado de testing                   sin configurar                               │
+│    Clave privada de testing                 sin configurar                               │
+│    Certificado de producción                sin configurar                               │
+│    Clave privada de producción              sin configurar                               │
+│    Certificado de exportación (testing)     sin configurar                               │
+│    Clave de exportación (testing)           sin configurar                               │
+│    Certificado de exportación (producción)  sin configurar                               │
+│    Clave de exportación (producción)        sin configurar                               │
+│    Carpeta de tickets WSAA                  .../config/tickets                           │
+│    Carpeta de certificados                  .../config/certificados                      │
+│                                                                                          │
+│  Al facturar                                                                             │
+│    Concepto                                 sin configurar                               │
+│    IVA del receptor                         sin configurar                               │
+│    IVA del receptor desde el padrón         sí                                           │
+│    Alícuota de IVA (A y B)                  21% (por defecto)                            │
+│    Moneda                                   PES                                          │
+│    Cotización (deprecada)                   1                                            │
+│                                                                                          │
+│  Factura de crédito electrónica (FCE)                                                    │
+│    Cuenta bancaria (CBU y alias)            sin configurar                               │
+│    Verificar régimen FCE del receptor       no                                           │
+│                                                                                          │
+│  Factura de exportación (E)                                                              │
+│    Actividad de exportación (WSFEX)         sin configurar                               │
+│                                                                                          │
+│  Monotributo                                                                             │
+│    Tope de ingresos anuales propio          el de tu categoría                           │
+│                                                                                          │
+│  Datos del emisor (PDF)                                                                  │
+│    Razón social                             sin configurar                               │
+│    Domicilio comercial                      sin configurar                               │
+│    Inicio de actividades                    sin configurar                               │
+│    Ingresos Brutos                          sin configurar                               │
+│    Condición de IVA                         según la letra                               │
+│    Logo (PNG o JPG)                         sin configurar                               │
+│                                                                                          │
+│  PDF                                                                                     │
+│    Cuándo generar el PDF                    preguntar                                    │
+│    Carpeta de PDFs                          .../arcli/comprobantes                       │
+│    Navegador para PDFs                      automático                                   │
+│    Condición de venta (PDF de A, B y C)     sin configurar                               │
+│                                                                                          │
+│  Salida y listados                                                                       │
+│    Filas por lista                          15 (por defecto)                             │
+│    Emitir sin `--emitir`                    no                                           │
+│    Salida JSON                              no                                           │
+│    Salida bruta                             no                                           │
+│                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+# Ninguna clave, con color y links
+
+┌ ␛[1mCONFIGURACIÓN␛[22m ───────────────────────────────────────────────────────────────────────────┐
+│                                                                                          │
+│  ␛[36mCuenta␛[39m                                                                                  │
+│    ␛[2mCUIT del emisor                        ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mPunto de venta                         ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mEntorno                                ␛[22m  testing                                      │
+│                                                                                          │
+│  ␛[36mCertificados␛[39m                                                                            │
+│    ␛[2mCertificado de testing                 ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mClave privada de testing               ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mCertificado de producción              ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mClave privada de producción            ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mCertificado de exportación (testing)   ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mClave de exportación (testing)         ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mCertificado de exportación (producción)␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mClave de exportación (producción)      ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mCarpeta de tickets WSAA                ␛[22m  ␛]8;;file://<config>/tickets␛\.../config/tickets␛]8;;␛\                           │
+│    ␛[2mCarpeta de certificados                ␛[22m  ␛]8;;file://<config>/certificados␛\.../config/certificados␛]8;;␛\                      │
+│                                                                                          │
+│  ␛[36mAl facturar␛[39m                                                                             │
+│    ␛[2mConcepto                               ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mIVA del receptor                       ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mIVA del receptor desde el padrón       ␛[22m  sí                                           │
+│    ␛[2mAlícuota de IVA (A y B)                ␛[22m  21% (por defecto)                            │
+│    ␛[2mMoneda                                 ␛[22m  PES                                          │
+│    ␛[2mCotización (deprecada)                 ␛[22m  1                                            │
+│                                                                                          │
+│  ␛[36mFactura de crédito electrónica (FCE)␛[39m                                                    │
+│    ␛[2mCuenta bancaria (CBU y alias)          ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mVerificar régimen FCE del receptor     ␛[22m  no                                           │
+│                                                                                          │
+│  ␛[36mFactura de exportación (E)␛[39m                                                              │
+│    ␛[2mActividad de exportación (WSFEX)       ␛[22m  ␛[2msin configurar␛[22m                               │
+│                                                                                          │
+│  ␛[36mMonotributo␛[39m                                                                             │
+│    ␛[2mTope de ingresos anuales propio        ␛[22m  el de tu categoría                           │
+│                                                                                          │
+│  ␛[36mDatos del emisor (PDF)␛[39m                                                                  │
+│    ␛[2mRazón social                           ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mDomicilio comercial                    ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mInicio de actividades                  ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mIngresos Brutos                        ␛[22m  ␛[2msin configurar␛[22m                               │
+│    ␛[2mCondición de IVA                       ␛[22m  según la letra                               │
+│    ␛[2mLogo (PNG o JPG)                       ␛[22m  ␛[2msin configurar␛[22m                               │
+│                                                                                          │
+│  ␛[36mPDF␛[39m                                                                                     │
+│    ␛[2mCuándo generar el PDF                  ␛[22m  preguntar                                    │
+│    ␛[2mCarpeta de PDFs                        ␛[22m  ␛]8;;file://<home>/arcli/comprobantes␛\.../arcli/comprobantes␛]8;;␛\                       │
+│    ␛[2mNavegador para PDFs                    ␛[22m  automático                                   │
+│    ␛[2mCondición de venta (PDF de A, B y C)   ␛[22m  ␛[2msin configurar␛[22m                               │
+│                                                                                          │
+│  ␛[36mSalida y listados␛[39m                                                                       │
+│    ␛[2mFilas por lista                        ␛[22m  15 (por defecto)                             │
+│    ␛[2mEmitir sin `--emitir`                  ␛[22m  no                                           │
+│    ␛[2mSalida JSON                            ␛[22m  no                                           │
+│    ␛[2mSalida bruta                           ␛[22m  no                                           │
+│                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+# Todas las claves
+
+┌ CONFIGURACIÓN ───────────────────────────────────────────────────────────────────────────┐
+│                                                                                          │
+│  Cuenta                                                                                  │
+│    CUIT del emisor                          20-12345678-6                                │
+│    Punto de venta                           3                                            │
+│    Entorno                                  producción                                   │
+│                                                                                          │
+│  Certificados                                                                            │
+│    Certificado de testing                   .../config/cert-testing.pem                  │
+│    Clave privada de testing                 .../config/key-testing.pem                   │
+│    Certificado de producción                .../config/cert-produccion.pem               │
+│    Clave privada de producción              .../config/key-produccion.pem                │
+│    Certificado de exportación (testing)     .../config/expo-cert-testing.pem             │
+│    Clave de exportación (testing)           .../config/expo-key-testing.pem              │
+│    Certificado de exportación (producción)  .../config/expo-cert-produccion.pem          │
+│    Clave de exportación (producción)        .../config/expo-key-produccion.pem           │
+│    Carpeta de tickets WSAA                  .../config/tickets-propios                   │
+│    Carpeta de certificados                  .../config/certificados                      │
+│                                                                                          │
+│  Al facturar                                                                             │
+│    Concepto                                 productos-servicios                          │
+│    IVA del receptor                         consumidor-final                             │
+│    IVA del receptor desde el padrón         no                                           │
+│    Alícuota de IVA (A y B)                  10,5%                                        │
+│    Moneda                                   USD                                          │
+│    Cotización (deprecada)                   1.350,50                                     │
+│                                                                                          │
+│  Factura de crédito electrónica (FCE)                                                    │
+│    Cuenta bancaria (CBU y alias)            0110599520000012345678 (mi.alias.cbu)        │
+│    Verificar régimen FCE del receptor       sí                                           │
+│                                                                                          │
+│  Factura de exportación (E)                                                              │
+│    Actividad de exportación (WSFEX)         620100                                       │
+│                                                                                          │
+│  Monotributo                                                                             │
+│    Tope de ingresos anuales propio          $ 30.000.000                                 │
+│                                                                                          │
+│  Datos del emisor (PDF)                                                                  │
+│    Razón social                             Ana Ficticia                                 │
+│    Domicilio comercial                      Calle Ficticia 123                           │
+│    Inicio de actividades                    01/03/2020                                   │
+│    Ingresos Brutos                          901-123456-7                                 │
+│    Condición de IVA                         responsable-inscripto                        │
+│    Logo (PNG o JPG)                         .../config/logo.png                          │
+│                                                                                          │
+│  PDF                                                                                     │
+│    Cuándo generar el PDF                    siempre                                      │
+│    Carpeta de PDFs                          .../config/pdfs                              │
+│    Navegador para PDFs                      .../config/navegador                         │
+│    Condición de venta (PDF de A, B y C)     a 45 días                                    │
+│                                                                                          │
+│  Salida y listados                                                                       │
+│    Filas por lista                          20                                           │
+│    Emitir sin `--emitir`                    sí                                           │
+│    Salida JSON                              no                                           │
+│    Salida bruta                             sí                                           │
+│                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+# Todas las claves, con color y links
+
+┌ ␛[1mCONFIGURACIÓN␛[22m ───────────────────────────────────────────────────────────────────────────┐
+│                                                                                          │
+│  ␛[36mCuenta␛[39m                                                                                  │
+│    ␛[2mCUIT del emisor                        ␛[22m  20-12345678-6                                │
+│    ␛[2mPunto de venta                         ␛[22m  3                                            │
+│    ␛[2mEntorno                                ␛[22m  producción                                   │
+│                                                                                          │
+│  ␛[36mCertificados␛[39m                                                                            │
+│    ␛[2mCertificado de testing                 ␛[22m  ␛]8;;file://<config>/cert-testing.pem␛\.../config/cert-testing.pem␛]8;;␛\                  │
+│    ␛[2mClave privada de testing               ␛[22m  ␛]8;;file://<config>/key-testing.pem␛\.../config/key-testing.pem␛]8;;␛\                   │
+│    ␛[2mCertificado de producción              ␛[22m  ␛]8;;file://<config>/cert-produccion.pem␛\.../config/cert-produccion.pem␛]8;;␛\               │
+│    ␛[2mClave privada de producción            ␛[22m  ␛]8;;file://<config>/key-produccion.pem␛\.../config/key-produccion.pem␛]8;;␛\                │
+│    ␛[2mCertificado de exportación (testing)   ␛[22m  ␛]8;;file://<config>/expo-cert-testing.pem␛\.../config/expo-cert-testing.pem␛]8;;␛\             │
+│    ␛[2mClave de exportación (testing)         ␛[22m  ␛]8;;file://<config>/expo-key-testing.pem␛\.../config/expo-key-testing.pem␛]8;;␛\              │
+│    ␛[2mCertificado de exportación (producción)␛[22m  ␛]8;;file://<config>/expo-cert-produccion.pem␛\.../config/expo-cert-produccion.pem␛]8;;␛\          │
+│    ␛[2mClave de exportación (producción)      ␛[22m  ␛]8;;file://<config>/expo-key-produccion.pem␛\.../config/expo-key-produccion.pem␛]8;;␛\           │
+│    ␛[2mCarpeta de tickets WSAA                ␛[22m  ␛]8;;file://<config>/tickets-propios␛\.../config/tickets-propios␛]8;;␛\                   │
+│    ␛[2mCarpeta de certificados                ␛[22m  ␛]8;;file://<config>/certificados␛\.../config/certificados␛]8;;␛\                      │
+│                                                                                          │
+│  ␛[36mAl facturar␛[39m                                                                             │
+│    ␛[2mConcepto                               ␛[22m  productos-servicios                          │
+│    ␛[2mIVA del receptor                       ␛[22m  consumidor-final                             │
+│    ␛[2mIVA del receptor desde el padrón       ␛[22m  no                                           │
+│    ␛[2mAlícuota de IVA (A y B)                ␛[22m  10,5%                                        │
+│    ␛[2mMoneda                                 ␛[22m  USD                                          │
+│    ␛[2mCotización (deprecada)                 ␛[22m  1.350,50                                     │
+│                                                                                          │
+│  ␛[36mFactura de crédito electrónica (FCE)␛[39m                                                    │
+│    ␛[2mCuenta bancaria (CBU y alias)          ␛[22m  0110599520000012345678 (mi.alias.cbu)        │
+│    ␛[2mVerificar régimen FCE del receptor     ␛[22m  sí                                           │
+│                                                                                          │
+│  ␛[36mFactura de exportación (E)␛[39m                                                              │
+│    ␛[2mActividad de exportación (WSFEX)       ␛[22m  620100                                       │
+│                                                                                          │
+│  ␛[36mMonotributo␛[39m                                                                             │
+│    ␛[2mTope de ingresos anuales propio        ␛[22m  $ 30.000.000                                 │
+│                                                                                          │
+│  ␛[36mDatos del emisor (PDF)␛[39m                                                                  │
+│    ␛[2mRazón social                           ␛[22m  Ana Ficticia                                 │
+│    ␛[2mDomicilio comercial                    ␛[22m  Calle Ficticia 123                           │
+│    ␛[2mInicio de actividades                  ␛[22m  01/03/2020                                   │
+│    ␛[2mIngresos Brutos                        ␛[22m  901-123456-7                                 │
+│    ␛[2mCondición de IVA                       ␛[22m  responsable-inscripto                        │
+│    ␛[2mLogo (PNG o JPG)                       ␛[22m  ␛]8;;file://<config>/logo.png␛\.../config/logo.png␛]8;;␛\                          │
+│                                                                                          │
+│  ␛[36mPDF␛[39m                                                                                     │
+│    ␛[2mCuándo generar el PDF                  ␛[22m  siempre                                      │
+│    ␛[2mCarpeta de PDFs                        ␛[22m  ␛]8;;file://<config>/pdfs␛\.../config/pdfs␛]8;;␛\                              │
+│    ␛[2mNavegador para PDFs                    ␛[22m  ␛]8;;file://<config>/navegador␛\.../config/navegador␛]8;;␛\                         │
+│    ␛[2mCondición de venta (PDF de A, B y C)   ␛[22m  a 45 días                                    │
+│                                                                                          │
+│  ␛[36mSalida y listados␛[39m                                                                       │
+│    ␛[2mFilas por lista                        ␛[22m  20                                           │
+│    ␛[2mEmitir sin `--emitir`                  ␛[22m  sí                                           │
+│    ␛[2mSalida JSON                            ␛[22m  no                                           │
+│    ␛[2mSalida bruta                           ␛[22m  sí                                           │
+│                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────┘
+

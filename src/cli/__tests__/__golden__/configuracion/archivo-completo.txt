@@ -1,0 +1,198 @@
+{
+	"cert": {
+		"produccion": "<config>/cert-produccion.pem",
+		"testing": "<config>/cert-testing.pem"
+	},
+	"emisor": {
+		"condicionIva": "responsable-inscripto",
+		"domicilio": "Calle Ficticia 123",
+		"iibb": "901-123456-7",
+		"inicioActividades": "20200301",
+		"logo": "<config>/logo.png",
+		"razonSocial": "Ana Ficticia"
+	},
+	"entornoPorDefecto": "produccion",
+	"key": {
+		"produccion": "<config>/key-produccion.pem",
+		"testing": "<config>/key-testing.pem"
+	},
+	"monedaPorDefecto": "USD",
+	"cotizacionPorDefecto": 1350.5,
+	"output": {
+		"emitirPorDefecto": true,
+		"jsonPorDefecto": false,
+		"brutoPorDefecto": true
+	},
+	"alicuotaPorDefecto": "10.5",
+	"cuit": "20123456786",
+	"cbu": "0110599520000012345678",
+	"aliasCbu": "mi.alias.cbu",
+	"conceptoPorDefecto": "productos-servicios",
+	"ivaReceptorPorDefecto": "consumidor-final",
+	"exportacion": {
+		"actividad": 620100,
+		"cert": {
+			"produccion": "<config>/expo-cert-produccion.pem",
+			"testing": "<config>/expo-cert-testing.pem"
+		},
+		"key": {
+			"produccion": "<config>/expo-key-produccion.pem",
+			"testing": "<config>/expo-key-testing.pem"
+		}
+	},
+	"monotributo": {
+		"tope": 30000000
+	},
+	"pdf": "siempre",
+	"pdfCarpeta": "<config>/pdfs",
+	"pdfNavegador": "<config>/navegador",
+	"condicionVenta": "a 45 días",
+	"filasPorLista": 20,
+	"puntoVentaPorDefecto": 3,
+	"ticketPath": "<config>/tickets-propios",
+	"consultarPadron": false,
+	"verificarFce": true
+}
+
+alicuota
+    línea 26
+    - 	"alicuotaPorDefecto": "10.5",
+cert.produccion
+    línea 3
+    - 		"produccion": "<config>/cert-produccion.pem",
+cert.testing
+    línea 3
+    - 		"produccion": "<config>/cert-produccion.pem",
+    - 		"testing": "<config>/cert-testing.pem"
+    + 		"produccion": "<config>/cert-produccion.pem"
+concepto
+    línea 30
+    - 	"conceptoPorDefecto": "productos-servicios",
+condicionVenta
+    línea 49
+    - 	"condicionVenta": "a 45 días",
+cuenta
+    línea 28
+    - 	"cbu": "0110599520000012345678",
+    - 	"aliasCbu": "mi.alias.cbu",
+    aviso: AVISOS • Se borró también el alias mi.alias.cbu de la config: sin el CBU no se usa.
+cuit
+    línea 27
+    - 	"cuit": "20123456786",
+cotizacion
+    línea 20
+    - 	"cotizacionPorDefecto": 1350.5,
+    + 	"cotizacionPorDefecto": 1,
+emisor.condicionIva
+    línea 7
+    - 		"condicionIva": "responsable-inscripto",
+emisor.domicilio
+    línea 8
+    - 		"domicilio": "Calle Ficticia 123",
+emisor.iibb
+    línea 9
+    - 		"iibb": "901-123456-7",
+emisor.inicioActividades
+    línea 10
+    - 		"inicioActividades": "20200301",
+emisor.logo
+    línea 11
+    - 		"logo": "<config>/logo.png",
+emisor.razonSocial
+    línea 11
+    - 		"logo": "<config>/logo.png",
+    - 		"razonSocial": "Ana Ficticia"
+    + 		"logo": "<config>/logo.png"
+entorno
+    línea 14
+    - 	"entornoPorDefecto": "produccion",
+    + 	"entornoPorDefecto": "testing",
+emitir
+    línea 22
+    - 		"emitirPorDefecto": true,
+    + 		"emitirPorDefecto": false,
+exportacion.actividad
+    línea 33
+    - 		"actividad": 620100,
+exportacion.cert.produccion
+    línea 35
+    - 			"produccion": "<config>/expo-cert-produccion.pem",
+exportacion.cert.testing
+    línea 35
+    - 			"produccion": "<config>/expo-cert-produccion.pem",
+    - 			"testing": "<config>/expo-cert-testing.pem"
+    + 			"produccion": "<config>/expo-cert-produccion.pem"
+exportacion.key.produccion
+    línea 39
+    - 			"produccion": "<config>/expo-key-produccion.pem",
+exportacion.key.testing
+    línea 39
+    - 			"produccion": "<config>/expo-key-produccion.pem",
+    - 			"testing": "<config>/expo-key-testing.pem"
+    + 			"produccion": "<config>/expo-key-produccion.pem"
+filasPorLista
+    línea 50
+    - 	"filasPorLista": 20,
+ivaReceptor
+    línea 31
+    - 	"ivaReceptorPorDefecto": "consumidor-final",
+json
+    igual
+key.produccion
+    línea 16
+    - 		"produccion": "<config>/key-produccion.pem",
+key.testing
+    línea 16
+    - 		"produccion": "<config>/key-produccion.pem",
+    - 		"testing": "<config>/key-testing.pem"
+    + 		"produccion": "<config>/key-produccion.pem"
+moneda
+    línea 19
+    - 	"monedaPorDefecto": "USD",
+    + 	"monedaPorDefecto": "PES",
+monotributo.tope
+    línea 43
+    - 	"monotributo": {
+    - 		"tope": 30000000
+    - 	},
+    + 	"monotributo": {},
+bruto
+    línea 24
+    - 		"brutoPorDefecto": true
+    + 		"brutoPorDefecto": false
+pdf
+    línea 46
+    - 	"pdf": "siempre",
+pdfCarpeta
+    línea 47
+    - 	"pdfCarpeta": "<config>/pdfs",
+pdfNavegador
+    línea 48
+    - 	"pdfNavegador": "<config>/navegador",
+puntoVenta
+    línea 51
+    - 	"puntoVentaPorDefecto": 3,
+ticketPath
+    línea 52
+    - 	"ticketPath": "<config>/tickets-propios",
+verificarFce
+    línea 53
+    - 	"consultarPadron": false,
+    - 	"verificarFce": true
+    + 	"consultarPadron": false
+consultarPadron
+    línea 53
+    - 	"consultarPadron": false,
+aliasCbu
+    línea 29
+    - 	"aliasCbu": "mi.alias.cbu",
+    aviso: La clave "aliasCbu" está deprecada y se va a sacar en la 3.0.0: usá `arcli config establecer cuenta <CBU>`, que deja la cuenta sin alias.
+cbu
+    línea 28
+    - 	"cbu": "0110599520000012345678",
+    - 	"aliasCbu": "mi.alias.cbu",
+    aviso: La clave "cbu" está deprecada y se va a sacar en la 3.0.0: usá `arcli config eliminar cuenta`. AVISOS • Se borró también el alias mi.alias.cbu de la config: sin el CBU no se usa.
+comprobantesPorLista
+    línea 50
+    - 	"filasPorLista": 20,
+    aviso: La clave "comprobantesPorLista" está deprecada y se va a sacar en la 3.0.0: usá `filasPorLista`.

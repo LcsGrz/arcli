@@ -1,0 +1,894 @@
+# Sobre la config de archivo-completo.txt; "guarda" es lo que cambia de ella
+Sugerencia 1: Mirá cada clave con sus valores válidos en `arcli config establecer --ayuda`, y la config actual con `arcli config`.
+Sugerencia 2: no trae
+
+alicuota
+  "21"
+    guarda alicuotaPorDefecto = "21"
+  "10,5"
+    guarda lo mismo
+  "10.5%"
+    guarda lo mismo
+  "general"
+    guarda alicuotaPorDefecto = "21"
+  "REDUCIDA"
+    guarda lo mismo
+  "incrementada"
+    guarda alicuotaPorDefecto = "27"
+  "cero"
+    guarda alicuotaPorDefecto = "0"
+  "0"
+    guarda alicuotaPorDefecto = "0"
+  "2,5"
+    guarda alicuotaPorDefecto = "2.5"
+  "5"
+    guarda alicuotaPorDefecto = "5"
+  "27"
+    guarda alicuotaPorDefecto = "27"
+  "22"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La alícuota "22" no es válida. Usá general (21), reducida (10.5), incrementada (27), cero (0), 5 o 2.5.
+    asistente: lo mismo
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La alícuota "x" no es válida. Usá general (21), reducida (10.5), incrementada (27), cero (0), 5 o 2.5.
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: La alícuota "" no es válida. Usá general (21), reducida (10.5), incrementada (27), cero (0), 5 o 2.5.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: La alícuota "  " no es válida. Usá general (21), reducida (10.5), incrementada (27), cero (0), 5 o 2.5.
+    asistente: lo mismo
+cert.produccion
+  "@cert-testing.pem"
+    guarda cert.produccion = "<config>/cert-testing.pem"
+  "@no-existe.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado no existe: .../config/no-existe.pem
+    detalles: {"ruta":".../config/no-existe.pem"}
+    asistente: lo mismo
+  "@key-testing.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado apunta a un archivo con formato PEM inválido: .../config/key-testing.pem. Debe contener un bloque como -----BEGIN CERTIFICATE-----.
+    detalles: {"ruta":".../config/key-testing.pem"}
+    asistente: lo mismo
+  "@sin-pem.txt"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado apunta a un archivo con formato PEM inválido: .../config/sin-pem.txt. Debe contener un bloque como -----BEGIN CERTIFICATE-----.
+    detalles: {"ruta":".../config/sin-pem.txt"}
+    asistente: lo mismo
+  "x"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado no existe: .../<cwd>/x
+    detalles: {"ruta":".../<cwd>/x"}
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+cert.testing
+  "@cert-testing.pem"
+    guarda lo mismo
+  "@no-existe.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado no existe: .../config/no-existe.pem
+    detalles: {"ruta":".../config/no-existe.pem"}
+    asistente: lo mismo
+  "@key-testing.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado apunta a un archivo con formato PEM inválido: .../config/key-testing.pem. Debe contener un bloque como -----BEGIN CERTIFICATE-----.
+    detalles: {"ruta":".../config/key-testing.pem"}
+    asistente: lo mismo
+  "@sin-pem.txt"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado apunta a un archivo con formato PEM inválido: .../config/sin-pem.txt. Debe contener un bloque como -----BEGIN CERTIFICATE-----.
+    detalles: {"ruta":".../config/sin-pem.txt"}
+    asistente: lo mismo
+  "x"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado no existe: .../<cwd>/x
+    detalles: {"ruta":".../<cwd>/x"}
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+concepto
+  "productos"
+    guarda conceptoPorDefecto = "productos"
+  "Servicios"
+    guarda conceptoPorDefecto = "servicios"
+  " productos-servicios "
+    guarda lo mismo
+  "1"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `concepto` no acepta "1". Valores válidos: productos, productos-servicios, servicios.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: productos, productos-servicios, servicios.","ruta":[]}]
+    asistente: No se acepta "1". Valores válidos: productos, productos-servicios, servicios.
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `concepto` no acepta "x". Valores válidos: productos, productos-servicios, servicios.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: productos, productos-servicios, servicios.","ruta":[]}]
+    asistente: No se acepta "x". Valores válidos: productos, productos-servicios, servicios.
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `concepto` no acepta "". Valores válidos: productos, productos-servicios, servicios.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: productos, productos-servicios, servicios.","ruta":[]}]
+    asistente: No se acepta "". Valores válidos: productos, productos-servicios, servicios.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `concepto` no acepta "  ". Valores válidos: productos, productos-servicios, servicios.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: productos, productos-servicios, servicios.","ruta":[]}]
+    asistente: No se acepta "  ". Valores válidos: productos, productos-servicios, servicios.
+condicionVenta
+  "contado"
+    guarda condicionVenta = "contado"
+  "Contado"
+    guarda condicionVenta = "Contado"
+  "a 30 días"
+    guarda condicionVenta = "a 30 días"
+  "a x 100"
+    guarda condicionVenta = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  "a x 101"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `condicionVenta` no puede tener más de 100 caracteres.
+    detalles: [{"mensaje":"El valor tiene que tener hasta 100 caracteres.","ruta":[]}]
+    asistente: El valor no puede tener más de 100 caracteres.
+  "x"
+    guarda condicionVenta = "x"
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `condicionVenta` no puede estar vacío.
+    detalles: [{"mensaje":"El valor tiene que tener al menos 1 carácter.","ruta":[]}]
+    asistente: El valor no puede estar vacío.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `condicionVenta` no puede estar vacío.
+    detalles: [{"mensaje":"El valor tiene que tener al menos 1 carácter.","ruta":[]}]
+    asistente: El valor no puede estar vacío.
+cuenta
+  "0110599520000012345678"
+    guarda borra aliasCbu
+    aviso: Se borró el alias mi.alias.cbu de la config: la cuenta quedó sin alias. Si lo tiene, guardá los dos con `arcli config establecer cuenta <CBU> <ALIAS>`.
+  "0110599520 0000 12345678"
+    INPUT_VALIDATION_ERROR, sugerencia 1: El CBU "0110599520 0000 12345678" no es válido: debe tener 22 dígitos. Revisá que esté bien escrito.
+    asistente: lo mismo
+  "0110599520000012345677"
+    INPUT_VALIDATION_ERROR, sugerencia 1: El CBU "0110599520000012345677" no es válido: no coincide el dígito verificador del bloque de la cuenta (los últimos 14 dígitos). Revisá que esté bien escrito.
+    asistente: lo mismo
+  "123"
+    INPUT_VALIDATION_ERROR, sugerencia 1: El CBU "123" no es válido: debe tener 22 dígitos. Revisá que esté bien escrito.
+    asistente: lo mismo
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: El CBU "x" no es válido: debe tener 22 dígitos. Revisá que esté bien escrito.
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: El CBU "" no es válido: debe tener 22 dígitos. Revisá que esté bien escrito.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: El CBU "  " no es válido: debe tener 22 dígitos. Revisá que esté bien escrito.
+    asistente: lo mismo
+cuit
+  "20-12345678-6"
+    guarda lo mismo
+  "20123456786"
+    guarda lo mismo
+  "20123456780"
+    INPUT_VALIDATION_ERROR, sugerencia 1: El CUIT "20123456780" no es válido: el dígito verificador no coincide; revisá que esté bien escrito.
+    asistente: lo mismo
+  "123"
+    INPUT_VALIDATION_ERROR, sugerencia 1: El CUIT "123" no es válido: debe tener 11 dígitos, con o sin guiones.
+    asistente: lo mismo
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: El CUIT "x" no es válido: debe tener 11 dígitos, con o sin guiones.
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: El CUIT "" no es válido: debe tener 11 dígitos, con o sin guiones.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: El CUIT "  " no es válido: debe tener 11 dígitos, con o sin guiones.
+    asistente: lo mismo
+cotizacion
+  "1"
+    guarda cotizacionPorDefecto = 1
+  "1.350,5"
+    guarda lo mismo
+  "1350.5"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La cotización "1350.5" no es válida: usá coma para los decimales.
+    asistente: lo mismo
+  "1,123456"
+    guarda cotizacionPorDefecto = 1.123456
+  "1,1234567"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La cotización "1,1234567" no es válida: usá hasta 6 decimales.
+    asistente: lo mismo
+  "0"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La cotización "0" no es válida: tiene que ser mayor a 0.
+    asistente: lo mismo
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La cotización "x" no es válida: usá punto para miles y coma para decimales, por ejemplo 15000, 15.000 o 1.500,50.
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: La cotización "" no es válida: usá punto para miles y coma para decimales, por ejemplo 15000, 15.000 o 1.500,50.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: La cotización "  " no es válida: usá punto para miles y coma para decimales, por ejemplo 15000, 15.000 o 1.500,50.
+    asistente: lo mismo
+emisor.condicionIva
+  "consumidor-final"
+    guarda emisor.condicionIva = "consumidor-final"
+  " Responsable-Inscripto "
+    guarda lo mismo
+  "responsable-monotributo"
+    guarda emisor.condicionIva = "responsable-monotributo"
+  "sujeto-exento"
+    guarda emisor.condicionIva = "sujeto-exento"
+  "iva-no-alcanzado"
+    guarda emisor.condicionIva = "iva-no-alcanzado"
+  "monotributo"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `emisor.condicionIva` no acepta "monotributo". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.","ruta":[]}]
+    asistente: No se acepta "monotributo". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+  "5"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `emisor.condicionIva` no acepta "5". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.","ruta":[]}]
+    asistente: No se acepta "5". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `emisor.condicionIva` no acepta "x". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.","ruta":[]}]
+    asistente: No se acepta "x". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `emisor.condicionIva` no acepta "". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.","ruta":[]}]
+    asistente: No se acepta "". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `emisor.condicionIva` no acepta "  ". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.","ruta":[]}]
+    asistente: No se acepta "  ". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+emisor.domicilio
+  " Un texto "
+    guarda emisor.domicilio = "Un texto"
+  "0"
+    guarda emisor.domicilio = "0"
+  "x"
+    guarda emisor.domicilio = "x"
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `emisor.domicilio` no puede estar vacío.
+    asistente: El valor no puede estar vacío.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `emisor.domicilio` no puede estar vacío.
+    asistente: El valor no puede estar vacío.
+emisor.iibb
+  " Un texto "
+    guarda emisor.iibb = "Un texto"
+  "0"
+    guarda emisor.iibb = "0"
+  "x"
+    guarda emisor.iibb = "x"
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `emisor.iibb` no puede estar vacío.
+    asistente: El valor no puede estar vacío.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `emisor.iibb` no puede estar vacío.
+    asistente: El valor no puede estar vacío.
+emisor.inicioActividades
+  "1/03/2020"
+    guarda lo mismo
+  "01/03/2020"
+    guarda lo mismo
+  "2020-03-01"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La fecha "2020-03-01" no es válida. Usá D/MM/YYYY, por ejemplo 1/03/2020.
+    asistente: lo mismo
+  "20200301"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La fecha "20200301" no es válida. Usá D/MM/YYYY, por ejemplo 1/03/2020.
+    asistente: lo mismo
+  "1/03"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La fecha "1/03" no es válida. Usá D/MM/YYYY, por ejemplo 1/03/2020.
+    asistente: lo mismo
+  "31/02/2020"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La fecha "31/02/2020" no es válida. Usá D, DD, D-MM, D/MM, D-MM-YY, D/MM/YY, D-MM-YYYY o D/MM/YYYY. También: hoy, ayer, +N o -N (días desde hoy, hasta 999).
+    asistente: lo mismo
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La fecha "x" no es válida. Usá D/MM/YYYY, por ejemplo 1/03/2020.
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: La fecha "" no es válida. Usá D/MM/YYYY, por ejemplo 1/03/2020.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: La fecha "  " no es válida. Usá D/MM/YYYY, por ejemplo 1/03/2020.
+    asistente: lo mismo
+emisor.logo
+  "@logo.png"
+    guarda lo mismo
+  "@no-existe.png"
+    INPUT_VALIDATION_ERROR, sugerencia 1: No se encontró el logo en "<config>/no-existe.png".
+    asistente: lo mismo
+  "@logo.gif"
+    INPUT_VALIDATION_ERROR, sugerencia 1: El logo debe ser un archivo PNG o JPG.
+    asistente: lo mismo
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: No se encontró el logo en "<cwd>/x".
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+emisor.razonSocial
+  " Un texto "
+    guarda emisor.razonSocial = "Un texto"
+  "0"
+    guarda emisor.razonSocial = "0"
+  "x"
+    guarda emisor.razonSocial = "x"
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `emisor.razonSocial` no puede estar vacío.
+    asistente: El valor no puede estar vacío.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `emisor.razonSocial` no puede estar vacío.
+    asistente: El valor no puede estar vacío.
+entorno
+  "testing"
+    guarda entornoPorDefecto = "testing"
+  " PRODUCCION "
+    guarda lo mismo
+  "producción"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `entorno` no acepta "producción". Valores válidos: testing, produccion.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: testing, produccion.","ruta":[]}]
+    asistente: No se acepta "producción". Valores válidos: testing, produccion.
+  "homologacion"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `entorno` no acepta "homologacion". Valores válidos: testing, produccion.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: testing, produccion.","ruta":[]}]
+    asistente: No se acepta "homologacion". Valores válidos: testing, produccion.
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `entorno` no acepta "x". Valores válidos: testing, produccion.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: testing, produccion.","ruta":[]}]
+    asistente: No se acepta "x". Valores válidos: testing, produccion.
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `entorno` no acepta "". Valores válidos: testing, produccion.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: testing, produccion.","ruta":[]}]
+    asistente: No se acepta "". Valores válidos: testing, produccion.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `entorno` no acepta "  ". Valores válidos: testing, produccion.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: testing, produccion.","ruta":[]}]
+    asistente: No se acepta "  ". Valores válidos: testing, produccion.
+emitir
+  "true"
+    guarda lo mismo
+  "FALSE"
+    guarda output.emitirPorDefecto = false
+  "si"
+    guarda lo mismo
+  " Sí "
+    guarda lo mismo
+  "no"
+    guarda output.emitirPorDefecto = false
+  "1"
+    guarda lo mismo
+  "0"
+    guarda output.emitirPorDefecto = false
+  "2"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `emitir` no acepta "2". Usá true/false, si/no o 1/0.
+    asistente: El valor "2" no es un booleano válido. Usá true/false, si/no o 1/0.
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `emitir` no acepta "x". Usá true/false, si/no o 1/0.
+    asistente: El valor "x" no es un booleano válido. Usá true/false, si/no o 1/0.
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `emitir` no acepta "". Usá true/false, si/no o 1/0.
+    asistente: El valor "" no es un booleano válido. Usá true/false, si/no o 1/0.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `emitir` no acepta "  ". Usá true/false, si/no o 1/0.
+    asistente: El valor "  " no es un booleano válido. Usá true/false, si/no o 1/0.
+exportacion.actividad
+  "3"
+    guarda exportacion.actividad = 3
+  " 4 "
+    guarda exportacion.actividad = 4
+  "0"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `exportacion.actividad` no acepta "0": tiene que ser un entero positivo válido.
+    asistente: El valor "0" no es un entero positivo válido.
+  "1,5"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `exportacion.actividad` no acepta "1,5": tiene que ser un entero positivo válido.
+    asistente: El valor "1,5" no es un entero positivo válido.
+  "1.000"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `exportacion.actividad` no acepta "1.000": tiene que ser un entero positivo válido.
+    asistente: El valor "1.000" no es un entero positivo válido.
+  "99999999999999999999"
+    INPUT_VALIDATION_ERROR, sugerencia 2: Hay parámetros inválidos o incompletos en la entrada.
+    detalles: [{"mensaje":"`exportacion.actividad` debe ser 9007199254740991 o menos.","ruta":["exportacion","actividad"]}]
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `exportacion.actividad` no acepta "x": tiene que ser un entero positivo válido.
+    asistente: El valor "x" no es un entero positivo válido.
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `exportacion.actividad` no acepta "": tiene que ser un entero positivo válido.
+    asistente: El valor "" no es un entero positivo válido.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `exportacion.actividad` no acepta "  ": tiene que ser un entero positivo válido.
+    asistente: El valor "  " no es un entero positivo válido.
+exportacion.cert.produccion
+  "@cert-testing.pem"
+    guarda exportacion.cert.produccion = "<config>/cert-testing.pem"
+  "@no-existe.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado no existe: .../config/no-existe.pem
+    detalles: {"ruta":".../config/no-existe.pem"}
+    asistente: lo mismo
+  "@key-testing.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado apunta a un archivo con formato PEM inválido: .../config/key-testing.pem. Debe contener un bloque como -----BEGIN CERTIFICATE-----.
+    detalles: {"ruta":".../config/key-testing.pem"}
+    asistente: lo mismo
+  "@sin-pem.txt"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado apunta a un archivo con formato PEM inválido: .../config/sin-pem.txt. Debe contener un bloque como -----BEGIN CERTIFICATE-----.
+    detalles: {"ruta":".../config/sin-pem.txt"}
+    asistente: lo mismo
+  "x"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado no existe: .../<cwd>/x
+    detalles: {"ruta":".../<cwd>/x"}
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+exportacion.cert.testing
+  "@cert-testing.pem"
+    guarda exportacion.cert.testing = "<config>/cert-testing.pem"
+  "@no-existe.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado no existe: .../config/no-existe.pem
+    detalles: {"ruta":".../config/no-existe.pem"}
+    asistente: lo mismo
+  "@key-testing.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado apunta a un archivo con formato PEM inválido: .../config/key-testing.pem. Debe contener un bloque como -----BEGIN CERTIFICATE-----.
+    detalles: {"ruta":".../config/key-testing.pem"}
+    asistente: lo mismo
+  "@sin-pem.txt"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado apunta a un archivo con formato PEM inválido: .../config/sin-pem.txt. Debe contener un bloque como -----BEGIN CERTIFICATE-----.
+    detalles: {"ruta":".../config/sin-pem.txt"}
+    asistente: lo mismo
+  "x"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta del certificado no existe: .../<cwd>/x
+    detalles: {"ruta":".../<cwd>/x"}
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+exportacion.key.produccion
+  "@key-testing.pem"
+    guarda exportacion.key.produccion = "<config>/key-testing.pem"
+  "@no-existe.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada no existe: .../config/no-existe.pem
+    detalles: {"ruta":".../config/no-existe.pem"}
+    asistente: lo mismo
+  "@cert-testing.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada apunta a un archivo con formato PEM inválido: .../config/cert-testing.pem. Debe contener un bloque como -----BEGIN PRIVATE KEY-----.
+    detalles: {"ruta":".../config/cert-testing.pem"}
+    asistente: lo mismo
+  "@cifrada.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La clave privada está cifrada con contraseña y ARCLI no puede usarla: .../config/cifrada.pem. Generala sin contraseña o descifrala con `openssl pkey -in clave.key -out clave-sin-pass.key`.
+    detalles: {"ruta":".../config/cifrada.pem"}
+    asistente: lo mismo
+  "@sin-pem.txt"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada apunta a un archivo con formato PEM inválido: .../config/sin-pem.txt. Debe contener un bloque como -----BEGIN PRIVATE KEY-----.
+    detalles: {"ruta":".../config/sin-pem.txt"}
+    asistente: lo mismo
+  "x"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada no existe: .../<cwd>/x
+    detalles: {"ruta":".../<cwd>/x"}
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+exportacion.key.testing
+  "@key-testing.pem"
+    guarda exportacion.key.testing = "<config>/key-testing.pem"
+  "@no-existe.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada no existe: .../config/no-existe.pem
+    detalles: {"ruta":".../config/no-existe.pem"}
+    asistente: lo mismo
+  "@cert-testing.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada apunta a un archivo con formato PEM inválido: .../config/cert-testing.pem. Debe contener un bloque como -----BEGIN PRIVATE KEY-----.
+    detalles: {"ruta":".../config/cert-testing.pem"}
+    asistente: lo mismo
+  "@cifrada.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La clave privada está cifrada con contraseña y ARCLI no puede usarla: .../config/cifrada.pem. Generala sin contraseña o descifrala con `openssl pkey -in clave.key -out clave-sin-pass.key`.
+    detalles: {"ruta":".../config/cifrada.pem"}
+    asistente: lo mismo
+  "@sin-pem.txt"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada apunta a un archivo con formato PEM inválido: .../config/sin-pem.txt. Debe contener un bloque como -----BEGIN PRIVATE KEY-----.
+    detalles: {"ruta":".../config/sin-pem.txt"}
+    asistente: lo mismo
+  "x"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada no existe: .../<cwd>/x
+    detalles: {"ruta":".../<cwd>/x"}
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+filasPorLista
+  "1"
+    guarda filasPorLista = 1
+  "50"
+    guarda filasPorLista = 50
+  "51"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La cantidad "51" no es válida: tiene que ser un número entre 1 y 50.
+    asistente: lo mismo
+  "0"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La cantidad "0" no es válida: tiene que ser un número entre 1 y 50.
+    asistente: lo mismo
+  "1,5"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La cantidad "1,5" no es válida: tiene que ser un número entre 1 y 50.
+    asistente: lo mismo
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La cantidad "x" no es válida: tiene que ser un número entre 1 y 50.
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: La cantidad "" no es válida: tiene que ser un número entre 1 y 50.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: La cantidad "  " no es válida: tiene que ser un número entre 1 y 50.
+    asistente: lo mismo
+ivaReceptor
+  "consumidor-final"
+    guarda lo mismo
+  " Responsable-Inscripto "
+    guarda ivaReceptorPorDefecto = "responsable-inscripto"
+  "responsable-monotributo"
+    guarda ivaReceptorPorDefecto = "responsable-monotributo"
+  "sujeto-exento"
+    guarda ivaReceptorPorDefecto = "sujeto-exento"
+  "iva-no-alcanzado"
+    guarda ivaReceptorPorDefecto = "iva-no-alcanzado"
+  "monotributo"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `ivaReceptor` no acepta "monotributo". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.","ruta":[]}]
+    asistente: No se acepta "monotributo". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+  "5"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `ivaReceptor` no acepta "5". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.","ruta":[]}]
+    asistente: No se acepta "5". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `ivaReceptor` no acepta "x". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.","ruta":[]}]
+    asistente: No se acepta "x". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `ivaReceptor` no acepta "". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.","ruta":[]}]
+    asistente: No se acepta "". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `ivaReceptor` no acepta "  ". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.","ruta":[]}]
+    asistente: No se acepta "  ". Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+json
+  "true"
+    guarda output.jsonPorDefecto = true
+  "FALSE"
+    guarda lo mismo
+  "si"
+    guarda output.jsonPorDefecto = true
+  " Sí "
+    guarda output.jsonPorDefecto = true
+  "no"
+    guarda lo mismo
+  "1"
+    guarda output.jsonPorDefecto = true
+  "0"
+    guarda lo mismo
+  "2"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `json` no acepta "2". Usá true/false, si/no o 1/0.
+    asistente: El valor "2" no es un booleano válido. Usá true/false, si/no o 1/0.
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `json` no acepta "x". Usá true/false, si/no o 1/0.
+    asistente: El valor "x" no es un booleano válido. Usá true/false, si/no o 1/0.
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `json` no acepta "". Usá true/false, si/no o 1/0.
+    asistente: El valor "" no es un booleano válido. Usá true/false, si/no o 1/0.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `json` no acepta "  ". Usá true/false, si/no o 1/0.
+    asistente: El valor "  " no es un booleano válido. Usá true/false, si/no o 1/0.
+key.produccion
+  "@key-testing.pem"
+    guarda key.produccion = "<config>/key-testing.pem"
+  "@no-existe.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada no existe: .../config/no-existe.pem
+    detalles: {"ruta":".../config/no-existe.pem"}
+    asistente: lo mismo
+  "@cert-testing.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada apunta a un archivo con formato PEM inválido: .../config/cert-testing.pem. Debe contener un bloque como -----BEGIN PRIVATE KEY-----.
+    detalles: {"ruta":".../config/cert-testing.pem"}
+    asistente: lo mismo
+  "@cifrada.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La clave privada está cifrada con contraseña y ARCLI no puede usarla: .../config/cifrada.pem. Generala sin contraseña o descifrala con `openssl pkey -in clave.key -out clave-sin-pass.key`.
+    detalles: {"ruta":".../config/cifrada.pem"}
+    asistente: lo mismo
+  "@sin-pem.txt"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada apunta a un archivo con formato PEM inválido: .../config/sin-pem.txt. Debe contener un bloque como -----BEGIN PRIVATE KEY-----.
+    detalles: {"ruta":".../config/sin-pem.txt"}
+    asistente: lo mismo
+  "x"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada no existe: .../<cwd>/x
+    detalles: {"ruta":".../<cwd>/x"}
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+key.testing
+  "@key-testing.pem"
+    guarda lo mismo
+  "@no-existe.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada no existe: .../config/no-existe.pem
+    detalles: {"ruta":".../config/no-existe.pem"}
+    asistente: lo mismo
+  "@cert-testing.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada apunta a un archivo con formato PEM inválido: .../config/cert-testing.pem. Debe contener un bloque como -----BEGIN PRIVATE KEY-----.
+    detalles: {"ruta":".../config/cert-testing.pem"}
+    asistente: lo mismo
+  "@cifrada.pem"
+    CONFIGURATION_ERROR, sugerencia 2: La clave privada está cifrada con contraseña y ARCLI no puede usarla: .../config/cifrada.pem. Generala sin contraseña o descifrala con `openssl pkey -in clave.key -out clave-sin-pass.key`.
+    detalles: {"ruta":".../config/cifrada.pem"}
+    asistente: lo mismo
+  "@sin-pem.txt"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada apunta a un archivo con formato PEM inválido: .../config/sin-pem.txt. Debe contener un bloque como -----BEGIN PRIVATE KEY-----.
+    detalles: {"ruta":".../config/sin-pem.txt"}
+    asistente: lo mismo
+  "x"
+    CONFIGURATION_ERROR, sugerencia 2: La ruta de la clave privada no existe: .../<cwd>/x
+    detalles: {"ruta":".../<cwd>/x"}
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+moneda
+  "PES"
+    guarda monedaPorDefecto = "PES"
+  "usd"
+    guarda lo mismo
+  " 060 "
+    guarda monedaPorDefecto = "060"
+  "zzz"
+    guarda monedaPorDefecto = "ZZZ"
+  "PESOS"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `moneda` no acepta "PESOS": tiene que ser un código de moneda de 3 caracteres, como PES o DOL. Los ves con `arcli parametros monedas`.
+    detalles: [{"mensaje":"`monedaPorDefecto` tiene que tener 3 caracteres.","ruta":["monedaPorDefecto"]}]
+    asistente: El código de moneda "PESOS" no es válido: tiene que ser un código de moneda de 3 caracteres, como PES o DOL. Los ves con `arcli parametros monedas`.
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `moneda` no acepta "x": tiene que ser un código de moneda de 3 caracteres, como PES o DOL. Los ves con `arcli parametros monedas`.
+    detalles: [{"mensaje":"`monedaPorDefecto` tiene que tener 3 caracteres.","ruta":["monedaPorDefecto"]}]
+    asistente: El código de moneda "x" no es válido: tiene que ser un código de moneda de 3 caracteres, como PES o DOL. Los ves con `arcli parametros monedas`.
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `moneda` no acepta "": tiene que ser un código de moneda de 3 caracteres, como PES o DOL. Los ves con `arcli parametros monedas`.
+    detalles: [{"mensaje":"`monedaPorDefecto` tiene que tener 3 caracteres.","ruta":["monedaPorDefecto"]}]
+    asistente: El código de moneda "" no es válido: tiene que ser un código de moneda de 3 caracteres, como PES o DOL. Los ves con `arcli parametros monedas`.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `moneda` no acepta "  ": tiene que ser un código de moneda de 3 caracteres, como PES o DOL. Los ves con `arcli parametros monedas`.
+    detalles: [{"mensaje":"`monedaPorDefecto` tiene que tener 3 caracteres.","ruta":["monedaPorDefecto"]}]
+    asistente: El código de moneda "  " no es válido: tiene que ser un código de moneda de 3 caracteres, como PES o DOL. Los ves con `arcli parametros monedas`.
+monotributo.tope
+  "30.000.000"
+    guarda lo mismo
+  "30000000,50"
+    guarda monotributo.tope = 30000000.5
+  "30000000.5"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `monotributo.tope` no acepta "30000000.5": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.
+    asistente: El valor no acepta "30000000.5": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.
+  "0"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `monotributo.tope` no acepta "0": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.
+    asistente: El valor no acepta "0": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.
+  "1,234"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `monotributo.tope` no acepta "1,234": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.
+    asistente: El valor no acepta "1,234": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `monotributo.tope` no acepta "x": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.
+    asistente: El valor no acepta "x": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `monotributo.tope` no acepta "": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.
+    asistente: El valor no acepta "": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `monotributo.tope` no acepta "  ": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.
+    asistente: El valor no acepta "  ": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.
+bruto
+  "true"
+    guarda lo mismo
+  "FALSE"
+    guarda output.brutoPorDefecto = false
+  "si"
+    guarda lo mismo
+  " Sí "
+    guarda lo mismo
+  "no"
+    guarda output.brutoPorDefecto = false
+  "1"
+    guarda lo mismo
+  "0"
+    guarda output.brutoPorDefecto = false
+  "2"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `bruto` no acepta "2". Usá true/false, si/no o 1/0.
+    asistente: El valor "2" no es un booleano válido. Usá true/false, si/no o 1/0.
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `bruto` no acepta "x". Usá true/false, si/no o 1/0.
+    asistente: El valor "x" no es un booleano válido. Usá true/false, si/no o 1/0.
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `bruto` no acepta "". Usá true/false, si/no o 1/0.
+    asistente: El valor "" no es un booleano válido. Usá true/false, si/no o 1/0.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `bruto` no acepta "  ". Usá true/false, si/no o 1/0.
+    asistente: El valor "  " no es un booleano válido. Usá true/false, si/no o 1/0.
+pdf
+  "siempre"
+    guarda lo mismo
+  "Preguntar"
+    guarda pdf = "preguntar"
+  "nunca"
+    guarda pdf = "nunca"
+  "si"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `pdf` no acepta "si". Valores válidos: siempre, preguntar, nunca.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: siempre, preguntar, nunca.","ruta":[]}]
+    asistente: No se acepta "si". Valores válidos: siempre, preguntar, nunca.
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `pdf` no acepta "x". Valores válidos: siempre, preguntar, nunca.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: siempre, preguntar, nunca.","ruta":[]}]
+    asistente: No se acepta "x". Valores válidos: siempre, preguntar, nunca.
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `pdf` no acepta "". Valores válidos: siempre, preguntar, nunca.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: siempre, preguntar, nunca.","ruta":[]}]
+    asistente: No se acepta "". Valores válidos: siempre, preguntar, nunca.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `pdf` no acepta "  ". Valores válidos: siempre, preguntar, nunca.
+    detalles: [{"mensaje":"El valor no está entre los soportados. Valores válidos: siempre, preguntar, nunca.","ruta":[]}]
+    asistente: No se acepta "  ". Valores válidos: siempre, preguntar, nunca.
+pdfCarpeta
+  "@pdfs"
+    guarda lo mismo
+  "relativa/pdfs"
+    guarda pdfCarpeta = "<cwd>/relativa/pdfs"
+  "x"
+    guarda pdfCarpeta = "<cwd>/x"
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `pdfCarpeta` no puede estar vacío.
+    asistente: El valor no puede estar vacío.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `pdfCarpeta` no puede estar vacío.
+    asistente: El valor no puede estar vacío.
+pdfNavegador
+  "@navegador"
+    guarda lo mismo
+  "@no-existe"
+    INPUT_VALIDATION_ERROR, sugerencia 1: No se encontró el navegador en "<config>/no-existe".
+    asistente: lo mismo
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: No se encontró el navegador en "<cwd>/x".
+    asistente: lo mismo
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: El valor no puede estar vacío.
+    asistente: lo mismo
+puntoVenta
+  "3"
+    guarda lo mismo
+  " 4 "
+    guarda puntoVentaPorDefecto = 4
+  "0"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `puntoVenta` no acepta "0": tiene que ser un entero positivo válido.
+    asistente: El valor "0" no es un entero positivo válido.
+  "1,5"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `puntoVenta` no acepta "1,5": tiene que ser un entero positivo válido.
+    asistente: El valor "1,5" no es un entero positivo válido.
+  "1.000"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `puntoVenta` no acepta "1.000": tiene que ser un entero positivo válido.
+    asistente: El valor "1.000" no es un entero positivo válido.
+  "99999999999999999999"
+    INPUT_VALIDATION_ERROR, sugerencia 2: Hay parámetros inválidos o incompletos en la entrada.
+    detalles: [{"mensaje":"`puntoVentaPorDefecto` debe ser 9007199254740991 o menos.","ruta":["puntoVentaPorDefecto"]}]
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `puntoVenta` no acepta "x": tiene que ser un entero positivo válido.
+    asistente: El valor "x" no es un entero positivo válido.
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `puntoVenta` no acepta "": tiene que ser un entero positivo válido.
+    asistente: El valor "" no es un entero positivo válido.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `puntoVenta` no acepta "  ": tiene que ser un entero positivo válido.
+    asistente: El valor "  " no es un entero positivo válido.
+ticketPath
+  "@tickets"
+    guarda ticketPath = "<config>/tickets"
+  "relativa/tickets"
+    guarda ticketPath = "<cwd>/relativa/tickets"
+  "x"
+    guarda ticketPath = "<cwd>/x"
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `ticketPath` no puede estar vacío.
+    asistente: El valor no puede estar vacío.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `ticketPath` no puede estar vacío.
+    asistente: El valor no puede estar vacío.
+verificarFce
+  "true"
+    guarda lo mismo
+  "FALSE"
+    guarda verificarFce = false
+  "si"
+    guarda lo mismo
+  " Sí "
+    guarda lo mismo
+  "no"
+    guarda verificarFce = false
+  "1"
+    guarda lo mismo
+  "0"
+    guarda verificarFce = false
+  "2"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `verificarFce` no acepta "2". Usá true/false, si/no o 1/0.
+    asistente: El valor "2" no es un booleano válido. Usá true/false, si/no o 1/0.
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `verificarFce` no acepta "x". Usá true/false, si/no o 1/0.
+    asistente: El valor "x" no es un booleano válido. Usá true/false, si/no o 1/0.
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `verificarFce` no acepta "". Usá true/false, si/no o 1/0.
+    asistente: El valor "" no es un booleano válido. Usá true/false, si/no o 1/0.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `verificarFce` no acepta "  ". Usá true/false, si/no o 1/0.
+    asistente: El valor "  " no es un booleano válido. Usá true/false, si/no o 1/0.
+consultarPadron
+  "true"
+    guarda consultarPadron = true
+  "FALSE"
+    guarda lo mismo
+  "si"
+    guarda consultarPadron = true
+  " Sí "
+    guarda consultarPadron = true
+  "no"
+    guarda lo mismo
+  "1"
+    guarda consultarPadron = true
+  "0"
+    guarda lo mismo
+  "2"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `consultarPadron` no acepta "2". Usá true/false, si/no o 1/0.
+    asistente: El valor "2" no es un booleano válido. Usá true/false, si/no o 1/0.
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `consultarPadron` no acepta "x". Usá true/false, si/no o 1/0.
+    asistente: El valor "x" no es un booleano válido. Usá true/false, si/no o 1/0.
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `consultarPadron` no acepta "". Usá true/false, si/no o 1/0.
+    asistente: El valor "" no es un booleano válido. Usá true/false, si/no o 1/0.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `consultarPadron` no acepta "  ". Usá true/false, si/no o 1/0.
+    asistente: El valor "  " no es un booleano válido. Usá true/false, si/no o 1/0.
+cuenta
+  "0170099220000067797370" "otro.alias"
+    guarda cbu = "0170099220000067797370"; aliasCbu = "otro.alias"
+cuenta
+  "0170099220000067797370" "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: El alias "x" no es válido: debe tener entre 6 y 20 letras, números, puntos o guiones.
+cuenta
+  "0170099220000067797370" ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: El alias "" no es válido: debe tener entre 6 y 20 letras, números, puntos o guiones.
+cuit
+  "20123456786" "mi.alias.cbu"
+    INPUT_VALIDATION_ERROR, sugerencia 2: El alias solo se guarda con `cuenta`, no con `cuit`.
+cbu
+  "0110599520000012345678"
+    guarda lo mismo
+cbu
+  "0170099220000067797370"
+    guarda cbu = "0170099220000067797370"; borra aliasCbu
+    aviso: Se borró el alias mi.alias.cbu de la config, que era del CBU anterior. Si el nuevo tiene alias, guardá los dos con `arcli config establecer cuenta <CBU> <ALIAS>`.
+cbu
+  "123"
+    INPUT_VALIDATION_ERROR, sugerencia 1: El CBU "123" no es válido: debe tener 22 dígitos. Revisá que esté bien escrito.
+aliasCbu
+  "otro.alias"
+    guarda aliasCbu = "otro.alias"
+aliasCbu
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: El alias "x" no es válido: debe tener entre 6 y 20 letras, números, puntos o guiones.
+comprobantesPorLista
+  "12"
+    guarda filasPorLista = 12
+comprobantesPorLista
+  "51"
+    INPUT_VALIDATION_ERROR, sugerencia 1: La cantidad "51" no es válida: tiene que ser un número entre 1 y 50.
