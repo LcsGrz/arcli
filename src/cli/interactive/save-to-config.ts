@@ -1,6 +1,6 @@
-import { ConfigService } from '../../modules/config/config.service';
 import type { ConfigOffer } from '../../modules/interactive/steps/config-offer';
 import { noticePanel, writeTerminalOutput } from '../../ui';
+import { withConfigService } from '../config-service';
 
 import { confirm, isPromptCancellation } from './prompts';
 
@@ -27,14 +27,10 @@ export async function offerSavingToConfig(
     throw error;
   }
 
-  const service = new ConfigService();
-
-  try {
+  withConfigService((service) => {
     // Todo junto: el CBU no puede quedar guardado con un alias que no es el suyo.
     service.changeValues({ remove: removes?.keys ?? [], set: values });
-  } finally {
-    service.close();
-  }
+  });
 
   if (removes) {
     writeTerminalOutput(noticePanel(removes.notice, 'success'));

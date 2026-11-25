@@ -5,7 +5,6 @@ import {
   inspectConfiguredCertificates,
 } from '../../modules/config/certificate-expiry';
 import { type ArcliEnvironment, formatEnvironmentLabel } from '../../modules/config/config.schemas';
-import { ConfigService } from '../../modules/config/config.service';
 import { type ArcaHealth, checkArcaHealth } from '../../modules/parameters/health';
 import { fetchWsfeServerStatus } from '../../services/arca/wsfe-status';
 import {
@@ -17,6 +16,7 @@ import {
   type UiTextColor,
 } from '../../ui';
 import { renderCertificateNotices } from '../arca-runtime';
+import { withConfigService } from '../config-service';
 import type { GlobalCliOptions } from '../types';
 
 import { type BackgroundQuery, startBackgroundQuery } from './background-query';
@@ -80,20 +80,18 @@ function certificateBox(notices: readonly CertificateExpiryNotice[]): string {
  * la config. Si no se puede, queda solo el vencido.
  */
 function noticesWithExpired(expired: CertificateExpiryNotice): CertificateExpiryNotice[] {
-  const service = new ConfigService();
+  return withConfigService((service) => {
+    try {
+      const others = inspectConfiguredCertificates(service.getConfig(), {
+        activeEnvironment: expired.environment,
+        now: new Date(),
+      }).filter((notice) => notice.environment !== expired.environment || notice.use !== expired.use);
 
-  try {
-    const others = inspectConfiguredCertificates(service.getConfig(), {
-      activeEnvironment: expired.environment,
-      now: new Date(),
-    }).filter((notice) => notice.environment !== expired.environment || notice.use !== expired.use);
-
-    return [expired, ...others];
-  } catch {
-    return [expired];
-  } finally {
-    service.close();
-  }
+      return [expired, ...others];
+    } catch {
+      return [expired];
+    }
+  });
 }
 
 function formatIssuer(businessName: string | undefined, cuit: number): string {

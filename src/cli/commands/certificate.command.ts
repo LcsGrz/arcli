@@ -12,10 +12,10 @@ import {
 import { CertificateService, type ImportedCertificate } from '../../modules/certificates/certificate.service';
 import { explicitEnvironment } from '../../modules/config/arca-profile';
 import type { ArcliEnvironment } from '../../modules/config/config.schemas';
-import { ConfigService } from '../../modules/config/config.service';
 import { systemClock } from '../../services/time/system-clock';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { withCertificateService } from '../certificate-service';
+import { openConfigService } from '../config-service';
 import { getGlobalOptions, registerEnvironmentOptions, registerJsonOption, resolveOutputJson } from '../global-options';
 import { configureSpanishHelp } from '../help';
 import { confirm, isPromptCancellation } from '../interactive/prompts';
@@ -113,7 +113,7 @@ export function registerCertificateCommand(program: Command): void {
     .option('--reemplazar', 'reemplazar el certificado configurado sin preguntar')
     .action(async (file: string, options: CertificateCommandOptions, command: Command) => {
       const content = readCertificateFile(file);
-      const config = new ConfigService();
+      const config = openConfigService();
 
       try {
         const json = resolveOutputJson(command, config.getConfig());

@@ -23,7 +23,7 @@ export const PROFILE_CUIT = '20123456786';
 const DAY = 24 * 60 * 60 * 1000;
 
 export interface ArcaProfileFixture {
-  /** Carpeta de config del test en curso: `new ConfigService()` la lee de `ARCLI_CONFIG_DIR` en cada resolucion. */
+  /** Carpeta de config del test en curso: `dataDirectory()` la lee de `ARCLI_CONFIG_DIR` en cada resolucion. */
   readonly configDirectory: string;
   /** Vence en ~10 dias: da el aviso "por vencer" con el reloj real. */
   readonly expiring: SelfSignedCertificate;

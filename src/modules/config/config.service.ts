@@ -5,6 +5,7 @@ import { ZodError } from 'zod';
 
 import { ConfigurationError, InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
 import { withFilePath } from '../../lib/files/file-error';
+import { requireDataDirectory } from '../../lib/files/require-data-directory';
 import { parseCbu } from '../../lib/identity/cbu';
 import { deleteAtPath, setAtPath } from '../../lib/json/object-path';
 import { describeZodIssues, parseZodInput } from '../billing/billing.zod-errors';
@@ -82,36 +83,13 @@ export function validateConfigValue(publicKey: ConfigPublicKey, rawValue: string
 }
 
 export interface ConfigServiceOptions {
-  readonly configName?: string;
-  readonly cwd?: string;
-  readonly projectName?: string;
+  /** La carpeta de datos, donde va el config.json: la decide quien abre la config. */
+  readonly cwd: string;
 }
 
-/**
- * `ARCLI_CONFIG_DIR` usa otra carpeta de config (con sus tickets, plugins y certificados): para tener una config
- * aparte o para los tests de punta a punta, que no pueden tocar la real.
- */
-export function resolveConfigDirectory(): string | undefined {
-  const value = process.env.ARCLI_CONFIG_DIR?.trim();
-
-  return value ? resolve(value) : undefined;
-}
-
-function storeLocation(options: ConfigServiceOptions) {
-  return {
-    configName: options.configName ?? 'config',
-    cwd: options.cwd ?? resolveConfigDirectory(),
-    projectName: options.projectName ?? 'arcli',
-    projectSuffix: '',
-  };
-}
-
-/**
- * Ruta del config.json sin leerlo: `Conf` la calcula al construirse, pero tambien lee el archivo. Sin defaults y
- * con un deserializador que no parsea, no hay nada que escribir y el archivo queda como esta.
- */
-function resolveStorePath(options: ConfigServiceOptions): string {
-  return new Conf({ ...storeLocation(options), deserialize: () => ({}) }).path;
+/** Ruta del config.json, sin leerlo. */
+function resolveStorePath({ cwd }: ConfigServiceOptions): string {
+  return resolve(requireDataDirectory(cwd), 'config.json');
 }
 
 function defaultTicketPathFor(configPath: string): string {
@@ -124,7 +102,7 @@ function defaultTicketPathFor(configPath: string): string {
  *
  * @internal Solo para el setup de los tests: guardarraíl de aislamiento de la config.
  */
-export function resolveConfigLocation(options: ConfigServiceOptions = {}): {
+export function resolveConfigLocation(options: ConfigServiceOptions): {
   readonly configPath: string;
   readonly ticketPath: string;
 } {
@@ -158,23 +136,18 @@ interface PlannedChange {
 export class ConfigService {
   private readonly store: Conf<Record<string, unknown>>;
 
-  public constructor(options: ConfigServiceOptions = {}) {
-    try {
-      // La carpeta por defecto la sabe `Conf`, que no llego a crearse: ahi alcanza con `arcli`.
-      const path = join(options.cwd ?? resolveConfigDirectory() ?? 'arcli', `${options.configName ?? 'config'}.json`);
+  public constructor(options: ConfigServiceOptions) {
+    const path = resolveStorePath(options);
 
+    try {
       this.store = withFilePath(
         path,
-        () =>
-          new Conf<Record<string, unknown>>({
-            ...storeLocation(options),
-            clearInvalidConfig: false,
-          }),
+        () => new Conf<Record<string, unknown>>({ clearInvalidConfig: false, configName: 'config', cwd: options.cwd }),
       );
       withFilePath(path, () => this.completeDefaults());
     } catch (error) {
       if (error instanceof SyntaxError) {
-        throw invalidConfigFileError(resolveStorePath(options));
+        throw invalidConfigFileError(path);
       }
 
       throw error;

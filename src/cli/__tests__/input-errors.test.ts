@@ -6,7 +6,7 @@ import { z, ZodError } from 'zod';
 import { InputIssuesError } from '../../lib/errors/app-error';
 import { billingCommandSchema } from '../../modules/billing/billing.schemas';
 import { parseZodInput, summarizeZodError } from '../../modules/billing/billing.zod-errors';
-import { ConfigService } from '../../modules/config/config.service';
+import { openConfigService } from '../config-service';
 
 import { useArcaProfileFixture } from './arca-profile.fixture';
 
@@ -193,7 +193,7 @@ describe('el valor recibido no sale', () => {
   ])('%j', async (config, secret) => {
     profile.writeConfig(profile.configWith(profile.healthy, config));
 
-    const service = new ConfigService();
+    const service = openConfigService();
     let thrown: unknown;
 
     try {

@@ -3,8 +3,6 @@
 import { OWNER_ONLY_UMASK } from '../lib/files/restrict-to-owner';
 import { COMPLETE_COMMAND } from '../modules/completion/shell-scripts';
 import { renderUpdateNoticePanel } from '../modules/update-check/update-check.presenter';
-import { checkForUpdate } from '../modules/update-check/update-check.service';
-import { requestNpmRegistry } from '../services/npm/npm-registry';
 import { writeTerminalError } from '../ui';
 
 import { settleOutput, watchOutputs } from './closed-output';
@@ -14,7 +12,7 @@ import { normalizeHelpArgv } from './help-argv';
 import { wasAssistantOpened } from './interactive/output-guard';
 import { finishCut } from './interruption';
 import { createProgram } from './program';
-import { CLI_VERSION } from './version';
+import { checkCliUpdate } from './update-check';
 
 const outputFailures = watchOutputs();
 
@@ -40,7 +38,7 @@ const updateCheck = new AbortController();
 const updateCheckPromise =
   useJson || isInteractiveMode || isCompletion
     ? Promise.resolve(null)
-    : checkForUpdate(CLI_VERSION, { request: requestNpmRegistry, signal: updateCheck.signal }).catch(() => null);
+    : checkCliUpdate({ signal: updateCheck.signal }).catch(() => null);
 
 program
   .parseAsync(argv)
