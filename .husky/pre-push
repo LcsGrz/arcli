@@ -1,0 +1,11 @@
+# Lo que el CI frena y lint-staged no ve, porque mira el repo entero y no solo lo modificado.
+# Borrar una rama o subir un tag no sube código para revisar.
+check=
+while read -r local_ref local_sha _; do
+  case "$local_ref" in refs/tags/*) continue ;; esac
+  case "$local_sha" in *[!0]*) check=1 ;; esac
+done
+
+[ -n "$check" ] || exit 0
+
+yarn -s lint:guardrails && yarn -s check:repo

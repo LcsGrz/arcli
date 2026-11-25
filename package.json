@@ -43,6 +43,7 @@
   ],
   "scripts": {
     "build": "node ./scripts/clean-dist.mjs && tsc --project tsconfig.json && node ./scripts/fix-esm-extensions.mjs",
+    "check:repo": "vitest run src/cli/__tests__/changelog-format.test.ts src/cli/__tests__/docs-sync.test.ts",
     "clean": "node ./scripts/clean-dist.mjs",
     "dev": "node --import tsx ./src/cli/index.ts",
     "lint": "yarn lint:eslint && yarn lint:prettier && yarn lint:guardrails",
