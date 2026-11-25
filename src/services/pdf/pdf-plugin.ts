@@ -39,7 +39,13 @@ interface ProcessResult {
 export type ProcessRunner = (
   command: string,
   args: readonly string[],
-  options: { readonly cwd: string; readonly env: NodeJS.ProcessEnv; readonly timeoutMs: number },
+  options: {
+    readonly cwd: string;
+    readonly env: NodeJS.ProcessEnv;
+    /** Al abortarse, lo corta y espera a que termine, hasta `STOP_TIMEOUT_MS`. */
+    readonly signal?: AbortSignal;
+    readonly timeoutMs: number;
+  },
 ) => Promise<ProcessResult>;
 
 /**
@@ -71,6 +77,9 @@ export interface PdfPluginOptions {
   readonly runProcess?: ProcessRunner;
 }
 
+/** Cuanto se espera a que un proceso cortado por `signal` termine por las suyas. */
+const STOP_TIMEOUT_MS = 2_000;
+
 /** @internal Exportado para los tests. */
 export const runProcessWithSpawn: ProcessRunner = (command, args, options) =>
   new Promise((resolve) => {
@@ -79,18 +88,32 @@ export const runProcessWithSpawn: ProcessRunner = (command, args, options) =>
     const shell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(command);
     const child = spawn(command, args, { cwd: options.cwd, env: options.env, shell });
     let output = '';
-    const timer = setTimeout(() => {
-      child.kill();
+    let stopTimer: NodeJS.Timeout | undefined;
+    const stop = (timedOut: boolean, signal?: NodeJS.Signals) => {
+      child.kill(signal);
       // Con shell, el kill no llega a los nietos y sus pipes mantendrian vivo el proceso: se sueltan.
       child.stdout.destroy();
       child.stderr.destroy();
       child.unref();
-      resolve({ code: null, output, timedOut: true });
-    }, options.timeoutMs);
+      finish({ code: null, output, timedOut });
+    };
+    const onAbort = () => {
+      child.kill();
+      stopTimer = setTimeout(() => stop(false, 'SIGKILL'), STOP_TIMEOUT_MS);
+    };
+    const timer = setTimeout(() => stop(true), options.timeoutMs);
     const finish = (result: ProcessResult) => {
       clearTimeout(timer);
+      clearTimeout(stopTimer);
+      options.signal?.removeEventListener('abort', onAbort);
       resolve(result);
     };
+
+    if (options.signal?.aborted) {
+      onAbort();
+    }
+
+    options.signal?.addEventListener('abort', onAbort, { once: true });
 
     child.stdout.on('data', (chunk: Buffer) => (output += chunk.toString()));
     child.stderr.on('data', (chunk: Buffer) => (output += chunk.toString()));
@@ -105,6 +128,8 @@ function describeTimeout(timeoutMs: number): string {
 function lastLines(output: string, count = 5): string {
   return output.trim().split('\n').slice(-count).join('\n');
 }
+
+const incompleteMark = (target: string): string => `${target}.incompleto`;
 
 export class PdfPlugin {
   private readonly env: NodeJS.ProcessEnv;
@@ -121,14 +146,67 @@ export class PdfPlugin {
     return join(this.options.path, 'browsers');
   }
 
+  private get modulesPath(): string {
+    return join(this.options.path, 'node_modules');
+  }
+
+  private isIncomplete(target: string): boolean {
+    return existsSync(incompleteMark(target));
+  }
+
+  /**
+   * Deja `target` marcado hasta que `run` termina bien: cortado a la mitad (una señal, el plazo, la luz) no pasa por
+   * instalado, y la proxima vez empieza de cero.
+   */
+  private async fill(target: string, run: () => Promise<ProcessResult>): Promise<ProcessResult> {
+    if (this.isIncomplete(target)) {
+      try {
+        rmSync(target, { force: true, maxRetries: 5, recursive: true, retryDelay: 200 });
+      } catch (error) {
+        // En Windows, un proceso de la instalacion cortada puede seguir usandolo (EBUSY, EPERM).
+        throw new PdfError(
+          'PDF_PLUGIN_INSTALL_ERROR',
+          `No se pudo borrar la instalación a medias: ${errorText(error)}`,
+          {
+            suggestion: 'Esperá unos segundos y volvé a correr `arcli pdf instalar`.',
+          },
+        );
+      }
+    }
+
+    writeFileSync(incompleteMark(target), '');
+
+    const result = await run();
+
+    if (result.code === 0) {
+      rmSync(incompleteMark(target), { force: true });
+    }
+
+    return result;
+  }
+
   private readInstalledVersion(): string | undefined {
-    const manifest = join(this.options.path, 'node_modules', ...PDF_PLUGIN_PACKAGE.split('/'), 'package.json');
+    const manifest = join(this.modulesPath, ...PDF_PLUGIN_PACKAGE.split('/'), 'package.json');
 
     if (!existsSync(manifest)) {
       return undefined;
     }
 
-    return (JSON.parse(withFilePath(manifest, () => readFileSync(manifest, 'utf8'))) as { version?: string }).version;
+    const readVersion = () =>
+      (JSON.parse(withFilePath(manifest, () => readFileSync(manifest, 'utf8'))) as { version?: string }).version;
+
+    if (!this.isIncomplete(this.modulesPath)) {
+      return readVersion();
+    }
+
+    // A medias, la version que se estaba instalando no cuenta; una anterior se informa: igual no sirve.
+    try {
+      const version = readVersion();
+
+      return version === PDF_PLUGIN_VERSION ? undefined : version;
+    } catch {
+      return undefined;
+    }
   }
 
   /** Orden: config, variable de entorno de Puppeteer, navegador del sistema y, por ultimo, el descargado. */
@@ -149,7 +227,7 @@ export class PdfPlugin {
 
     const downloaded = findDownloadedBrowser(this.browsersPath);
 
-    return downloaded ? { path: downloaded, source: 'descargado' } : undefined;
+    return downloaded && !this.isIncomplete(this.browsersPath) ? { path: downloaded, source: 'descargado' } : undefined;
   }
 
   public getStatus(): PdfPluginStatus {
@@ -167,7 +245,10 @@ export class PdfPlugin {
   }
 
   /** Instala el paquete y, si no hay un navegador para usar, descarga chrome-headless-shell. */
-  public async install(onStep: (message: string) => void = () => undefined): Promise<PdfPluginStatus> {
+  public async install(
+    onStep: (message: string) => void = () => undefined,
+    signal?: AbortSignal,
+  ): Promise<PdfPluginStatus> {
     mkdirSync(this.options.path, { recursive: true });
 
     const manifest = join(this.options.path, 'package.json');
@@ -181,18 +262,20 @@ export class PdfPlugin {
 
       // --ignore-scripts: npm 12 ya los bloquea; asi se comporta igual con cualquier version y el navegador lo
       // resolvemos nosotros.
-      const result = await this.runProcess(
-        process.platform === 'win32' ? 'npm.cmd' : 'npm',
-        [
-          'install',
-          `${PDF_PLUGIN_PACKAGE}@${PDF_PLUGIN_VERSION}`,
-          '--omit=dev',
-          '--ignore-scripts',
-          '--no-audit',
-          '--no-fund',
-          '--save-exact',
-        ],
-        { cwd: this.options.path, env: this.env, timeoutMs: NPM_INSTALL_TIMEOUT_MS },
+      const result = await this.fill(this.modulesPath, () =>
+        this.runProcess(
+          process.platform === 'win32' ? 'npm.cmd' : 'npm',
+          [
+            'install',
+            `${PDF_PLUGIN_PACKAGE}@${PDF_PLUGIN_VERSION}`,
+            '--omit=dev',
+            '--ignore-scripts',
+            '--no-audit',
+            '--no-fund',
+            '--save-exact',
+          ],
+          { cwd: this.options.path, env: this.env, signal, timeoutMs: NPM_INSTALL_TIMEOUT_MS },
+        ),
       );
 
       if (result.code !== 0) {
@@ -212,14 +295,13 @@ export class PdfPlugin {
 
       const require = createRequire(join(this.options.path, 'package.json'));
       const puppeteerCli = join(require.resolve('puppeteer/package.json'), '..', 'lib', 'puppeteer', 'node', 'cli.js');
-      const result = await this.runProcess(
-        process.execPath,
-        [puppeteerCli, 'browsers', 'install', 'chrome-headless-shell'],
-        {
+      const result = await this.fill(this.browsersPath, () =>
+        this.runProcess(process.execPath, [puppeteerCli, 'browsers', 'install', 'chrome-headless-shell'], {
           cwd: this.options.path,
           env: { ...this.env, PUPPETEER_CACHE_DIR: this.browsersPath },
+          signal,
           timeoutMs: BROWSER_DOWNLOAD_TIMEOUT_MS,
-        },
+        }),
       );
 
       if (result.code !== 0 || !findDownloadedBrowser(this.browsersPath)) {

@@ -14,4 +14,9 @@ export class PdfError extends AppError {
   }
 }
 
+/** El comprobante ya se emitio: no es `CANCELLED`, que habla de no haber emitido. */
+export function interruptedPdfError(): PdfError {
+  return new PdfError('PDF_GENERATION_ERROR', 'Se cortó antes de generar el PDF.');
+}
+
 export const PDF_INSTALL_SUGGESTION = 'Instalalo con `arcli pdf instalar`.';

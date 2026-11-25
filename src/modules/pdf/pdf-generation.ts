@@ -3,6 +3,7 @@ import type { BillingExecutionResult } from '../billing/billing.types.internal';
 import type { ArcliConfig } from '../config/config.schemas';
 import type { ExportExecutionResult } from '../export/export.types';
 
+import { interruptedPdfError } from './pdf.errors';
 import type { PdfOutcome, PdfVoucherExtras } from './pdf.types';
 import { toPdfFailure } from './pdf-failure';
 import { resolvePdfIssuer } from './pdf-issuer';
@@ -53,14 +54,47 @@ export interface GeneratePdfsOptions {
    * ninguno tiene PDF.
    */
   readonly loadExporter: () => Promise<PdfExporter>;
+  /**
+   * Al abortarse, lo que falta no se espera: cada PDF sin terminar sale como no generado. A `loadExporter` si, para no
+   * dejar una instalacion a medias: le toca cortarse.
+   */
+  readonly signal?: AbortSignal;
   readonly vouchers: readonly PdfVoucher[];
+}
+
+/** El resultado de `run`, o el error del corte apenas se aborta, sin esperar a que `run` se entere. */
+async function unlessAborted<T>(signal: AbortSignal | undefined, run: () => Promise<T>): Promise<T> {
+  if (!signal) {
+    return run();
+  }
+
+  if (signal.aborted) {
+    throw interruptedPdfError();
+  }
+
+  let onAbort: () => void = () => undefined;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    onAbort = () => reject(interruptedPdfError());
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+
+  try {
+    return await Promise.race([run(), aborted]);
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+  }
 }
 
 /**
  * Genera los PDF de comprobantes ya emitidos, de cualquier familia, de a uno y en orden. Nunca lanza: un PDF que falla
  * es su `error`, no cambia la emision ni frena a los demas. Sin los datos del emisor no se carga nada.
  */
-export async function generatePdfs({ config, loadExporter, vouchers }: GeneratePdfsOptions): Promise<PdfOutcome[]> {
+export async function generatePdfs({
+  config,
+  loadExporter,
+  signal,
+  vouchers,
+}: GeneratePdfsOptions): Promise<PdfOutcome[]> {
   const [first] = vouchers;
 
   if (!first) {
@@ -71,16 +105,21 @@ export async function generatePdfs({ config, loadExporter, vouchers }: GenerateP
 
   try {
     resolvePdfIssuer(config, first.result.voucherKind.letter);
+
+    if (signal?.aborted) {
+      throw interruptedPdfError();
+    }
+
     exporter = await loadExporter();
   } catch (error) {
-    return vouchers.map(() => toPdfFailure(error));
+    return vouchers.map(() => toPdfFailure(signal?.aborted ? interruptedPdfError() : error));
   }
 
   const outcomes: PdfOutcome[] = [];
 
   for (const voucher of vouchers) {
     try {
-      outcomes.push({ path: await exporter.export(voucher, config) });
+      outcomes.push({ path: await unlessAborted(signal, () => exporter.export(voucher, config)) });
     } catch (error) {
       outcomes.push(toPdfFailure(error));
     }

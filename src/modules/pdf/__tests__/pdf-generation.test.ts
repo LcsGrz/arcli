@@ -153,3 +153,75 @@ describe('generatePdfs', () => {
     expect(loadExporter).not.toHaveBeenCalled();
   });
 });
+
+describe('generatePdfs al cortar', () => {
+  const CUT = { error: { code: 'PDF_GENERATION_ERROR', message: 'Se cortó antes de generar el PDF.' } };
+  const never = () => new Promise<never>(() => undefined);
+
+  it('no espera el que está en curso ni empieza los que faltan; el ya generado queda', async () => {
+    const controller = new AbortController();
+    const exported = vi
+      .fn<PdfExporter['export']>()
+      .mockResolvedValueOnce('/pdf/42.pdf')
+      .mockImplementationOnce(() => {
+        controller.abort();
+
+        return never();
+      });
+
+    expect(
+      await generatePdfs({
+        config: CONFIG,
+        loadExporter: async () => ({ export: exported }),
+        signal: controller.signal,
+        vouchers: VOUCHERS,
+      }),
+    ).toEqual([{ path: '/pdf/42.pdf' }, CUT, CUT]);
+    expect(exported).toHaveBeenCalledTimes(2);
+  });
+
+  it('mientras se carga el plugin: espera a que se corte, y el error es el del corte', async () => {
+    const controller = new AbortController();
+    const outcomes = generatePdfs({
+      config: CONFIG,
+      loadExporter: async () => {
+        controller.abort();
+
+        throw new Error('npm no pudo instalar');
+      },
+      signal: controller.signal,
+      vouchers: VOUCHERS,
+    });
+
+    expect(await outcomes).toEqual([CUT, CUT, CUT]);
+  });
+
+  it('cortado de antes, no carga nada', async () => {
+    const loadExporter = vi.fn(never);
+
+    expect(
+      await generatePdfs({ config: CONFIG, loadExporter, signal: AbortSignal.abort(), vouchers: VOUCHERS }),
+    ).toEqual([CUT, CUT, CUT]);
+    expect(loadExporter).not.toHaveBeenCalled();
+  });
+
+  it('un error de antes de cortar queda con su motivo', async () => {
+    const controller = new AbortController();
+    const failed = vi.fn<PdfExporter['export']>().mockRejectedValueOnce(new Error('sin disco'));
+
+    failed.mockImplementationOnce(() => {
+      controller.abort();
+
+      return never();
+    });
+
+    expect(
+      await generatePdfs({
+        config: CONFIG,
+        loadExporter: async () => ({ export: failed }),
+        signal: controller.signal,
+        vouchers: VOUCHERS,
+      }),
+    ).toEqual([{ error: { code: 'PDF_GENERATION_ERROR', message: 'sin disco' } }, CUT, CUT]);
+  });
+});

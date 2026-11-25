@@ -81,6 +81,8 @@ export interface RunOptions {
   readonly onArcaCall?: (method: string, args: readonly unknown[]) => Promise<void> | void;
   /** En cada evento, apenas pasa: para mirar el estado del proceso en ese momento. */
   readonly onEvent?: (text: string) => void;
+  /** Corre (y se espera) en cada paso del PDF, `instalar` o `generar 42`: para interrumpir en ese momento. */
+  readonly onPdfStep?: (step: string) => Promise<void> | void;
   readonly pdfFailure?: PdfFailure;
   readonly pluginInstalled?: boolean;
   /** `bruto` en la config. */
@@ -422,6 +424,7 @@ function preparePdf(options: RunOptions): void {
   vi.spyOn(PdfPlugin.prototype, 'getStatus').mockImplementation(() => ({ installed }) as never);
   vi.spyOn(PdfPlugin.prototype, 'install').mockImplementation(async () => {
     event('PDF instalar');
+    await options.onPdfStep?.('instalar');
     failIf('instalar');
     installed = true;
 
@@ -434,6 +437,7 @@ function preparePdf(options: RunOptions): void {
     return {
       render: async ({ cbteDesde }) => {
         event(`PDF generar ${cbteDesde}`);
+        await options.onPdfStep?.(`generar ${cbteDesde}`);
         failIf(`generar ${cbteDesde}`);
 
         return new Uint8Array([1]);
@@ -464,6 +468,7 @@ export async function runSequence(execute: () => Promise<unknown>, options: RunO
 
   try {
     await execute();
+    await finishCut();
     event(`fin: exit ${process.exitCode ?? 0}`);
   } catch (error) {
     event(`error: ${(error as { readonly code?: string }).code ?? (error as Error).message}`);

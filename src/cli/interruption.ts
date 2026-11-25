@@ -8,7 +8,7 @@ import { noticePanel, writeTerminalError } from '../ui';
 import { settleOutput } from './closed-output';
 
 /**
- * El unico modulo que escucha las señales, y solo mientras se emite (ARQ-11). Fuera de ahi Ctrl+C corta como siempre.
+ * El unico modulo que escucha las señales, y solo mientras se emite y se entrega lo emitido (ARQ-11). Fuera de ahi Ctrl+C corta como siempre.
  */
 const SIGNALS = ['SIGINT', 'SIGTERM'] as const;
 
@@ -38,6 +38,12 @@ export class ResentSignalError extends Error {
 /** Se dejo de esperar a ARCA: falta escribir lo que se sabe y cortar. Mientras tanto se siguen atajando las señales. */
 let cut: { readonly signal: NodeJS.Signals; readonly stopListening: () => void } | undefined;
 
+/** Llego una señal, o falta el error: se siguen atajando hasta que se escriba todo. */
+let unfinished: { readonly abandonedPdf: () => boolean; readonly finish: (exit?: () => void) => void } | undefined;
+
+/** Deja de escuchar lo de una emision anterior del mismo proceso: cada una se atiende sola. */
+let stopPrevious: () => void = () => undefined;
+
 /** Hay que terminar ya: lo que se sabe se escribe, y nada mas. */
 export function isCutting(): boolean {
   return cut !== undefined;
@@ -47,24 +53,58 @@ export function isCutting(): boolean {
  * Deja un solo listener de cada señal y devuelve como volver a los de antes. Los de otros se apartan porque el de
  * `when-exit` (lo trae `conf`) reenvia la señal apenas llega: seria una segunda que nadie mando. Nunca queda la señal
  * sin nadie que la ataje en el medio. Se guardan los originales (`rawListeners`) para no perder los `once`.
+ *
+ * Los que se agregan despues tambien se apartan: el de Puppeteer, con SIGINT, sale del proceso antes de que se escriba
+ * nada. Se reponen solo si `keepsAdded`: si su dueño ya termino (un `off` de un apartado no hace nada), taparian la señal.
  */
-function takeOverSignals(listener: NodeJS.SignalsListener): () => void {
+function takeOverSignals(listener: NodeJS.SignalsListener, keepsAdded: () => boolean): () => void {
   const others = SIGNALS.map((signal) => ({
+    added: new Set<NodeJS.SignalsListener>(),
     listeners: process.rawListeners(signal) as NodeJS.SignalsListener[],
     signal,
   }));
+  let isActive = true;
+
+  const onNewListener = (event: string | symbol): void => {
+    const other = others.find(({ signal }) => signal === event);
+
+    if (!other) {
+      return;
+    }
+
+    // Todavia no se agrego. Ninguna señal llega antes que un microtask.
+    queueMicrotask(() => {
+      if (!isActive) {
+        return;
+      }
+
+      for (const added of process.rawListeners(other.signal) as NodeJS.SignalsListener[]) {
+        if (added !== listener) {
+          other.added.add(added);
+          process.off(other.signal, added);
+        }
+      }
+    });
+  };
 
   for (const { listeners, signal } of others) {
     process.on(signal, listener);
     listeners.forEach((other) => process.off(signal, other));
   }
 
+  process.on('newListener', onNewListener);
+
   return () => {
-    for (const { listeners, signal } of others) {
-      if (process.listeners(signal).includes(listener)) {
-        listeners.forEach((other) => process.on(signal, other));
-        process.off(signal, listener);
-      }
+    if (!isActive) {
+      return;
+    }
+
+    isActive = false;
+    process.off('newListener', onNewListener);
+
+    for (const { added, listeners, signal } of others) {
+      [...listeners, ...(keepsAdded() ? added : [])].forEach((other) => process.on(signal, other));
+      process.off(signal, listener);
     }
   };
 }
@@ -83,54 +123,111 @@ function waitingNotice(signal: NodeJS.Signals): string {
   ].join(' ');
 }
 
+/** Lo que necesita quien entrega lo emitido para no perderlo por una señal. */
+export interface DeliveryInterruption {
+  /** Se aborta con la primera señal: lo que falte del PDF no se espera. */
+  readonly signal: AbortSignal;
+  /** En una pregunta Ctrl+C es de la pregunta y cualquier otra señal corta como siempre. `undefined` si ya se corto. */
+  readonly whileAsking: <T>(ask: () => Promise<T>) => Promise<T | undefined>;
+}
+
 /**
  * Corre `emit` atajando las señales. Sin nada enviado, la primera corta como siempre. Con algo enviado, la primera
  * espera la respuesta en curso y frena lo que sigue; la segunda deja de esperar y, si algo quedo por decir, corta
  * despues de que se escriba (`finishCut`). Nunca llega a la llamada que emite.
+ *
+ * Con algo enviado, `deliver` tambien corre atajandolas: la primera aborta el PDF y la segunda corta, pero recien con
+ * el resultado escrito.
  */
 export async function guardEmission<R>(
   options: GuardedEmissionOptions,
   emit: (interruption: EmissionInterruption) => Promise<EmissionOutcome<R>>,
+  deliver?: (outcome: EmissionOutcome<R>, delivery: DeliveryInterruption) => Promise<void>,
 ): Promise<EmissionOutcome<R>> {
-  let first: { readonly at: number; readonly signal: NodeJS.Signals } | undefined;
+  let first: NodeJS.Signals | undefined;
+  /** Cuando llego la ultima que conto: hasta `REPEATED_SIGNAL_MS` despues, otra es la misma. */
+  let countedAt = -Infinity;
   let resent: NodeJS.Signals | undefined;
   let hasSent = false;
+  let isDelivering = false;
+  let isWritten = false;
+  let exitAfterPdf: (() => void) | undefined;
   let abandon: (() => void) | undefined;
   const abandoned = new Promise<void>((resolve) => {
     abandon = resolve;
   });
+  const pdf = new AbortController();
 
-  const stopListening = takeOverSignals(onSignal);
+  const keepsAdded = (): boolean => pdf.signal.aborted;
+  stopPrevious();
+
+  let restore = takeOverSignals(onSignal, keepsAdded);
+  const stopListening = (): void => restore();
+
+  stopPrevious = stopListening;
 
   function onSignal(signal: NodeJS.Signals): void {
     const now = performance.now();
-    const isFirst = first === undefined;
-
-    first ??= { at: now, signal };
 
     if (!hasSent) {
+      first ??= signal;
       resent = signal;
       options.onCut();
       // Primero los listeners: signal-exit (el cursor, @inquirer) solo corta si el propio no esta.
       stopListening();
       process.kill(process.pid, signal);
-    } else if (isFirst) {
-      if (options.json) {
-        return;
-      }
 
+      return;
+    }
+
+    if (cut || now - countedAt < REPEATED_SIGNAL_MS) {
+      return;
+    }
+
+    const isFirst = first === undefined;
+
+    first ??= signal;
+    countedAt = now;
+
+    if (isWritten) {
+      stopListening();
+      void resend(signal, pdf.signal.aborted ? exitAfterPdf : undefined);
+    } else if (isDelivering ? pdf.signal.aborted : !isFirst) {
+      cut = { signal, stopListening };
+      abandon?.();
+    } else if (isDelivering) {
+      pdf.abort();
+    } else if (!options.json) {
       try {
         writeTerminalError(() => noticePanel(waitingNotice(signal), 'warning'));
       } catch {
         // Un error aca cortaria el proceso con algo enviado: sin aviso, igual se espera.
       }
-    } else if (!cut && now - first.at >= REPEATED_SIGNAL_MS) {
-      cut = { signal, stopListening };
-      abandon?.();
     }
   }
 
-  let failed = false;
+  async function whileAsking<T>(ask: () => Promise<T>): Promise<T | undefined> {
+    const echoMs = countedAt + REPEATED_SIGNAL_MS - performance.now();
+
+    if (echoMs > 0) {
+      await setTimeout(echoMs);
+    }
+
+    if (pdf.signal.aborted) {
+      return undefined;
+    }
+
+    stopListening();
+
+    try {
+      return await ask();
+    } finally {
+      restore = takeOverSignals(onSignal, keepsAdded);
+    }
+  }
+
+  let hasFailed = true;
+  let hasOutcome = false;
 
   try {
     const outcome = await emit({
@@ -139,7 +236,7 @@ export async function guardEmission<R>(
         hasSent = true;
       },
       shouldStop: () => first !== undefined,
-      stopMessage: () => (first?.signal === 'SIGINT' ? 'Cortaste el lote con Ctrl+C.' : 'Se cortó el lote.'),
+      stopMessage: () => (first === 'SIGINT' ? 'Cortaste el lote con Ctrl+C.' : 'Se cortó el lote.'),
     });
 
     if (resent) {
@@ -148,36 +245,102 @@ export async function guardEmission<R>(
       throw new ResentSignalError(resent);
     }
 
-    failed = 'error' in outcome;
-
-    return outcome;
-  } finally {
-    if (!failed) {
+    if (!('error' in outcome)) {
       cut = undefined;
     }
 
-    if (!cut) {
+    hasOutcome = true;
+
+    if (!hasSent) {
+      // Nada que perder: ya no se ataja nada.
+      stopListening();
+    }
+
+    isDelivering = true;
+    await deliver?.(outcome, { signal: pdf.signal, whileAsking });
+    hasFailed = 'error' in outcome;
+
+    return outcome;
+  } finally {
+    if (!hasOutcome) {
+      cut = undefined;
+    }
+
+    if (deliver && hasSent && hasOutcome && (first || hasFailed)) {
+      unfinished = {
+        abandonedPdf: () => pdf.signal.aborted,
+        finish: (exit) => {
+          exitAfterPdf = exit;
+
+          const echoMs = countedAt + REPEATED_SIGNAL_MS - performance.now();
+
+          isWritten = true;
+
+          // El eco de npx puede llegar con todo escrito: tampoco corta.
+          if (echoMs > 0) {
+            globalThis.setTimeout(stopListening, echoMs).unref();
+          } else {
+            stopListening();
+          }
+        },
+      };
+    } else if (!cut) {
       stopListening();
     }
   }
 }
 
-/** Con todo escrito, corta por la segunda señal, como si nunca se hubiera atajado. Sin ella no hace nada. */
-export async function finishCut(beforeCut?: () => void): Promise<void> {
+/**
+ * La señal, ya sin los listeners propios. Con un PDF abandonado, el listener del plugin, ya repuesto, puede quedarse
+ * con ella sin terminar el proceso: ahi se sale con `exit`.
+ */
+async function resend(signal: NodeJS.Signals, exit?: () => void): Promise<void> {
+  if (exit) {
+    process.exitCode = 128 + constants.signals[signal];
+  }
+
+  process.kill(process.pid, signal);
+  await setTimeout(RESEND_GRACE_MS);
+  exit?.();
+}
+
+/** Lo que se le da al plugin abandonado para terminar solo antes de salir igual. */
+const ABANDONED_PDF_MS = 200;
+
+/**
+ * Con todo escrito, corta por la segunda señal, como si nunca se hubiera atajado. Con una sola, el proceso termina solo;
+ * si se abandono un PDF, con `exit`, para que el plugin cierre su navegador. Sin señales ni error no hace nada.
+ */
+export async function finishCut(beforeCut?: () => void, exit?: () => void): Promise<void> {
+  if (!cut && !unfinished) {
+    return;
+  }
+
+  await settleOutput('stdout');
+  await settleOutput('stderr');
+
+  const abandonedPdf = unfinished?.abandonedPdf() ?? false;
+
+  // Puede haber llegado mientras se escribia.
   if (!cut) {
+    unfinished?.finish(exit);
+    unfinished = undefined;
+
+    if (abandonedPdf && exit) {
+      globalThis.setTimeout(exit, ABANDONED_PDF_MS).unref();
+    }
+
     return;
   }
 
   const { signal, stopListening } = cut;
 
-  await settleOutput('stdout');
-  await settleOutput('stderr');
   beforeCut?.();
   await settleOutput('stdout');
   await settleOutput('stderr');
 
   cut = undefined;
+  unfinished = undefined;
   stopListening();
-  process.kill(process.pid, signal);
-  await setTimeout(RESEND_GRACE_MS);
+  await resend(signal, abandonedPdf ? exit : undefined);
 }

@@ -12,6 +12,7 @@ let now = 0;
 const other = vi.fn();
 const raw = () => [process.rawListeners('SIGINT'), process.rawListeners('SIGTERM')];
 let before = raw();
+const newListeners = process.listenerCount('newListener');
 
 /** Una señal que cuenta aparte de las anteriores. */
 function send(signal: Signal): void {
@@ -194,4 +195,341 @@ it('con una señal y un error, no hay nada que cortar', async () => {
 
   expect(isCutting()).toBe(false);
   expect(raw()).toEqual(before);
+});
+
+describe('mientras se entrega', () => {
+  /** Una emisión enviada, entregada con `deliver`. */
+  const deliverWith = (deliver: Parameters<typeof guardEmission<string>>[2], signals: readonly Signal[] = []) =>
+    guardEmission<string>(
+      { json: true, onCut: vi.fn() },
+      async ({ onSending }) => {
+        onSending?.(SENT);
+        signals.forEach(send);
+
+        return { results: ['CAE'] };
+      },
+      deliver,
+    );
+
+  it('la primera aborta; la segunda corta recién en finishCut, con los listeners de siempre', async () => {
+    const seen: boolean[] = [];
+    let atKill: ReturnType<typeof raw> | undefined;
+
+    vi.mocked(process.kill).mockImplementation(() => {
+      atKill = raw();
+
+      return true;
+    });
+    await deliverWith(async (_outcome, { signal }) => {
+      seen.push(signal.aborted);
+      send('SIGINT');
+      seen.push(signal.aborted);
+      send('SIGTERM');
+    });
+
+    expect(seen).toEqual([false, true]);
+    expect(process.kill).not.toHaveBeenCalled();
+    expect(other).not.toHaveBeenCalled();
+
+    await finishCut();
+
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
+    expect(atKill).toEqual(before);
+  });
+
+  it('con una sola, todo escrito: el eco no corta, una de verdad sí, y los listeners vuelven', async () => {
+    await deliverWith(async () => send('SIGINT'));
+
+    const exitIfStuck = vi.fn();
+
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+
+    try {
+      await finishCut(undefined, exitIfStuck);
+      now += REPEATED_SIGNAL_MS - 1;
+      process.emit('SIGINT', 'SIGINT');
+      expect(process.kill).not.toHaveBeenCalled();
+      now += 1;
+      process.emit('SIGINT', 'SIGINT');
+      expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGINT');
+      expect(raw()).toEqual(before);
+      expect(exitIfStuck).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(REPEATED_SIGNAL_MS);
+      expect(raw()).toEqual(before);
+      expect(exitIfStuck).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('en una pregunta los listeners son los de antes, y vuelven los propios', async () => {
+    const seen: Array<ReturnType<typeof raw>> = [];
+
+    await deliverWith(async (_outcome, { whileAsking }) => {
+      expect(await whileAsking(async () => seen.push(raw()))).toBe(1);
+      seen.push(raw());
+      await expect(whileAsking(() => Promise.reject(new Error('Esc')))).rejects.toThrow('Esc');
+      seen.push(raw());
+    });
+
+    expect(seen[0]).toEqual(before);
+    expect(seen[1]).not.toEqual(before);
+    expect(seen[2]).toEqual(seen[1]);
+    expect(raw()).toEqual(before);
+  });
+
+  it('una pregunta espera a que pase el eco de la señal anterior', async () => {
+    let asked = 0;
+    const start = Date.now();
+
+    await deliverWith(
+      async (_outcome, { whileAsking }) => {
+        await whileAsking(async () => {
+          asked = Date.now();
+        });
+      },
+      ['SIGINT'],
+    );
+
+    expect(asked - start).toBeGreaterThanOrEqual(REPEATED_SIGNAL_MS - 50);
+    expect(process.kill).not.toHaveBeenCalled();
+  });
+
+  it('una pregunta espera solo lo que le falta al eco', async () => {
+    let asked = 0;
+
+    await deliverWith(
+      async (_outcome, { whileAsking }) => {
+        now += REPEATED_SIGNAL_MS - 100;
+
+        const start = Date.now();
+
+        await whileAsking(async () => {
+          asked = Date.now() - start;
+        });
+      },
+      ['SIGINT'],
+    );
+
+    expect(asked).toBeGreaterThanOrEqual(90);
+    expect(asked).toBeLessThan(REPEATED_SIGNAL_MS - 50);
+  });
+
+  it('un listener de otro evento no se toca', async () => {
+    const added = vi.fn();
+
+    try {
+      await deliverWith(async () => {
+        process.on('warning', added);
+        await Promise.resolve();
+        expect(process.listeners('warning')).toContain(added);
+      });
+
+      expect(process.listeners('warning')).toContain(added);
+    } finally {
+      process.off('warning', added);
+    }
+  });
+
+  it('un listener agregado justo antes de soltar no se aparta', async () => {
+    const added = vi.fn();
+    let whileAsked: readonly unknown[] = [];
+
+    try {
+      await deliverWith(async (_outcome, { whileAsking }) => {
+        process.on('SIGINT', added);
+        await whileAsking(async () => {
+          await Promise.resolve();
+          whileAsked = process.listeners('SIGINT');
+        });
+      });
+
+      expect(whileAsked).toContain(added);
+    } finally {
+      process.off('SIGINT', added);
+    }
+  });
+
+  it('ya cortado no se pregunta', async () => {
+    const ask = vi.fn();
+    let answer: unknown = 'sin responder';
+
+    await deliverWith(async (_outcome, { whileAsking }) => {
+      send('SIGINT');
+      now += REPEATED_SIGNAL_MS;
+      answer = await whileAsking(ask);
+    });
+
+    expect(answer).toBeUndefined();
+    expect(ask).not.toHaveBeenCalled();
+    await finishCut();
+    await vi.waitFor(() => expect(raw()).toEqual(before), { timeout: 2000 });
+  });
+
+  it('si entregar falla, los listeners vuelven', async () => {
+    await expect(deliverWith(() => Promise.reject(new Error('se rompió')))).rejects.toThrow('se rompió');
+    // Hasta que se escriba el error.
+    expect(raw()).not.toEqual(before);
+    await finishCut();
+    expect(raw()).toEqual(before);
+  });
+
+  it('sin señal no queda nada pendiente: los listeners vuelven apenas se entrega', async () => {
+    let turned = false;
+
+    setImmediate(() => {
+      turned = true;
+    });
+    await deliverWith(async () => undefined);
+
+    expect(turned).toBe(false);
+    expect(raw()).toEqual(before);
+  });
+
+  it('con un error, se atajan hasta que se escribe; con una señal reciente, hasta que pasa su eco', async () => {
+    const failing = () =>
+      guardEmission<string>(
+        { json: true, onCut: vi.fn() },
+        async ({ onSending }) => {
+          onSending?.(SENT);
+
+          return { error: new Error('x'), results: [] };
+        },
+        async (outcome) => {
+          throw 'error' in outcome ? outcome.error : outcome;
+        },
+      );
+
+    await expect(failing()).rejects.toThrow('x');
+    send('SIGINT');
+    expect(other).not.toHaveBeenCalled();
+    await finishCut();
+    expect(raw()).not.toEqual(before);
+    process.emit('SIGINT', 'SIGINT');
+    expect(process.kill).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(raw()).toEqual(before), { timeout: 2000 });
+  });
+
+  it('una señal esperando a ARCA, sin PDF: el eco tampoco corta con todo escrito', async () => {
+    await deliverWith(async () => undefined, ['SIGINT']);
+    process.emit('SIGINT', 'SIGINT');
+    await finishCut();
+    process.emit('SIGINT', 'SIGINT');
+
+    expect(process.kill).not.toHaveBeenCalled();
+    expect(other).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(raw()).toEqual(before), { timeout: 2000 });
+  });
+
+  it.each<readonly [string, readonly Signal[]]>([
+    ['sin cortar, no se repone', []],
+    ['al cortar, se repone', ['SIGINT']],
+  ])('el listener que otro agrega, como el de Puppeteer, se aparta: %s', async (_name, sent) => {
+    const added = vi.fn();
+    const alone: number[] = [];
+
+    try {
+      await deliverWith(async () => {
+        process.on('SIGINT', added);
+        await Promise.resolve();
+        alone.push(process.listenerCount('SIGINT'));
+        sent.forEach(send);
+      });
+      now += REPEATED_SIGNAL_MS;
+      await finishCut();
+
+      expect(alone).toEqual([1]);
+      expect(added).not.toHaveBeenCalled();
+      expect(process.listeners('SIGINT').filter((listener) => listener === added)).toHaveLength(sent.length);
+      expect(process.listenerCount('newListener')).toBe(newListeners);
+    } finally {
+      process.off('SIGINT', added);
+    }
+  });
+
+  it('dos señales: la reenviada le llega al listener agregado; si no termina, se sale con el código de la señal', async () => {
+    const added = vi.fn();
+    const exit = vi.fn();
+    let exitCode: typeof process.exitCode;
+
+    vi.mocked(process.kill).mockImplementation((_pid, signal) => {
+      process.emit(signal as Signal, signal as Signal);
+
+      return true;
+    });
+    exit.mockImplementation(() => {
+      exitCode = process.exitCode;
+      process.exitCode = undefined;
+    });
+
+    try {
+      await deliverWith(async () => {
+        process.on('SIGTERM', added);
+        await Promise.resolve();
+        send('SIGINT');
+        send('SIGTERM');
+      });
+      expect(added).not.toHaveBeenCalled();
+      await finishCut(undefined, exit);
+
+      // El de otro (when-exit) puede reenviarla.
+      expect(added).toHaveBeenCalled();
+      expect(exit).toHaveBeenCalledOnce();
+      expect(exitCode).toBe(143);
+    } finally {
+      process.off('SIGTERM', added);
+    }
+  });
+
+  it('con todo escrito, si la señal reenviada no termina el proceso, se sale con el código de la señal', async () => {
+    const added = vi.fn();
+    const exitCodes: Array<typeof process.exitCode> = [];
+
+    // Como el de Puppeteer con SIGTERM: cierra el navegador y nada más.
+    vi.mocked(process.kill).mockImplementation(() => true);
+
+    try {
+      await deliverWith(async () => {
+        process.on('SIGTERM', added);
+        await Promise.resolve();
+        send('SIGINT');
+      });
+      await finishCut(undefined, () => exitCodes.push(process.exitCode));
+      send('SIGTERM');
+
+      expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
+      expect(process.listeners('SIGTERM')).toContain(added);
+      await vi.waitFor(() => expect(exitCodes).toEqual([143, 143]));
+    } finally {
+      process.exitCode = undefined;
+      process.off('SIGTERM', added);
+    }
+  });
+
+  it('sin un PDF abandonado, la señal con todo escrito solo se reenvía', async () => {
+    const exit = vi.fn();
+
+    await deliverWith(async () => undefined, ['SIGINT']);
+    await finishCut(undefined, exit);
+    send('SIGTERM');
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
+    expect(exit).not.toHaveBeenCalled();
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('sin nada enviado (una vista previa) no se ataja nada', async () => {
+    let seen: ReturnType<typeof raw> | undefined;
+
+    await guardEmission(
+      { json: true, onCut: vi.fn() },
+      async () => ({ results: [] }),
+      async () => {
+        seen = raw();
+      },
+    );
+
+    expect(seen).toEqual(before);
+  });
 });

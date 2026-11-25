@@ -69,6 +69,46 @@ export async function settleOutput(
   await setImmediate();
 }
 
+const PENDING_OUTPUT_STEP_MS = 200;
+/** Un lector que nunca lee no puede dejar vivo el navegador del plugin de PDF. */
+const PENDING_OUTPUT_TIMEOUT_MS = 30_000;
+
+/**
+ * Sale del proceso: se abandono un PDF, y Puppeteer cierra el navegador al salir. Antes espera a quien lee las salidas,
+ * hasta un tope: vencido, lo que falta se pierde y no sale con 0.
+ */
+export async function exitWhenWritten(
+  beforeExit: () => void,
+  {
+    exit = () => process.exit(),
+    outputs = process,
+    state = outputState,
+    timeoutMs = PENDING_OUTPUT_TIMEOUT_MS,
+  }: {
+    readonly exit?: () => void;
+    readonly outputs?: Readonly<Record<OutputName, Pick<NodeJS.WriteStream, 'writableLength'>>>;
+    readonly state?: OutputState;
+    readonly timeoutMs?: number;
+  } = {},
+): Promise<void> {
+  const deadline = performance.now() + timeoutMs;
+  const isPending = (): boolean =>
+    (['stdout', 'stderr'] as const).some(
+      (output) => outputs[output].writableLength > 0 && !isOutputLost(output, state),
+    );
+
+  while (isPending() && performance.now() < deadline) {
+    await setTimeout(PENDING_OUTPUT_STEP_MS, undefined, { ref: false });
+  }
+
+  if (isPending()) {
+    process.exitCode ||= 1;
+  }
+
+  beforeExit();
+  exit();
+}
+
 /** Que no se pudo escribir y por que, para quien usa el CLI. */
 export function describeOutputFailure(output: OutputName, error: NodeJS.ErrnoException): string {
   const reason = (error.code === 'ENOSPC' ? fileErrorReason(error.code) : error.code) ?? error.message;

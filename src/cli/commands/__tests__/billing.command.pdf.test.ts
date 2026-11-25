@@ -97,6 +97,49 @@ function createDeps(options: { installed?: boolean; answers?: boolean[] } = {}) 
 }
 
 describe('attachPdfs', () => {
+  it('cortado antes de la pregunta de instalar: no instala, y el error es el del corte', async () => {
+    const controller = new AbortController();
+    const { deps, plugin } = createDeps({ installed: false });
+
+    plugin.getStatus.mockImplementation(() => {
+      controller.abort();
+
+      return { installed: false };
+    });
+
+    const [result] = await attachPdfs(
+      { config: CONFIG, inputs: [input({ pdf: true })], interactive: true, results: [createResult()] },
+      { ...deps, interruption: { signal: controller.signal, whileAsking: async () => undefined } },
+    );
+
+    expect(result.pdf).toEqual({
+      error: { code: 'PDF_GENERATION_ERROR', message: 'Se cortó antes de generar el PDF.', suggestion: undefined },
+    });
+    expect(plugin.install).not.toHaveBeenCalled();
+    expect(plugin.load).not.toHaveBeenCalled();
+  });
+
+  it.each(['genera', 'falla'])('un PDF que %s no deja nada escuchando el corte', async (how) => {
+    const { signal } = new AbortController();
+    const added = vi.spyOn(signal, 'addEventListener');
+    const removed = vi.spyOn(signal, 'removeEventListener');
+    const { deps, plugin } = createDeps();
+
+    if (how === 'falla') {
+      plugin.load.mockReturnValue({ render: vi.fn().mockRejectedValue(new Error('x')) });
+    }
+
+    await attachPdfs(
+      { config: CONFIG, inputs: [input({ pdf: true })], interactive: false, results: [createResult()] },
+      { ...deps, interruption: { signal, whileAsking: async (ask) => ask() } },
+    );
+
+    expect(added.mock.calls.length).toBeGreaterThan(0);
+    expect(removed.mock.calls.map(([, listener]) => listener)).toEqual(
+      expect.arrayContaining(added.mock.calls.map(([, listener]) => listener)),
+    );
+  });
+
   it('does nothing without flag in a non interactive run with the default config', async () => {
     const { deps, plugin } = createDeps();
     const results = await attachPdfs(

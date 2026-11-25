@@ -1,6 +1,6 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { setTimeout as pause } from 'node:timers/promises';
@@ -12,6 +12,7 @@ import {
   OPENSSL_WARM_UP_TIMEOUT_MS,
   removeSelfSignedCertificates,
 } from '../../../lib/security/__tests__/self-signed-certificate';
+import { PDF_PLUGIN_VERSION } from '../../../services/pdf/pdf-plugin';
 
 /**
  * ARQ-11: el `arcli` compilado, interrumpido con señales de verdad mientras ARCA (falso, sin red) no contesta. La
@@ -41,8 +42,10 @@ interface RunOptions {
   /** ARCA contesta después de las señales. Sin esto no contesta nunca. */
   readonly answers?: boolean;
   readonly closeStdout?: boolean;
-  /** La llamada que se demora, y cuál (desde 1). */
+  /** La llamada que se demora, y cuál (desde 1). También un paso del PDF (`writePdfPlugin`). */
   readonly hold: readonly [method: string, call: number];
+  /** El lector de stdout no lee nada hasta después de las señales. */
+  readonly lateReader?: boolean;
   /** Por `npm exec`, con cada señal al grupo, como Ctrl+C en una terminal. */
   readonly npx?: boolean;
   readonly preloads?: readonly string[];
@@ -97,6 +100,7 @@ function fakeArca([method, call]: RunOptions['hold']): string {
      import { setTimeout } from 'node:timers/promises';
      import { ArcaBillingGateway } from ${dist('arca-billing.gateway.js')};
      import { ArcaExportGateway } from ${dist('arca-export.gateway.js')};
+     import { readExportAnswer } from ${dist('authorization-answer.js')};
      let calls = 0;
      const hold = async (name) => {
        if (name !== ${JSON.stringify(method)} || (calls += 1) !== ${call}) return;
@@ -132,8 +136,99 @@ function fakeArca([method, call]: RunOptions['hold']): string {
      ArcaExportGateway.prototype.authorize = async (payload) => {
        note(payload.Cbte_nro);
        await hold('authorize');
-       throw new Error('ARCA no respondió');
+       return readExportAnswer({ FEXAuthorizeResult: {
+         FEXErr: { ErrCode: 0, ErrMsg: '' }, FEXEvents: { EventCode: 0, EventMsg: '' },
+         FEXResultAuth: {
+           Cae: '75123456789012', Cbte_nro: payload.Cbte_nro, Cbte_tipo: payload.Cbte_Tipo, Cuit: ${CUIT},
+           Fch_cbte: payload.Fecha_cbte, Fch_venc_Cae: '20991231', Id: payload.Id, Motivos_Obs: '',
+           Punto_vta: payload.Punto_vta, Reproceso: 'N', Resultado: 'A',
+         },
+       } });
      };`,
+  );
+}
+
+/**
+ * Un plugin falso con lo que hace el de verdad (puppeteer 25) con las señales: abre un navegador (acá, un Node que no
+ * hace nada) en otro grupo de procesos, con SIGINT lo cierra y sale con 130, y con SIGTERM y al salir lo cierra, lo
+ * abran con las opciones que lo abran. Es otra instancia, la del SDK, y no se le puede reemplazar nada. Se demora al abrirlo (`navegador`), al generar (`pdf`) o no termina nunca (`colgado`).
+ */
+function writePdfPlugin([step, call]: RunOptions['hold']): void {
+  const modules = join(directory, 'plugins', 'pdf', 'node_modules');
+  const write = (name: string, version: string, source: string): void => {
+    mkdirSync(join(modules, name), { recursive: true });
+    writeFileSync(join(modules, name, 'package.json'), JSON.stringify({ main: 'index.js', name, version }));
+    writeFileSync(join(modules, name, 'index.js'), source);
+  };
+
+  write(
+    '@arcasdk/pdf/node_modules/puppeteer',
+    '25.0.2',
+    `const { spawn } = require('node:child_process');
+     const { appendFileSync, existsSync, writeFileSync } = require('node:fs');
+     const { setTimeout } = require('node:timers/promises');
+     let calls = 0;
+     const hold = async (name) => {
+       if (name !== ${JSON.stringify(step)} || (calls += 1) !== ${call}) return;
+       writeFileSync(${JSON.stringify(file('llego'))}, '');
+       while (!existsSync(${JSON.stringify(file('seguir'))})) await setTimeout(10);
+     };
+     module.exports = Object.freeze({ hold, default: Object.freeze({
+       launch: async () => {
+         const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true, stdio: 'ignore' });
+         appendFileSync(${JSON.stringify(file('navegadores.txt'))}, child.pid + '\\n');
+         const kill = () => { try { process.kill(-child.pid, 'SIGKILL'); } catch {} };
+         const onSigint = () => { kill(); process.exit(130); };
+         process.on('exit', kill);
+         process.on('SIGINT', onSigint).on('SIGTERM', kill);
+         const died = new Promise((_resolve, reject) => child.once('exit', () => {
+           process.off('exit', kill).off('SIGINT', onSigint).off('SIGTERM', kill);
+           reject(new Error('se cerró el navegador'));
+         }));
+         died.catch(() => {});
+         await Promise.race([died, hold('navegador')]);
+         return { close: () => { kill(); return died.catch(() => {}); }, died };
+       },
+     }) });`,
+  );
+  write(
+    '@arcasdk/pdf',
+    PDF_PLUGIN_VERSION,
+    `const puppeteer = require('puppeteer');
+     exports.InvoicePdfGenerator = class {
+       async generate() {
+         const browser = await puppeteer.default.launch({ headless: true });
+         try {
+           await puppeteer.hold('colgado');
+           await Promise.race([browser.died, puppeteer.hold('pdf')]);
+           return Buffer.from('%PDF');
+         } finally {
+           await browser.close();
+         }
+       }
+     };`,
+  );
+}
+
+/** Los navegadores que siguen vivos: ninguno tiene que quedar. */
+function aliveBrowsers(): number[] {
+  return (existsSync(file('navegadores.txt')) ? readFileSync(file('navegadores.txt'), 'utf8').trim().split('\n') : [])
+    .map(Number)
+    .filter((pid) => {
+      try {
+        return process.kill(pid, 0);
+      } catch {
+        return false;
+      }
+    });
+}
+
+/** Deja en `salida.txt` con qué código salió `arcli`. Si lo mata una señal no queda nada. */
+function noteExit(): string {
+  return writePreload(
+    'salida.mjs',
+    `import { writeFileSync } from 'node:fs';
+     process.on('exit', (code) => writeFileSync(${JSON.stringify(file('salida.txt'))}, String(code)));`,
   );
 }
 
@@ -179,6 +274,10 @@ function killRunning(): void {
 
 /** Corre `arcli`, espera a que ARCA reciba la llamada que se demora y manda las señales. */
 async function run(args: readonly string[], options: RunOptions): Promise<Interrupted> {
+  if (/^(colgado|navegador|pdf)$/.test(options.hold[0])) {
+    writePdfPlugin(options.hold);
+  }
+
   const preloads = [blockNetwork(), fakeArca(options.hold), ...(options.preloads ?? [])];
   const node = [...preloads.flatMap((preload) => ['--import', preload]), CLI, ...args];
   const [command, commandArgs] = options.npx
@@ -202,8 +301,13 @@ async function run(args: readonly string[], options: RunOptions): Promise<Interr
 
   running = { child, group: Boolean(options.npx) };
 
-  for (const name of ['stdout', 'stderr'] as const) {
+  const listen = (name: 'stderr' | 'stdout') =>
     child[name].setEncoding('utf8').on('data', (chunk: string) => (read[name] += chunk));
+
+  listen('stderr');
+
+  if (!options.lateReader) {
+    listen('stdout');
   }
 
   if (options.closeStdout) {
@@ -224,6 +328,10 @@ async function run(args: readonly string[], options: RunOptions): Promise<Interr
 
   if (options.answers) {
     writeFileSync(file('seguir'), '');
+  }
+
+  if (options.lateReader) {
+    listen('stdout');
   }
 
   const timer = setTimeout(() => {
@@ -284,6 +392,7 @@ beforeEach(() => {
       emisor: { domicilio: 'Calle 1', inicioActividades: '20200101', razonSocial: 'Prueba' },
       key: { testing: keyPath },
       pdf: 'nunca',
+      pdfNavegador: process.execPath,
       puntoVentaPorDefecto: 3,
     }),
   );
@@ -292,6 +401,7 @@ beforeEach(() => {
 
 afterEach(() => {
   killRunning();
+  aliveBrowsers().forEach((pid) => process.kill(pid, 'SIGKILL'));
   running = undefined;
   rmSync(directory, { force: true, recursive: true });
 });
@@ -472,6 +582,167 @@ describe.skipIf(process.platform === 'win32')('sin nada enviado, una señal cort
 
     expect(result).toMatchObject({ killed: false, signal: 'SIGTERM', stderr: '', stdout: '' });
     expect(sent()).toEqual([]);
+  });
+});
+
+describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () => {
+  const CUT = { error: { codigo: 'PDF_GENERATION_ERROR', mensaje: 'Se cortó antes de generar el PDF.' } };
+
+  it.each([
+    ['generando', 'pdf', 'SIGINT', INVOICE],
+    ['generando', 'pdf', 'SIGTERM', INVOICE],
+    ['abriendo el navegador', 'navegador', 'SIGINT', INVOICE],
+    ['abriendo el navegador', 'navegador', 'SIGTERM', INVOICE],
+    ['la E', 'pdf', 'SIGINT', EXPORT_INVOICE],
+  ] as const)('%s (%s, %s): el CAE con pdf.error, exit 0 y sin navegadores', async (_name, step, signal, args) => {
+    const result = await run([...args, '--pdf', '--json'], { hold: [step, 1], signals: [signal] });
+
+    expect(JSON.parse(result.stdout)).toMatchObject({ cae: '75123456789012', pdf: CUT });
+    expect(result).toMatchObject({ code: 0, killed: false, signal: null, stderr: '' });
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
+  });
+
+  it('en texto: el CAE, el aviso y el cursor', async () => {
+    const result = await run([...INVOICE, '--pdf'], {
+      hold: ['pdf', 1],
+      preloads: [fakeTerminal()],
+      signals: ['SIGINT'],
+    });
+
+    expect(result.stdout.match(/75123456789012/g)).toHaveLength(1);
+    expect(plain(result.stdout)).toContain('Se cortó antes de generar el PDF.');
+    // eslint-disable-next-line no-control-regex
+    expect((result.stdout + result.stderr).match(/\u001B\[\?25[hl]/g)?.at(-1)).toBe('\u001B[?25h');
+    expect(result).toMatchObject({ code: 0, killed: false, signal: null });
+  });
+
+  it('un lote en el 2.º: el 1.º con su archivo y los otros dos con error', async () => {
+    const result = await run([...batch(), '--pdf', '--json'], { hold: ['pdf', 2], signals: ['SIGINT'] });
+    const items = JSON.parse(result.stdout) as Array<{ pdf: { ruta?: string } }>;
+
+    expect(items).toMatchObject([{ pdf: { ruta: expect.any(String) } }, { pdf: CUT }, { pdf: CUT }]);
+    expect(existsSync(items[0].pdf.ruta ?? '')).toBe(true);
+    expect(result).toMatchObject({ code: 0, killed: false, signal: null, stderr: '' });
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
+  });
+
+  it('dos señales casi juntas son una: exit 0', async () => {
+    const result = await run([...INVOICE, '--pdf', '--json'], {
+      hold: ['pdf', 1],
+      signalMs: REPEATED_MS,
+      signals: ['SIGINT', 'SIGINT'],
+    });
+
+    expect(JSON.parse(result.stdout)).toMatchObject({ cae: '75123456789012', pdf: CUT });
+    expect(result).toMatchObject({ code: 0, killed: false, signal: null });
+  });
+
+  it('por npm exec, un Ctrl+C (que llega dos veces): el CAE con pdf.error', async () => {
+    const result = await run([...INVOICE, '--pdf', '--json'], {
+      hold: ['pdf', 1],
+      npx: true,
+      preloads: [noteExit()],
+      signals: ['SIGINT'],
+    });
+
+    expect(JSON.parse(result.stdout)).toMatchObject({ cae: '75123456789012', pdf: CUT });
+    expect(result.killed).toBe(false);
+    expect(readFileSync(file('salida.txt'), 'utf8')).toBe('0');
+
+    // En Linux el `sh` de npm queda como padre de arcli: también recibe la señal, termina por ella cuando arcli ya salió
+    // y npm la repite. En macOS `sh` se reemplaza por arcli, y npm sale con su código.
+    if (process.platform === 'darwin') {
+      expect(result).toMatchObject({ code: 0, signal: null });
+    }
+
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
+  });
+
+  it('con el plugin colgado: el CAE, exit 0 y sin navegadores', async () => {
+    const result = await run([...INVOICE, '--pdf', '--json'], { hold: ['colgado', 1], signals: ['SIGINT'] });
+
+    expect(JSON.parse(result.stdout)).toMatchObject({ cae: '75123456789012', pdf: CUT });
+    expect(result).toMatchObject({ code: 0, killed: false, signal: null });
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
+  });
+
+  /** Con 200, más de lo que entra en un pipe: queda sin escribir hasta que alguien lea. */
+  const resizeBatch = (count: number): void => {
+    const [item] = JSON.parse(readFileSync(file('lote.json'), 'utf8')) as unknown[];
+
+    writeFileSync(file('lote.json'), JSON.stringify(Array.from({ length: count }, () => item)));
+  };
+
+  it('con el plugin colgado, un lote grande y quien lee stdout después de dos segundos: completo y exit 0', async () => {
+    resizeBatch(200);
+
+    const result = await run([...batch(), '--pdf', '--json'], {
+      hold: ['colgado', 1],
+      lateReader: true,
+      signalMs: 3000,
+      signals: ['SIGINT'],
+    });
+
+    expect(result.stdout.length).toBeGreaterThan(65_536);
+    expect(JSON.parse(result.stdout)).toHaveLength(200);
+    expect(result).toMatchObject({ code: 0, killed: false, signal: null, stderr: '' });
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
+  });
+
+  it('un lote de 20 PDF: todos, sin avisos en stderr', async () => {
+    resizeBatch(20);
+
+    const result = await run([...batch(), '--pdf', '--json'], { answers: true, hold: ['pdf', 20], signals: [] });
+    const items = JSON.parse(result.stdout) as Array<{ pdf: { ruta?: string } }>;
+
+    expect(items.filter(({ pdf }) => pdf.ruta)).toHaveLength(20);
+    expect(result).toMatchObject({ code: 0, stderr: '' });
+  });
+
+  it('con quien lee stdout lento y otra señal después: el documento completo', async () => {
+    resizeBatch(200);
+
+    const result = await run([...batch(), '--pdf', '--json'], {
+      hold: ['pdf', 1],
+      lateReader: true,
+      signals: ['SIGINT', 'SIGINT'],
+    });
+
+    expect(result.stdout.length).toBeGreaterThan(65_536);
+    expect(JSON.parse(result.stdout)).toHaveLength(200);
+    expect(cutBySignal(result)).toBe(true);
+    expect(result.killed).toBe(false);
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
+  });
+
+  it('con stdout cerrado: termina con 0 y sin navegadores', async () => {
+    const result = await run([...INVOICE, '--pdf', '--json'], {
+      closeStdout: true,
+      hold: ['pdf', 1],
+      signals: ['SIGINT'],
+    });
+
+    expect(result).toMatchObject({ code: 0, killed: false, signal: null });
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
+  });
+
+  it('sin señal: la ruta, y el navegador cerrado', async () => {
+    const result = await run([...INVOICE, '--pdf', '--json'], { answers: true, hold: ['pdf', 1], signals: [] });
+
+    expect(JSON.parse(result.stdout)).toMatchObject({ cae: '75123456789012', pdf: { ruta: expect.any(String) } });
+    expect(result).toMatchObject({ code: 0, stderr: '' });
+    await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
+  });
+
+  it('la E sin PDF: el CAE', async () => {
+    const result = await run([...EXPORT_INVOICE, '--json'], {
+      answers: true,
+      hold: ['authorize', 1],
+      signals: ['SIGINT'],
+    });
+
+    expect(JSON.parse(result.stdout)).toMatchObject({ cae: '75123456789012' });
+    expect(result).toMatchObject({ code: 0, stderr: '' });
   });
 });
 

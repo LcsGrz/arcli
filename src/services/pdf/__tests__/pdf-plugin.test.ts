@@ -1,4 +1,13 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -8,6 +17,7 @@ import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-
 import { toPdfFailure } from '../../../modules/pdf/pdf-failure';
 import { findDownloadedBrowser } from '../pdf-browser';
 import { exportBillingPdf, TESTING_FOOTER } from '../pdf-exporter';
+import { createPdfFileExporter } from '../pdf-file-exporter';
 import {
   BROWSER_DOWNLOAD_TIMEOUT_MS,
   NPM_INSTALL_TIMEOUT_MS,
@@ -257,6 +267,27 @@ describe('exportBillingPdf', () => {
     });
   });
 
+  it('un render que termina despues de cortar no deja un archivo', async () => {
+    const controller = new AbortController();
+    const folder = createTempDir();
+    const exporter = createPdfFileExporter({
+      folder,
+      renderer: {
+        render: async () => {
+          controller.abort();
+
+          return new Uint8Array([1]);
+        },
+      },
+      signal: controller.signal,
+    });
+
+    await expect(
+      exporter.export({ extras: {}, family: 'billing', result: createResult('testing') }, config),
+    ).rejects.toMatchObject({ code: 'PDF_GENERATION_ERROR', message: 'Se cortó antes de generar el PDF.' });
+    expect(readdirSync(folder)).toEqual([]);
+  });
+
   it('never overwrites a PDF and keeps each issuer in its own folder', async () => {
     const folder = createTempDir();
     const render = vi.fn(async () => new Uint8Array([1]));
@@ -392,5 +423,184 @@ describe('exportBillingPdf', () => {
         suggestion: expect.stringContaining('permiso'),
       },
     });
+  });
+});
+
+describe('al cortar', () => {
+  it.each(['antes', 'durante'])('corta el proceso de la instalación (%s)', async (when) => {
+    const controller = new AbortController();
+
+    if (when === 'antes') {
+      controller.abort();
+    } else {
+      setTimeout(() => controller.abort(), 200);
+    }
+
+    const start = performance.now();
+    const result = await runProcessWithSpawn(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], {
+      cwd: createTempDir(),
+      env: process.env,
+      signal: controller.signal,
+      timeoutMs: 20_000,
+    });
+
+    expect(result).toEqual({ code: null, output: '' });
+    expect(performance.now() - start).toBeLessThan(10_000);
+  });
+
+  it('a un proceso que no hace caso lo mata, y recién ahí sigue', async () => {
+    const controller = new AbortController();
+    const folder = createTempDir();
+    const pidFile = join(folder, 'pid');
+    const result = runProcessWithSpawn(
+      process.execPath,
+      [
+        '-e',
+        "process.on('SIGTERM', () => {}); require('fs').writeFileSync('pid', String(process.pid)); setInterval(() => {}, 1000)",
+      ],
+      { cwd: folder, env: process.env, signal: controller.signal, timeoutMs: 20_000 },
+    );
+
+    await vi.waitFor(() => expect(readFileSync(pidFile, 'utf8')).not.toBe(''), { timeout: 10_000 });
+    controller.abort();
+    // En Windows `kill` termina el proceso en el acto: no llega a hacer falta el SIGKILL de los dos segundos.
+    expect(await result).toEqual({
+      code: null,
+      output: '',
+      ...(process.platform === 'win32' ? {} : { timedOut: false }),
+    });
+    await vi.waitFor(() => expect(() => process.kill(Number(readFileSync(pidFile, 'utf8')), 0)).toThrow());
+  });
+
+  it('una instalación a medias no pasa por instalada, y la siguiente empieza de cero', async () => {
+    const path = join(createTempDir(), 'pdf');
+    const leftover = join(path, 'node_modules', 'a-medias');
+    let cut = true;
+    const plugin = new PdfPlugin({
+      env: {},
+      findSystemBrowser: () => '/Applications/Chrome',
+      path,
+      runProcess: async () => {
+        fakeNpmInstall(path);
+
+        if (cut) {
+          writeFileSync(leftover, '');
+        }
+
+        return { code: cut ? null : 0, output: '' };
+      },
+    });
+
+    await expect(plugin.install()).rejects.toMatchObject({ code: 'PDF_PLUGIN_INSTALL_ERROR' });
+    expect(plugin.getStatus().installed).toBe(false);
+    expect(() => plugin.load()).toThrow(/falta instalar/);
+
+    cut = false;
+    expect((await plugin.install()).installed).toBe(true);
+    expect(existsSync(leftover)).toBe(false);
+  });
+
+  it.each([
+    ['0.1.0', '0.1.0'],
+    [PDF_PLUGIN_VERSION, undefined],
+  ])('si falla la instalación sobre %s, informa la versión %s y no está instalado', async (found, informed) => {
+    const path = join(createTempDir(), 'pdf');
+
+    fakeNpmInstall(path, found);
+    writeFileSync(join(path, 'node_modules.incompleto'), '');
+
+    const plugin = new PdfPlugin({ env: {}, findSystemBrowser: () => '/Applications/Chrome', path });
+
+    expect(plugin.getStatus()).toMatchObject({ installed: false, installedVersion: informed });
+    expect(() => plugin.load()).toThrow(informed ? /está en la versión 0.1.0/ : /falta instalar/);
+  });
+
+  it('un package.json a medio escribir de una instalación cortada no es un error', () => {
+    const path = join(createTempDir(), 'pdf');
+
+    fakeNpmInstall(path);
+    writeFileSync(join(path, 'node_modules', '@arcasdk', 'pdf', 'package.json'), '{"name"');
+    writeFileSync(join(path, 'node_modules.incompleto'), '');
+
+    expect(new PdfPlugin({ env: {}, findSystemBrowser: () => '/x', path }).getStatus().installed).toBe(false);
+  });
+
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+    'si lo que quedó a medias no se puede borrar, es un error de la instalación',
+    async () => {
+      const path = join(createTempDir(), 'pdf');
+      const locked = join(path, 'node_modules', '@arcasdk');
+
+      fakeNpmInstall(path);
+      writeFileSync(join(path, 'node_modules.incompleto'), '');
+      chmodSync(locked, 0o555);
+
+      const runProcess = vi.fn<ProcessRunner>();
+
+      try {
+        await expect(
+          new PdfPlugin({ env: {}, findSystemBrowser: () => '/x', path, runProcess }).install(),
+        ).rejects.toMatchObject({
+          code: 'PDF_PLUGIN_INSTALL_ERROR',
+          message: expect.stringContaining('No se pudo borrar la instalación a medias'),
+        });
+        expect(runProcess).not.toHaveBeenCalled();
+      } finally {
+        chmodSync(locked, 0o755);
+      }
+    },
+  );
+
+  it.each([
+    ['sin marca, se instala sobre lo que hay', false],
+    ['con marca y sin nada que borrar, también se instala', true],
+  ])('%s', async (_name, marked) => {
+    const path = join(createTempDir(), 'pdf');
+    const previous = join(path, 'node_modules', 'de-antes');
+
+    mkdirSync(marked ? path : join(path, 'node_modules'), { recursive: true });
+    writeFileSync(marked ? join(path, 'node_modules.incompleto') : previous, '');
+
+    const plugin = new PdfPlugin({
+      env: {},
+      findSystemBrowser: () => '/x',
+      path,
+      runProcess: async () => {
+        fakeNpmInstall(path);
+
+        return { code: 0, output: '' };
+      },
+    });
+
+    expect((await plugin.install()).installed).toBe(true);
+    expect(existsSync(previous)).toBe(!marked);
+    expect(existsSync(join(path, 'node_modules.incompleto'))).toBe(false);
+  });
+
+  it('un navegador descargado a medias no se usa', async () => {
+    const path = join(createTempDir(), 'pdf');
+    let cut = true;
+    const plugin = new PdfPlugin({
+      env: {},
+      findSystemBrowser: () => undefined,
+      path,
+      runProcess: async (_command, args, options) => {
+        if (args[0] === 'install') {
+          fakeNpmInstall(path);
+
+          return { code: 0, output: '' };
+        }
+
+        fakeBrowserDownload(options.env.PUPPETEER_CACHE_DIR ?? '');
+
+        return { code: cut ? null : 0, output: '' };
+      },
+    });
+
+    await expect(plugin.install()).rejects.toMatchObject({ code: 'PDF_PLUGIN_INSTALL_ERROR' });
+    expect(plugin.getStatus()).toMatchObject({ browser: undefined, installed: false });
+
+    cut = false;
+    expect((await plugin.install()).installed).toBe(true);
   });
 });

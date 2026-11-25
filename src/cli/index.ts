@@ -5,7 +5,7 @@ import { COMPLETE_COMMAND } from '../modules/completion/shell-scripts';
 import { renderUpdateNoticePanel } from '../modules/update-check/update-check.presenter';
 import { writeTerminalError } from '../ui';
 
-import { settleOutput, watchOutputs } from './closed-output';
+import { exitWhenWritten, settleOutput, watchOutputs } from './closed-output';
 import { isInteractiveTerminal } from './commands/interactive.command';
 import { isSilentExit, reportCliError, reportOutputFailure, shouldPrintErrorAsJson } from './error-output';
 import { normalizeHelpArgv } from './help-argv';
@@ -44,6 +44,8 @@ program
   .parseAsync(argv)
   .finally(() => updateCheck.abort())
   .then(async () => {
+    await finishCut(reportLostOutput, () => void exitWhenWritten(reportLostOutput));
+
     const updateResult = await updateCheckPromise;
 
     if (!updateResult) {
@@ -68,7 +70,7 @@ program
 
     process.exitCode = reportCliError(error, shouldPrintErrorsAsJson(), outputFailures);
     // Cortado por una señal no hay `beforeExit`.
-    await finishCut(reportLostOutput);
+    await finishCut(reportLostOutput, () => void exitWhenWritten(reportLostOutput));
   });
 
 function reportLostOutput(): void {
