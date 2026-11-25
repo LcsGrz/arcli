@@ -3,8 +3,8 @@ import { existsSync, rmSync, writeFileSync } from 'node:fs';
 import { posix, win32 } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
-import { type ConfigPublicKey, configPublicKeySchema } from '../../modules/config/config.schemas';
 import { validateConfigValue } from '../../modules/config/config.service';
+import { type ConfigPublicKey, configPublicKeySchema } from '../../modules/config/config-key-table';
 import { reportCliError } from '../error-output';
 
 import {

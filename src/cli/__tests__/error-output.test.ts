@@ -5,7 +5,8 @@ import { z, type ZodError } from 'zod';
 import { AppError, InputIssuesError } from '../../lib/errors/app-error';
 import { billingCommandSchema } from '../../modules/billing/billing.schemas';
 import { parseZodInput } from '../../modules/billing/billing.zod-errors';
-import { type CanonicalConfigKey, parseConfigValue } from '../../modules/config/config-value-parser';
+import type { CanonicalConfigKey } from '../../modules/config/config-key-table';
+import { parseConfigValue } from '../../modules/config/config-value-parser';
 import { stripAnsi } from '../../ui';
 import { EmissionCancelledError } from '../emission-cancelled';
 import {

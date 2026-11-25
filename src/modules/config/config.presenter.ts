@@ -17,10 +17,11 @@ import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 import { formatSavedAccount } from './cbu-alias-change';
-import type { ArcliConfig, ConfigPublicKey } from './config.schemas';
+import type { ArcliConfig } from './config.schemas';
 import { formatEnvironmentLabel, isPadronLookupEnabled, resolveConfiguredRowsPerList } from './config.schemas';
 import { CONFIG_LABELS, CONFIG_SECTIONS } from './config.sections';
 import { CONFIG_DOCTOR_SECTIONS, type ConfigDoctorReport } from './config-doctor';
+import type { ConfigPublicKey } from './config-key-table';
 import { DEPRECATED_CONFIG_KEYS } from './config-keys';
 import type { PendingConfigProblems } from './config-problems';
 

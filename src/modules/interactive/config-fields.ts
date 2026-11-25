@@ -11,10 +11,10 @@ import {
   type ArcliEnvironment,
   arcliEnvironmentSchema,
   arcliPdfModeSchema,
-  type ConfigPublicKey,
   resolveConfiguredRowsPerList,
 } from '../config/config.schemas';
 import { CONFIG_LABELS } from '../config/config.sections';
+import type { ConfigPublicKey } from '../config/config-key-table';
 import { MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 import { conceptChoices, ivaRateChoices } from './choices';

@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 import { describe, expect, it } from 'vitest';
 
-import { configPublicKeySchema } from '../../modules/config/config.schemas';
+import { configPublicKeySchema } from '../../modules/config/config-key-table';
 import {
   createConfigHelp,
   createConfigSetHelp,

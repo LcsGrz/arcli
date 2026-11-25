@@ -10,8 +10,8 @@ import {
   VOUCHER_FAMILIES,
   VOUCHER_LETTERS,
 } from '../modules/billing/voucher-kind-map';
-import type { ConfigPublicKey } from '../modules/config/config.schemas';
 import { CONFIG_LABELS, CONFIG_SECTIONS } from '../modules/config/config.sections';
+import type { ConfigPublicKey } from '../modules/config/config-key-table';
 import {
   buildMinimalFamilyExample,
   buildMinimalShortcutExample,

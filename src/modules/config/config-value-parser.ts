@@ -23,45 +23,7 @@ import {
   arcliEnvironmentSchema,
   arcliPdfModeSchema,
 } from './config.schemas';
-
-export type CanonicalConfigKey =
-  | 'alicuotaPorDefecto'
-  | 'aliasCbu'
-  | 'cbu'
-  | 'cert.produccion'
-  | 'cert.testing'
-  | 'conceptoPorDefecto'
-  | 'condicionVenta'
-  | 'cotizacionPorDefecto'
-  | 'cuit'
-  | 'emisor.condicionIva'
-  | 'emisor.domicilio'
-  | 'emisor.iibb'
-  | 'emisor.inicioActividades'
-  | 'emisor.logo'
-  | 'emisor.razonSocial'
-  | 'entornoPorDefecto'
-  | 'exportacion.actividad'
-  | 'exportacion.cert.produccion'
-  | 'exportacion.cert.testing'
-  | 'exportacion.key.produccion'
-  | 'exportacion.key.testing'
-  | 'filasPorLista'
-  | 'ivaReceptorPorDefecto'
-  | 'key.produccion'
-  | 'key.testing'
-  | 'monedaPorDefecto'
-  | 'monotributo.tope'
-  | 'output.emitirPorDefecto'
-  | 'output.jsonPorDefecto'
-  | 'output.brutoPorDefecto'
-  | 'pdf'
-  | 'pdfCarpeta'
-  | 'pdfNavegador'
-  | 'puntoVentaPorDefecto'
-  | 'ticketPath'
-  | 'verificarFce'
-  | 'consultarPadron';
+import type { CanonicalConfigKey } from './config-key-table';
 
 /**
  * Como se nombra el valor en un mensaje: con la clave si se sabe (\`config establecer\`) o "El valor" en el modo

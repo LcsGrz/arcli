@@ -1,6 +1,6 @@
 import { sameSearch } from '../../lib/text/search';
 import { ARCA_CURRENCIES, toArcaCurrencyCode } from '../billing/currency-codes';
-import type { ConfigPublicKey } from '../config/config.schemas';
+import type { ConfigPublicKey } from '../config/config-key-table';
 
 import type { ConfigField } from './config-fields';
 

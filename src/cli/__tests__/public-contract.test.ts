@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { ERROR_CODES } from '../../lib/errors/error-codes';
-import { configPublicKeySchema } from '../../modules/config/config.schemas';
+import { configPublicKeySchema } from '../../modules/config/config-key-table';
 import { DEPRECATED_CONFIG_KEYS } from '../../modules/config/config-keys';
 import { createProgram } from '../program';
 
