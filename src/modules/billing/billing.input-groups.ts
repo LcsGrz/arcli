@@ -3,7 +3,7 @@ import Big from 'big.js';
 import type { DateInputRole } from '../../lib/dates/date-input-text';
 import { resolveRelativeDateInput } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
-import { mergeAssociatedVoucher } from '../vouchers/associated-voucher.merge';
+import { isForeignAssociated, mergeAssociatedVoucher } from '../vouchers/associated-voucher.merge';
 
 import { resolveConfigExchangeRate } from './billing.currency';
 import { type BillingDefaults, isSameCbu, savedCbuAlias } from './billing.defaults';
@@ -153,18 +153,13 @@ export function resolveAssociatedPeriod({ file, flags, now }: BillingInputLayers
 
 type AssociatedJson = NonNullable<BillingJsonInput['comprobanteAsociado']>;
 
-/** De otro emisor: el punto de venta de la nota no dice nada del suyo. */
-function isForeignAssociated(cuit: string | undefined, { defaults }: BillingInputLayers): boolean {
-  return cuit !== undefined && cuit.replace(/\D/g, '') !== String(defaults.emitterCuit);
-}
-
 /** El punto de venta de un asociado: el suyo o, si es propio, el de la nota. */
 function associatedPointOfSale(
   voucher: AssociatedJson,
   note: number | undefined,
   layers: BillingInputLayers,
 ): number | undefined {
-  return voucher.puntoVenta ?? (isForeignAssociated(voucher.cuit, layers) ? undefined : note);
+  return voucher.puntoVenta ?? (isForeignAssociated(voucher.cuit, layers.defaults.emitterCuit) ? undefined : note);
 }
 
 const isPointOfSale = (value: number | undefined): value is number =>
@@ -172,35 +167,36 @@ const isPointOfSale = (value: number | undefined): value is number =>
 
 /**
  * Los flags sobre el archivo (`mergeAssociatedVoucher`) y, sin `--apv`, el punto de venta de la nota, como en la E, si
- * el asociado es propio. Si con los flags es de otro punto de venta que el que tendria el archivo solo, es otro
+ * el asociado es propio. Si con los flags es de otro punto de venta que el que tendria el archivo solo, o de otro emisor, es otro
  * comprobante y la fecha del archivo no va. Si los flags descartaron un CUIT ajeno del archivo no se sabe de quien es
  * el otro: no se toma el de la nota.
  */
 function mergeAssociated(layers: BillingInputLayers): AssociatedJson | undefined {
   const { defaults, file, flags } = layers;
   const fromFile = file.comprobanteAsociado;
-  const merged = mergeAssociatedVoucher(
-    flags.comprobanteAsociado,
-    fromFile,
-    (shortcut) => getVoucherKindByShortcut(shortcut.trim().toLowerCase())?.arcaType,
-  );
+  const { ownerUnknown, voucher: merged } = mergeAssociatedVoucher(flags.comprobanteAsociado, fromFile, {
+    arcaTypeOf: (shortcut) => getVoucherKindByShortcut(shortcut.trim().toLowerCase())?.arcaType,
+    emitterCuit: defaults.emitterCuit,
+  });
 
   if (!merged) {
     return undefined;
   }
 
-  const lostForeignCuit = merged.cuit === undefined && isForeignAssociated(fromFile?.cuit, layers);
-  const note = lostForeignCuit ? undefined : (written(layers, 'puntoVenta') ?? defaults.defaultPointOfSale);
+  const note = ownerUnknown ? undefined : (written(layers, 'puntoVenta') ?? defaults.defaultPointOfSale);
   const pointOfSale = associatedPointOfSale(merged, note, layers);
   const filePointOfSale =
     fromFile && associatedPointOfSale(fromFile, file.puntoVenta ?? defaults.defaultPointOfSale, layers);
+  const changesOwner =
+    fromFile !== undefined &&
+    isForeignAssociated(fromFile.cuit, defaults.emitterCuit) !== isForeignAssociated(merged.cuit, defaults.emitterCuit);
   const moved = filePointOfSale !== undefined && pointOfSale !== undefined && filePointOfSale !== pointOfSale;
   // Incompleto o con un punto de venta invalido no se completa: el error es el de lo que falta o el de `--pv`.
   const complete = merged.numero !== undefined && (merged.atajo !== undefined || merged.tipo !== undefined);
 
   return {
     ...merged,
-    fecha: moved ? flags.comprobanteAsociado?.fecha : merged.fecha,
+    fecha: moved || changesOwner ? flags.comprobanteAsociado?.fecha : merged.fecha,
     puntoVenta: merged.puntoVenta ?? (complete && isPointOfSale(pointOfSale) ? pointOfSale : undefined),
   };
 }

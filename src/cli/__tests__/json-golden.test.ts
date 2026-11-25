@@ -2932,6 +2932,33 @@ describe('otros comandos que van a ARCA', () => {
     }
   });
 
+  it.each([
+    ['nce', 'fe', NCE.slice(1, 3)],
+    ['ncc', 'fc', ['-m', '100', '--cs', '--cfinal']],
+  ])(
+    '%s: con --ar de otro que el asociado ajeno del JSON falta el punto de venta; con el propio, no (ARQ-22)',
+    async (kind, atajo, args) => {
+      const load = async (cuit: number) => {
+        const path = writeInput('nota.json', {
+          comprobanteAsociado: { atajo, cuit: String(cuit), numero: 5, puntoVenta: 4 },
+        });
+
+        prepareConfig({});
+
+        return runCli([kind, ...args, '--pv', '4', '--cargar', path, '--ar', '1', '--previsualizar', '--json']);
+      };
+      const foreign = await load(CLIENT_CUIT);
+
+      expect(foreign.code).toBe(1);
+      expect(JSON.parse(foreign.stderr)).toMatchObject({
+        codigo: 'INPUT_VALIDATION_ERROR',
+        error: expect.stringContaining('Falta el punto de venta del comprobante asociado'),
+      });
+      process.exitCode = undefined;
+      expect(await load(CUIT)).toMatchObject({ code: 0 });
+    },
+  );
+
   // ARQ-22: como la E.
   describe('ultimos de A, B y C con uno que existe y no se puede leer', () => {
     const flat = (text: string) => text.replace(/[│┃╏║\s]+/g, ' ');

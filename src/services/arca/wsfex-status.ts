@@ -3,6 +3,8 @@ import { SoapClient } from '@arcasdk/core';
 import type { ArcliEnvironment } from '../../modules/config/config.schemas';
 import type { ServerStatus } from '../../modules/parameters/parameters';
 
+import { avoidWeakDhe } from './tls';
+
 /** Los WSDL de WSFEX que trae el SDK. Cada uno tiene la direccion de su entorno. */
 const WSDL: Record<ArcliEnvironment, string> = { produccion: 'wsfex-production.wsdl', testing: 'wsfex.wsdl' };
 
@@ -30,6 +32,8 @@ export async function fetchWsfexServerStatus(
   signal: AbortSignal,
   httpClient?: SoapOptions['httpClient'],
 ): Promise<ServerStatus> {
+  avoidWeakDhe(environment === 'produccion');
+
   const options: SoapOptions = {
     forceSoap12Headers: true,
     ...(httpClient ? { httpClient } : {}),

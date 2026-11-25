@@ -1,6 +1,7 @@
 import { resolveRelativeDateInput } from '../../lib/dates/relative-date';
 import { type AppError, InputValidationError } from '../../lib/errors/app-error';
 import { resolveEmitDecision } from '../billing/billing.emit-decision';
+import { formatVoucherWithArticle } from '../billing/voucher-names';
 import { mergeAssociatedVoucher } from '../vouchers/associated-voucher.merge';
 
 import { discardExportOverridden } from './export.input-overrides';
@@ -29,6 +30,8 @@ export interface ExportFlags extends ExportJsonInput {
 export interface ExportInputOptions {
   /** `output.emitirPorDefecto` de la config. */
   readonly defaultEmit?: boolean;
+  /** El CUIT de la config, para saber si un asociado es propio. */
+  readonly emitterCuit?: number;
   /** El comprobante de `--cargar`, ya validado con `readExportJsonInput`. */
   readonly file?: ExportJsonInput;
   /** Los arma el CLI, que controla las incompatibilidades (`errors`); HTTP y MCP mandan solo `file`. */
@@ -62,6 +65,7 @@ function resolveExportAssociatedVoucher(
   layers: ExportInputLayers,
   voucherKind: ExportVoucherKind,
   now: Date,
+  emitterCuit: number | undefined,
 ): ExportAssociatedVoucherInput | undefined {
   if (!isExportNote(voucherKind)) {
     if (layers.file.comprobanteAsociado) {
@@ -75,8 +79,18 @@ function resolveExportAssociatedVoucher(
 
   const fromFile = layers.file.comprobanteAsociado;
   const fromFlags = layers.flags.comprobanteAsociado;
-  const voucher =
-    mergeAssociatedVoucher(fromFlags, fromFile, (shortcut) => getExportVoucherKindByShortcut(shortcut)?.arcaType) ?? {};
+  const merged = mergeAssociatedVoucher(fromFlags, fromFile, {
+    arcaTypeOf: (shortcut) => getExportVoucherKindByShortcut(shortcut)?.arcaType,
+    emitterCuit,
+  });
+  const voucher = merged.voucher ?? {};
+
+  // Como en A, B, C y FCE: no se sabe de quien es, asi que no se toma el de la nota.
+  if (merged.ownerUnknown && voucher.numero !== undefined && voucher.puntoVenta === undefined) {
+    throw new InputValidationError(
+      `Falta el punto de venta del comprobante asociado de ${formatVoucherWithArticle(voucherKind)}. Usá \`--apv <número>\`.`,
+    );
+  }
 
   return {
     arcaType: voucher.tipo,
@@ -114,6 +128,7 @@ function itemsDescriptionWarnings(layers: ExportInputLayers): string[] {
  */
 export function resolveExportInput({
   defaultEmit,
+  emitterCuit,
   file = {},
   flags = {},
   now,
@@ -133,7 +148,7 @@ export function resolveExportInput({
     throw flags.errors.pdf;
   }
 
-  const associatedVoucher = resolveExportAssociatedVoucher(layers, voucherKind, now);
+  const associatedVoucher = resolveExportAssociatedVoucher(layers, voucherKind, now, emitterCuit);
 
   return {
     input: {

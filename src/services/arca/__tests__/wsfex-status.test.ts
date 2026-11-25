@@ -1,3 +1,4 @@
+import tls from 'node:tls';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { fetchWsfexServerStatus } from '../wsfex-status';
@@ -38,6 +39,23 @@ describe('fetchWsfexServerStatus', () => {
     expect(xml).toContain('FEXDummy');
     expect(xml).not.toMatch(/Token|Cuit/);
     expect(options).toMatchObject({ signal });
+  });
+
+  it('en producción no negocia DHE, aunque nadie haya creado antes un cliente', async () => {
+    const ciphers = tls.DEFAULT_CIPHERS;
+
+    try {
+      for (const [environment, expected] of [
+        ['testing', 'DEFAULT'],
+        ['produccion', 'DEFAULT:!DHE'],
+      ] as const) {
+        tls.DEFAULT_CIPHERS = 'DEFAULT';
+        await fetchWsfexServerStatus(environment, new AbortController().signal, answering(ANSWER) as never);
+        expect(tls.DEFAULT_CIPHERS).toBe(expected);
+      }
+    } finally {
+      tls.DEFAULT_CIPHERS = ciphers;
+    }
   });
 
   it('cancelada antes de empezar, no consulta', async () => {

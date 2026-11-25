@@ -728,17 +728,17 @@ Si el CUIT no figura, es el error `TAXPAYER_NOT_FOUND` (ver [códigos](#códigos
 }
 ```
 
-| Campo                    | Tipo             | Descripción                                                                                              |
-| ------------------------ | ---------------- | -------------------------------------------------------------------------------------------------------- |
-| `listo`                  | `boolean`        | Se puede emitir: los tres de `servidores` en `OK` y el punto de venta `habilitado` o `sin-datos`         |
-| `latenciaMs`             | `number`         | Lo que tardó ARCA en responder el estado de los servidores                                               |
-| `servidores`             | `object`         | `aplicacion`, `baseDeDatos` y `autenticacion`, tal como los informa ARCA (`OK` si andan)                 |
-| `servidoresExportacion`  | `object \| null` | Lo mismo de WSFEX, los de la `E`; `null` si no contestó en 5 segundos. No cambia `listo` ni el exit code |
-| `puntoVentaDetalle`      | `object`         | Lo mismo que `puntoVenta`, que en la 3.0.0 pasa a ser un número. Se detalla abajo                        |
-| `puntoVenta.estado`      | `string`         | `habilitado`, `bloqueado`, `de-baja`, `no-encontrado`, `sin-datos` (testing) o `sin-configurar`          |
-| `puntoVenta.numero`      | `number \| null` | Punto de venta de la config; `null` si no hay                                                            |
-| `puntoVenta.tipoEmision` | `string \| null` | Tipo de emisión que informa ARCA, si encontró el punto de venta                                          |
-| `entorno`                | `string`         | `testing` o `produccion`                                                                                 |
+| Campo                    | Tipo             | Descripción                                                                                                              |
+| ------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `listo`                  | `boolean`        | Se puede emitir: los tres de `servidores` en `OK` y el punto de venta `habilitado` o `sin-datos`                         |
+| `latenciaMs`             | `number`         | Lo que tardó ARCA en responder el estado de los servidores                                                               |
+| `servidores`             | `object`         | `aplicacion`, `baseDeDatos` y `autenticacion`, tal como los informa ARCA (`OK` si andan)                                 |
+| `servidoresExportacion`  | `object \| null` | Lo mismo de WSFEX, los de la `E`; `null` si no respondió bien o a tiempo (5 segundos). No cambia `listo` ni el exit code |
+| `puntoVentaDetalle`      | `object`         | Lo mismo que `puntoVenta`, que en la 3.0.0 pasa a ser un número. Se detalla abajo                                        |
+| `puntoVenta.estado`      | `string`         | `habilitado`, `bloqueado`, `de-baja`, `no-encontrado`, `sin-datos` (testing) o `sin-configurar`                          |
+| `puntoVenta.numero`      | `number \| null` | Punto de venta de la config; `null` si no hay                                                                            |
+| `puntoVenta.tipoEmision` | `string \| null` | Tipo de emisión que informa ARCA, si encontró el punto de venta                                                          |
+| `entorno`                | `string`         | `testing` o `produccion`                                                                                                 |
 
 `listo: false` **no es un error**: el comando sale con exit code `0`. Revisá `listo` en el JSON. Si ARCA no responde, sí es error: `ARCA_UNAVAILABLE`, con exit code `1`.
 

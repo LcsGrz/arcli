@@ -200,6 +200,62 @@ describe('sin --apv, el punto de venta del asociado es el de la nota', () => {
     });
   });
 
+  it('`--acuit` propio sobre un CUIT ajeno del archivo: cambia de quién es y la fecha no va', () => {
+    const comprobanteAsociado = { atajo: 'fc', cuit: '30709965812', fecha: '01/10/2026', numero: 5 };
+    const build = (cuit: string, file: BillingJsonInput['comprobanteAsociado']) =>
+      associatedOf('ncc', {
+        file: { ...CONSUMER, comprobanteAsociado: file, puntoVenta: 3 },
+        flags: { comprobanteAsociado: { cuit } },
+      });
+
+    expect(build(String(EMITTER), comprobanteAsociado)).toEqual({
+      Cuit: String(EMITTER),
+      Nro: 5,
+      PtoVta: 3,
+      Tipo: 11,
+    });
+    expect(build(String(EMITTER), { ...comprobanteAsociado, puntoVenta: 2 })).toEqual({
+      Cuit: String(EMITTER),
+      Nro: 5,
+      PtoVta: 2,
+      Tipo: 11,
+    });
+    expect(build('30709965812', { ...comprobanteAsociado, puntoVenta: 2 })).toMatchObject({ CbteFch: '20261001' });
+  });
+
+  it.each<[VoucherShortcut, string, string, BillingJsonInput]>([
+    ['nca', 'fa', 'nda', COMPANY],
+    ['ncb', 'fb', 'ndb', CONSUMER],
+    ['ncc', 'fc', 'ndc', CONSUMER],
+  ])('%s: con el CUIT ajeno descartado, su punto de venta del archivo tampoco va', (shortcut, atajo, other, base) => {
+    const ajeno = { atajo, cuit: '30709965812', numero: 5, puntoVenta: 2 };
+    const build = (comprobanteAsociado: BillingJsonInput['comprobanteAsociado']) => () =>
+      associatedOf(shortcut, {
+        file: { ...base, comprobanteAsociado: ajeno, puntoVenta: 3 },
+        flags: { comprobanteAsociado },
+      });
+
+    for (const elsewhere of [{ numero: 9 }, { atajo: other }]) {
+      expect(build(elsewhere)).toThrow('Falta el punto de venta');
+      expect(build({ ...elsewhere, puntoVenta: 4 })()).toMatchObject({ Cuit: String(EMITTER), PtoVta: 4 });
+      expect(build({ ...elsewhere, cuit: String(EMITTER) })()).toMatchObject({ Cuit: String(EMITTER), PtoVta: 3 });
+      // El mismo ajeno, repetido: sigue siendo de ese emisor.
+      expect(build({ ...elsewhere, cuit: '30709965812' })()).toMatchObject({ Cuit: '30709965812', PtoVta: 2 });
+    }
+  });
+
+  it('FCE: con el CUIT ajeno descartado, también falta el punto de venta', () => {
+    const file = {
+      ...COMPANY,
+      comprobanteAsociado: { atajo: 'fcea', cuit: '30709965812', numero: 5, puntoVenta: 2 },
+      puntoVenta: 3,
+    };
+
+    expect(() => associatedOf('ncea', { file, flags: { comprobanteAsociado: { numero: 9 } } })).toThrow(
+      'Falta el punto de venta',
+    );
+  });
+
   it('sin punto de venta en ningún lado, falta el de la nota', () => {
     const { input } = resolveBillingInput({
       defaults: { emitterCuit: EMITTER },

@@ -7,7 +7,6 @@ import {
   type ITicketStoragePort,
   MemoryTicketStorage,
 } from '@arcasdk/core';
-import tls from 'node:tls';
 
 import { readPemFile } from '../../lib/security/pem';
 import type { ArcaProfile } from '../../modules/config/arca-profile';
@@ -20,17 +19,13 @@ import { resolveExportCredentials } from '../../modules/config/config.export-cre
 import { systemClock } from '../time/system-clock';
 
 import { ArcaExportGateway, type WsfexAuthenticator } from './arca-export.gateway';
+import { avoidWeakDhe } from './tls';
 
 /** El cliente de ARCA: quien lo pide se lo pasa a un gateway y no conoce el SDK. */
 export type ArcaClient = Arca;
 
 function createArcaClient(context: Context): ArcaClient {
-  // WSFE y WSFEX de producción prefieren DHE con una clave de 1024 bits, que corta con `dh key too small` donde OpenSSL
-  // usa SECLEVEL=2 (Debian y otras distros). Sin DHE negocian otra suite y nada más se afloja, a diferencia de
-  // `useHttpsAgent` del SDK, que baja a SECLEVEL=1 y habilita la renegociación insegura en todas las conexiones.
-  if (context.production === true && !tls.DEFAULT_CIPHERS.includes('!DHE')) {
-    tls.DEFAULT_CIPHERS += ':!DHE';
-  }
+  avoidWeakDhe(context.production === true);
 
   return new Arca(context);
 }
