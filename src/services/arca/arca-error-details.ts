@@ -13,9 +13,9 @@ export function toDetailErrors<T extends ArcaError>(
   return errors.map((error) => ({ ...error, codigo: error.code, mensaje: error.msg }));
 }
 
-/** El aviso de `code` y `msg`, que solo traen los errores de wsfe. */
+/** El aviso de `code` y `msg`, que solo traen los errores de wsfe, siempre juntas (`toDetailErrors`). */
 function oldKeysNotice(errores: readonly object[]): string[] {
-  return errores.some((error) => 'code' in error || 'msg' in error) ? [DEPRECATED_DETAILS_ERROR_KEYS] : [];
+  return errores.some((error) => 'code' in error) ? [DEPRECATED_DETAILS_ERROR_KEYS] : [];
 }
 
 /** `detalles` de un error de wsfe. Cada entrada conserva `code` y `msg`, con su aviso, hasta la 3.0.0. */

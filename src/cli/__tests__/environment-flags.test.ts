@@ -48,9 +48,6 @@ const REQUIRED_ARGUMENTS: Readonly<Record<string, readonly string[]>> = {
   ultimos: ['fc'],
 };
 
-/** Los que ya lo daban bien. */
-const ALREADY_INPUT = new Set(['certificado generar', 'certificado importar']);
-
 /** Los comandos que declaran los dos flags. El del asistente necesita una terminal: su sesión se prueba aparte. */
 function commandsWithBothFlags(): Array<[string, string[]]> {
   const found: Array<[string, string[]]> = [];
@@ -99,26 +96,21 @@ describe('--testing con --produccion', () => {
     );
   });
 
-  it.each(COMMANDS)('sin cambios: %s, el mismo mensaje y código de salida 1', async (_name, argv) => {
-    expect(await runJsonError(argv)).toMatchObject({ detalles: null, error: MESSAGE, exitCode: 1, sugerencia: null });
+  it.each(COMMANDS)('%s: INPUT_VALIDATION_ERROR y código de salida 1', async (_name, argv) => {
+    expect(await runJsonError(argv)).toEqual({
+      codigo: 'INPUT_VALIDATION_ERROR',
+      detalles: null,
+      error: MESSAGE,
+      exitCode: 1,
+      sugerencia: null,
+    });
   });
 
-  it.each(COMMANDS.filter(([name]) => !ALREADY_INPUT.has(name)))('%s: INPUT_VALIDATION_ERROR', async (_name, argv) => {
-    expect(await runJsonError(argv)).toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR', error: MESSAGE });
-  });
-
-  it.each(COMMANDS.filter(([name]) => ALREADY_INPUT.has(name)))(
-    'sin cambios: %s, INPUT_VALIDATION_ERROR',
-    async (_name, argv) => {
-      expect(await runJsonError(argv)).toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR', error: MESSAGE });
-    },
-  );
-
-  it('sin cambios: `parametros` sin tabla no usa el entorno y lista las tablas', async () => {
+  it('`parametros` sin tabla no usa el entorno y lista las tablas', async () => {
     await expect(runJsonError(['parametros', '--testing', '--produccion'])).rejects.toThrow('se esperaba un error');
   });
 
-  it('sin cambios: la config que falta sigue siendo CONFIGURATION_ERROR', async () => {
+  it('la config que falta sigue siendo CONFIGURATION_ERROR', async () => {
     expect(await runJsonError(['estado', '--testing'])).toMatchObject({ codigo: 'CONFIGURATION_ERROR', exitCode: 1 });
   });
 

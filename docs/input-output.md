@@ -1008,7 +1008,7 @@ Si la entrada quedó incompleta porque falló una consulta a ARCA, el código es
 
 En los errores de ARCA, `detalles.errores` trae cada error con `codigo` y `mensaje`. Si también están `detalles.errors`, o `code` y `msg` en cada error, `detalles.deprecado` avisa que se sacan en la 3.0.0.
 
-Las formas de `detalles`, por código; los códigos que no están lo traen siempre en `null`:
+Las formas de `detalles`, por código; los códigos que no están lo traen siempre en `null`. Una clave con un valor vacío (`null` o `""`) no sale: por ejemplo, `salida` si el instalador no escribió nada.
 
 | `codigo`                                           | `detalles`                                                                     | Cuándo                                                                                        |
 | -------------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
@@ -1018,7 +1018,9 @@ Las formas de `detalles`, por código; los códigos que no están lo traen siemp
 |                                                    | `{ codigoCausa }`                                                              | Falta un dato porque falló una consulta a ARCA                                                |
 |                                                    | `{ ruta }` o `{ cause, ruta }`                                                 | El archivo de `--cargar` no existe, o no es un JSON válido                                    |
 |                                                    | `{ permisos }`                                                                 | ARCA no reconoce los permisos de embarque de una `E`                                          |
-| `CONFIGURATION_ERROR`                              | `{ ruta }` o `null`                                                            | Con `ruta`, el archivo con el problema                                                        |
+| `CONFIGURATION_ERROR`                              | `null`                                                                         | Falta un dato de la config                                                                    |
+|                                                    | `{ ruta }`                                                                     | El archivo del certificado, de la clave o de la config con el problema                        |
+|                                                    | `{ faltan: [clave] }`                                                          | Las claves de la config que faltan para WSFEX                                                 |
 | `ARCA_LAST_VOUCHER_ERROR`, `ARCA_PARAMETERS_ERROR` | `{ deprecado, errores: [{ code, codigo, mensaje, msg }] }`                     |                                                                                               |
 | `ARCA_VOUCHER_QUERY_ERROR`                         | `{ deprecado, errores: [{ code, codigo, mensaje, msg }] }` o `{ errores: [] }` | Vacío si ARCA no informó ninguno, y siempre en la `E`                                         |
 | `ARCA_QUOTATION_ERROR`                             | `{ deprecado, errores: [{ code, codigo, mensaje, msg }], errors }`             | A, B, C, FCE, recibo y `parametros cotizacion`; `errores` puede ser `[]` y `errors`, faltar   |
@@ -1029,7 +1031,7 @@ Las formas de `detalles`, por código; los códigos que no están lo traen siemp
 | `BATCH_VALIDATION_ERROR`                           | `{ comprobantes: [{ codigo, error, indice, sugerencia }] }`                    | Cada uno suma `codigoCausa` si falló una consulta ([detalle](#validación-y-errores-del-lote)) |
 | `BATCH_EMISSION_ERROR`                             | `{ procesados, fallo, sinProcesar, total, codigoCausa }`                       | Y `sinConfirmar`, si hay que verificar uno ([detalle](#validación-y-errores-del-lote))        |
 | `CERTIFICATE_EXPIRED`                              | `{ entorno, vencimiento }` o `null`                                            | `null` en `certificado importar`                                                              |
-| `PDF_PLUGIN_INSTALL_ERROR`                         | `{ salida }`                                                                   | Lo último que escribió el instalador                                                          |
+| `PDF_PLUGIN_INSTALL_ERROR`                         | `{ salida }` o `{}`                                                            | Lo último que escribió el instalador                                                          |
 
 Un comprobante **rechazado por ARCA no es un error del comando**: sale como resultado normal (stdout, `estado: "rechazado"`, con `errores` y `observaciones`), pero el exit code es `2`.
 
