@@ -50,7 +50,7 @@ export const E_NOTE = ['-m', '500', '--ar', '1'];
 /** Lo que consulta la factura E antes de la vista previa. No emite: el número y el ID son lecturas. */
 export const FE_READS = [
   ...['getDestinationCountries', 'getDestinationCountryCuits', 'getUnits', 'getLanguages', 'getCurrencies'],
-  ...['getLastVoucherNumber', 'getLastRequestId', 'getActivities'],
+  ...['getActivities', 'getLastVoucherNumber', 'getLastRequestId'],
 ].map((method) => `ARCA ${method}`);
 
 export const EMIT = 'Sí, emitir ahora';
@@ -491,7 +491,11 @@ export async function runBilling(
 
 export async function runExport(
   args: readonly string[],
-  options: RunOptions & { readonly kind?: ExportVoucherKind } = {},
+  options: RunOptions & {
+    /** Con lo que el comando toma de afuera por defecto: el archivo de tests simula el perfil y el WSFEX de abajo. */
+    readonly defaultDependencies?: boolean;
+    readonly kind?: ExportVoucherKind;
+  } = {},
 ): Promise<Run> {
   const voucherKind = options.kind ?? EXPORT_VOUCHER_KIND;
   const command = new Command(voucherKind.shortcut);
@@ -505,14 +509,16 @@ export async function runExport(
       executeExportCommand(
         command,
         { voucherKind },
-        { createGateway: () => exportGateway(options.arca), resolveRuntime: () => emissionRuntime(options) },
+        options.defaultDependencies
+          ? undefined
+          : { createGateway: () => exportGateway(options.arca), resolveRuntime: () => emissionRuntime(options) },
       ),
     options,
   );
 }
 
 /** Un JSON de `--cargar` en la carpeta temporal del test. */
-function writeInput(content: unknown): string {
+export function writeInput(content: unknown): string {
   const path = join(directory, 'entrada.json');
 
   writeFileSync(path, JSON.stringify(content), 'utf8');

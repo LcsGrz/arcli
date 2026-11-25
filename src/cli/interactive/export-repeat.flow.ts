@@ -20,8 +20,8 @@ import {
 import { repeatActivityToSave } from '../../modules/interactive/steps/config-offer';
 import { fieldLens, nestedLens } from '../../modules/interactive/steps/lens';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
-import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { noticePanel, writeTerminalOutput } from '../../ui';
+import { createExportVoucherGateway } from '../export-voucher-gateway';
 
 import { askPermitsStep, emitExportVoucher } from './export.flow';
 import { askCountryCuit, exportOptionalsStep } from './export-options';
@@ -240,7 +240,7 @@ export async function runExportRepeatFlow(
   session: InteractiveSession,
   pointOfSale: number,
 ): Promise<typeof BACK | void> {
-  const gateway = new ArcaClientFactory().createExportGateway(session.runtime);
+  const gateway = createExportVoucherGateway(session.runtime);
   const tables = await loadExportTables(gateway);
   const configured = session.runtime.config.exportacion?.actividad;
   // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15).

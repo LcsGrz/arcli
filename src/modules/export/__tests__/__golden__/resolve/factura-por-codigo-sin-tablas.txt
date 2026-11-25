@@ -1,0 +1,84 @@
+{
+  "display": {
+    "countryName": "CHILE",
+    "incotermName": "FOB",
+    "permitChecks": [
+      {
+        "permit": "26001EC01000123A",
+        "status": "valido"
+      }
+    ],
+    "unitNames": {}
+  },
+  "payload": {
+    "Actividades": {
+      "Actividad": [
+        {
+          "Id": 620100
+        }
+      ]
+    },
+    "CanMisMonExt": "N",
+    "Cbte_nro": 42,
+    "Cbte_Tipo": 19,
+    "Cliente": "ACME LTDA",
+    "Cuit_pais_cliente": 55000000052,
+    "Domicilio_cliente": "Alameda 100",
+    "Dst_cmp": 202,
+    "Fecha_cbte": "20260603",
+    "Forma_pago": "Transferencia Internacional",
+    "Id": 8,
+    "Id_impositivo": "123456789",
+    "Idioma_cbte": 2,
+    "Imp_total": 1500,
+    "Incoterms": "FOB",
+    "Incoterms_Ds": "Puerto de origen",
+    "Items": {
+      "Item": [
+        {
+          "Pro_bonificacion": 0,
+          "Pro_codigo": "",
+          "Pro_ds": "Vino",
+          "Pro_precio_uni": 500,
+          "Pro_qty": 3,
+          "Pro_total_item": 1500,
+          "Pro_umed": 1
+        }
+      ]
+    },
+    "Moneda_ctz": 5000,
+    "Moneda_Id": "DOL",
+    "Obs": "",
+    "Obs_comerciales": "",
+    "Permiso_existente": "S",
+    "Permisos": {
+      "Permiso": [
+        {
+          "Dst_merc": 202,
+          "Id_permiso": "26001EC01000123A"
+        }
+      ]
+    },
+    "Punto_vta": 3,
+    "Tipo_expo": 1
+  },
+  "voucherKind": {
+    "arcaType": 19,
+    "displayName": "Factura de exportación E",
+    "pdfTitle": "FACTURA DE EXPORTACIÓN",
+    "family": "factura",
+    "letter": "e",
+    "shortcut": "fe"
+  },
+  "warnings": [
+    "La factura E de bienes (`--tipo-expo 1`) no lleva fecha de pago: ARCA la rechaza (error 1673). `--fecha-pago` no se usa.",
+    "La cotización de DOL (5.000) está fuera de lo que dice el manual de ARCA: entre el 2 % y el 400 % de la oficial (900,50), o sea de 18,01 a 3.602. ARCA la puede rechazar (error 1667): revisá `--cm`.",
+    "La fecha del comprobante (03/06/2026) es futura: las próximas facturas de exportación E del punto de venta 3 van a tener que llevar esa fecha o una posterior, porque ARCA rechaza una anterior (error 1535).",
+    "No se pudo consultar la tabla de CUIT de países de WSFEX (ARCA devolvió un error): el CUIT de país 55000000052 no se pudo comparar con el país. Revisalo antes de emitir.",
+    "No se pudo consultar la tabla de unidades de medida de WSFEX (ARCA devolvió un error): la unidad 1 va sin validar. Si hay un error, ARCA rechaza el comprobante al emitir.",
+    "No se pudo consultar la tabla de incoterms de WSFEX (ARCA devolvió un error): el incoterm FOB va sin validar. Si hay un error, ARCA rechaza el comprobante al emitir.",
+    "No se pudo consultar la tabla de idiomas de WSFEX (ARCA devolvió un error): el idioma 2 va sin validar. Si hay un error, ARCA rechaza el comprobante al emitir.",
+    "No se pudo consultar la tabla de monedas de WSFEX (ARCA devolvió un error): la moneda USD va sin validar. Si hay un error, ARCA rechaza el comprobante al emitir.",
+    "No se pudo consultar la tabla de actividades de WSFEX (ARCA devolvió un error): la actividad 620100 va sin validar. Si hay un error, ARCA rechaza el comprobante al emitir."
+  ]
+}

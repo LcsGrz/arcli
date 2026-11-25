@@ -883,7 +883,8 @@ describe('ExportService.resolve: tablas que no responden (EXPO-13, ARQ-22)', () 
         RUNTIME,
       ),
     ).rejects.toBe(error);
-    expect(gateway.getLanguages).not.toHaveBeenCalled();
+    expect(gateway.getQuotations).not.toHaveBeenCalled();
+    expect(gateway.checkPermit).not.toHaveBeenCalled();
     expect(gateway.authorize).not.toHaveBeenCalled();
   });
 
@@ -909,11 +910,19 @@ describe('ExportService.resolve: tablas que no responden (EXPO-13, ARQ-22)', () 
     await expect(read({ getLanguages: down(token) })).rejects.toBe(token);
   });
 
-  it('corta sin seguir consultando', async () => {
-    const getLanguages = vi.fn(async () => []);
+  it('corta sin pedir la cotización ni los números', async () => {
+    const reads = {
+      getLastRequestId: vi.fn(async () => 7),
+      getLastVoucherNumber: vi.fn(async () => 41),
+      getQuotations: vi.fn(async () => []),
+    };
 
-    await expect(read({ getIncoterms: down(), getLanguages }, { incoterm: 'fob' })).rejects.toThrow(TIMEOUT);
-    expect(getLanguages).not.toHaveBeenCalled();
+    await expect(read({ ...reads, getIncoterms: down() }, { currencyCode: 'USD', incoterm: 'fob' })).rejects.toThrow(
+      TIMEOUT,
+    );
+    expect(reads.getQuotations).not.toHaveBeenCalled();
+    expect(reads.getLastVoucherNumber).not.toHaveBeenCalled();
+    expect(reads.getLastRequestId).not.toHaveBeenCalled();
   });
 
   it('varias unidades escritas: en plural', async () => {

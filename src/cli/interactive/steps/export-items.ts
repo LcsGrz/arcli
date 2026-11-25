@@ -364,15 +364,15 @@ const EDITOR_OPTIONS = {
  * si la moneda cambio, avisa que hay que revisar los importes.
  */
 export function exportItemsStep<S>(def: ExportItemsStepDef<S>): WizardStep<S> {
-  let units: Promise<readonly ExportUnit[]> | undefined;
-
   return {
     dependsOn: def.dependsOn,
     name: 'items',
     run: async (state, { memo, previous }) => {
-      units ??= withSpinner('Consultando las unidades de WSFEX...', def.units);
-
-      const question = { currency: def.currency(state), units: await units };
+      const question = {
+        currency: def.currency(state),
+        // Una vez por comprobante, porque el gateway las recuerda (`cacheExportTables`).
+        units: await withSpinner('Consultando las unidades de WSFEX...', def.units),
+      };
       const answered = previous ? def.items.get(previous as S) : undefined;
       const remembered = memo.get<ItemsMemo>();
       let items: readonly ExportItemInput[] = remembered?.items ?? answered ?? def.initial?.(state) ?? [];

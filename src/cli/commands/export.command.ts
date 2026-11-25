@@ -9,12 +9,12 @@ import { serializeExportResult } from '../../modules/export/export.serialize';
 import type { ExportExecutionResult } from '../../modules/export/export.types';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
-import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { systemClock } from '../../services/time/system-clock';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { type CliArcaRuntime, exportCertificateWarnings, resolveArcaRuntime } from '../arca-runtime';
 import { formatEmissionQuestion } from '../emission-texts';
 import { recordExportEmission, recordFailedExportPdf } from '../emitted-vouchers';
+import { createExportVoucherGateway } from '../export-voucher-gateway';
 import { getGlobalOptions } from '../global-options';
 import { startSpinner } from '../spinner';
 
@@ -61,7 +61,7 @@ export interface ExportCommandDependencies {
 }
 
 const DEFAULT_DEPENDENCIES: ExportCommandDependencies = {
-  createGateway: (runtime) => new ArcaClientFactory().createExportGateway(runtime),
+  createGateway: createExportVoucherGateway,
   resolveRuntime: resolveArcaRuntime,
 };
 

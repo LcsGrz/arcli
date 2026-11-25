@@ -28,8 +28,8 @@ import { fieldLens } from '../../modules/interactive/steps/lens';
 import { validatePositiveInteger } from '../../modules/interactive/validators';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
-import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { noticePanel, writeTerminalOutput } from '../../ui';
+import { createExportVoucherGateway } from '../export-voucher-gateway';
 import { withSpinner } from '../spinner';
 
 import { askPermitsStep, emitExportVoucher } from './export.flow';
@@ -326,7 +326,7 @@ export async function runExportNoteFlow(
 
   const { pointOfSale, session } = ready;
 
-  const gateway = new ArcaClientFactory().createExportGateway(session.runtime);
+  const gateway = createExportVoucherGateway(session.runtime);
   const state = await runWizard(exportNoteSteps(kind, gateway, pointOfSale), { associatedKind }, undefined, {
     // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15).
     confirm: emissionStep<ExportNoteState>((answered) =>

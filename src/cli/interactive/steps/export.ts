@@ -66,19 +66,14 @@ export function loadExportTables(
 }
 
 /**
- * La tabla de actividades de WSFEX, una vez por flujo y solo cuando se pregunta la actividad: si la factura que se
- * repite la trae o esta en la config, no se consulta (y una falla de ARCA en esa tabla no corta el flujo).
+ * La tabla de actividades de WSFEX, solo cuando se pregunta la actividad: si la factura que se repite la trae o esta en
+ * la config, no se consulta (y una falla de ARCA en esa tabla no corta el flujo). Una vez por comprobante, porque el
+ * gateway la recuerda (`cacheExportTables`).
  */
 export function activitiesLoader(
   gateway: Pick<ExportGateway, 'getActivities'>,
 ): () => Promise<readonly ExportActivity[]> {
-  let loaded: Promise<readonly ExportActivity[]> | undefined;
-
-  return () => {
-    loaded ??= withSpinner('Consultando las actividades de WSFEX...', () => gateway.getActivities());
-
-    return loaded;
-  };
+  return () => withSpinner('Consultando las actividades de WSFEX...', () => gateway.getActivities());
 }
 
 /**
@@ -212,28 +207,23 @@ function isTableQueryError(error: unknown): boolean {
 }
 
 /**
- * La tabla de monedas de WSFEX, una vez por flujo y al preguntar la moneda. Vacia si ARCA no la devolvio o la consulta
- * fallo: la pregunta deja escribir el codigo. Una falla no se recuerda: al volver a la pregunta se reintenta.
+ * La tabla de monedas de WSFEX, al preguntar la moneda. Vacia si ARCA no la devolvio o la consulta fallo: la pregunta
+ * deja escribir el codigo. El gateway recuerda la respuesta y no la falla (`cacheExportTables`): al volver a la pregunta
+ * se reintenta.
  */
 export function currenciesLoader(
   gateway: Pick<ExportGateway, 'getCurrencies'>,
 ): () => Promise<readonly ExportCurrency[]> {
-  let loaded: Promise<readonly ExportCurrency[]> | undefined;
+  return async () => {
+    try {
+      return await withSpinner('Consultando las monedas de WSFEX...', () => gateway.getCurrencies());
+    } catch (error) {
+      if (!isTableQueryError(error)) {
+        throw error;
+      }
 
-  return () => {
-    loaded ??= withSpinner('Consultando las monedas de WSFEX...', () => gateway.getCurrencies()).catch(
-      (error: unknown) => {
-        loaded = undefined;
-
-        if (!isTableQueryError(error)) {
-          throw error;
-        }
-
-        return [];
-      },
-    );
-
-    return loaded;
+      return [];
+    }
   };
 }
 
