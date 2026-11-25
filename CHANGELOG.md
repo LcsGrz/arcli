@@ -95,6 +95,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Fechas:** en un lote que cruza la medianoche, `hoy` y las demás fechas relativas son del mismo día en todos los comprobantes (#282).
 - **Asistente:** en producción pregunta una sola vez antes de emitir, como los comandos (#289).
 - **Factura E:** la vista previa consulta varias tablas de WSFEX a la vez, y el asistente, cada una una vez por comprobante (#294).
+- **Factura E:** en el asistente, la lista de incoterms muestra el nombre del marcado, como `Free on Board` (#296).
 
 <details><summary>Detalle</summary>
 
@@ -141,6 +142,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **Moneda y actividad de exportación en la config.** La moneda lista las monedas de ARCA, que se buscan por nombre, código de ARCA o ISO (`usd`), y elegir una guarda el código de ARCA (`DOL`), como el default `PES`. La actividad lista la tabla de WSFEX, consultada como en `arcli fe`: hacen falta el CUIT y el certificado y la clave de facturación del entorno, y el de exportación se usa si está configurado; sin eso o si ARCA no responde, se escribe el código como antes. Sin valor guardado, la lista arranca en "Dejar sin configurar": Enter ya no guarda la primera opción sin elegirla, también en la condición de venta. Lo escrito se valida como `arcli config establecer`, y las claves no cambian.
 
 **Una sola confirmación en producción.** El asistente preguntaba "¿Emitimos…?" y, en producción, otra vez con **Sí, emitir en producción**. Ahora pregunta una sola vez, como los comandos con flags, en la factura, el recibo, las notas, "Repetir" y la `E`. La pregunta sigue diciendo PRODUCCIÓN. **No, dejar sin emitir** termina sin emitir y Esc vuelve a la última pregunta. Los comandos no cambian.
+
+**Nombre del incoterm.** La lista mostraba solo el código (`FOB`). Ahora, debajo, se ve el nombre de la tabla de WSFEX del que está marcado; si la tabla no lo trae o repite el código, no se ve nada. El filtro, que ya encontraba por el nombre, lo que se emite y el comando equivalente no cambian.
 
 </details>
 
