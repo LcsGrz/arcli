@@ -1,0 +1,86 @@
+{
+  "display": {
+    "countryCuitName": "CHILE - Persona Jurídica",
+    "countryName": "CHILE",
+    "currencyName": "Dólar Estadounidense",
+    "incotermName": "FOB",
+    "languageName": "Inglés",
+    "permitChecks": [
+      {
+        "permit": "26001EC01000123A",
+        "status": "valido"
+      }
+    ],
+    "unitNames": {
+      "1": "kilogramos",
+      "7": "unidades"
+    }
+  },
+  "payload": {
+    "Actividades": {
+      "Actividad": [
+        {
+          "Id": 620100
+        }
+      ]
+    },
+    "CanMisMonExt": "N",
+    "Cbte_nro": 42,
+    "Cbte_Tipo": 19,
+    "Cliente": "ACME LTDA",
+    "Cuit_pais_cliente": 55000000052,
+    "Domicilio_cliente": "Alameda 100",
+    "Dst_cmp": 202,
+    "Fecha_cbte": "20260603",
+    "Forma_pago": "Transferencia Internacional",
+    "Id": 8,
+    "Id_impositivo": "",
+    "Idioma_cbte": 2,
+    "Imp_total": 1500,
+    "Incoterms": "FOB",
+    "Incoterms_Ds": "FOB",
+    "Items": {
+      "Item": [
+        {
+          "Pro_bonificacion": 0,
+          "Pro_codigo": "",
+          "Pro_ds": "Vino",
+          "Pro_precio_uni": 500,
+          "Pro_qty": 3,
+          "Pro_total_item": 1500,
+          "Pro_umed": 1
+        }
+      ]
+    },
+    "Moneda_ctz": 900.5,
+    "Moneda_Id": "DOL",
+    "Obs": "",
+    "Obs_comerciales": "",
+    "Permiso_existente": "S",
+    "Permisos": {
+      "Permiso": [
+        {
+          "Dst_merc": 202,
+          "Id_permiso": "26001EC01000123A"
+        }
+      ]
+    },
+    "Punto_vta": 3,
+    "Tipo_expo": 1
+  },
+  "voucherKind": {
+    "arcaType": 19,
+    "displayName": "Factura de exportación E",
+    "pdfTitle": "FACTURA DE EXPORTACIÓN",
+    "family": "factura",
+    "letter": "e",
+    "shortcut": "fe"
+  },
+  "warnings": [
+    "La factura E de bienes (`--tipo-expo 1`) no lleva fecha de pago: ARCA la rechaza (error 1673). `--fecha-pago` no se usa.",
+    "Sin `--cm` se usa la cotización oficial de ARCA para USD (900,50), la de aduana del 29/05/2026: ARCA no publicó la del 01/06/2026. Para usar otra, `--cotizacion-moneda`.",
+    "La fecha del comprobante (03/06/2026) es futura: las próximas facturas de exportación E del punto de venta 3 van a tener que llevar esa fecha o una posterior, porque ARCA rechaza una anterior (error 1535).",
+    "ARCA devolvió vacía la tabla de actividades de WSFEX: 620100 va sin validar y, si no es válido, ARCA lo rechaza al emitir.",
+    "ARCA devolvió vacía la tabla de incoterms de WSFEX: FOB va sin validar y, si no es válido, ARCA lo rechaza al emitir."
+  ]
+}

@@ -512,7 +512,7 @@ export async function runExport(
 }
 
 /** Un JSON de `--cargar` en la carpeta temporal del test. */
-function writeInput(content: unknown): string {
+export function writeInput(content: unknown): string {
   const path = join(directory, 'entrada.json');
 
   writeFileSync(path, JSON.stringify(content), 'utf8');
