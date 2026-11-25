@@ -8,16 +8,15 @@ import {
   formatGeneratedRequestAsText,
   formatImportedCertificateAsText,
 } from '../../modules/certificates/certificate.presenter';
-import { CertificateService, DEFAULT_CERTIFICATE_ALIAS } from '../../modules/certificates/certificate.service';
+import { DEFAULT_CERTIFICATE_ALIAS } from '../../modules/certificates/certificate.service';
 import {
   type ArcliEnvironment,
   arcliEnvironmentSchema,
   formatEnvironmentLabel,
 } from '../../modules/config/config.schemas';
-import { ConfigService } from '../../modules/config/config.service';
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { systemClock } from '../../services/time/system-clock';
 import { noticePanel, uiSymbol, writeTerminalOutput } from '../../ui';
+import { withCertificateService } from '../certificate-service';
 
 import { askTextStep, chooseStep, confirm } from './prompts';
 import { showAssistantError } from './show-assistant-error';
@@ -32,20 +31,6 @@ function environmentName(environment: ArcliEnvironment): string {
 
 const LATER_NOTICE = `Cuando tengas el .crt, cargalo desde Configuración ${uiSymbol('arrow')} Certificados de ARCA, o con \`arcli certificado importar <archivo>\`. Hasta entonces seguís usando el certificado actual.`;
 
-/** Cada operacion abre y cierra la config: entre una pregunta y otra el usuario puede tardar lo que quiera. */
-function withService<T>(run: (service: CertificateService, config: ConfigService) => T): T {
-  const config = new ConfigService();
-
-  try {
-    return run(
-      new CertificateService({ certificatesRoot: config.getCertificatesPath(), clock: systemClock, config }),
-      config,
-    );
-  } finally {
-    config.close();
-  }
-}
-
 function validateCertificateFile(value: string): string | true {
   const path = normalizeDroppedPath(value, process.platform);
 
@@ -57,7 +42,7 @@ function validateCertificateFile(value: string): string | true {
 }
 
 async function chooseEnvironment(): Promise<ArcliEnvironment | Back> {
-  const current = withService((_service, config) => config.getConfig().entornoPorDefecto);
+  const current = withCertificateService((_service, config) => config.getConfig().entornoPorDefecto);
 
   return chooseStep(
     '¿Para qué entorno?',
@@ -86,7 +71,7 @@ export async function runImportCertificate(): Promise<'importado' | Back> {
     let imported;
 
     try {
-      imported = withService((service) => service.import({ content }));
+      imported = withCertificateService((service) => service.import({ content }));
     } catch (error) {
       if (!(error instanceof AppError) || error.code !== 'CERTIFICATE_REPLACE_CONFIRMATION') {
         throw error;
@@ -98,7 +83,7 @@ export async function runImportCertificate(): Promise<'importado' | Back> {
         return BACK;
       }
 
-      imported = withService((service) => service.import({ content, replace: true }));
+      imported = withCertificateService((service) => service.import({ content, replace: true }));
     }
 
     writeTerminalOutput(formatImportedCertificateAsText(imported));
@@ -117,7 +102,7 @@ export async function runImportCertificate(): Promise<'importado' | Back> {
 
 /** Ya hay un pedido sin importar: mostrar su CSR de nuevo, o descartarlo y armar otro. */
 async function handlePendingRequest(environment: ArcliEnvironment): Promise<'reemplazar' | 'ver' | Back | undefined> {
-  const pendingCsr = withService((service) => service.readPendingRequest(environment));
+  const pendingCsr = withCertificateService((service) => service.readPendingRequest(environment));
 
   if (!pendingCsr) {
     return undefined;
@@ -168,7 +153,7 @@ export async function runGenerateCertificate(environment?: ArcliEnvironment): Pr
       return BACK;
     }
 
-    const request = withService((service) =>
+    const request = withCertificateService((service) =>
       service.generate({ alias, environment: target, replace: pending === 'reemplazar' }),
     );
 
@@ -194,7 +179,9 @@ export async function runCertificateMenu(): Promise<void> {
   for (;;) {
     writeTerminalOutput(
       formatCertificateStatusAsText(
-        withService((service) => arcliEnvironmentSchema.options.map((environment) => service.status(environment))),
+        withCertificateService((service) =>
+          arcliEnvironmentSchema.options.map((environment) => service.status(environment)),
+        ),
         new Date(),
       ),
     );

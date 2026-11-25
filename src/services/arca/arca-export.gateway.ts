@@ -26,6 +26,7 @@ import type { Arca, IFEXAuthorizeInput, IFEXGetLast_CMPInput } from './arca-sdk.
 import { readExportAnswer } from './authorization-answer';
 import { AUTHORIZE_SERVICE_SUGGESTION, isNotAuthorized, notAuthorizedTitle } from './not-authorized';
 import type { SdkRequest } from './sdk-request';
+import { readNumber, readOptionalText, readText } from './soap-values';
 import { unreadableVoucherError, voucherQueryError } from './voucher-query-error';
 
 const NOT_AUTHORIZED_MESSAGE = notAuthorizedTitle('wsfex', 'factura de exportación');
@@ -57,10 +58,6 @@ interface FexResult {
   readonly FEXEvents?: FexEvent;
 }
 
-function readText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
 /**
  * La fecha de la cotizacion viene como `dd/mm/yyyy`; el resto del modulo trabaja con fechas ARCA (`yyyymmdd`).
  * Si ARCA no la informa se descarta: la cotizacion igual sirve.
@@ -69,16 +66,6 @@ function parseWsfexQuotationDate(value: string): string | undefined {
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value);
 
   return match ? `${match[3]}${match[2].padStart(2, '0')}${match[1].padStart(2, '0')}` : undefined;
-}
-
-function readNumber(value: unknown): number | undefined {
-  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
-
-  return typeof parsed === 'number' && Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function readOptionalText(value: unknown): string | undefined {
-  return readText(value) || undefined;
 }
 
 /** Los arrays de `FEXGetCMP` vienen envueltos (`Actividades.Actividad`, `Cmps_asoc.Cmp_asoc`). */
