@@ -195,3 +195,138 @@ it('con una señal y un error, no hay nada que cortar', async () => {
   expect(isCutting()).toBe(false);
   expect(raw()).toEqual(before);
 });
+
+describe('mientras se entrega', () => {
+  /** Una emisión enviada, entregada con `deliver`. */
+  const deliverWith = (deliver: Parameters<typeof guardEmission<string>>[2], signals: readonly Signal[] = []) =>
+    guardEmission<string>(
+      { json: true, onCut: vi.fn() },
+      async ({ onSending }) => {
+        onSending?.(SENT);
+        signals.forEach(send);
+
+        return { results: ['CAE'] };
+      },
+      deliver,
+    );
+
+  it('la primera aborta; la segunda corta recién en finishCut, con los listeners de siempre', async () => {
+    const seen: boolean[] = [];
+    let atKill: ReturnType<typeof raw> | undefined;
+
+    vi.mocked(process.kill).mockImplementation(() => {
+      atKill = raw();
+
+      return true;
+    });
+    await deliverWith(async (_outcome, { signal }) => {
+      seen.push(signal.aborted);
+      send('SIGINT');
+      seen.push(signal.aborted);
+      send('SIGTERM');
+    });
+
+    expect(seen).toEqual([false, true]);
+    expect(process.kill).not.toHaveBeenCalled();
+    expect(other).not.toHaveBeenCalled();
+
+    await finishCut();
+
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
+    expect(atKill).toEqual(before);
+  });
+
+  it('con una sola, todo escrito: el eco no corta, una de verdad sí, y los listeners vuelven', async () => {
+    await deliverWith(async () => send('SIGINT'));
+
+    const exitIfStuck = vi.fn();
+
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+
+    try {
+      await finishCut(undefined, exitIfStuck);
+      now += REPEATED_SIGNAL_MS - 1;
+      process.emit('SIGINT', 'SIGINT');
+      expect(process.kill).not.toHaveBeenCalled();
+      now += 1;
+      process.emit('SIGINT', 'SIGINT');
+      expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGINT');
+      expect(raw()).toEqual(before);
+      vi.advanceTimersByTime(REPEATED_SIGNAL_MS);
+      expect(raw()).toEqual(before);
+      expect(exitIfStuck).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1000);
+      expect(exitIfStuck).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('en una pregunta los listeners son los de antes, y vuelven los propios', async () => {
+    const seen: Array<ReturnType<typeof raw>> = [];
+
+    await deliverWith(async (_outcome, { whileAsking }) => {
+      expect(await whileAsking(async () => seen.push(raw()))).toBe(1);
+      seen.push(raw());
+      await expect(whileAsking(() => Promise.reject(new Error('Esc')))).rejects.toThrow('Esc');
+      seen.push(raw());
+    });
+
+    expect(seen[0]).toEqual(before);
+    expect(seen[1]).not.toEqual(before);
+    expect(seen[2]).toEqual(seen[1]);
+    expect(raw()).toEqual(before);
+  });
+
+  it('una pregunta espera a que pase el eco de la señal anterior', async () => {
+    let asked = 0;
+    const start = Date.now();
+
+    await deliverWith(
+      async (_outcome, { whileAsking }) => {
+        await whileAsking(async () => {
+          asked = Date.now();
+        });
+      },
+      ['SIGINT'],
+    );
+
+    expect(asked - start).toBeGreaterThanOrEqual(REPEATED_SIGNAL_MS - 50);
+    expect(process.kill).not.toHaveBeenCalled();
+  });
+
+  it('ya cortado no se pregunta', async () => {
+    const ask = vi.fn();
+    let answer: unknown = 'sin responder';
+
+    await deliverWith(async (_outcome, { whileAsking }) => {
+      send('SIGINT');
+      now += REPEATED_SIGNAL_MS;
+      answer = await whileAsking(ask);
+    });
+
+    expect(answer).toBeUndefined();
+    expect(ask).not.toHaveBeenCalled();
+    await finishCut();
+    await vi.waitFor(() => expect(raw()).toEqual(before), { timeout: 2000 });
+  });
+
+  it('si entregar falla, los listeners vuelven', async () => {
+    await expect(deliverWith(() => Promise.reject(new Error('se rompió')))).rejects.toThrow('se rompió');
+    expect(raw()).toEqual(before);
+  });
+
+  it('sin nada enviado (una vista previa) no se ataja nada', async () => {
+    let seen: ReturnType<typeof raw> | undefined;
+
+    await guardEmission(
+      { json: true, onCut: vi.fn() },
+      async () => ({ results: [] }),
+      async () => {
+        seen = raw();
+      },
+    );
+
+    expect(seen).toEqual(before);
+  });
+});

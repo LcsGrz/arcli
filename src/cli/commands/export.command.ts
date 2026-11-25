@@ -19,6 +19,7 @@ import { getGlobalOptions } from '../global-options';
 import { guardEmission } from '../interruption';
 import { startSpinner } from '../spinner';
 
+import { interruptiblePdfSteps } from './billing.command.pdf';
 import { REJECTED_EXIT_CODE } from './billing.command.shared';
 import { confirmEmissionOrNotify } from './confirm-emission';
 import { parseExportCommandPlan } from './export.command.parser';
@@ -139,55 +140,60 @@ export async function executeExportCommand(
 
     spinner = runtime.outputJson ? null : startSpinner(`Emitiendo ${formatVoucherWithArticle(voucherKind)} en ARCA...`);
 
-    const outcome = await guardEmission({ json: runtime.outputJson, onCut: () => spinner?.stop() }, (interruption) =>
-      emitExport({
-        ...interruption,
-        clock: systemClock,
-        gateway,
-        input,
-        onEmitted: (result) => {
-          recordExportEmission(result);
-        },
-        resolved,
-        runtime,
-        warnings,
-      }),
+    await guardEmission(
+      { json: runtime.outputJson, onCut: () => spinner?.stop() },
+      (interruption) =>
+        emitExport({
+          ...interruption,
+          clock: systemClock,
+          gateway,
+          input,
+          onEmitted: (result) => {
+            recordExportEmission(result);
+          },
+          resolved,
+          runtime,
+          warnings,
+        }),
+      async (outcome, interruption) => {
+        spinner?.stop();
+
+        if ('error' in outcome) {
+          throw outcome.error;
+        }
+
+        const [result] = outcome.results;
+        const outputOptions = {
+          environment: runtime.environment,
+          outputJson: runtime.outputJson,
+          previewShown,
+          raw: useRaw,
+        };
+
+        if (result.response.status === 'rechazado') {
+          process.exitCode = REJECTED_EXIT_CODE;
+        }
+
+        // Como en A, B y C: en JSON el PDF va dentro del mismo resultado; en texto primero se ve el CAE.
+        if (!runtime.outputJson) {
+          writeExportResult(result, outputOptions);
+        }
+
+        const withPdf = await attachExportPdf(
+          result,
+          { config: runtime.config, input, interactive },
+          interruptiblePdfSteps(interruption),
+        );
+
+        recordFailedExportPdf(withPdf);
+
+        if (runtime.outputJson) {
+          writeExportResult(withPdf, outputOptions);
+        } else if (withPdf.pdf) {
+          writeTerminalOutput(formatPdfOutcomeAsText(withPdf.pdf));
+        }
+      },
     );
-
-    if ('error' in outcome) {
-      throw outcome.error;
-    }
-
-    spinner?.stop();
-    spinner = null;
-
-    const [result] = outcome.results;
-    const pdfOptions = { config: runtime.config, input, interactive };
-    const outputOptions = {
-      environment: runtime.environment,
-      outputJson: runtime.outputJson,
-      previewShown,
-      raw: useRaw,
-    };
-
-    if (result.response.status === 'rechazado') {
-      process.exitCode = REJECTED_EXIT_CODE;
-    }
-
-    // Como en A, B y C: en JSON el PDF va dentro del mismo resultado; en texto primero se ve el CAE.
-    if (!runtime.outputJson) {
-      writeExportResult(result, outputOptions);
-    }
-
-    const withPdf = await attachExportPdf(result, pdfOptions);
-
-    recordFailedExportPdf(withPdf);
-
-    if (runtime.outputJson) {
-      writeExportResult(withPdf, outputOptions);
-    } else if (withPdf.pdf) {
-      writeTerminalOutput(formatPdfOutcomeAsText(withPdf.pdf));
-    }
   } catch (error) {
     spinner?.stop();
     throw error;

@@ -582,8 +582,7 @@ describe.skipIf(process.platform === 'win32')('sin nada enviado, una señal cort
 describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () => {
   const CUT = { error: { codigo: 'PDF_GENERATION_ERROR', mensaje: 'Se cortó antes de generar el PDF.' } };
 
-  // Rojo: con SIGINT, sale con 130 sin salida; con SIGTERM, el error es el del navegador cerrado.
-  it.fails.each([
+  it.each([
     ['generando', 'pdf', 'SIGINT', INVOICE],
     ['generando', 'pdf', 'SIGTERM', INVOICE],
     ['abriendo el navegador', 'navegador', 'SIGINT', INVOICE],
@@ -597,8 +596,7 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
     expect(aliveBrowsers()).toEqual([]);
   });
 
-  // Rojo: sale con 130 sin el aviso.
-  it.fails('en texto: el CAE, el aviso y el cursor', async () => {
+  it('en texto: el CAE, el aviso y el cursor', async () => {
     const result = await run([...INVOICE, '--pdf'], {
       hold: ['pdf', 1],
       preloads: [fakeTerminal()],
@@ -612,8 +610,7 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
     expect(result).toMatchObject({ code: 0, killed: false, signal: null });
   });
 
-  // Rojo: sin salida.
-  it.fails('un lote en el 2.º: el 1.º con su archivo y los otros dos con error', async () => {
+  it('un lote en el 2.º: el 1.º con su archivo y los otros dos con error', async () => {
     const result = await run([...batch(), '--pdf', '--json'], { hold: ['pdf', 2], signals: ['SIGINT'] });
     const items = JSON.parse(result.stdout) as Array<{ pdf: { ruta?: string } }>;
 
@@ -623,8 +620,7 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
     expect(aliveBrowsers()).toEqual([]);
   });
 
-  // Rojo: sin salida.
-  it.fails('dos señales casi juntas son una: exit 0', async () => {
+  it('dos señales casi juntas son una: exit 0', async () => {
     const result = await run([...INVOICE, '--pdf', '--json'], {
       hold: ['pdf', 1],
       signalMs: REPEATED_MS,
@@ -635,8 +631,7 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
     expect(result).toMatchObject({ code: 0, killed: false, signal: null });
   });
 
-  // Rojo: sin salida.
-  it.fails('por npm exec, un Ctrl+C (que llega dos veces): el CAE con pdf.error', async () => {
+  it('por npm exec, un Ctrl+C (que llega dos veces): el CAE con pdf.error', async () => {
     const result = await run([...INVOICE, '--pdf', '--json'], { hold: ['pdf', 1], npx: true, signals: ['SIGINT'] });
 
     expect(JSON.parse(result.stdout)).toMatchObject({ cae: '75123456789012', pdf: CUT });
@@ -644,8 +639,7 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
     expect(aliveBrowsers()).toEqual([]);
   });
 
-  // Rojo: sin salida. El plugin no suelta nada: igual termina, y cierra el navegador al salir.
-  it.fails('con el plugin colgado: el CAE, exit 0 y sin navegadores', async () => {
+  it('con el plugin colgado: el CAE, exit 0 y sin navegadores', async () => {
     const result = await run([...INVOICE, '--pdf', '--json'], { hold: ['colgado', 1], signals: ['SIGINT'] });
 
     expect(JSON.parse(result.stdout)).toMatchObject({ cae: '75123456789012', pdf: CUT });
@@ -653,8 +647,7 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
     expect(aliveBrowsers()).toEqual([]);
   });
 
-  // Rojo: sin salida.
-  it.fails('con quien lee stdout lento y otra señal después: el documento completo', async () => {
+  it('con quien lee stdout lento y otra señal después: el documento completo', async () => {
     const [item] = JSON.parse(readFileSync(file('lote.json'), 'utf8')) as unknown[];
 
     // Más de lo que entra en un pipe: queda sin escribir hasta que alguien lea.
@@ -673,8 +666,7 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
     expect(aliveBrowsers()).toEqual([]);
   });
 
-  // Rojo: el navegador sale del proceso con 130.
-  it.fails('con stdout cerrado: termina con 0 y sin navegadores', async () => {
+  it('con stdout cerrado: termina con 0 y sin navegadores', async () => {
     const result = await run([...INVOICE, '--pdf', '--json'], {
       closeStdout: true,
       hold: ['pdf', 1],
@@ -686,7 +678,6 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
     expect(aliveBrowsers()).toEqual([]);
   });
 
-  // Ya está en verde: el plugin falso genera de verdad si nadie corta.
   it('sin señal: la ruta, y el navegador cerrado', async () => {
     const result = await run([...INVOICE, '--pdf', '--json'], { answers: true, hold: ['pdf', 1], signals: [] });
 
@@ -695,7 +686,6 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
     expect(aliveBrowsers()).toEqual([]);
   });
 
-  // Ya está en verde: es lo que nunca tiene que pasar con la E si no hay PDF.
   it('la E sin PDF: el CAE', async () => {
     const result = await run([...EXPORT_INVOICE, '--json'], {
       answers: true,

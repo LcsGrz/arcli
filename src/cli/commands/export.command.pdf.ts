@@ -48,6 +48,7 @@ export async function attachExportPdf(
   const [pdf] = await generatePdfs({
     config,
     loadExporter: () => loadPdfExporter(config, options.interactive, deps),
+    signal: deps.interruption?.signal,
     vouchers: [{ family: 'export', result }],
   });
 

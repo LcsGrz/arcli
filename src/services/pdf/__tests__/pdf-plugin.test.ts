@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -8,6 +8,7 @@ import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-
 import { toPdfFailure } from '../../../modules/pdf/pdf-failure';
 import { findDownloadedBrowser } from '../pdf-browser';
 import { exportBillingPdf, TESTING_FOOTER } from '../pdf-exporter';
+import { createPdfFileExporter } from '../pdf-file-exporter';
 import {
   BROWSER_DOWNLOAD_TIMEOUT_MS,
   NPM_INSTALL_TIMEOUT_MS,
@@ -257,6 +258,27 @@ describe('exportBillingPdf', () => {
     });
   });
 
+  it('un render que termina despues de cortar no deja un archivo', async () => {
+    const controller = new AbortController();
+    const folder = createTempDir();
+    const exporter = createPdfFileExporter({
+      folder,
+      renderer: {
+        render: async () => {
+          controller.abort();
+
+          return new Uint8Array([1]);
+        },
+      },
+      signal: controller.signal,
+    });
+
+    await expect(
+      exporter.export({ extras: {}, family: 'billing', result: createResult('testing') }, config),
+    ).rejects.toMatchObject({ code: 'PDF_GENERATION_ERROR', message: 'Se cortó antes de generar el PDF.' });
+    expect(readdirSync(folder)).toEqual([]);
+  });
+
   it('never overwrites a PDF and keeps each issuer in its own folder', async () => {
     const folder = createTempDir();
     const render = vi.fn(async () => new Uint8Array([1]));
@@ -392,5 +414,71 @@ describe('exportBillingPdf', () => {
         suggestion: expect.stringContaining('permiso'),
       },
     });
+  });
+});
+
+describe('al cortar', () => {
+  /** Un SDK que abre el navegador y devuelve las opciones con que lo abrió. */
+  function pluginWithPuppeteer(): PdfPlugin {
+    const path = join(createTempDir(), 'pdf');
+
+    fakeNpmInstall(path);
+    writeFileSync(
+      join(path, 'node_modules', '@arcasdk', 'pdf', 'index.js'),
+      `const puppeteer = require('puppeteer');
+       exports.InvoicePdfGenerator = class { async generate() {
+         globalThis.arcliTestLaunch = await puppeteer.default.launch({ headless: true });
+         return Buffer.from('');
+       } };`,
+    );
+    writeFileSync(
+      join(path, 'node_modules', 'puppeteer', 'index.js'),
+      'exports.default = { launch: async (options) => options };',
+    );
+
+    return new PdfPlugin({ env: {}, findSystemBrowser: () => '/Applications/Chrome', path });
+  }
+
+  const launchOptions = async (plugin: PdfPlugin, signal?: AbortSignal): Promise<unknown> => {
+    vi.stubEnv('PUPPETEER_EXECUTABLE_PATH', '');
+    await plugin.load(signal).render({} as never, {} as never);
+    vi.unstubAllEnvs();
+
+    return (globalThis as { arcliTestLaunch?: unknown }).arcliTestLaunch;
+  };
+
+  it('el navegador se cierra con la señal y Puppeteer no ataja las del proceso', async () => {
+    const { signal } = new AbortController();
+    const plugin = pluginWithPuppeteer();
+
+    expect(await launchOptions(plugin, signal)).toEqual({
+      handleSIGINT: false,
+      handleSIGTERM: false,
+      headless: true,
+      signal,
+    });
+    // Sin nadie que escriba el resultado al cortar (el asistente), Puppeteer sigue como siempre.
+    expect(await launchOptions(plugin)).toEqual({ headless: true });
+  });
+
+  it.each(['antes', 'durante'])('corta el proceso de la instalación (%s)', async (when) => {
+    const controller = new AbortController();
+
+    if (when === 'antes') {
+      controller.abort();
+    } else {
+      setTimeout(() => controller.abort(), 200);
+    }
+
+    const start = performance.now();
+    const result = await runProcessWithSpawn(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], {
+      cwd: createTempDir(),
+      env: process.env,
+      signal: controller.signal,
+      timeoutMs: 20_000,
+    });
+
+    expect(result).toMatchObject({ code: null, timedOut: false });
+    expect(performance.now() - start).toBeLessThan(10_000);
   });
 });

@@ -4,12 +4,13 @@ import type { BillingCommandInput } from '../../modules/billing/billing.schemas'
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
-import { PDF_INSTALL_SUGGESTION, PdfError } from '../../modules/pdf/pdf.errors';
+import { interruptedPdfError, PDF_INSTALL_SUGGESTION, PdfError } from '../../modules/pdf/pdf.errors';
 import { answerPdfDecisions, canHavePdf, decidePdfs, type PdfDecision } from '../../modules/pdf/pdf-decision';
 import { billingPdfVoucher, generatePdfs, type PdfExporter } from '../../modules/pdf/pdf-generation';
 import { createPdfFileExporter } from '../../services/pdf/pdf-file-exporter';
 import { PdfPlugin, type PdfRenderer } from '../../services/pdf/pdf-plugin';
 import { confirm, isPromptCancellation } from '../interactive/prompts';
+import type { DeliveryInterruption } from '../interruption';
 import { startSpinner } from '../spinner';
 
 /** @internal Exportado para los tests. */
@@ -19,6 +20,8 @@ export const PDF_ONLY_FLAGS_WARNING =
 export interface PdfStepDependencies {
   readonly confirm: (message: string, yesLabel: string, noLabel?: string) => Promise<boolean>;
   readonly createPlugin: (config: ArcliConfig) => PdfPlugin;
+  /** Una señal deja de esperar el PDF. Sin esto (el asistente), corta como siempre. */
+  readonly interruption?: DeliveryInterruption;
   readonly resolveFolder: (config: ArcliConfig) => string;
 }
 
@@ -62,13 +65,24 @@ export function withCancellationAsNo(deps: PdfStepDependencies): PdfStepDependen
   };
 }
 
+/** Los de siempre, con las señales atajadas salvo en las preguntas. Ya cortado no se pregunta: es "No". */
+export function interruptiblePdfSteps(interruption: DeliveryInterruption): PdfStepDependencies {
+  const deps = defaultPdfStepDependencies;
+
+  return {
+    ...deps,
+    confirm: async (...args) => (await interruption.whileAsking(() => deps.confirm(...args))) ?? false,
+    interruption,
+  };
+}
+
 /** Se esta cortando por una señal: no se pregunta ni se genera, y cada PDF elegido sale como no generado. */
 export function withoutGeneratingPdfs(deps: PdfStepDependencies): PdfStepDependencies {
   return {
     ...deps,
     confirm: async () => false,
     createPlugin: () => {
-      throw new PdfError('PDF_GENERATION_ERROR', 'Se cortó antes de generar el PDF.');
+      throw interruptedPdfError();
     },
   };
 }
@@ -162,6 +176,15 @@ export async function confirmPdfs(
   return answerPdfDecisions(decisions, accepted);
 }
 
+/** Al cortar se detiene antes de que se escriba nada. */
+function startPdfSpinner(text: string, deps: PdfStepDependencies): ReturnType<typeof startSpinner> {
+  const spinner = startSpinner(text);
+
+  deps.interruption?.signal.addEventListener('abort', () => spinner?.stop(), { once: true });
+
+  return spinner;
+}
+
 /** Si falta el plugin, en una terminal se ofrece instalarlo; sin terminal nunca se descarga solo. */
 async function loadPdfRenderer(
   plugin: PdfPlugin,
@@ -181,26 +204,30 @@ async function loadPdfRenderer(
       });
     }
 
-    const spinner = startSpinner('Instalando el plugin de PDF...');
+    const spinner = startPdfSpinner('Instalando el plugin de PDF...', deps);
 
     try {
       await plugin.install((message) => {
         if (spinner) {
           spinner.text = message;
         }
-      });
+      }, deps.interruption?.signal);
     } finally {
       spinner?.stop();
     }
+
+    if (deps.interruption?.signal.aborted) {
+      throw interruptedPdfError();
+    }
   }
 
-  return plugin.load();
+  return plugin.load(deps.interruption?.signal);
 }
 
-function withSpinner(exporter: PdfExporter): PdfExporter {
+function withSpinner(exporter: PdfExporter, deps: PdfStepDependencies): PdfExporter {
   return {
     export: async (...args) => {
-      const spinner = startSpinner('Generando PDF...');
+      const spinner = startPdfSpinner('Generando PDF...', deps);
 
       try {
         return await exporter.export(...args);
@@ -219,7 +246,10 @@ export async function loadPdfExporter(
 ): Promise<PdfExporter> {
   const renderer = await loadPdfRenderer(deps.createPlugin(config), interactive, deps);
 
-  return withSpinner(createPdfFileExporter({ folder: deps.resolveFolder(config), renderer }));
+  return withSpinner(
+    createPdfFileExporter({ folder: deps.resolveFolder(config), renderer, signal: deps.interruption?.signal }),
+    deps,
+  );
 }
 
 /**
@@ -244,6 +274,7 @@ export async function attachPdfs(
   const outcomes = await generatePdfs({
     config,
     loadExporter: () => loadPdfExporter(config, interactive, deps),
+    signal: deps.interruption?.signal,
     vouchers: targets.map((index) => billingPdfVoucher(results[index], inputs[index], config)),
   });
 

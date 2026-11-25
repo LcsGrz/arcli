@@ -8,7 +8,10 @@ import { attachPdfs } from '../billing.command.pdf';
 import { REJECTED_EXIT_CODE, setExitCodeForResults, writeResultsWithPdfs } from '../billing.command.shared';
 
 vi.mock('../billing.command.output', () => ({ writeBillingCommandResults: vi.fn(), writePdfOutcomes: vi.fn() }));
-vi.mock('../billing.command.pdf', () => ({ attachPdfs: vi.fn() }));
+vi.mock('../billing.command.pdf', () => ({
+  attachPdfs: vi.fn(),
+  interruptiblePdfSteps: (interruption: unknown) => ({ interruption }),
+}));
 
 function result(status: BillingExecutionResult['response']['status'], dryRun = false): BillingExecutionResult {
   return { dryRun, response: { status } } as BillingExecutionResult;
@@ -42,10 +45,12 @@ describe('setExitCodeForResults', () => {
 describe('writeResultsWithPdfs', () => {
   const emitted = [result('aprobado'), result('aprobado')];
   const withPdf = emitted.map((item) => ({ ...item, pdf: { path: '/tmp/fc.pdf' } }));
+  const interruption = { signal: new AbortController().signal, whileAsking: vi.fn() };
   const options = (outputJson: boolean) => ({
     config: {} as ArcliConfig,
     inputs: [{} as BillingCommandInput, {} as BillingCommandInput, {} as BillingCommandInput],
     interactive: false,
+    interruption,
     output: { environment: 'testing' as const, outputJson, raw: false },
   });
 
@@ -56,6 +61,7 @@ describe('writeResultsWithPdfs', () => {
 
     expect(attachPdfs).toHaveBeenCalledWith(
       expect.objectContaining({ inputs: options(true).inputs.slice(0, 2), results: emitted }),
+      { interruption },
     );
     expect(writeBillingCommandResults).toHaveBeenCalledTimes(1);
     expect(writeBillingCommandResults).toHaveBeenCalledWith(withPdf, options(true).output);

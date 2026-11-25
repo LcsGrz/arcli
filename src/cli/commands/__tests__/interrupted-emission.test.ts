@@ -399,7 +399,7 @@ describe('quién escucha las señales', () => {
   it.each([
     ['fc', (options: RunOptions) => runBilling(FC, options)],
     ['fe', (options: RunOptions) => runExport(FE, options)],
-  ] as const)('%s: ni consultando, ni en las preguntas, ni con el PDF, los mismos que antes', async (_name, run) => {
+  ] as const)('%s: ni consultando ni en las preguntas: los mismos que antes', async (_name, run) => {
     const seen: Array<readonly [string, ReturnType<typeof listeners>]> = [];
 
     await run({
@@ -410,11 +410,11 @@ describe('quién escucha las señales', () => {
       tty: true,
     });
 
-    // En A, B y C el número se pide dentro de la emisión; en la E, antes.
-    const outside = seen.filter(([text]) => !/createVoucher|authorize|getNextVoucherNumber/.test(text));
+    // En A, B y C el número se pide dentro de la emisión; en la E, antes. El PDF, en `interrupted-pdf.test.ts`.
+    const outside = seen.filter(([text]) => !/createVoucher|authorize|getNextVoucherNumber|^PDF /.test(text));
 
     expect(outside.map(([text]) => text)).toEqual(
-      expect.arrayContaining([expect.stringContaining('¿Emitimos'), 'PDF generar 42']),
+      expect.arrayContaining([expect.stringContaining('¿Emitimos'), 'fin: exit 0']),
     );
     expect(outside).toEqual(outside.map(([text]) => [text, signals]));
   });

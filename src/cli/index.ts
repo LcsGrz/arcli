@@ -46,6 +46,8 @@ program
   .parseAsync(argv)
   .finally(() => updateCheck.abort())
   .then(async () => {
+    await finishCut(reportLostOutput, exitIfWritten);
+
     const updateResult = await updateCheckPromise;
 
     if (!updateResult) {
@@ -70,7 +72,7 @@ program
 
     process.exitCode = reportCliError(error, shouldPrintErrorsAsJson(), outputFailures);
     // Cortado por una señal no hay `beforeExit`.
-    await finishCut(reportLostOutput);
+    await finishCut(reportLostOutput, exitIfWritten);
   });
 
 function reportLostOutput(): void {
@@ -82,6 +84,14 @@ function reportLostOutput(): void {
 
   if (!outputFailureReported) {
     reportOutputFailure(outputFailures, { commandError, json: shouldPrintErrorsAsJson() });
+  }
+}
+
+/** El plugin de PDF abandonado no suelta lo suyo. Puppeteer cierra el navegador al salir. */
+function exitIfWritten(): void {
+  if (process.stdout.writableLength === 0 && process.stderr.writableLength === 0) {
+    reportLostOutput();
+    process.exit();
   }
 }
 

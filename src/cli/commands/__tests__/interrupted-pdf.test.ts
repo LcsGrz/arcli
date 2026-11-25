@@ -143,8 +143,7 @@ const FAMILIES = [
 ] as const;
 
 describe.each(FAMILIES)('un comprobante (%s)', (_name, run) => {
-  // Rojo: nadie ataja la señal, y el PDF se espera y sale con su ruta (de verdad, el proceso muere sin salida).
-  it.fails.each(['SIGINT', 'SIGTERM'] as const)(
+  it.each(['SIGINT', 'SIGTERM'] as const)(
     '%s, --json: el documento completo con pdf.error y exit 0',
     async (signal) => {
       const result = await cut({ signals: [signal] }, (hook) =>
@@ -159,8 +158,7 @@ describe.each(FAMILIES)('un comprobante (%s)', (_name, run) => {
     },
   );
 
-  // Rojo: el PDF se espera y el aviso no sale.
-  it.fails('en texto: el CAE una vez y el aviso del PDF no generado', async () => {
+  it('en texto: el CAE una vez y el aviso del PDF no generado', async () => {
     const result = await cut({ signals: ['SIGINT'] }, (hook) => run({ ...hook, config: { pdf: 'siempre' } }));
 
     expect(result.stdout.split(CAE)).toHaveLength(2);
@@ -177,8 +175,7 @@ const runBatch = (interruption: Cut, options: RunOptions = {}) =>
   );
 
 describe('un lote cortado en el 2.º PDF', () => {
-  // Rojo: se generan los tres.
-  it.fails('--json: el 1.º con su archivo, el 2.º y el 3.º con su error, exit 0', async () => {
+  it('--json: el 1.º con su archivo, el 2.º y el 3.º con su error, exit 0', async () => {
     const result = await runBatch({ signals: ['SIGINT'], step: 'generar 43' }, { json: true });
     const [first, second, third] = items(result);
 
@@ -191,8 +188,7 @@ describe('un lote cortado en el 2.º PDF', () => {
     expect(result.exit).toBe('fin: exit 0');
   });
 
-  // Rojo: se generan los tres.
-  it.fails('en texto: los tres CAE, una ruta y dos avisos', async () => {
+  it('en texto: los tres CAE, una ruta y dos avisos', async () => {
     const result = await runBatch({ signals: ['SIGTERM'], step: 'generar 43' });
 
     expect(result.stdout.split(CAE)).toHaveLength(4);
@@ -201,8 +197,7 @@ describe('un lote cortado en el 2.º PDF', () => {
     expect(result.exit).toBe('fin: exit 0');
   });
 
-  // Rojo: se generan los del 1.º y el 3.º.
-  it.fails('con un rechazado: sale con 2 y sin PDF para él', async () => {
+  it('con un rechazado: sale con 2 y sin PDF para él', async () => {
     const result = await runBatch({ signals: ['SIGINT'] }, { arca: ['A', 'R', 'A'], json: true });
 
     expect(items(result).map(({ pdf }) => pdf)).toEqual([CUT, undefined, CUT]);
@@ -229,7 +224,6 @@ describe('un lote que ya se cortó al emitir, con PDF', () => {
     });
   };
 
-  // Ya está en verde: es lo de #299 y no tiene que cambiar.
   it('con esa señal: los emitidos llevan su PDF', async () => {
     const result = await runCut({});
 
@@ -238,8 +232,7 @@ describe('un lote que ya se cortó al emitir, con PDF', () => {
     expect(result.events.at(-1)).toBe('fin: exit 1');
   });
 
-  // Rojo: se generan los dos.
-  it.fails('con otra en el 1.er PDF: los CAE sin PDF, el error del lote y exit 1', async () => {
+  it('con otra en el 1.er PDF: los CAE sin PDF, el error del lote y exit 1', async () => {
     const result = await cut({ signals: ['SIGINT'] }, runCut);
 
     expect(items(result)).toMatchObject([
@@ -253,8 +246,7 @@ describe('un lote que ya se cortó al emitir, con PDF', () => {
     expect(result.exit).toBe('fin: exit 1');
   });
 
-  // Rojo: se generan los dos y nadie corta.
-  it.fails('con dos más en los PDF: lo mismo, y después corta por la señal', async () => {
+  it('con dos más en los PDF: lo mismo, y después corta por la señal', async () => {
     const result = await cut({ signals: ['SIGINT', 'SIGTERM'] }, runCut);
 
     expect(items(result)).toMatchObject([{ pdf: CUT }, { pdf: CUT }]);
@@ -264,8 +256,7 @@ describe('un lote que ya se cortó al emitir, con PDF', () => {
 });
 
 describe('más de una señal', () => {
-  // Rojo: no corta con ninguna.
-  it.fails.each([
+  it.each([
     ['dos', ['SIGINT', 'SIGINT'], 'SIGINT'],
     ['SIGINT y SIGTERM', ['SIGINT', 'SIGTERM'], 'SIGTERM'],
     ['muchas', ['SIGINT', 'SIGINT', 'SIGTERM', 'SIGTERM', 'SIGTERM'], 'SIGINT'],
@@ -290,8 +281,7 @@ describe('más de una señal', () => {
     expect(atKill).toBe(result.stdout);
   });
 
-  // Rojo: no corta con ninguna.
-  it.fails.each([2, 5])('%i casi juntas, como con npx, son una: exit 0', async (times) => {
+  it.each([2, 5])('%i casi juntas, como con npx, son una: exit 0', async (times) => {
     const result = await cut({ gap: 5, signals: Array.from({ length: times }, () => 'SIGINT' as const) }, (hook) =>
       runBilling([...FC, '--emitir'], { ...hook, config: { pdf: 'siempre' }, json: true }),
     );
@@ -330,20 +320,17 @@ describe('otra después de la que llegó mientras se esperaba a ARCA', () => {
     return result;
   };
 
-  // Ya está en verde: sin nadie que ataje, la simulada no hace nada. Con señales de verdad, en el e2e.
   it('a 5 ms es el eco de npx: el PDF se genera', async () => {
     expect(items(await runWith(5))[0].pdf?.ruta).toBeDefined();
     expect(process.kill).not.toHaveBeenCalled();
   });
 
-  // Rojo: el PDF se genera.
-  it.fails('a medio segundo ya es otra: no se espera', async () => {
+  it('a medio segundo ya es otra: no se espera', async () => {
     expect(items(await runWith(REPEATED_SIGNAL_MS))[0].pdf).toEqual(CUT);
   });
 });
 
-// Rojo: se genera.
-it.fails('justo después de la respuesta de ARCA, antes del PDF: no se genera', async () => {
+it('justo después de la respuesta de ARCA, antes del PDF: no se genera', async () => {
   const result = await runBilling([...FC, '--emitir'], {
     config: { pdf: 'siempre' },
     json: true,
@@ -363,8 +350,7 @@ describe.each([
   ['fc', (options: RunOptions) => runBilling([...FC, '--emitir'], options)],
   ['fe', (options: RunOptions) => runExport([...FE, '--emitir'], options)],
 ] as const)('instalando el plugin (%s)', (_name, run) => {
-  // Rojo: se instala y se genera.
-  it.fails('no se espera: el CAE y el aviso, sin generar', async () => {
+  it('no se espera: el CAE y el aviso, sin generar', async () => {
     const result = await cut({ signals: ['SIGINT'], step: 'instalar' }, (hook) =>
       run({ ...hook, answers: [INSTALL], config: { pdf: 'siempre' }, pluginInstalled: false, tty: true }),
     );
@@ -374,7 +360,6 @@ describe.each([
     expect(result.exit).toBe('fin: exit 0');
   });
 
-  // Ya está en verde: en las preguntas no cambia nada.
   it('las preguntas del PDF: nadie ataja, y Ctrl+C sigue siendo "No"', async () => {
     const seen: Array<readonly [string, ReturnType<typeof listeners>]> = [];
     const result = await run({
@@ -396,8 +381,7 @@ describe.each([
   });
 });
 
-// Rojo: con el PDF nadie escucha.
-it.fails.each([
+it.each([
   ['fc', (options: RunOptions) => runBilling(FC, options)],
   ['fe', (options: RunOptions) => runExport(FE, options)],
 ] as const)('%s: mientras se genera se escuchan las dos, y al terminar los mismos que antes', async (_name, run) => {
