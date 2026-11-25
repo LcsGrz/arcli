@@ -477,7 +477,7 @@ describe('lo que contesta ARCA', () => {
   });
 });
 
-describe('diferencias sin decidir, como estan hoy', () => {
+describe('`bruto` de la config solo cambia los comandos (docs/modo-interactivo.md)', () => {
   beforeEach(() => {
     profile.writeConfig(profile.configWith(profile.healthy, { ...CLOCK_CONFIG, output: { brutoPorDefecto: true } }));
   });
@@ -485,7 +485,7 @@ describe('diferencias sin decidir, como estan hoy', () => {
   it.each<[string, Case]>([
     ['Factura C', { args: FC_ARGS, flow: invoiceFlow, steps: FC_STEPS }],
     ['Factura E', { args: FE_ARGS, flow: invoiceFlow, steps: FE_STEPS }],
-  ])('%s con `bruto true` en la config: solo el comando muestra la respuesta cruda', async (_name, onePath) => {
+  ])('%s: solo el comando muestra la respuesta cruda', async (_name, onePath) => {
     const { assistant, command } = await runBoth(onePath);
 
     expect(assistant.requests).toEqual(command.requests);
