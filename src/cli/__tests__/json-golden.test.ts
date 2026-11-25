@@ -76,6 +76,9 @@ const sdk = vi.hoisted(() => ({
   },
 }));
 
+/** El ticket de WSAA, con valores que no se confunden con un texto de la salida. */
+const WSAA = vi.hoisted(() => ({ sign: 'FIRMA-DE-WSAA', token: 'TOKEN-DE-WSAA' }));
+
 vi.mock('../../services/arca/wsfex-status', () => ({ fetchWsfexServerStatus: sdk.wsfexStatus.fetch }));
 
 vi.mock('@arcasdk/core', async (importOriginal) => ({
@@ -89,7 +92,7 @@ vi.mock('@arcasdk/core', async (importOriginal) => ({
   },
   AuthRepository: class {
     public getAuthParams() {
-      return { Auth: { Cuit: 20111111112, Sign: 'firma', Token: 'token' } };
+      return { Auth: { Cuit: 20111111112, Sign: WSAA.sign, Token: WSAA.token } };
     }
 
     public async login() {
@@ -2467,6 +2470,36 @@ describe('factura E y sus notas', () => {
   it('fe aprobada con --bruto', () => golden('fe-aprobada-bruto', [...FE, '--emitir', '--json', '--bruto']));
   it('fe vista previa con --bruto', () =>
     golden('fe-previsualizar-bruto', [...FE, '--previsualizar', '--json', '--bruto']));
+
+  it('fe aprobada en texto: la respuesta cruda solo con --bruto, y nunca el ticket ni los certificados (ARQ8-13)', async () => {
+    // Sin terminal el ancho es fijo, pero una linea larga se parte: se compara sin el marco ni los espacios.
+    const flat = (text: string) => text.replace(/[│┃║╏╎┊▎\s]+/g, '');
+    const body = (pem: string) => pem.split('\n')[1].trim();
+
+    prepareConfig({});
+
+    for (const [flags, shown] of [[['--bruto'], true] as const, [[], false] as const]) {
+      const { code, stderr, stdout } = await runCli([...FE, '--emitir', ...flags]);
+      const text = flat(stdout);
+
+      expect(code).toBe(0);
+      expect(text).toContain('76463926585399');
+      expect(text.includes('RESPUESTABRUTA')).toBe(shown);
+
+      for (const raw of ['FEXAuthorizeResult', 'FEXResultAuth', 'Reproceso', 'Motivos_Obs']) {
+        expect(text.includes(raw)).toBe(shown);
+      }
+
+      for (const secret of [WSAA.sign, WSAA.token, '-----BEGIN', body(VALID_CERT), body(keyPair.privateKey)]) {
+        expect(flat(stdout + stderr)).not.toContain(secret);
+      }
+    }
+
+    // El ticket paso por el comando (`FEXGetLast_CMP` lo lleva): que no salga no es porque no estaba.
+    expect(sdk.wsfex.getLastCmp).toHaveBeenCalledWith({
+      Auth: expect.objectContaining({ Sign: WSAA.sign, Token: WSAA.token }),
+    });
+  });
 
   it('fe rechazada: exit 2', () => {
     sdk.wsfex.authorize.mockImplementation(wsfexAnswer('R'));
