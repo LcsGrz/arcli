@@ -215,7 +215,7 @@ describe('la sugerencia del lote cortado, según lo que pasó (ERR-3)', () => {
   it('no repite en "Detalles" lo que ya dice el mensaje (H21)', async () => {
     await runBatch(['A', 'incierta', 'A']);
 
-    expect(plain(stderr)).not.toMatch(/Detalles|procesados:|sinConfirmar|fallo:|total:/);
+    expect(plain(stderr)).not.toMatch(/Detalles|Número|numero|procesados:|sinConfirmar|fallo:|total:/);
   });
 
   it('en JSON, el código, los detalles y la misma sugerencia que el panel', async () => {
@@ -228,6 +228,7 @@ describe('la sugerencia del lote cortado, según lo que pasó (ERR-3)', () => {
       detalles: {
         codigoCausa: 'EMISSION_UNCERTAIN',
         fallo: 2,
+        numero: 43,
         procesados: 1,
         sinConfirmar: 2,
         sinProcesar: [3],
@@ -441,7 +442,7 @@ describe('el lote cortado dice qué hacer, igual en el panel y en el JSON (REV-4
     ['inesperada', 'login', { codigoCausa: 'UNEXPECTED_ERROR' }],
     ['transitoria', 'transitorio', { codigoCausa: 'TRANSIENT_ERROR' }],
     ['sin autorizar', 'sin-autorizar', { codigoCausa: 'WSFE_SERVICE_NOT_AUTHORIZED' }],
-    ['sin confirmar', 'incierta', { codigoCausa: 'EMISSION_UNCERTAIN', sinConfirmar: 2, sinProcesar: [] }],
+    ['sin confirmar', 'incierta', { codigoCausa: 'EMISSION_UNCERTAIN', numero: 43, sinConfirmar: 2, sinProcesar: [] }],
   ];
 
   it.each(CAUSES)('detalles.codigoCausa, %s', async (_name, step, expected) => {

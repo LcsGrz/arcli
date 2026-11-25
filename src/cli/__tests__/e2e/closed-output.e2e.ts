@@ -605,7 +605,7 @@ describe('con stdout que no se puede escribir', () => {
     expect(result.code).toBe(1);
     expect(JSON.parse(result.stderr)).toMatchObject({
       codigo: 'BATCH_EMISSION_ERROR',
-      detalles: { fallo: 2, procesados: 1, sinConfirmar: 2, sinProcesar: [3], total: 3 },
+      detalles: { fallo: 2, numero: 43, procesados: 1, sinConfirmar: 2, sinProcesar: [3], total: 3 },
       sugerencia: `${UNCONFIRMED} ${UNWRITTEN} ${SINGLE}`,
     });
   });

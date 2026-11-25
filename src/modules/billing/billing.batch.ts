@@ -83,6 +83,8 @@ type BatchEmissionDetails = {
   readonly sinProcesar: readonly number[];
   /** Solo si el que fallo puede haberse emitido. */
   readonly sinConfirmar?: number;
+  /** El numero del que quedo sin confirmar: solo con `sinConfirmar`. */
+  readonly numero?: number;
   readonly total: number;
   /** El `codigo` que daria solo el comprobante que fallo. */
   readonly codigoCausa: ErrorCode;
@@ -163,7 +165,7 @@ export class BatchEmissionError extends AppError {
           procesados: options.emitted,
           fallo: options.failedIndex,
           sinProcesar: pending,
-          ...(uncertain ? { sinConfirmar: options.failedIndex } : {}),
+          ...(uncertain ? { sinConfirmar: options.failedIndex, numero: uncertain.details.numero } : {}),
           total: options.total,
           ...causeDetails(options.cause),
         } satisfies BatchEmissionDetails,

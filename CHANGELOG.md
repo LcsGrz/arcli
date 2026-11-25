@@ -61,10 +61,13 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 ### ✨ Agregado
 
 - **Config:** `config establecer cuenta <CBU> [ALIAS]` guarda el CBU y su alias juntos, y `config eliminar cuenta` borra los dos (#284).
+- **Errores:** con `--json`, `EMISSION_UNCERTAIN` de A, B, C, FCE y recibos trae `detalles.numero`, como la `E`, y un lote cortado también (#NNN).
 
 <details><summary>Detalle</summary>
 
 **La cuenta de la FCE.** El CBU y el alias se guardaban con dos comandos, y el orden importaba. Ahora `arcli config establecer cuenta <CBU> [ALIAS]` guarda los dos o ninguno. Sin alias borra el guardado, aunque el CBU sea el mismo, y lo avisa: en stderr, o en `avisos` con `--json`. `config eliminar cuenta` borra los dos y avisa si había un alias. En la ayuda, el autocompletado y `arcli config`, `cuenta` reemplaza a las dos claves; "Modificar configuración" del asistente tiene una sola opción, que pide el CBU y después el alias: con el mismo CBU, Enter deja el alias guardado y `-` lo borra; con otro, Enter lo omite y borra el anterior, y la pregunta lo dice. El archivo, `arcli config --json`, `--cbu`, `--alias` y `--cargar` no cambian.
+
+**Número de una emisión sin confirmar.** Con `--json`, `EMISSION_UNCERTAIN` traía `detalles.numero` solo en la `E`. Ahora también en A, B, C, FCE, recibos y sus notas: es el número que se le pidió a ARCA. En un lote, `BATCH_EMISSION_ERROR` lo trae junto con `detalles.sinConfirmar`, y sin este no va. El comando para verificar, los textos y el panel no cambian.
 
 </details>
 

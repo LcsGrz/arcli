@@ -166,12 +166,12 @@ describe('los detalles del panel no repiten el mensaje (H21)', () => {
   it('lo que suma se ve con un nombre que se lee, y un número adentro de otro no cuenta como dicho', () => {
     const error = new AppError('No se pudo confirmar la emisión: timeout a los 17 s', {
       code: 'EMISSION_UNCERTAIN',
-      details: { causa: 'timeout a los 17 s', idSolicitud: 42, numero: 7 },
+      details: { causa: 'timeout a los 17 s', idSolicitud: 7, numero: 8 },
     });
     const text = plain(formatCliError(error));
 
-    expect(text).toContain('Solicitud: 42');
-    expect(text).toContain('Número: 7');
+    expect(text).toContain('Solicitud: 7');
+    expect(text).not.toMatch(/n[uú]mero: 8/i);
     expect(text).not.toContain('Causa');
     expect(text).not.toContain('idSolicitud');
   });

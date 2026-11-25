@@ -58,6 +58,7 @@ exit: 1
     "fallo": 2,
     "sinProcesar": [],
     "sinConfirmar": 2,
+    "numero": 42,
     "total": 2,
     "codigoCausa": "EMISSION_UNCERTAIN"
   },

@@ -243,6 +243,7 @@ export class BillingService {
         environment: options.runtime.environment,
         pointOfSale: payload.PtoVta,
         shortcut: voucherKind.shortcut,
+        voucherNumber,
       });
     }
 

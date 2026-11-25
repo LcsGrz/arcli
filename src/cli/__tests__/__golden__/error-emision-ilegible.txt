@@ -8,6 +8,7 @@ exit: 1
   "codigo": "EMISSION_UNCERTAIN",
   "detalles": {
     "causa": "hubo un error inesperado al emitir (Cannot read properties of undefined (reading 'FeDetResp'))",
+    "numero": 42,
     "entorno": "testing",
     "puntoVenta": 3,
     "tipoArca": 11

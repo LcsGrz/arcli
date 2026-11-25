@@ -1633,6 +1633,7 @@ describe('billing.service', () => {
     await expect(run).rejects.toThrow('No se pudo confirmar la emisión: socket hang up');
     await expect(run).rejects.toMatchObject({
       code: 'EMISSION_UNCERTAIN',
+      details: { numero: 42 },
       suggestion: expect.stringContaining('arcli ultimos fb --pv 3 --testing'),
     });
   });
