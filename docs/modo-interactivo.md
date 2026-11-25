@@ -44,26 +44,27 @@ Si hay una versión nueva de ARCLI, el menú suma arriba de todo **Actualizar a 
 
 Debajo del logo va la versión de ARCLI. Arriba del menú, la barra de estado muestra a la izquierda quién emite (la razón social de `emisor.razonSocial` o, si no está, el CUIT) y el punto de venta, y a la derecha cómo está ARCA y el entorno (`TESTING` en naranja o `PRODUCCIÓN` en celeste):
 
-| Estado                 | Cuándo                                                                           |
-| ---------------------- | -------------------------------------------------------------------------------- |
-| **ARCA funcionando**   | Los servidores de facturación (app, base de datos y autenticación) responden OK  |
-| **ARCA con demoras**   | Responden OK, pero tardaron más de 3 segundos                                    |
-| **ARCA con problemas** | Alguno de los servidores no responde OK                                          |
-| **ARCA sin respuesta** | Error de red, o ARCA no contestó en 5 segundos                                   |
-| **ARCA sin verificar** | Falta completar la configuración o el certificado venció, así que no se consulta |
+| Estado                 | Cuándo                                                                                                                        |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Comprobando ARCA**   | Se está consultando; el menú ya se puede usar                                                                                 |
+| **ARCA funcionando**   | Los servidores de facturación (app, base de datos y autenticación) responden OK                                               |
+| **ARCA con demoras**   | Responden OK, pero tardaron más de 3 segundos                                                                                 |
+| **ARCA con problemas** | Alguno de los servidores no responde OK                                                                                       |
+| **ARCA sin respuesta** | Error de red, o ARCA no contestó en 5 segundos                                                                                |
+| **ARCA sin verificar** | Falta completar la configuración o el certificado venció, así que no se consulta; o elegiste una opción antes de la respuesta |
 
-La consulta es la misma de `arcli estado` sin el punto de venta (no pide autenticación) y se hace al abrir el asistente. **Si falta algo obligatorio** (CUIT, certificado y clave del entorno activo o punto de venta), al abrir el asistente propone hacer la [configuración guiada](#configuración). El entorno activo es el de la config, o el de `arcli interactivo --produccion` o `--testing`.
+La consulta es la misma de `arcli estado` sin el punto de venta (no pide autenticación) y se hace al abrir el asistente y al volver de Configuración, sin esperarla: el menú aparece enseguida y la barra se completa sola. Si elegís una opción antes, la barra queda en **ARCA sin verificar** y, si ARCA está con demoras, con problemas o sin respuesta, lo avisa una vez al volver al menú (no, si elegiste **Estado de ARCA**, que ya lo muestra). Si la barra y el menú no entran enteros en la terminal (a 80 columnas hacen falta 23 filas, más las del recuadro de certificados), espera la respuesta antes de mostrar el menú. **Si falta algo obligatorio** (CUIT, certificado y clave del entorno activo o punto de venta), al abrir el asistente propone hacer la [configuración guiada](#configuración). El entorno activo es el de la config, o el de `arcli interactivo --produccion` o `--testing`.
 
 **Certificado por vencer.** Si a alguno de los certificados configurados (de testing o de producción, el general o el de exportación, sin importar el entorno activo) le quedan menos de 30 días, debajo de la barra va un recuadro amarillo, con una línea por certificado, la fecha, los días que faltan y el link a la [guía para renovarlo](obtencion-certificados.md). Queda arriba de todo lo que hagas en la sesión. Si alguno ya venció, el recuadro es rojo. Si es el del entorno activo, además la barra dice `certificado vencido` y `ARCA SIN VERIFICAR`, y emitir o consultar muestra el error `Certificado vencido` sin llegar a ARCA. La configuración sigue disponible para cargar el certificado nuevo.
 
 ## Actualizar
 
-Al abrir el asistente se consulta npm por una versión nueva (no aparece con `CI` ni `NO_UPDATE_NOTIFIER`). Si hay, **Actualizar a la versión X.Y.Z** es la primera opción del menú, en naranja. Adentro muestra tu versión, la nueva y las novedades de cada versión intermedia (de las 3 más nuevas, sacadas del [CHANGELOG](../CHANGELOG.md)), y el comando para actualizar.
+Al abrir el asistente se consulta npm por una versión nueva (no aparece con `CI` ni `NO_UPDATE_NOTIFIER`). Si hay, **Actualizar a la versión X.Y.Z** es la primera opción del menú, en naranja. El menú no la espera: si llega con el menú abierto, aparece arriba sin mover la opción marcada ni lo que escribiste; si llega con un flujo abierto, en el próximo menú. Adentro muestra tu versión, la nueva y las novedades de cada versión intermedia (de las 3 más nuevas, sacadas del [CHANGELOG](../CHANGELOG.md)), y el comando para actualizar.
 
 - **Cerrar para actualizar**: copia el comando para actualizar al portapapeles, dice dónde pegarlo (una terminal nueva: Terminal en Mac, PowerShell en Windows) y espera a que confirmes antes de cerrar el asistente, así se lee aunque lo hayas abierto con el acceso directo. El comando es el del gestor con que instalaste ARCLI: `npm install -g arcli@latest`, `pnpm add -g arcli@latest`, `yarn global add arcli@latest` o `bun add -g arcli@latest` (lo deduce de la carpeta donde está instalado; si no lo reconoce, npm). ARCLI no se actualiza solo porque no puede reemplazarse mientras corre. Si no puede copiar (en Linux usa `wl-copy`, `xclip` o `xsel`), muestra el comando para escribirlo.
 - **← Volver**: vuelve al menú.
 
-Con el asistente, el aviso de nueva versión no se repite al salir. En los comandos con flags aparece al final.
+Con el asistente, el aviso de nueva versión no se repite al salir. En los comandos con flags aparece al final, sin esperar a npm: si todavía no contestó, la consulta se cancela y la hace el próximo comando.
 
 ## Emitir factura
 

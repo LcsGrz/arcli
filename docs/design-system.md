@@ -62,7 +62,7 @@ Se elige por lo que se muestra, no por cómo se ve. Cada rol tiene su función, 
 - **Filas etiqueta/valor:** con `renderKeyValueRows`, el valor en una columna alineada. La columna de etiquetas ocupa el 50% del panel en el comprobante y el 30% en el resto (`resolveKeyValueLabelWidth`), o lo que mida la etiqueta más larga. Si una fila no entra y su columna no deja lugar, todas las de esa columna ponen la etiqueta arriba y el valor debajo (`wrapPanelLines`).
 - **Ancho visible:** se mide con `visibleWidth` (columnas de la terminal, como boxen), nunca con `length`: un emoji o un carácter chino ocupan dos columnas y una `é` pegada desde macOS (NFD) ocupa una. Los cortes de una palabra larga caen entre grafemas, sin partir un emoji ni una letra de su acento.
 - **Listas:** `• texto` o `1. texto`. Al partirse, la línea sigue alineada al texto.
-- **Barra de estado:** una línea; en una terminal angosta, una por lado. Nunca esconde el entorno.
+- **Barra de estado:** una línea; en una terminal angosta, una por lado. Nunca esconde el entorno. El estado de ARCA va en mayúscula y en su color; mientras se consulta, `COMPROBANDO ARCA` en `muted`, y si ya no se espera, `ARCA SIN VERIFICAR`.
 - **Tablas que no entran a lo ancho:** se mide el lugar con `panelContentWidth` y, si las columnas no entran, cada fila se parte en líneas (como `arcli monotributo` en 40 columnas: el tope arriba y las cuotas abajo) en vez de dejar que la terminal la corte. Una tabla con muchas columnas se parte en bloques, con la columna que identifica la fila en cada uno: uno debajo del otro, con `1/2  sigue abajo: … ↓`, o de a uno con `←`/`→` en el modo interactivo.
 
 ## Símbolos
