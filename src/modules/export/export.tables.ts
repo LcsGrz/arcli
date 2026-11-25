@@ -37,8 +37,9 @@ export interface ExportTableReader {
 /**
  * Una tabla auxiliar de WSFEX: si no responde, la vista previa sigue sin ella y avisa (EXPO-13). Nunca se emite un dato
  * distinto del que saldria con la tabla: si de ella sale algo que se emite, es `required` y corta con su error, antes de
- * seguir consultando. Se usa despues de una lectura obligatoria de WSFEX (los paises), asi que el acceso ya anduvo. Con
- * dos errores de conexion ya no es una tabla, es la red: corta con el primero, para no emitir a ciegas.
+ * pedir los numeros. Se usa despues de una lectura obligatoria de WSFEX (los paises), asi que el acceso ya anduvo. Con
+ * dos errores de conexion ya no es una tabla, es la red: corta con el primero, para no emitir a ciegas. Las tablas pueden
+ * haber arrancado juntas (`startExportTables`): el primero es el de la que se lee antes, no el que llego antes.
  */
 export function createExportTableReader(): ExportTableReader {
   let firstConnectionError: unknown;

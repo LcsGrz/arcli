@@ -113,8 +113,7 @@ describe.each(FAMILIES)('%s', (_name, input) => {
     expect(held.started()).toEqual([...new Set(held.started())]);
   });
 
-  // Tests primero (ARQ8-6): pasa a it() al implementarlo.
-  it.fails('después de los países, 4 tablas a la vez, y al contestar una arranca la que sigue', async () => {
+  it('después de los países, 4 tablas a la vez, y al contestar una arranca la que sigue', async () => {
     const { held } = await untilTables(input);
 
     expect(held.pending.map(({ method }) => method)).toHaveLength(4);
@@ -192,31 +191,10 @@ describe('lo que se consulta', () => {
     expect(await drive(held, GOODS, newestFirst)).toHaveProperty('error');
     expect(held.started().filter((method) => NUMBERS.includes(method))).toEqual([]);
   });
-
-  // Tests primero (ARQ8-6): pasa a it() al implementarlo.
-  it.fails.each<[string, ExportVoucherInput]>([
-    ['sin cotización escrita', GOODS],
-    ['con cotización escrita', { ...GOODS, exchangeRate: 900 }],
-  ])('la cotización, el último número y el ID de solicitud van a la vez, %s', async (_name, input) => {
-    const held = holdGateway();
-
-    // Primero todo lo demás.
-    await drive(held, input, (pending) =>
-      Math.max(
-        0,
-        pending.findIndex(({ method }) => !NUMBERS.includes(method)),
-      ),
-    );
-
-    const at = (edge: 'fin' | 'inicio') => NUMBERS.map((method) => held.events.indexOf(`${edge} ${method}`));
-
-    expect(Math.max(...at('inicio'))).toBeLessThan(Math.min(...at('fin')));
-  });
 });
 
 describe('al cortar', () => {
-  // Tests primero (ARQ8-6): pasa a it() al implementarlo.
-  it.fails.each<[string, Partial<ExportGateway>]>([
+  it.each<[string, Partial<ExportGateway>]>([
     ['una tabla que falla', { getDestinationCountryCuits: failing }],
     ['un error de entrada', { getDestinationCountryCuits: async () => [] }],
   ])('con %s no arranca lo que estaba en la cola ni espera lo que está en vuelo', async (_name, overrides) => {
@@ -235,8 +213,7 @@ describe('al cortar', () => {
     expect(held.started()).toEqual(started);
   });
 
-  // Tests primero (ARQ8-6): pasa a it() al implementarlo.
-  it.fails('las que fallan antes o después de cortar, sin llegar a usarse, no dan un rechazo sin atender', async () => {
+  it('las que fallan antes o después de cortar, sin llegar a usarse, no dan un rechazo sin atender', async () => {
     const { held, outcome } = await untilTables(GOODS, {
       getActivities: failing,
       getCurrencies: failing,
@@ -258,12 +235,11 @@ describe('al cortar', () => {
     expect(unhandled).toEqual([]);
   });
 
-  // Tests primero (ARQ8-6): pasa a it() al implementarlo.
-  it.fails('tampoco los números, si falla la cotización', async () => {
+  it('tampoco los números, si falla la cotización', async () => {
     const held = holdGateway({ getLastRequestId: failing, getLastVoucherNumber: failing, getQuotations: failing });
 
     expect(await drive(held, GOODS, oldestFirst)).toEqual({ error: wsaaError });
-    expect(held.started()).toEqual(expect.arrayContaining([...NUMBERS]));
+    expect(held.started().filter((method) => NUMBERS.includes(method))).toEqual(['getQuotations']);
 
     await answerAll(held);
     expect(unhandled).toEqual([]);

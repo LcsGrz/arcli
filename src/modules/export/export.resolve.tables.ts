@@ -1,3 +1,5 @@
+import { createTaskQueue } from '../../lib/concurrency/task-queue';
+
 import { resolveExportActivity, resolveExportLanguage } from './export.catalogs';
 import { assertExportClientIdentification, resolveExportClientCountryCuit } from './export.country-cuit';
 import type { ExportPreviewGateway } from './export.gateway';
@@ -5,16 +7,62 @@ import { resolveExportIncoterm } from './export.incoterm';
 import { buildExportItems, DEFAULT_EXPORT_ITEM_DESCRIPTION } from './export.items';
 import type { ExportRequest } from './export.resolve.local';
 import type { ExportTableReader } from './export.tables';
-import type { ExportCountry } from './export.types';
+import type {
+  ExportActivity,
+  ExportCountry,
+  ExportCountryCuit,
+  ExportCurrency,
+  ExportIncoterm,
+  ExportLanguage,
+  ExportUnit,
+} from './export.types';
+
+const MAX_SIMULTANEOUS_TABLES = 4;
+
+/** Las tablas que necesita el pedido, ya arrancadas. Las opcionales, solo si se usan. */
+export interface StartedExportTables {
+  readonly activities?: Promise<readonly ExportActivity[]>;
+  readonly countryCuits: Promise<readonly ExportCountryCuit[]>;
+  readonly currencies: Promise<readonly ExportCurrency[]>;
+  readonly incoterms?: Promise<readonly ExportIncoterm[]>;
+  readonly languages: Promise<readonly ExportLanguage[]>;
+  /** Las que todavia no arrancaron ya no arrancan. */
+  readonly stop: () => void;
+  readonly units: Promise<readonly ExportUnit[]>;
+}
+
+/**
+ * Arranca las tablas en el orden en que se usan, hasta 4 a la vez. Quien resuelve las espera y valida en ese orden, asi
+ * que con que error se corta no depende de cual conteste antes. Va despues de los paises, que piden el ticket de WSAA:
+ * las que van a la vez ya lo encuentran. Al cortar, las que estan en vuelo no se abortan y sus respuestas se ignoran: el
+ * error se muestra enseguida, pero el proceso termina recien cuando contestan (el SDK no tiene timeout propio).
+ */
+export function startExportTables(request: ExportRequest, gateway: ExportPreviewGateway): StartedExportTables {
+  const queue = createTaskQueue(MAX_SIMULTANEOUS_TABLES);
+
+  return {
+    countryCuits: queue.add(() => gateway.getDestinationCountryCuits()),
+    units: queue.add(() => gateway.getUnits()),
+    // Sin `--incoterms-desc`, la descripcion (`Incoterms_Ds`) sale de la tabla.
+    incoterms: request.input.incoterm?.trim() ? queue.add(() => gateway.getIncoterms()) : undefined,
+    // Se consulta siempre: la vista previa muestra el nombre del idioma, tambien el de por defecto.
+    languages: queue.add(() => gateway.getLanguages()),
+    // Se consulta siempre: la vista previa muestra el nombre de la moneda.
+    currencies: queue.add(() => gateway.getCurrencies()),
+    // Sin `--actividad` ni `exportacion.actividad` la E va sin el bloque `Actividades`: ARCA no lo exige.
+    activities: request.activityCode === undefined ? undefined : queue.add(() => gateway.getActivities()),
+    stop: queue.stop,
+  };
+}
 
 /** El CUIT del pais, los items, el incoterm y el idioma, cada uno contra su tabla. */
 export async function resolveExportCatalogs(options: {
   readonly destinationCountry: ExportCountry;
-  readonly gateway: ExportPreviewGateway;
   readonly request: ExportRequest;
+  readonly started: StartedExportTables;
   readonly tables: ExportTableReader;
 }) {
-  const { destinationCountry, gateway, request, tables } = options;
+  const { destinationCountry, request, started, tables } = options;
   const { associated, input } = request;
   // El mismo destino que el asociado, escrito por nombre: recien con la tabla se sabe.
   const associatedCuit =
@@ -24,7 +72,7 @@ export async function resolveExportCatalogs(options: {
   const givenCountryCuit = input.clientCountryCuit ?? associatedCuit;
 
   // Sin escribirlo, el CUIT del pais sale de la tabla.
-  const countryCuitTable = await tables.read(() => gateway.getDestinationCountryCuits(), {
+  const countryCuitTable = await tables.read(() => started.countryCuits, {
     required: givenCountryCuit === undefined,
   });
   const countryCuits = countryCuitTable.rows;
@@ -43,7 +91,7 @@ export async function resolveExportCatalogs(options: {
   });
 
   // Una unidad escrita por nombre sale de la tabla.
-  const unitTable = await tables.read(() => gateway.getUnits(), {
+  const unitTable = await tables.read(() => started.units, {
     required: input.items?.some(({ unit }) => typeof unit === 'string'),
   });
   const units = unitTable.rows;
@@ -54,25 +102,24 @@ export async function resolveExportCatalogs(options: {
     input.description?.trim() || DEFAULT_EXPORT_ITEM_DESCRIPTION,
   );
 
-  // Sin `--incoterms-desc`, la descripcion (`Incoterms_Ds`) sale de la tabla.
-  const incotermTable = input.incoterm?.trim()
-    ? await tables.read(() => gateway.getIncoterms(), { required: !input.incotermDescription?.trim() })
+  const incotermRows = started.incoterms;
+  const incotermTable = incotermRows
+    ? await tables.read(() => incotermRows, { required: !input.incotermDescription?.trim() })
     : undefined;
   const incoterm = resolveExportIncoterm(input.incoterm, incotermTable?.rows ?? []);
-  // Se consulta siempre: la vista previa muestra el nombre del idioma, tambien el de por defecto.
-  const languageTable = await tables.read(() => gateway.getLanguages());
+  const languageTable = await tables.read(() => started.languages);
   const languageId = resolveExportLanguage(input.language, languageTable.rows);
 
   return { clientCountryCuit, countryCuitTable, incoterm, incotermTable, items, languageId, languageTable, unitTable };
 }
 
-/** La actividad. Sin `--actividad` ni `exportacion.actividad` la E va sin el bloque `Actividades`: ARCA no lo exige. */
+/** La actividad, si el pedido lleva una, contra su tabla. */
 export async function resolveExportActivityCode(
   activityCode: number | undefined,
-  gateway: ExportPreviewGateway,
+  rows: StartedExportTables['activities'],
   tables: ExportTableReader,
 ) {
-  const activityTable = activityCode === undefined ? undefined : await tables.read(() => gateway.getActivities());
+  const activityTable = rows ? await tables.read(() => rows) : undefined;
   const activity =
     activityCode === undefined ? undefined : resolveExportActivity(activityCode, activityTable?.rows ?? []);
 

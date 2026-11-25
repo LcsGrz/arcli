@@ -13,7 +13,12 @@ import { resolveExportAssociated } from './export.resolve.associated';
 import { resolveExportMoney } from './export.resolve.currency';
 import { assertExportLocalFields, type ExportRequest, resolveExportRequest } from './export.resolve.local';
 import { buildExportDisplay, buildExportWarnings } from './export.resolve.result';
-import { resolveExportActivityCode, resolveExportCatalogs } from './export.resolve.tables';
+import {
+  resolveExportActivityCode,
+  resolveExportCatalogs,
+  type StartedExportTables,
+  startExportTables,
+} from './export.resolve.tables';
 import { createDryRunExportResponse, mapExportResponse } from './export.response';
 import { createExportTableReader } from './export.tables';
 import {
@@ -111,21 +116,28 @@ export class ExportService {
     const countryList = await gateway.getDestinationCountries();
     const destinationCountry = resolveExportDestinationCountry(request.input.destinationCountry, countryList);
 
-    return this.resolveWithTables(request, destinationCountry, gateway);
+    const started = startExportTables(request, gateway);
+
+    try {
+      return await this.resolveWithTables(request, destinationCountry, started, gateway);
+    } finally {
+      started.stop();
+    }
   }
 
-  /** Despues de los paises: las tablas, en el orden en que se usan, los numeros, el payload y los permisos. */
+  /** Despues de los paises: las tablas, que ya arrancaron y se esperan en el orden en que se usan, los numeros, el payload y los permisos. */
   private async resolveWithTables(
     request: ExportRequest,
     destinationCountry: ExportCountry,
+    started: StartedExportTables,
     gateway: ExportPreviewGateway,
   ): Promise<ResolvedExportVoucher> {
     const { associated, input, voucherKind } = request;
     const tables = createExportTableReader();
-    const catalogs = await resolveExportCatalogs({ destinationCountry, gateway, request, tables });
-    const money = await resolveExportMoney({ gateway, request, tables });
+    const catalogs = await resolveExportCatalogs({ destinationCountry, request, started, tables });
+    const money = await resolveExportMoney({ gateway, request, started, tables });
     const numbers = await resolveExportNumbers(request, gateway);
-    const activities = await resolveExportActivityCode(request.activityCode, gateway, tables);
+    const activities = await resolveExportActivityCode(request.activityCode, started.activities, tables);
     const payload = buildExportPayload(input, {
       activity: activities.activity,
       associatedVoucher: associated?.payload,

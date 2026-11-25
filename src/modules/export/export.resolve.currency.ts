@@ -18,6 +18,7 @@ import {
 import type { ExportPreviewGateway } from './export.gateway';
 import { isExportNote } from './export.kinds';
 import type { ExportRequest } from './export.resolve.local';
+import type { StartedExportTables } from './export.resolve.tables';
 import { describeQueryFailure, type ExportTableReader } from './export.tables';
 import { type ExportQuotation, type ExportType, SERVICES_EXPORT_TYPE } from './export.types';
 
@@ -135,14 +136,15 @@ async function checkWrittenExchangeRate(options: {
 export async function resolveExportMoney(options: {
   readonly gateway: ExportPreviewGateway;
   readonly request: ExportRequest;
+  readonly started: StartedExportTables;
   readonly tables: ExportTableReader;
 }) {
-  const { gateway, request, tables } = options;
+  const { gateway, request, started, tables } = options;
   const { exportType, input, today, voucherDate, voucherKind } = request;
   const currency = resolveExportCurrency(input);
-  // Se consulta siempre: la vista previa muestra el nombre de la moneda. Una extranjera que no esta en la tabla es
-  // error de entrada (1590), antes de buscar su cotizacion; los pesos no se controlan.
-  const currencyTable = await tables.read(() => gateway.getCurrencies());
+  // Una moneda extranjera que no esta en la tabla es error de entrada (1590), antes de buscar su cotizacion; los pesos
+  // no se controlan.
+  const currencyTable = await tables.read(() => started.currencies);
   const isLocalCurrency = currency.fields.Moneda_Id === ARCA_LOCAL_CURRENCY_CODE;
   const requestedCurrency = input.currencyCode?.trim() || currency.fields.Moneda_Id;
 

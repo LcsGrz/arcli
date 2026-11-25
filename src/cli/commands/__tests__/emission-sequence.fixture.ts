@@ -50,7 +50,7 @@ export const E_NOTE = ['-m', '500', '--ar', '1'];
 /** Lo que consulta la factura E antes de la vista previa. No emite: el número y el ID son lecturas. */
 export const FE_READS = [
   ...['getDestinationCountries', 'getDestinationCountryCuits', 'getUnits', 'getLanguages', 'getCurrencies'],
-  ...['getLastVoucherNumber', 'getLastRequestId', 'getActivities'],
+  ...['getActivities', 'getLastVoucherNumber', 'getLastRequestId'],
 ].map((method) => `ARCA ${method}`);
 
 export const EMIT = 'Sí, emitir ahora';
