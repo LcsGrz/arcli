@@ -327,6 +327,8 @@ Al elegir uno se muestra lo mismo que `arcli consultar`: CAE, vencimiento, impor
 
 Cada respuesta se valida igual que en `arcli config establecer` y se guarda en el momento: si cortás a mitad, lo ya respondido queda guardado. En las rutas del certificado y de la clave podés arrastrar el archivo a la terminal. Si en la guiada dejás el certificado para después, al terminar te dice que falta cargarlo y dónde. Al volver al menú, la barra se actualiza con lo que cambiaste.
 
+Al pasar **Entorno** a `produccion` se guarda sin preguntar y, en lugar de "Guardado.", un aviso dice que ahora estás en PRODUCCIÓN: los comprobantes van a tener validez fiscal y se usa el certificado de producción. Si falta el certificado o la clave, no se pueden leer o el certificado venció, lo dice ahí. Con `arcli interactivo --testing` dice que el entorno quedó guardado y que la sesión sigue en testing.
+
 ## Pasar a producción
 
 1. Configuración → Certificados de ARCA → Sacar o renovar un certificado → Producción, y seguí los pasos en ARCA.

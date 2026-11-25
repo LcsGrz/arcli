@@ -5,6 +5,7 @@ import {
   certificateBanner,
   dataPanel,
   errorListPanel,
+  productionBanner,
   renderRowActionsList,
   sectionHeading,
   sheetPanel,
@@ -365,9 +366,18 @@ function buildConfigScene(): string {
   const doctor = buildConfigDoctorReport(config, SAMPLE_NOW, [{ environment: 'testing' }]);
 
   return [
-    sceneTitle('Configuración', 'Vista actual y revisión'),
+    sceneTitle('Configuración', 'Vista actual, revisión y paso a producción'),
     formatConfigAsText(config, { pdfFolder: '~/arcli/comprobantes', ticketPath: '/Users/demo/.arcli/tickets' }),
     formatConfigDoctorAsText(doctor),
+    productionBanner({ certificate: 'ok', key: 'ok', sessionInTesting: false }),
+    productionBanner({ certificate: 'falta', key: 'falta', sessionInTesting: false }),
+    productionBanner({
+      certificate: 'ok',
+      expiredSummary: 'El certificado de producción venció el 20/11/2026.',
+      key: 'ok',
+      sessionInTesting: false,
+    }),
+    productionBanner({ certificate: 'ok', key: 'ok', sessionInTesting: true }),
   ].join('\n\n');
 }
 

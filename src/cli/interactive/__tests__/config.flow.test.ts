@@ -1,9 +1,14 @@
 import { Separator } from '@inquirer/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfigurationError } from '../../../lib/errors/app-error';
+import {
+  createSelfSignedCertificate,
+  OPENSSL_WARM_UP_TIMEOUT_MS,
+  removeSelfSignedCertificates,
+} from '../../../lib/security/__tests__/self-signed-certificate';
 import { parseConfigValue } from '../../../modules/config/config-value-parser';
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
@@ -420,7 +425,7 @@ describe('configuración: volver, cancelar y dejar como estaba', () => {
         .mocked(process.stdout.write)
         .mock.calls.map(([chunk]) => String(chunk))
         .join(''),
-    ).replace(/[│┃╏\s]+/g, ' ');
+    ).replace(/[│┃╎╏\s]+/g, ' ');
   }
 
   // Una respuesta guionada que sobra no tiene que pasar al test siguiente.
@@ -549,6 +554,89 @@ describe('configuración: volver, cancelar y dejar como estaba', () => {
 
       expect(store.concepto).toBeUndefined();
       expect(printed()).toContain('Dato borrado.');
+    });
+
+    describe('entorno (TUI-46)', () => {
+      beforeAll(() => void createSelfSignedCertificate(365), OPENSSL_WARM_UP_TIMEOUT_MS);
+      afterAll(removeSelfSignedCertificates);
+
+      /** Elige `answer` en "Entorno:" desde "Modificar configuración", con los flags de `arcli interactivo`. */
+      async function changeEnvironment(answer: string | typeof BACK, flags?: Parameters<typeof runConfigMenu>[0]) {
+        vi.mocked(chooseOne).mockResolvedValueOnce('cambiar').mockResolvedValueOnce('volver');
+        chooseStepMock
+          .mockImplementationOnce(pickField('entorno'))
+          .mockResolvedValueOnce(answer)
+          .mockResolvedValueOnce(BACK);
+
+        await runConfigMenu(flags);
+      }
+
+      it('a producción: guarda sin confirmar y muestra un solo aviso', async () => {
+        const { certPath, keyPath } = createSelfSignedCertificate(365);
+
+        store['cert.produccion'] = certPath;
+        store['key.produccion'] = keyPath;
+
+        await changeEnvironment('produccion');
+
+        expect(store.entorno).toBe('produccion');
+        expect(confirm).not.toHaveBeenCalled();
+        expect(printed()).toContain('AHORA ESTÁS EN PRODUCCIÓN');
+        expect(printed()).toContain(
+          'Los comprobantes que emitas van a tener validez fiscal. Se usa el certificado de producción.',
+        );
+        expect(printed()).not.toContain('Guardado.');
+      });
+
+      it('a producción con archivos que no existen: guarda igual y no dice que se usan', async () => {
+        store['cert.produccion'] = '/certs/produccion.crt';
+        store['key.produccion'] = '/certs/produccion.key';
+
+        await changeEnvironment('produccion');
+
+        expect(store.entorno).toBe('produccion');
+        expect(printed()).toContain('No se pudieron leer el certificado y la clave de producción.');
+        expect(printed()).not.toMatch(/Se usa|certs/);
+      });
+
+      it('a producción sin certificado ni clave: guarda igual y dice que faltan', async () => {
+        await changeEnvironment('produccion');
+
+        expect(store.entorno).toBe('produccion');
+        expect(printed()).toContain('AHORA ESTÁS EN PRODUCCIÓN');
+        expect(printed()).toContain('Faltan el certificado y la clave de producción.');
+        expect(printed()).not.toContain('Se usa');
+      });
+
+      it('con `--testing` en la sesión guarda, pero no dice que ya estás en producción', async () => {
+        await changeEnvironment('produccion', { testing: true });
+
+        expect(store.entorno).toBe('produccion');
+        expect(printed()).toContain('EL ENTORNO GUARDADO ES PRODUCCIÓN');
+        expect(printed()).toContain('Esta sesión sigue en TESTING por `--testing`.');
+        expect(printed()).not.toMatch(/AHORA ESTÁS|Guardado\./);
+      });
+
+      it('con `--produccion` en la sesión, el aviso es el mismo', async () => {
+        await changeEnvironment('produccion', { produccion: true });
+
+        expect(printed()).toContain('AHORA ESTÁS EN PRODUCCIÓN');
+      });
+
+      it.each([
+        ['a testing', 'produccion', 'testing', 'testing', 'Guardado.'],
+        ['la misma producción', 'produccion', 'produccion', 'produccion', 'Sin cambios.'],
+        ['el mismo testing', 'testing', 'testing', 'testing', 'Sin cambios.'],
+        ['Esc', 'testing', BACK, 'testing', undefined],
+      ] as const)('%s: como antes, sin el aviso', async (_case, saved, answer, expected, message) => {
+        store.entorno = saved;
+
+        await changeEnvironment(answer);
+
+        expect(store.entorno).toBe(expected);
+        expect(printed()).not.toMatch(/AHORA ESTÁS|EL ENTORNO GUARDADO/);
+        expect(printed().match(/(?:Guardado|Sin cambios)\./g)).toEqual(message ? [message] : null);
+      });
     });
 
     it('un valor nuevo se valida y se guarda', async () => {
@@ -687,7 +775,7 @@ describe('configuración: un dato con valores conocidos, de una lista donde tamb
         .mocked(process.stdout.write)
         .mock.calls.map(([chunk]) => String(chunk))
         .join(''),
-    ).replace(/[│┃╏\s]+/g, ' ');
+    ).replace(/[│┃╎╏\s]+/g, ' ');
   }
 
   /**
@@ -803,7 +891,7 @@ describe('configuración: la moneda y la actividad de exportación de una lista 
         .mocked(process.stdout.write)
         .mock.calls.map(([chunk]) => String(chunk))
         .join(''),
-    ).replace(/[│┃╏\s]+/g, ' ');
+    ).replace(/[│┃╎╏\s]+/g, ' ');
   }
 
   /**

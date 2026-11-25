@@ -48,6 +48,7 @@ Se elige por lo que se muestra, no por cómo se ve. Cada rol tiene su función, 
 | Listados en tabla                          | `listingPanel`                       | `listing`   | Sin color                     |
 | Aviso de una o dos líneas                  | `noticePanel`                        | `note`      | Según el aviso                |
 | Banner de entorno o certificado por vencer | `testingBanner`, `certificateBanner` | `warning`   | `warning`; `danger` si venció |
+| Aviso de pasar a producción                | `productionBanner`                   | `warning`   | `production`                  |
 | Nueva versión                              | `renderUpdateNoticePanel`            | `info`      | `info`                        |
 | JSON y respuesta bruta                     | `dataPanel`                          | `data`      | `subtle`                      |
 | Comando para copiar                        | `renderPanel` con `command`          | `command`   | `info`                        |
