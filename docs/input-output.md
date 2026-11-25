@@ -1272,6 +1272,7 @@ Con todo contestado, mientras se instala el plugin o se genera el PDF:
 - **Otra, a medio segundo o más:** lo mismo, y después de escribir todo el proceso termina por la señal. Si quien lee la salida no la lee, se espera hasta dos segundos y puede quedar cortada.
 - Con una sola señal y una salida que nadie lee, se espera hasta 30 segundos; después sale con `1` (o `2`, con un rechazado) y la salida queda cortada.
 - Si una señal llegó mientras se esperaba a ARCA, los PDF de lo emitido se generan igual: la siguiente es la que no los espera.
+- Con `npx` en Linux, npm puede terminar por la señal (`130`) aunque `arcli` haya salido con `0`: la salida igual está completa.
 - En las preguntas del PDF, `Ctrl+C` es "No".
 
 En el asistente, `Ctrl+C` corta como siempre.

@@ -228,12 +228,7 @@ function noteExit(): string {
   return writePreload(
     'salida.mjs',
     `import { writeFileSync } from 'node:fs';
-     import { execFileSync } from 'node:child_process';
-     const parent = execFileSync('ps', ['-o', 'pid=,args=', '-p', String(process.ppid)]).toString().trim().slice(0, 60);
-     process.on('exit', (code) => {
-       writeFileSync(${JSON.stringify(file('diagnostico.txt'))}, 'padre: ' + parent + ' | ppid al salir: ' + process.ppid);
-       writeFileSync(${JSON.stringify(file('salida.txt'))}, String(code));
-     });`,
+     process.on('exit', (code) => writeFileSync(${JSON.stringify(file('salida.txt'))}, String(code)));`,
   );
 }
 
@@ -652,12 +647,14 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
 
     expect(JSON.parse(result.stdout)).toMatchObject({ cae: '75123456789012', pdf: CUT });
     expect(result.killed).toBe(false);
-    // El de npm no es el de arcli: con una shell como dash, que recibe la misma señal, npm termina por ella.
     expect(readFileSync(file('salida.txt'), 'utf8')).toBe('0');
 
-    expect
-      .soft(`DIAG ${readFileSync(file('diagnostico.txt'), 'utf8')} | npm: ${result.code} ${result.signal}`)
-      .toBe('');
+    // En Linux el `sh` de npm queda como padre de arcli: también recibe la señal, termina por ella cuando arcli ya salió
+    // y npm la repite. En macOS `sh` se reemplaza por arcli, y npm sale con su código.
+    if (process.platform === 'darwin') {
+      expect(result).toMatchObject({ code: 0, signal: null });
+    }
+
     await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
   });
 
