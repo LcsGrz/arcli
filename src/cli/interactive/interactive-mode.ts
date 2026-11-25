@@ -196,7 +196,7 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
   try {
     await runAssistant(options, updateQuery, openHeader);
   } finally {
-    // Sin esto, una consulta colgada deja el proceso vivo.
+    // Sin esto, una consulta colgada deja el proceso vivo hasta que vence su plazo.
     updateQuery.cancel();
     headers.forEach((header) => header.cancel());
   }

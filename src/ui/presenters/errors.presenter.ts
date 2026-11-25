@@ -1,4 +1,5 @@
 import { AppError, HELP_SUGGESTION } from '../../lib/errors/app-error';
+import { ArcaDeadlineError } from '../../lib/errors/deadline-error';
 import type { ErrorCode } from '../../lib/errors/error-codes';
 import { summarizeError } from '../../lib/errors/error-summary';
 import { serializeError } from '../../lib/errors/serialize-error';
@@ -38,8 +39,8 @@ function formatErrorHint(error: AppError): string | null {
 const NETWORK_ERROR =
   /\b(?:EAI_AGAIN|ECONNABORTED|ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENETUNREACH|ENOTFOUND|ETIMEDOUT)\b|socket hang up|fetch failed/;
 
-function formatUnexpectedErrorHint(message: string): string {
-  return NETWORK_ERROR.test(message)
+function formatUnexpectedErrorHint(error: unknown, message: string): string {
+  return error instanceof ArcaDeadlineError || NETWORK_ERROR.test(message)
     ? 'Revisá tu conexión a internet y probá de nuevo en unos minutos. Con `arcli estado` ves si ARCA responde.'
     : `Si el problema persiste, revisá la configuración con \`arcli config revisar\` o avisanos en ${ISSUES_URL}.`;
 }
@@ -110,6 +111,6 @@ export function formatAppError(error: unknown): string {
     transient ? TRANSIENT_ERROR_TITLES[transient] : 'Error inesperado',
     message,
     [],
-    sugerencia ?? formatUnexpectedErrorHint(message),
+    sugerencia ?? formatUnexpectedErrorHint(error, message),
   );
 }
