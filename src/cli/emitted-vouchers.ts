@@ -65,11 +65,11 @@ function listEmittedExport(result: ExportExecutionResult): EmittedVoucher[] {
 
 /** El PDF que se eligio al emitir no se genero: lo dice el aviso, porque no se puede generar despues. */
 export function recordMissingPdf(result: BillingExecutionResult): void {
-  addWithoutPdf(listEmittedVouchers([result]));
+  withoutPdf.push(...listEmittedVouchers([result]));
 }
 
 export function recordMissingExportPdf(result: ExportExecutionResult): void {
-  addWithoutPdf(listEmittedExport(result));
+  withoutPdf.push(...listEmittedExport(result));
 }
 
 /** Los PDF de `results` que fallaron. Va antes de mostrarlos: la salida puede ser lo que falla. */
@@ -85,22 +85,6 @@ export function recordFailedExportPdf(result: ExportExecutionResult): void {
 
 function hasFailedPdf({ pdf }: { readonly pdf?: PdfOutcome }): boolean {
   return pdf !== undefined && 'error' in pdf;
-}
-
-/** Cada uno una vez: dos caminos que lo anoten no pueden dar `42 y 42`. */
-function addWithoutPdf(vouchers: readonly EmittedVoucher[]): void {
-  withoutPdf.push(
-    ...vouchers.filter(
-      ({ environment, number, pointOfSale, shortcut }) =>
-        !withoutPdf.some(
-          (known) =>
-            known.environment === environment &&
-            known.number === number &&
-            known.pointOfSale === pointOfSale &&
-            known.shortcut === shortcut,
-        ),
-    ),
-  );
 }
 
 /**

@@ -2,7 +2,6 @@ import type { ArcliConfig } from '../../modules/config/config.schemas';
 import type { ExportExecutionResult, ExportVoucherInput } from '../../modules/export/export.types';
 import { decidePdfs } from '../../modules/pdf/pdf-decision';
 import { generatePdfs } from '../../modules/pdf/pdf-generation';
-import { recordMissingExportPdf } from '../emitted-vouchers';
 
 import {
   confirmPdfs,
@@ -38,8 +37,7 @@ export async function attachExportPdf(
       mode: options.config.pdf,
       vouchers: [{ flag: options.input.pdf, result }],
     }),
-    defaultDeps,
-    () => recordMissingExportPdf(result),
+    deps,
   );
 
   if (decision === 'omitir') {

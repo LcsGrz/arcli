@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
-import type { BillingExecutionResult } from '../../../modules/billing/billing.types.internal';
 import {
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_DEBIT_NOTE_KIND,
@@ -9,7 +8,6 @@ import {
 } from '../../../modules/export/export.types';
 import { stripAnsi } from '../../../ui';
 import { outputState } from '../../closed-output';
-import { describeEmittedInThisRun, recordFailedPdfs, recordMissingPdf } from '../../emitted-vouchers';
 import { reportOutputFailure } from '../../error-output';
 
 import {
@@ -194,34 +192,6 @@ describe.each(COMMANDS)('$shortcut: cualquier PDF elegido que falla', ({ args, r
   });
 });
 
-describe.each(COMMANDS)('$shortcut: la pregunta del PDF con la salida perdida', ({ args, run, shortcut }) => {
-  const ask = async (output: 'stderr' | 'stdout', answer: Error | string) => {
-    outputState.failures.set(output, new Error('write'));
-
-    try {
-      return notes(
-        await run([...args, '--emitir'], { answers: [answer], config: ASK, pdfFailure: 'generar', tty: true }),
-      );
-    } finally {
-      outputState.failures.clear();
-    }
-  };
-
-  it('cortada: se anota, como en el asistente', async () => {
-    expect(await ask('stdout', 'Ctrl+C')).toEqual([
-      `anotado: ${emitted(shortcut)}`,
-      `anotado: ${emitted(shortcut)}; ${missing(shortcut)}`,
-    ]);
-  });
-
-  it.each<['stderr' | 'stdout', string]>([
-    ['stdout', 'No'],
-    ['stderr', 'Ctrl+C'],
-  ])('con %s perdida y "%s": no se anota', async (output, answer) => {
-    expect(await ask(output, answer)).toEqual([`anotado: ${emitted(shortcut)}`]);
-  });
-});
-
 describe.each(COMMANDS)('$shortcut: no se anota', ({ args, run, shortcut }) => {
   it.each<[string, RunOptions]>([
     ['un PDF que no se eligió', { pdfFailure: 'generar' }],
@@ -230,6 +200,24 @@ describe.each(COMMANDS)('$shortcut: no se anota', ({ args, run, shortcut }) => {
     ['preguntar, sin nadie que responda', { config: ASK, pdfFailure: 'generar' }],
   ])('%s', async (_name, options) => {
     expect(notes(await run([...args, '--emitir'], options))).toEqual([`anotado: ${emitted(shortcut)}`]);
+  });
+
+  it('Ctrl+C en la pregunta del PDF, tampoco con stdout fallado: lo decide la persona', async () => {
+    outputState.failures.set('stdout', new Error('write'));
+
+    try {
+      const result = await run([...args, '--emitir'], {
+        answers: ['Ctrl+C'],
+        config: ASK,
+        pdfFailure: 'generar',
+        tty: true,
+      });
+
+      expect(result.events).toContain('pregunta: ¿Generamos el PDF del comprobante?');
+      expect(notes(result)).toEqual([`anotado: ${emitted(shortcut)}`]);
+    } finally {
+      outputState.failures.clear();
+    }
   });
 
   it.each<[string, string[], RunOptions, string]>([
@@ -274,45 +262,10 @@ describe('un lote', () => {
     expect(result.events.at(-1)).toBe('fin: exit 2');
   });
 
-  it('con la pregunta cortada por la salida perdida, el que se preguntaba y el que falló, una vez cada uno', async () => {
-    const path = batch(3, (position) => (position === 0 ? { pdf: true } : position === 1 ? { pdf: false } : {}));
-
-    outputState.closed.set('stdout', new Error('EPIPE'));
-
-    try {
-      const result = await runBilling(['--cargar', path, '--emitir'], {
-        answers: ['Ctrl+C'],
-        config: ASK,
-        pdfFailure: 'generar',
-        tty: true,
-      });
-
-      expect(notes(result).at(-1)).toBe(`anotado: ${emitted('fc', 'del 42 al 44')}; ${missing('fc', '42 y 44')}`);
-    } finally {
-      outputState.closed.clear();
-    }
-  });
-
   it.each([false, true])('cortado, con --json %s: los ya emitidos, y el error del lote', async (json) => {
     const result = await runBatch({ arca: ['A', 'A', 'incierta'], json, pdfFailure: 'generar' });
 
     expect(notes(result).at(-1)).toBe(`anotado: ${emitted('fc', '42 y 43')}; ${missing('fc', '42 y 43')}`);
     expect(result.events.slice(-2)).toEqual(['error: BATCH_EMISSION_ERROR', 'fin: exit 1']);
   });
-});
-
-it('el mismo comprobante anotado por dos caminos sale una vez', () => {
-  const result = {
-    dryRun: false,
-    environment: 'testing',
-    payload: { PtoVta: 3 },
-    response: { cae: '75123456789012' },
-    voucherKind: { shortcut: 'fc' },
-    voucherNumber: 42,
-  } as BillingExecutionResult;
-
-  recordMissingPdf(result);
-  recordFailedPdfs([{ ...result, pdf: { error: { code: 'PDF_GENERATION_ERROR', message: 'x' } } }]);
-
-  expect(describeEmittedInThisRun()).toEqual([missing('fc')]);
 });

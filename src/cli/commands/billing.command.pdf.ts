@@ -9,8 +9,6 @@ import { answerPdfDecisions, canHavePdf, decidePdfs, type PdfDecision } from '..
 import { billingPdfVoucher, generatePdfs, type PdfExporter } from '../../modules/pdf/pdf-generation';
 import { createPdfFileExporter } from '../../services/pdf/pdf-file-exporter';
 import { PdfPlugin, type PdfRenderer } from '../../services/pdf/pdf-plugin';
-import { isOutputLost } from '../closed-output';
-import { recordMissingPdf } from '../emitted-vouchers';
 import { confirm, isPromptCancellation } from '../interactive/prompts';
 import { startSpinner } from '../spinner';
 
@@ -46,11 +44,8 @@ export const defaultPdfStepDependencies: PdfStepDependencies = {
   },
 };
 
-/**
- * El comprobante ya se emitio: Ctrl+C en una pregunta del PDF es "No", no un error del comando. `onCancelled` es para
- * quien necesita distinguirlo de un "No".
- */
-export function withCancellationAsNo(deps: PdfStepDependencies, onCancelled?: () => void): PdfStepDependencies {
+/** El comprobante ya se emitio: Ctrl+C en una pregunta del PDF es "No", no un error del comando. */
+export function withCancellationAsNo(deps: PdfStepDependencies): PdfStepDependencies {
   return {
     ...deps,
     confirm: async (...args) => {
@@ -58,8 +53,6 @@ export function withCancellationAsNo(deps: PdfStepDependencies, onCancelled?: ()
         return await deps.confirm(...args);
       } catch (error) {
         if (isPromptCancellation(error)) {
-          onCancelled?.();
-
           return false;
         }
 
@@ -138,14 +131,10 @@ export function pdfOnlyDataWarning(input: BillingCommandInput | undefined): stri
   return `${subject[0]?.toUpperCase() ?? ''}${subject.slice(1)} solo ${verb} en el PDF; no se generó ninguno.`;
 }
 
-/**
- * La pregunta del PDF, una sola para todos los que hay que preguntar. Si la corta la salida perdida y no la persona,
- * `onUnanswered` recibe la posicion de cada uno de esos, como en el asistente.
- */
+/** La pregunta del PDF, una sola para todos los que hay que preguntar. */
 export async function confirmPdfs(
   decisions: readonly PdfDecision[],
   deps: PdfStepDependencies,
-  onUnanswered: (index: number) => void,
 ): Promise<ReturnType<typeof answerPdfDecisions>> {
   const pending = decisions.filter((decision) => decision === 'preguntar').length;
 
@@ -153,16 +142,7 @@ export async function confirmPdfs(
     return answerPdfDecisions(decisions, false);
   }
 
-  const { confirm: ask } = withCancellationAsNo(deps, () => {
-    if (isOutputLost('stdout')) {
-      decisions.forEach((decision, index) => {
-        if (decision === 'preguntar') {
-          onUnanswered(index);
-        }
-      });
-    }
-  });
-  const accepted = await ask(
+  const accepted = await deps.confirm(
     pending === 1 ? '¿Generamos el PDF del comprobante?' : `¿Generamos los PDFs de los ${pending} comprobantes?`,
     pending === 1 ? 'Sí, generar el PDF' : 'Sí, generar los PDFs',
     'No',
@@ -247,8 +227,7 @@ export async function attachPdfs(
       mode: config.pdf,
       vouchers: results.map((result, index) => ({ flag: inputs[index]?.pdf, result })),
     }),
-    defaultDeps,
-    (index) => recordMissingPdf(results[index]),
+    deps,
   );
   const targets = decisions.flatMap((decision, index) => (decision === 'generar' ? [index] : []));
   const outcomes = await generatePdfs({
