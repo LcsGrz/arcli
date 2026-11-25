@@ -57,23 +57,26 @@ const QUESTIONS: readonly Case[] = [
 ];
 
 const COMMANDS: ReadonlyArray<
-  readonly [name: string, run: (options: RunOptions) => Promise<Run>, emission: readonly string[], document: string]
+  readonly [name: string, run: (options: RunOptions) => Promise<Run>, emission: readonly unknown[], document: string]
 > = [
   [
     'A, B y C',
     (options) => runBilling([...FC, '--emitir'], options),
-    ['ARCA createVoucher 42 por 1000', 'anotado: fc del punto de venta 3, 42'],
+    ['ARCA createVoucher 42 por 1000', expect.stringContaining('anotado: fc del punto de venta 3, 42')],
     'JSON aprobado 42 PDF no generado',
   ],
   [
     'E',
     (options) => runExport([...FE, '--emitir'], options),
-    ['ARCA authorize 42 por 1500', 'anotado: fe del punto de venta 3, 42'],
+    ['ARCA authorize 42 por 1500', expect.stringContaining('anotado: fe del punto de venta 3, 42')],
     'JSON aprobado 42 PDF no generado',
   ],
 ];
 
 const outputs = ({ events }: Run) => events.filter((text) => /^(salida|stderr): /.test(text)).join(', ');
+
+/** Sin lo que queda anotado para el aviso de la salida cortada: eso es de `missing-pdf.test.ts`. */
+const withoutNotes = ({ events }: Run) => events.filter((text) => !text.startsWith('anotado: '));
 
 describe.each(COMMANDS)('%s', (_command, run, emission, document) => {
   it.each(FAILURES)('en texto, %s: el CAE, el aviso del PDF y exit 0', async (_name, options) => {
@@ -114,7 +117,7 @@ describe('un lote', () => {
   it('el PDF de uno falla: los demás salen igual', async () => {
     const result = await runBilling(['--cargar', batch(2), '--emitir'], { config: ALWAYS, pdfFailure: 'generar 42' });
 
-    expect(result.events.slice(-6)).toEqual([
+    expect(withoutNotes(result).slice(-6)).toEqual([
       'salida: CAE, CAE',
       'PDF cargar',
       'PDF generar 42',

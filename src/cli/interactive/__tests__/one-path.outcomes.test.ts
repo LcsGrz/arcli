@@ -429,25 +429,32 @@ describe('"Sí, emitir y generar el PDF"', () => {
     expect(render).not.toHaveBeenCalled();
   });
 
-  it('Factura E: si el PDF falla, solo el asistente lo anota como sin generar (diferencia sin decidir)', async () => {
+  const FAILING_PDF = [
+    { family: FC, missing: 'No se generó el PDF: fc del punto de venta 3, 42.', questions: PDF_QUESTIONS },
+    { family: FE, missing: 'No se generó el PDF: fe del punto de venta 3, 8.', questions: [] as Steps },
+  ];
+  const failPdf = async ({ family, questions }: (typeof FAILING_PDF)[number]) => {
     fakePdf().mockRejectedValue(new Error('sin Chrome'));
     withIssuer();
 
-    const { assistant, command } = await runBoth(FE, [EMIT_WITH_PDF]);
+    return runBoth(family, [EMIT_WITH_PDF, ...questions]);
+  };
 
-    expect(assistant.emitted).toContainEqual(expect.stringContaining('No se generó el PDF'));
-    expect(command.emitted).not.toContainEqual(expect.stringContaining('No se generó el PDF'));
+  it.each(FAILING_PDF)('$family.name: si el PDF falla, el asistente lo anota una sola vez', async (failing) => {
+    const { assistant } = await failPdf(failing);
+
+    expect(assistant.emitted).toEqual([expect.stringContaining('Se emitió'), failing.missing]);
   });
 
-  it('Factura C: si el PDF falla, solo el asistente lo anota como sin generar (diferencia sin decidir)', async () => {
-    fakePdf().mockRejectedValue(new Error('sin Chrome'));
-    withIssuer();
+  // Tests primero (REV-54): pasa a it() al implementarlo.
+  it.fails.each(FAILING_PDF)(
+    '$family.name: si el PDF falla, el comando lo anota como el asistente',
+    async (failing) => {
+      const { assistant, command } = await failPdf(failing);
 
-    const { assistant, command } = await runBoth(FC, [EMIT_WITH_PDF, ...PDF_QUESTIONS]);
-
-    expect(assistant.emitted).toContainEqual(expect.stringContaining('No se generó el PDF'));
-    expect(command.emitted).not.toContainEqual(expect.stringContaining('No se generó el PDF'));
-  });
+      expect(command.emitted).toEqual(assistant.emitted);
+    },
+  );
 });
 
 describe('el asistente emite por los casos de uso de modules', () => {
