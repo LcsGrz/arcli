@@ -5,6 +5,7 @@ import {
   certificateBanner,
   dataPanel,
   errorListPanel,
+  productionBanner,
   renderRowActionsList,
   sectionHeading,
   sheetPanel,
@@ -357,9 +358,12 @@ function buildConfigScene(): string {
   const doctor = buildConfigDoctorReport(config, SAMPLE_NOW, [{ environment: 'testing' }]);
 
   return [
-    sceneTitle('Configuración', 'Vista actual y revisión'),
+    sceneTitle('Configuración', 'Vista actual, revisión y paso a producción'),
     formatConfigAsText(config, { pdfFolder: '~/arcli/comprobantes', ticketPath: '/Users/demo/.arcli/tickets' }),
     formatConfigDoctorAsText(doctor),
+    productionBanner({ missesCertificate: false, missesKey: false, sessionInTesting: false }),
+    productionBanner({ missesCertificate: true, missesKey: true, sessionInTesting: false }),
+    productionBanner({ missesCertificate: false, missesKey: false, sessionInTesting: true }),
   ].join('\n\n');
 }
 
