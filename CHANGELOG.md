@@ -184,6 +184,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Factura E:** los errores de `--cargar` dicen qué llegó y sugieren la clave parecida, como en A, B y C (#275).
 - **Facturas:** `EMISSION_UNCERTAIN` trae `entorno`, `puntoVenta` y `tipoArca` en `detalles`, para conciliar sin leer la sugerencia (#280).
 - **Errores:** en `--cargar`, una clave `constructor` ya no sugiere un texto interno de JavaScript (#275).
+- **Asistente:** con un consumidor final en moneda extranjera, Esc en "¿Emitimos…?" vuelve a la última pregunta; podía repetir la vista previa (#289).
 
 <details><summary>Detalle</summary>
 
@@ -244,6 +245,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **Un error de ARCA al consultar una `E`.** `consultar` y `ultimos` con `fe`, `nce` o `nde` decían "al consultar el comprobante asociado" y no avisaban que podía existir. Ahora `error` nombra el comprobante, dice que no se sabe si existe y trae el código de ARCA, y `sugerencia` (antes `null`) pide no reintentar una emisión hasta saberlo, como en A, B y C. En las notas `E` sigue diciendo que es el asociado, con su número. En el asistente ese error salía al menú y se perdía lo cargado: ahora se muestra y se sigue en la lista o en la pregunta. Un error al pedir el último número de una `E` también trae `sugerencia`: la de consultar en `ultimos`, la de emitir al facturar. `codigo` sigue en `ARCA_EXPORT_ERROR` y `detalles` no cambia.
 
 **Qué usar en la `E`.** `arcli parametros` tiene las tablas de A, B y C, no las de WSFEX. Un incoterm o un idioma que no existe ahora lista los válidos en `sugerencia`; una moneda o una unidad, los más comunes de la tabla de WSFEX; el país, los parecidos, y el CUIT del país, el del destino. Un rechazo por el punto de venta aclara que en producción la `E` usa uno propio, y por el del asociado, `--apv`. El `error` del incoterm ya no trae la indicación, que pasó a `sugerencia`.
+
+**Esc en "¿Emitimos…?" en moneda extranjera.** Con un consumidor final, después de los opcionales el asistente consulta la cotización para saber si el total llega al tope. Esa consulta contaba como una pregunta: Esc volvía a ella, que no pregunta nada, y salía otra vez la vista previa, siempre si la consulta había fallado. Ahora vuelve a la última pregunta, en la factura, el recibo, las notas y "Repetir".
 
 </details>
 

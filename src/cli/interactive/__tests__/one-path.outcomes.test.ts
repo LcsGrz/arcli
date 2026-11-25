@@ -19,7 +19,10 @@ import {
   FE_STEPS,
   invoiceFlow,
   NO_OPTIONALS,
+  noteFlow,
   productionInvoiceFlow,
+  receiptFlow,
+  repeatFlow,
   RI_ARGS,
   runAssistant,
   runCommand,
@@ -182,12 +185,95 @@ describe('la vista previa falla: ARCA no tiene la cotización', () => {
     expect([assistant.requests, command.requests]).toEqual([[], []]);
   });
 
-  // Bug que ya estaba, encontrado con REV-53: el último paso es la consulta de la cotización para el tope, que no
-  // pregunta nada, y el asistente muestra el error y consulta ARCA sin parar. Pasa a it() al arreglarlo.
-  it.fails('Factura C a consumidor final: el asistente también vuelve a preguntar', async () => {
+  // Su ultimo paso consulta la cotizacion para el tope y no pregunta nada: no es una pregunta a la que volver.
+  it('Factura C a consumidor final: el asistente también vuelve a preguntar', async () => {
     const assistant = await runUntilAskedAgain(inUsd(FC_STEPS));
 
     expect(assistant.error).toMatchObject({ name: 'ExitPromptError' });
+  });
+
+  const IN_USD_NOTE: Steps = [...IN_USD, [/Monto de la nota de crédito en USD/, '100'], ...IN_USD];
+  const CONSUMER_FLOWS: ReadonlyArray<readonly [string, () => Promise<unknown>, Steps]> = [
+    ['factura', invoiceFlow, inUsd(FC_STEPS)],
+    [
+      'recibo',
+      receiptFlow,
+      inUsd([
+        [/Qué recibo/, 'Recibo C'],
+        [/A quién le hacés el recibo/, 'Consumidor final'],
+        [/Qué estás cobrando/, 'Servicios'],
+        [/Monto total/, '1000'],
+        NO_OPTIONALS,
+      ]),
+    ],
+    [
+      'nota por período',
+      noteFlow('credito'),
+      [
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura C'],
+        [/A qué la asociamos/, 'A un período'],
+        [/Período desde/, '01/11/2026'],
+        [/Período hasta/, '05/11/2026'],
+        [/A quién va la nota/, 'Consumidor final'],
+        [/Qué concepto ajusta la nota/, 'Servicios'],
+        [/Monto de la nota de crédito/, '100'],
+        ...IN_USD_NOTE,
+      ],
+    ],
+    [
+      'Repetir',
+      repeatFlow,
+      [
+        [/Qué comprobante querés repetir/, 'Factura C'],
+        [/Cuál repetimos/, '00003-00000041'],
+        [/Mismo monto/, 'No, ingresar otro monto'],
+        [/Monto total/, '1000'],
+        [/Período del servicio/, 'Un solo día'],
+        ...IN_USD,
+        [/Monto total en USD/, '1000'],
+        [/Período del servicio/, 'Un solo día'],
+        ...IN_USD,
+      ],
+    ],
+  ];
+
+  it.each(CONSUMER_FLOWS)(
+    '%s en dólares a consumidor final: vuelve a los opcionales, sin consultar de más',
+    async (...args) => {
+      const [, flow, steps] = args;
+      let askedAgain: string | undefined;
+      const assistant = await runAssistant(flow, {
+        onAsk: (message) => {
+          if (text([profile.stdout]).includes('Volvemos a la última pregunta')) {
+            askedAgain = message;
+            throw ctrlC();
+          }
+        },
+        prepare: withoutQuotation,
+        steps,
+      });
+
+      expect(assistant.asked).toHaveLength(steps.length);
+      expect(askedAgain).toMatch(/Agregamos/);
+      // Una para el tope y una para la vista previa.
+      expect(sdk.wsfe.getQuotation).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it.each(CONSUMER_FLOWS)('%s: Esc en "¿Emitimos?" vuelve una vez, sin otra vista previa', async (...args) => {
+    const [, flow, steps] = args;
+    // La consulta del tope falla y la de la vista previa no.
+    const prepare = () => {
+      sdk.wsfe.getQuotation.mockRejectedValueOnce(new Error('ECONNRESET'));
+    };
+    const assistant = await runAssistant(flow, {
+      prepare,
+      steps: [...steps, [/Emitimos/, BACK], ...IN_USD, DO_NOT_EMIT],
+    });
+
+    expectFinished(assistant, [...steps, [/Emitimos/, BACK], ...IN_USD, DO_NOT_EMIT]);
+    expect(assistant.asked.filter((message) => /Emitimos/.test(message))).toHaveLength(2);
   });
 });
 

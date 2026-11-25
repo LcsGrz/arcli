@@ -6,6 +6,7 @@ import {
   BACK,
   type Back,
   dependentsOf,
+  NOT_ASKED,
   runWizard,
   type StepMemo,
   stepMemo,
@@ -404,7 +405,7 @@ export interface RequiredOptionalDef<S, K extends string, O, C> {
   readonly context?: (state: S) => C;
   /**
    * Cuando todavia no se sabe si es obligatorio sin consultar algo (la cotizacion oficial de ARCA): mientras `when`, la
-   * primera pregunta corre `resolve` antes de preguntar y, si con eso no es obligatorio, sigue sin preguntar.
+   * primera pregunta corre `resolve` antes de preguntar y, si con eso no es obligatorio, sigue sin preguntar (`NOT_ASKED`).
    */
   readonly pending?: {
     readonly resolve: (state: S) => Promise<void>;
@@ -476,7 +477,7 @@ export function requiredOptional<S, K extends string, O, C>(
           context = contextOf(state);
 
           if (reasonFor(context) === undefined) {
-            return {};
+            return NOT_ASKED as Partial<S>;
           }
         }
 

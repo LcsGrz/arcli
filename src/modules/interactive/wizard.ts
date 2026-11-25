@@ -5,6 +5,13 @@ export const BACK = Symbol('volver');
 
 export type Back = typeof BACK;
 
+/**
+ * La respuesta de un paso que corrio sin preguntar (consulto algo y resulto que no hacia falta): no escribe nada ni
+ * entra en la historia, asi "Volver" y la vista previa rechazada llegan a una pregunta de verdad, sin consultar de nuevo
+ * por el camino. Se compara por identidad.
+ */
+export const NOT_ASKED: Readonly<Record<string, never>> = Object.freeze({});
+
 /** Un dato que completa un paso anterior: si falta, el flujo esta mal armado, no es un error de quien lo usa. */
 export function requireStepValue<T>(value: T | undefined, name: string): T {
   if (value === undefined) {
@@ -67,7 +74,7 @@ export interface WizardStep<S> {
    * campos de lo marcado.
    */
   readonly writes?: readonly string[] | ((state: S, memo: StepMemo) => readonly string[]);
-  /** Devuelve los campos que completa o BACK para volver al paso anterior. */
+  /** Devuelve los campos que completa, BACK para volver al paso anterior o `NOT_ASKED` si no pregunto nada. */
   readonly run: (state: S, options: StepRunOptions<S>) => Promise<Back | Partial<S>>;
 }
 
@@ -431,7 +438,10 @@ export async function runWizard<S>(
       insisted.add(retry.key);
     }
 
-    history.push({ index, state });
+    if (result !== NOT_ASKED) {
+      history.push({ index, state });
+    }
+
     answer(step, previous, result);
     index += 1;
   }

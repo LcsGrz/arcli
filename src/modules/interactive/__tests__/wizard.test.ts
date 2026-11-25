@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { BACK, requireStepValue, runWizard, type WizardStep } from '../wizard';
+import { BACK, NOT_ASKED, requireStepValue, runWizard, type WizardStep } from '../wizard';
 
 interface State {
   readonly a?: string;
@@ -257,5 +257,79 @@ describe('runWizard', () => {
 
   it('devuelve undefined si se vuelve desde el primer paso', async () => {
     expect(await runWizard(scripted({ a: [BACK] }), {})).toBeUndefined();
+  });
+});
+
+describe('un paso que no preguntó (NOT_ASKED)', () => {
+  it('no es una pregunta a la que volver: ni con "Volver" ni desde la vista previa', async () => {
+    const calls: string[] = [];
+    let asked = 0;
+    const confirm = vi.fn(async () => {
+      calls.push('confirmar');
+
+      return confirm.mock.calls.length < 2 ? BACK : undefined;
+    });
+    const state = await runWizard<{ a?: number; b?: number }>(
+      [
+        { name: 'a', run: async () => ({ a: (calls.push('a'), 1) }) },
+        {
+          name: 'consulta',
+          run: async () => {
+            calls.push('consulta');
+
+            return NOT_ASKED;
+          },
+        },
+        {
+          name: 'b',
+          run: async () => {
+            calls.push('b');
+            asked += 1;
+
+            return asked === 1 ? BACK : { b: asked };
+          },
+        },
+        {
+          name: 'consulta-final',
+          run: async () => {
+            calls.push('consulta-final');
+
+            return NOT_ASKED;
+          },
+        },
+      ],
+      {},
+      undefined,
+      { confirm },
+    );
+
+    expect(state).toEqual({ a: 1, b: 3 });
+    expect(calls).toEqual([
+      ...['a', 'consulta', 'b'],
+      // "Volver" en b llega a la pregunta anterior, no a la consulta.
+      ...['a', 'consulta', 'b', 'consulta-final', 'confirmar'],
+      ...['b', 'consulta-final', 'confirmar'],
+    ]);
+  });
+
+  it('una respuesta vacía de un paso que sí preguntó entra en la historia', async () => {
+    const asked: string[] = [];
+    const confirm = vi.fn(async () => (confirm.mock.calls.length < 2 ? BACK : undefined));
+
+    await runWizard<object>(
+      ['a', 'b'].map((name) => ({
+        name,
+        run: async () => {
+          asked.push(name);
+
+          return {};
+        },
+      })),
+      {},
+      undefined,
+      { confirm },
+    );
+
+    expect(asked).toEqual(['a', 'b', 'b']);
   });
 });
