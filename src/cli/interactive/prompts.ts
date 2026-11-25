@@ -8,7 +8,7 @@ import { bold, colorize, type RowActionsListRow, uiSymbol, usesAsciiBorders, wri
 
 import { blockPager } from './block-pager';
 import { filterList, type FilterListRow } from './filter-list';
-import { listSelect, type ListSelectState } from './list-select';
+import { listSelect, type ListSelectState, type LiveList, topBlock } from './list-select';
 import { multiSelect } from './multi-select';
 import { openPrompt } from './output-guard';
 import { rowActionsList } from './row-actions-list';
@@ -82,11 +82,25 @@ const TEXT_THEME = {
   style: { defaultAnswer: (text: string) => colorize(`enter: ${text}`, 'muted') },
 };
 
+/** Lo que puede cambiar en una lista con Esc (`escapeValue`) ya abierta. */
+export interface LiveChoices<T> extends LiveList<T> {
+  /** Da lo de arriba por ultima vez, para dejarlo en el historial. */
+  readonly settleTop: () => string;
+}
+
+function liveChoice<T>(live: LiveList<T> | undefined): Array<Choice<T>> {
+  const choice = live?.firstChoice();
+
+  return choice ? [choice] : [];
+}
+
 /**
  * Una lista simple. Con `escapeValue`, Esc la cierra devolviendo ese valor (por ejemplo, "volver", "no" o
  * "salir") y la ayuda de teclas lo muestra con `escapeLabel`; sin el, Esc no hace nada. Con `back`, un boton
  * ("← Volver") fijo debajo de las opciones, que no se desplaza con ellas. Con `compactTop`, una sola linea en blanco
- * arriba en lugar de dos. Con `filter: false`, escribir no filtra (como al confirmar).
+ * arriba en lugar de dos. Con `filter: false`, escribir no filtra (como al confirmar). Con `live`, lo de arriba de la
+ * pregunta y la primera opcion pueden cambiar mientras esta abierta; al cerrarse, por lo que sea, queda escrito
+ * `settleTop`.
  */
 export async function chooseOne<T>(
   message: string,
@@ -98,15 +112,17 @@ export async function chooseOne<T>(
     readonly escapeLabel?: string;
     readonly escapeValue?: T;
     readonly filter?: boolean;
+    readonly live?: LiveChoices<T>;
   } = {},
 ): Promise<T> {
-  const { back, compactTop = false, escapeLabel = 'volver', escapeValue, filter } = options;
+  const { back, compactTop = false, escapeLabel = 'volver', escapeValue, filter, live } = options;
   const prefix = compactTop ? COMPACT_PROMPT_PREFIX : PROMPT_PREFIX;
   const config = {
     back,
     choices,
     default: defaultValue,
     filter,
+    live,
     message,
     pageSize: MIN_PAGE_SIZE,
     theme:
@@ -120,8 +136,19 @@ export async function chooseOne<T>(
   }
 
   const result = await runStepPrompt(
-    (context) => listSelect<T, T>(config, context),
-    (answer) => ({ answer: back && answer === back.value ? back.label : choiceName(choices, answer), message }),
+    async (context) => {
+      try {
+        return await listSelect<T, T>(config, context);
+      } finally {
+        if (live) {
+          writeTerminalRaw(topBlock(live.settleTop()));
+        }
+      }
+    },
+    (answer) => ({
+      answer: back && answer === back.value ? back.label : choiceName([...liveChoice(live), ...choices], answer),
+      message,
+    }),
   );
 
   return 'answer' in result && result.answer !== BACK ? result.answer : escapeValue;
@@ -169,7 +196,12 @@ export async function askText(
 }
 
 /** Si o no; Esc cuenta como no. Escribir no filtra: con dos opciones no hace falta, y Enter elige la marcada. */
-export async function confirm(message: string, yesLabel: string, noLabel = 'Cancelar'): Promise<boolean> {
+export async function confirm(
+  message: string,
+  yesLabel: string,
+  noLabel = 'Cancelar',
+  live?: LiveChoices<boolean>,
+): Promise<boolean> {
   return chooseOne(
     message,
     [
@@ -177,7 +209,7 @@ export async function confirm(message: string, yesLabel: string, noLabel = 'Canc
       { name: noLabel, value: false },
     ],
     undefined,
-    { escapeValue: false, filter: false },
+    { escapeValue: false, filter: false, live },
   );
 }
 

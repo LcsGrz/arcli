@@ -7,6 +7,7 @@ import {
   useKeypress,
   useMemo,
   usePrefix,
+  useRef,
   useState,
 } from '@inquirer/core';
 
@@ -51,6 +52,23 @@ export interface ListSelectState<V> {
  */
 export class PinnedSeparator extends Separator {}
 
+/**
+ * Lo que puede cambiar en una lista ya abierta, sin mover la marcada ni lo escrito: lo que va arriba de la pregunta y
+ * una opcion que se suma antes de las demas.
+ */
+export interface LiveList<T> {
+  readonly firstChoice: () => ListSelectChoice<T> | undefined;
+  /** Avisa que algo cambio. Devuelve como dejar de escuchar. */
+  readonly subscribe: (listener: () => void) => () => void;
+  /** Vacio, nada. */
+  readonly top: () => string;
+}
+
+/** Lo que va arriba de la pregunta, con su linea en blanco. */
+export function topBlock(text: string): string {
+  return text ? `${text}\n\n` : '';
+}
+
 interface ListSelectStyle {
   readonly style: {
     readonly description: (text: string) => string;
@@ -67,6 +85,8 @@ export interface ListSelectConfig<T, B> {
   readonly filter?: boolean;
   /** Lo escrito con que arranca, al redibujar la misma lista (por ejemplo, cuando termina una carga). */
   readonly initialTerm?: string;
+  /** Lo que puede cambiar con la lista abierta. */
+  readonly live?: LiveList<T>;
   readonly message: string;
   /** Lo escrito y la marcada despues de cada tecla, para redibujar la lista igual (con `initialTerm` y `default`). */
   readonly onChange?: (state: ListSelectState<B | T>) => void;
@@ -88,6 +108,8 @@ const NO_ROW = -2;
  * encabezado, que esta lista no tiene).
  */
 const FILTER_LINES = 3;
+/** Al frente de una lista con `live`: la opcion que se puede sumar y su linea en blanco. Ocultas hasta que esta. */
+const LIVE_ROWS = 2;
 /** Los avisos "↑ 3 más" y "↓ 12 más". */
 const SCROLL_HINT_LINES = 2;
 
@@ -132,15 +154,27 @@ export const listSelect = createPrompt(
     const [status, setStatus] = useState<'done' | 'idle'>('idle');
     const [term, setTerm] = useState(filterable ? (config.initialTerm ?? '') : '');
     const prefix = usePrefix({ status, theme });
-    const items = config.choices;
+    // Un cambio de `live` se dibuja de una vez: las posiciones de las demas filas no dependen de el.
+    const [, setLiveVersion] = useState(0);
+    const firstChoice = config.live?.firstChoice();
+    const items = useMemo(
+      () => (config.live ? [firstChoice ?? new Separator(' '), new Separator(' '), ...config.choices] : config.choices),
+      [config.choices, firstChoice],
+    );
+    const liveRows = config.live ? LIVE_ROWS : 0;
+    // Si la que se sumo quedo marcada por lo escrito, y no con las flechas.
+    const liveMarkedBySearch = useRef(false);
+    const hiddenRows = firstChoice ? 0 : liveRows;
     const filtering = searchWords(term).length > 0;
     // Con algo escrito, las opciones que coinciden y los separadores fijos; las posiciones son las de `items`.
     const shown = useMemo(
       () =>
         items.flatMap((item, index) =>
-          !filtering || choiceMatches(item, term) || item instanceof PinnedSeparator ? [index] : [],
+          index >= hiddenRows && (!filtering || choiceMatches(item, term) || item instanceof PinnedSeparator)
+            ? [index]
+            : [],
         ),
-      [items, term, filtering],
+      [items, term, filtering, hiddenRows],
     );
     const navigable = useMemo(
       () => shown.filter((index) => isOption(items[index] as ListSelectChoice<T> | Separator)),
@@ -166,6 +200,8 @@ export const listSelect = createPrompt(
         rl.write(term);
       }
     }, []);
+
+    useEffect(() => config.live?.subscribe(() => setLiveVersion((version) => version + 1)), []);
 
     const report = (nextTerm: string, row: number) => {
       const value =
@@ -199,6 +235,7 @@ export const listSelect = createPrompt(
         const next = move(key, config.back ? [...navigable, BACK_ROW] : navigable);
 
         if (next !== undefined) {
+          liveMarkedBySearch.current = false;
           report(term, next);
         }
       } else if (!filterable) {
@@ -209,13 +246,24 @@ export const listSelect = createPrompt(
         let next = active;
 
         if (searchWords(nextTerm).length === 0) {
-          // Al borrar lo escrito, la marcada (tambien "Volver") queda donde estaba; si no habia ninguna, la primera.
-          next = active === NO_ROW ? (items.findIndex(isOption) === -1 ? BACK_ROW : items.findIndex(isOption)) : active;
+          // Al borrar lo escrito, la marcada (tambien "Volver") queda donde estaba; si no habia ninguna (o la habia
+          // marcado la busqueda y se sumo con la lista abierta), la primera.
+          const first = items.findIndex((item, index) => index >= liveRows && isOption(item));
+
+          next = active === NO_ROW || liveMarkedBySearch.current ? (first === -1 ? BACK_ROW : first) : active;
+          liveMarkedBySearch.current = false;
         } else if (!sameSearch(nextTerm, term)) {
           // Otra busqueda marca la primera que coincide y se puede elegir. Un espacio o un Tab no la mueven.
+          // La que se sumo con la lista abierta, solo si no hay otra.
           const matches = items.flatMap((item, index) => (choiceMatches(item, nextTerm) ? [index] : []));
+          const others = matches.filter((index) => index >= liveRows);
 
-          next = matches.find((index) => !(items[index] as ListSelectChoice<T>).disabled) ?? matches[0] ?? NO_ROW;
+          next =
+            (others.length > 0 ? others : matches).find((index) => !(items[index] as ListSelectChoice<T>).disabled) ??
+            others[0] ??
+            matches[0] ??
+            NO_ROW;
+          liveMarkedBySearch.current = next >= 0 && next < liveRows;
         }
 
         setTerm(nextTerm);
@@ -225,14 +273,15 @@ export const listSelect = createPrompt(
     });
 
     const message = theme.style.message(config.message, status);
+    const top = topBlock(config.live?.top() ?? '');
 
     if (status === 'done') {
       const answer = activeItem ? (activeItem.short ?? activeItem.name) : (config.back?.label ?? '');
 
-      return [prefix, message, theme.style.answer(answer)].filter(Boolean).join(' ');
+      return `${top}${[prefix, message, theme.style.answer(answer)].filter(Boolean).join(' ')}`;
     }
 
-    const pageSize = filteredPageSize(config.pageSize, items.length, shown.length, filtering);
+    const pageSize = filteredPageSize(config.pageSize, items.length - hiddenRows, shown.length, filtering);
     // Con "Volver" marcado, la pagina queda donde estaba: al final, porque se llega desde la ultima opcion.
     const anchor = active < 0 ? shown.length - 1 : Math.max(0, shown.indexOf(active));
     const page = scrollWindow(shown.length, anchor, pageSize);
@@ -262,9 +311,9 @@ export const listSelect = createPrompt(
     ]);
     const head = [prefix, message].filter(Boolean).join(' ');
     // Lo escrito, como en `filterList`: en su propia linea debajo de la pregunta, con una linea en blanco antes de la lista.
-    const top = filtering ? `${head}${head.endsWith('\n') ? '\n' : ' '}${filterPromptLine(term)}\n ` : head;
+    const question = filtering ? `${head}${head.endsWith('\n') ? '\n' : ' '}${filterPromptLine(term)}\n ` : head;
     const lines = [
-      top,
+      question,
       ...(page.scrolls ? [scrollHint('above', countOptions(0, page.start))] : []),
       ...(filtering && navigable.length === 0 ? [noMatchesLine(term)] : []),
       ...rows,
@@ -276,6 +325,6 @@ export const listSelect = createPrompt(
       help,
     ];
 
-    return `${lines.filter(Boolean).join('\n').trimEnd()}${CURSOR_HIDE}`;
+    return `${top}${lines.filter(Boolean).join('\n').trimEnd()}${CURSOR_HIDE}`;
   },
 );

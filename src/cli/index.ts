@@ -4,6 +4,7 @@ import { OWNER_ONLY_UMASK } from '../lib/files/restrict-to-owner';
 import { COMPLETE_COMMAND } from '../modules/completion/shell-scripts';
 import { renderUpdateNoticePanel } from '../modules/update-check/update-check.presenter';
 import { checkForUpdate } from '../modules/update-check/update-check.service';
+import { requestNpmRegistry } from '../services/npm/npm-registry';
 import { writeTerminalError } from '../ui';
 
 import { settleOutput, watchOutputs } from './closed-output';
@@ -33,11 +34,16 @@ const argv = isCompletion ? process.argv : normalizeHelpArgv(process.argv, isInt
 const useJson = process.argv.includes('--json');
 // El modo interactivo muestra la actualizacion como primera opcion del menu, no al cerrar.
 const isInteractiveMode = argv[2] === 'interactivo';
+// El comando no espera a npm: si al terminar no contesto, se cancela y el proximo reintenta.
+const updateCheck = new AbortController();
 const updateCheckPromise =
-  useJson || isInteractiveMode || isCompletion ? Promise.resolve(null) : checkForUpdate(CLI_VERSION).catch(() => null);
+  useJson || isInteractiveMode || isCompletion
+    ? Promise.resolve(null)
+    : checkForUpdate(CLI_VERSION, { request: requestNpmRegistry, signal: updateCheck.signal }).catch(() => null);
 
 program
   .parseAsync(argv)
+  .finally(() => updateCheck.abort())
   .then(async () => {
     const updateResult = await updateCheckPromise;
 
