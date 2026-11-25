@@ -20,6 +20,7 @@ import { describeEmittedInThisRun, resetEmittedInThisRun } from '../../emitted-v
 import { reportCliError } from '../../error-output';
 import { registerGlobalOptions } from '../../global-options';
 import { listSelect } from '../../interactive/list-select';
+import { finishCut } from '../../interruption';
 import {
   type BillingCommandGateways,
   executeBillingCommand,
@@ -76,6 +77,10 @@ export interface RunOptions {
   readonly arca?: readonly ArcaStep[];
   readonly config?: Record<string, unknown>;
   readonly json?: boolean;
+  /** Corre (y se espera) cuando ARCA ya recibió la llamada y todavía no contestó: para interrumpir en ese momento. */
+  readonly onArcaCall?: (method: string, args: readonly unknown[]) => Promise<void> | void;
+  /** En cada evento, apenas pasa: para mirar el estado del proceso en ese momento. */
+  readonly onEvent?: (text: string) => void;
   readonly pdfFailure?: PdfFailure;
   readonly pluginInstalled?: boolean;
   /** `bruto` en la config. */
@@ -88,6 +93,7 @@ export interface Run {
   readonly events: readonly string[];
   /** Los payloads que recibió la llamada que emite, en orden. */
   readonly sent: ReadonlyArray<Record<string, unknown>>;
+  readonly stderr: string;
   readonly stdout: string;
 }
 
@@ -137,7 +143,10 @@ const ISSUED_EXPORT: ExportIssuedVoucher = {
 let directory = '';
 let events: string[] = [];
 let sent: Array<Record<string, unknown>> = [];
+let stderr = '';
 let stdout = '';
+let onArcaCall: RunOptions['onArcaCall'];
+let onEvent: RunOptions['onEvent'];
 let pending: { readonly output: 'stderr' | 'stdout'; text: string } | undefined;
 let recorded = '';
 
@@ -202,6 +211,7 @@ function event(text: string): void {
   flush();
   noteRecorded();
   events.push(text);
+  onEvent?.(text);
 }
 
 /** Lo que se escribe seguido, sin otro evento en el medio, es una sola salida. */
@@ -238,6 +248,7 @@ function watched<T extends object>(gateway: T): T {
       method,
       async (...args: readonly unknown[]) => {
         event(`ARCA ${describeCall(method, args)}`);
+        await onArcaCall?.(method, args);
 
         return (call as (...args: readonly unknown[]) => Promise<unknown>)(...args);
       },
@@ -438,7 +449,10 @@ export async function runSequence(execute: () => Promise<unknown>, options: RunO
 
   events = [];
   sent = [];
+  stderr = '';
   stdout = '';
+  onArcaCall = options.onArcaCall;
+  onEvent = options.onEvent;
   pending = undefined;
   recorded = '';
   process.exitCode = undefined;
@@ -459,9 +473,10 @@ export async function runSequence(execute: () => Promise<unknown>, options: RunO
     // Lo que escribe el reporte ya es el evento `error`.
     pending = undefined;
     events.push(`fin: exit ${exitCode}`);
+    await finishCut();
   }
 
-  return { events, sent, stdout };
+  return { events, sent, stderr, stdout };
 }
 
 export async function runBilling(
@@ -560,6 +575,7 @@ export function useEmissionSequence(): void {
       return true;
     });
     vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      stderr += String(chunk);
       write('stderr', String(chunk));
 
       return true;

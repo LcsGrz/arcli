@@ -15,13 +15,14 @@ import { certificateWarnings, type CliArcaRuntime, resolveArcaRuntime } from '..
 import { type BillingGateways, createBillingGateways } from '../billing-gateways';
 import { recordEmission, recordFailedPdfs } from '../emitted-vouchers';
 import { getGlobalOptions, registerGlobalOptions } from '../global-options';
+import { guardEmission, isCutting } from '../interruption';
 import { withPendingSpinner } from '../pending-spinner';
 import { startSpinner } from '../spinner';
 
 import { runInteractiveBillingPreview } from './billing.command.interactive-preview';
 import { writeBillingCommandResults, writePartialResultsFailure, writePdfOutcomes } from './billing.command.output';
 import { parseBillingCommandPlan, registerBillingOptions } from './billing.command.parser';
-import { attachPdfs } from './billing.command.pdf';
+import { attachPdfs, defaultPdfStepDependencies, withoutGeneratingPdfs } from './billing.command.pdf';
 
 /** Exit code cuando ARCA rechaza algun comprobante: la operacion corrio bien, pero no hay CAE. */
 export const REJECTED_EXIT_CODE = 2;
@@ -70,7 +71,10 @@ export async function writeResultsWithPdfs(
     writeBillingCommandResults(results, options.output);
   }
 
-  const withPdfs = await attachPdfs(pdfOptions);
+  // Tras la segunda señal no se espera ni se pregunta nada: solo se muestra lo que se sabe.
+  const withPdfs = isCutting()
+    ? await attachPdfs({ ...pdfOptions, interactive: false }, withoutGeneratingPdfs(defaultPdfStepDependencies))
+    : await attachPdfs(pdfOptions);
 
   recordFailedPdfs(withPdfs);
 
@@ -195,16 +199,19 @@ export async function executeBillingCommand(
         raw: useRaw,
       },
     };
-    const outcome = await emitBilling({
-      clock: systemClock,
-      gateway: gateways.billing,
-      items: planBillingEmission(preview.items),
-      onEmitted: (result) => {
-        recordEmission(result);
-      },
-      runtime,
-      scope: plan,
-    });
+    const outcome = await guardEmission({ json: runtime.outputJson, onCut: () => spinner?.stop() }, (interruption) =>
+      emitBilling({
+        ...interruption,
+        clock: systemClock,
+        gateway: gateways.billing,
+        items: planBillingEmission(preview.items),
+        onEmitted: (result) => {
+          recordEmission(result);
+        },
+        runtime,
+        scope: plan,
+      }),
+    );
     const { results } = outcome;
 
     spinner?.stop();

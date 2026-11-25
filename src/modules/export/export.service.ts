@@ -1,5 +1,6 @@
 import type { Clock } from '../../lib/time/clock';
-import { EmissionUncertainError } from '../billing/billing.errors';
+import { EmissionUncertainError, type SentVoucher } from '../billing/billing.errors';
+import type { BeforeSending } from '../billing/emission-interruption';
 import type { ArcliConfig } from '../config/config.schemas';
 
 import { resolveExportDestinationCountry } from './export.catalogs';
@@ -196,13 +197,25 @@ export class ExportService {
 
   /** La llamada que emite. Un error aca puede haber dejado el comprobante autorizado en ARCA. */
   public async execute(options: {
+    readonly beforeSending?: BeforeSending;
     readonly gateway: ExportEmissionGateway;
     readonly resolved: ResolvedExportVoucher;
     readonly runtime: ExportRuntime;
     readonly warnings?: readonly string[];
   }): Promise<ExportExecutionResult> {
     const { payload } = options.resolved;
+    const sent: SentVoucher = {
+      arcaType: options.resolved.voucherKind.arcaType,
+      environment: options.runtime.environment,
+      pointOfSale: payload.Punto_vta,
+      requestId: payload.Id,
+      shortcut: options.resolved.voucherKind.shortcut,
+      voucherNumber: payload.Cbte_nro,
+    };
     let response: ExportResponseSummary;
+
+    // Fuera del try: si frena, no se envio. Sin `await` entre esto y la llamada que emite.
+    options.beforeSending?.(sent);
 
     try {
       const answer = await options.gateway.authorize(payload);
@@ -210,15 +223,7 @@ export class ExportService {
       // Adentro del try: lo que no se puede leer es una emision sin confirmar (ERR-16).
       response = mapExportResponse(answer);
     } catch (error) {
-      throw new EmissionUncertainError({
-        arcaType: options.resolved.voucherKind.arcaType,
-        cause: error,
-        environment: options.runtime.environment,
-        pointOfSale: payload.Punto_vta,
-        requestId: payload.Id,
-        shortcut: options.resolved.voucherKind.shortcut,
-        voucherNumber: payload.Cbte_nro,
-      });
+      throw new EmissionUncertainError({ ...sent, cause: error });
     }
 
     return {

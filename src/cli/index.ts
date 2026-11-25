@@ -9,9 +9,10 @@ import { writeTerminalError } from '../ui';
 
 import { settleOutput, watchOutputs } from './closed-output';
 import { isInteractiveTerminal } from './commands/interactive.command';
-import { isCommanderExit, reportCliError, reportOutputFailure, shouldPrintErrorAsJson } from './error-output';
+import { isSilentExit, reportCliError, reportOutputFailure, shouldPrintErrorAsJson } from './error-output';
 import { normalizeHelpArgv } from './help-argv';
 import { wasAssistantOpened } from './interactive/output-guard';
+import { finishCut } from './interruption';
 import { createProgram } from './program';
 import { CLI_VERSION } from './version';
 
@@ -62,16 +63,17 @@ program
     commandError = error;
 
     // Con JSON se espera a saber si stdout fallo, para que stderr siga siendo un solo documento.
-    if (shouldPrintErrorsAsJson() && !isCommanderExit(error)) {
+    if (shouldPrintErrorsAsJson() && !isSilentExit(error)) {
       await settleOutput('stdout');
       outputFailureReported = outputFailures.has('stdout');
     }
 
     process.exitCode = reportCliError(error, shouldPrintErrorsAsJson(), outputFailures);
+    // Cortado por una señal no hay `beforeExit`.
+    await finishCut(reportLostOutput);
   });
 
-// Recien aca no queda ninguna escritura pendiente: todo error de las salidas ya se sabe.
-process.once('beforeExit', () => {
+function reportLostOutput(): void {
   if (outputFailures.size === 0) {
     return;
   }
@@ -81,4 +83,7 @@ process.once('beforeExit', () => {
   if (!outputFailureReported) {
     reportOutputFailure(outputFailures, { commandError, json: shouldPrintErrorsAsJson() });
   }
-});
+}
+
+// Recien aca no queda ninguna escritura pendiente: todo error de las salidas ya se sabe.
+process.once('beforeExit', reportLostOutput);

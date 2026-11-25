@@ -16,6 +16,7 @@ import { formatEmissionQuestion } from '../emission-texts';
 import { recordExportEmission, recordFailedExportPdf } from '../emitted-vouchers';
 import { createExportVoucherGateway } from '../export-voucher-gateway';
 import { getGlobalOptions } from '../global-options';
+import { guardEmission } from '../interruption';
 import { startSpinner } from '../spinner';
 
 import { REJECTED_EXIT_CODE } from './billing.command.shared';
@@ -138,17 +139,20 @@ export async function executeExportCommand(
 
     spinner = runtime.outputJson ? null : startSpinner(`Emitiendo ${formatVoucherWithArticle(voucherKind)} en ARCA...`);
 
-    const outcome = await emitExport({
-      clock: systemClock,
-      gateway,
-      input,
-      onEmitted: (result) => {
-        recordExportEmission(result);
-      },
-      resolved,
-      runtime,
-      warnings,
-    });
+    const outcome = await guardEmission({ json: runtime.outputJson, onCut: () => spinner?.stop() }, (interruption) =>
+      emitExport({
+        ...interruption,
+        clock: systemClock,
+        gateway,
+        input,
+        onEmitted: (result) => {
+          recordExportEmission(result);
+        },
+        resolved,
+        runtime,
+        warnings,
+      }),
+    );
 
     if ('error' in outcome) {
       throw outcome.error;
