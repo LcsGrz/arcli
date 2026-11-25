@@ -94,7 +94,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Certificados:** el propio de exportación avisa que vence en los comandos y el asistente, y dice cómo renovarlo (#287).
 - **Fechas:** en un lote que cruza la medianoche, `hoy` y las demás fechas relativas son del mismo día en todos los comprobantes (#282).
 - **Asistente:** en producción pregunta una sola vez antes de emitir, como los comandos (#289).
-- **Asistente:** al cambiar el entorno a producción en Configuración, un aviso dice que los comprobantes van a tener validez fiscal (#298).
+- **Asistente:** al cambiar el entorno a producción en Configuración, un aviso dice que los comprobantes van a tener validez fiscal (#300).
 - **Factura E:** la vista previa consulta varias tablas de WSFEX a la vez, y el asistente, cada una una vez por comprobante (#294).
 
 <details><summary>Detalle</summary>
