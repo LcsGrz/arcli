@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -10,9 +13,13 @@ import { inspectProductionCredentials } from '../../../modules/interactive/produ
 import { productionBanner, stripAnsi } from '../../../ui';
 
 const DAY_MS = 86_400_000;
+const directory = mkdtempSync(join(tmpdir(), 'arcli-production-banner-'));
 
 beforeAll(() => [10, 365].forEach(createSelfSignedCertificate), OPENSSL_WARM_UP_TIMEOUT_MS);
-afterAll(removeSelfSignedCertificates);
+afterAll(() => {
+  removeSelfSignedCertificates();
+  rmSync(directory, { force: true, recursive: true });
+});
 afterEach(() => {
   vi.unstubAllEnvs();
 });
@@ -34,37 +41,80 @@ const FISCAL = 'AHORA ESTÁS EN PRODUCCIÓN Los comprobantes que emitas van a te
 
 describe('aviso de pasar a producción (TUI-46)', () => {
   it('con el certificado y la clave dice que se usa el de producción, también si vence pronto', () => {
-    const cert = { produccion: createSelfSignedCertificate(10).certPath };
+    const { certPath, keyPath } = createSelfSignedCertificate(10);
 
-    expect(notice({ cert, key: { produccion: '/p.key' } })).toBe(`${FISCAL} Se usa el certificado de producción.`);
+    expect(notice({ cert: { produccion: certPath }, key: { produccion: keyPath } })).toBe(
+      `${FISCAL} Se usa el certificado de producción.`,
+    );
+  });
+
+  /** Un archivo de cada tipo: sin configurar, uno que sirve, uno que no existe, uno que no es PEM y un PEM roto. */
+  const file = {
+    broken: (kind: string) => {
+      const path = join(directory, `broken-${kind.replace(' ', '-')}.pem`);
+
+      writeFileSync(path, `-----BEGIN ${kind}-----\nnope\n-----END ${kind}-----\n`);
+
+      return path;
+    },
+    missing: () => join(directory, 'no-existe.pem'),
+    text: () => {
+      const path = join(directory, 'texto.pem');
+
+      writeFileSync(path, 'secreto');
+
+      return path;
+    },
+  };
+  const cert = () => createSelfSignedCertificate(10).certPath;
+  const key = () => createSelfSignedCertificate(10).keyPath;
+  const none = () => undefined;
+
+  it.each([
+    ['los dos sin configurar', none, none, 'Faltan el certificado y la clave de producción.'],
+    ['sin certificado', none, key, 'Falta el certificado de producción.'],
+    ['sin clave', cert, none, 'Falta la clave de producción.'],
+    ['un certificado que no existe', file.missing, key, 'No se pudo leer el certificado de producción.'],
+    ['un certificado que no es PEM', file.text, key, 'No se pudo leer el certificado de producción.'],
+    ['un PEM que no es X.509', () => file.broken('CERTIFICATE'), key, 'No se pudo leer el certificado de producción.'],
+    ['una carpeta de certificado', () => directory, key, 'No se pudo leer el certificado de producción.'],
+    ['una clave que no existe', cert, file.missing, 'No se pudo leer la clave de producción.'],
+    ['una clave que no es PEM', cert, file.text, 'No se pudo leer la clave de producción.'],
+    ['una clave cifrada', cert, () => file.broken('ENCRYPTED PRIVATE KEY'), 'No se pudo leer la clave de producción.'],
+    ['los dos ilegibles', file.missing, file.text, 'No se pudieron leer el certificado y la clave de producción.'],
+    [
+      'uno ilegible y la otra sin configurar',
+      file.missing,
+      none,
+      'No se pudo leer el certificado de producción. Falta la clave de producción.',
+    ],
+  ])('con %s, lo dice sin mostrar rutas ni contenido', (_case, certPath, keyPath, expected) => {
+    // Los de testing no cuentan.
+    expect(
+      notice({ cert: { produccion: certPath(), testing: cert() }, key: { produccion: keyPath(), testing: key() } }),
+    ).toBe(`${FISCAL} ${expected}`);
   });
 
   it.each([
-    [{}, {}, 'Faltan el certificado y la clave de producción.'],
-    [{}, { produccion: '/p.key' }, 'Falta el certificado de producción.'],
-    [{ produccion: '/p.crt' }, {}, 'Falta la clave de producción.'],
-    // Los de testing no cuentan.
-    [{ testing: '/t.crt' }, { testing: '/t.key' }, 'Faltan el certificado y la clave de producción.'],
-  ])('con cert %j y key %j: %s', (cert, key, expected) => {
-    expect(notice({ cert, key })).toBe(`${FISCAL} ${expected}`);
-  });
-
-  it('con el de producción vencido lo dice con la fecha', () => {
-    const config = { cert: { produccion: createSelfSignedCertificate(10).certPath }, key: { produccion: '/p.key' } };
-
-    expect(notice(config, 20)).toMatch(/ El certificado de producción venció el \d{2}\/\d{2}\/\d{4}\.$/);
-    expect(notice(config, 20)).not.toContain('Se usa');
+    ['y la clave', key, ''],
+    ['sin la clave', none, ' Falta la clave de producción.'],
+    ['y la clave ilegible', file.missing, ' No se pudo leer la clave de producción.'],
+  ])('con el certificado vencido %s, dice la fecha', (_case, keyPath, rest) => {
+    expect(notice({ cert: { produccion: cert() }, key: { produccion: keyPath() } }, 20)).toMatch(
+      new RegExp(`^${FISCAL} El certificado de producción venció el \\d{2}/\\d{2}/\\d{4}\\.${rest}$`),
+    );
   });
 
   it('con el de testing o el de exportación vencido, se usa el de producción', () => {
-    const expired = createSelfSignedCertificate(10).certPath;
+    const expired = cert();
+    const valid = createSelfSignedCertificate(365);
 
     expect(
       notice(
         {
-          cert: { produccion: createSelfSignedCertificate(365).certPath, testing: expired },
-          exportacion: { cert: { produccion: expired }, key: { produccion: '/e.key' } },
-          key: { produccion: '/p.key' },
+          cert: { produccion: valid.certPath, testing: expired },
+          exportacion: { cert: { produccion: expired }, key: { produccion: key() } },
+          key: { produccion: valid.keyPath },
         },
         20,
       ),
@@ -85,7 +135,7 @@ describe('aviso de pasar a producción (TUI-46)', () => {
 
     try {
       for (const sessionInTesting of [false, true]) {
-        const panel = productionBanner({ missesCertificate: true, missesKey: true, sessionInTesting });
+        const panel = productionBanner({ certificate: 'falta', key: 'falta', sessionInTesting });
         const lines = stripAnsi(panel).split('\n');
 
         expect(lines.every((line) => line.length === 40)).toBe(true);

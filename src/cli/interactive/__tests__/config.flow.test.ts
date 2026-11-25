@@ -1,9 +1,14 @@
 import { Separator } from '@inquirer/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfigurationError } from '../../../lib/errors/app-error';
+import {
+  createSelfSignedCertificate,
+  OPENSSL_WARM_UP_TIMEOUT_MS,
+  removeSelfSignedCertificates,
+} from '../../../lib/security/__tests__/self-signed-certificate';
 import { parseConfigValue } from '../../../modules/config/config-value-parser';
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
@@ -552,6 +557,9 @@ describe('configuración: volver, cancelar y dejar como estaba', () => {
     });
 
     describe('entorno (TUI-46)', () => {
+      beforeAll(() => void createSelfSignedCertificate(365), OPENSSL_WARM_UP_TIMEOUT_MS);
+      afterAll(removeSelfSignedCertificates);
+
       /** Elige `answer` en "Entorno:" desde "Modificar configuración", con los flags de `arcli interactivo`. */
       async function changeEnvironment(answer: string | typeof BACK, flags?: Parameters<typeof runConfigMenu>[0]) {
         vi.mocked(chooseOne).mockResolvedValueOnce('cambiar').mockResolvedValueOnce('volver');
@@ -564,8 +572,10 @@ describe('configuración: volver, cancelar y dejar como estaba', () => {
       }
 
       it('a producción: guarda sin confirmar y muestra un solo aviso', async () => {
-        store['cert.produccion'] = '/certs/produccion.crt';
-        store['key.produccion'] = '/certs/produccion.key';
+        const { certPath, keyPath } = createSelfSignedCertificate(365);
+
+        store['cert.produccion'] = certPath;
+        store['key.produccion'] = keyPath;
 
         await changeEnvironment('produccion');
 
@@ -576,6 +586,17 @@ describe('configuración: volver, cancelar y dejar como estaba', () => {
           'Los comprobantes que emitas van a tener validez fiscal. Se usa el certificado de producción.',
         );
         expect(printed()).not.toContain('Guardado.');
+      });
+
+      it('a producción con archivos que no existen: guarda igual y no dice que se usan', async () => {
+        store['cert.produccion'] = '/certs/produccion.crt';
+        store['key.produccion'] = '/certs/produccion.key';
+
+        await changeEnvironment('produccion');
+
+        expect(store.entorno).toBe('produccion');
+        expect(printed()).toContain('No se pudieron leer el certificado y la clave de producción.');
+        expect(printed()).not.toMatch(/Se usa|certs/);
       });
 
       it('a producción sin certificado ni clave: guarda igual y dice que faltan', async () => {

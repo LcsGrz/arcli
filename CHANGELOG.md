@@ -96,6 +96,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Asistente:** en producción pregunta una sola vez antes de emitir, como los comandos (#289).
 - **Asistente:** al cambiar el entorno a producción en Configuración, un aviso dice que los comprobantes van a tener validez fiscal (#300).
 - **Factura E:** la vista previa consulta varias tablas de WSFEX a la vez, y el asistente, cada una una vez por comprobante (#294).
+- **Factura E:** en el asistente, la lista de incoterms muestra el nombre del marcado, como `Free on Board` (#296).
 
 <details><summary>Detalle</summary>
 
@@ -143,7 +144,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 **Una sola confirmación en producción.** El asistente preguntaba "¿Emitimos…?" y, en producción, otra vez con **Sí, emitir en producción**. Ahora pregunta una sola vez, como los comandos con flags, en la factura, el recibo, las notas, "Repetir" y la `E`. La pregunta sigue diciendo PRODUCCIÓN. **No, dejar sin emitir** termina sin emitir y Esc vuelve a la última pregunta. Los comandos no cambian.
 
-**Pasar a producción.** En "Modificar configuración", cambiar **Entorno** a `produccion` decía "Guardado.". Ahora dice que estás en PRODUCCIÓN, que los comprobantes van a tener validez fiscal y que se usa el certificado de producción, o si falta o venció. Con `arcli interactivo --testing` dice que la sesión sigue en testing. Se guarda igual, sin preguntar, y `config establecer entorno` no cambia.
+**Pasar a producción.** En "Modificar configuración", cambiar **Entorno** a `produccion` decía "Guardado.". Ahora dice que estás en PRODUCCIÓN, que los comprobantes van a tener validez fiscal y que se usa el certificado de producción, o si falta, venció o no se pudo leer. Con `arcli interactivo --testing` dice que la sesión sigue en testing. Se guarda igual, sin preguntar, y `config establecer entorno` no cambia.
+
+**Nombre del incoterm.** La lista mostraba solo el código (`FOB`). Ahora, debajo, se ve el nombre de la tabla de WSFEX del que está marcado; si la tabla no lo trae o repite el código, no se ve nada. El filtro, que ya encontraba por el nombre, lo que se emite y el comando equivalente no cambian.
 
 </details>
 
