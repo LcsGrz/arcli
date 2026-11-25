@@ -7,6 +7,7 @@ import {
   useKeypress,
   useMemo,
   usePrefix,
+  useRef,
   useState,
 } from '@inquirer/core';
 
@@ -160,7 +161,10 @@ export const listSelect = createPrompt(
       () => (config.live ? [firstChoice ?? new Separator(' '), new Separator(' '), ...config.choices] : config.choices),
       [config.choices, firstChoice],
     );
-    const hiddenRows = config.live && !firstChoice ? LIVE_ROWS : 0;
+    const liveRows = config.live ? LIVE_ROWS : 0;
+    // Si la que se sumo quedo marcada por lo escrito, y no con las flechas.
+    const liveMarkedBySearch = useRef(false);
+    const hiddenRows = firstChoice ? 0 : liveRows;
     const filtering = searchWords(term).length > 0;
     // Con algo escrito, las opciones que coinciden y los separadores fijos; las posiciones son las de `items`.
     const shown = useMemo(
@@ -231,6 +235,7 @@ export const listSelect = createPrompt(
         const next = move(key, config.back ? [...navigable, BACK_ROW] : navigable);
 
         if (next !== undefined) {
+          liveMarkedBySearch.current = false;
           report(term, next);
         }
       } else if (!filterable) {
@@ -241,13 +246,24 @@ export const listSelect = createPrompt(
         let next = active;
 
         if (searchWords(nextTerm).length === 0) {
-          // Al borrar lo escrito, la marcada (tambien "Volver") queda donde estaba; si no habia ninguna, la primera.
-          next = active === NO_ROW ? (items.findIndex(isOption) === -1 ? BACK_ROW : items.findIndex(isOption)) : active;
+          // Al borrar lo escrito, la marcada (tambien "Volver") queda donde estaba; si no habia ninguna (o la habia
+          // marcado la busqueda y se sumo con la lista abierta), la primera.
+          const first = items.findIndex((item, index) => index >= liveRows && isOption(item));
+
+          next = active === NO_ROW || liveMarkedBySearch.current ? (first === -1 ? BACK_ROW : first) : active;
+          liveMarkedBySearch.current = false;
         } else if (!sameSearch(nextTerm, term)) {
           // Otra busqueda marca la primera que coincide y se puede elegir. Un espacio o un Tab no la mueven.
+          // La que se sumo con la lista abierta, solo si no hay otra.
           const matches = items.flatMap((item, index) => (choiceMatches(item, nextTerm) ? [index] : []));
+          const others = matches.filter((index) => index >= liveRows);
 
-          next = matches.find((index) => !(items[index] as ListSelectChoice<T>).disabled) ?? matches[0] ?? NO_ROW;
+          next =
+            (others.length > 0 ? others : matches).find((index) => !(items[index] as ListSelectChoice<T>).disabled) ??
+            others[0] ??
+            matches[0] ??
+            NO_ROW;
+          liveMarkedBySearch.current = next >= 0 && next < liveRows;
         }
 
         setTerm(nextTerm);

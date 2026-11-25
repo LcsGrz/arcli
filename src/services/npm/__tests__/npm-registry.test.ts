@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { RequestOptions } from 'node:https';
+import { Agent, type RequestOptions } from 'node:https';
 import { Readable } from 'node:stream';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -7,7 +7,7 @@ import { requestNpmRegistry } from '../npm-registry';
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
 
-vi.mock('node:https', () => ({ get }));
+vi.mock('node:https', async (importOriginal) => ({ ...(await importOriginal<typeof import('node:https')>()), get }));
 
 const URL = 'https://registry.npmjs.org/arcli/latest';
 
@@ -31,10 +31,10 @@ describe('requestNpmRegistry', () => {
 
     expect(response.ok).toBe(true);
     expect(await response.json()).toEqual({ version: '9.0.0' });
-    expect(get).toHaveBeenCalledWith(URL, { agent: false, signal }, expect.any(Function));
+    expect(get).toHaveBeenCalledWith(URL, { agent: expect.any(Agent) as Agent, signal }, expect.any(Function));
   });
 
-  it.each([304, 404, 500])('con un %s no está ok', async (status) => {
+  it.each([199, 300, 304, 404, 500])('con un %s no está ok', async (status) => {
     answer(status, ['']);
 
     expect((await requestNpmRegistry(URL, { signal: new AbortController().signal })).ok).toBe(false);

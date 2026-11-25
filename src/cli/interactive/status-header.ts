@@ -44,6 +44,8 @@ const MAX_ISSUER_NAME_LENGTH = 32;
 export interface StatusHeader {
   /** Corta la consulta a ARCA: su resultado ya no se muestra. */
   readonly cancel: () => void;
+  /** El resultado que la barra no llego a mostrar ya no hace falta avisarlo: se vio en otro lado. */
+  readonly dismissResult: () => void;
   /** Todo lo que `text` puede llegar a decir, para saber cuanto lugar ocupa. */
   readonly possibleTexts: () => readonly string[];
   /** La consulta a ARCA, si hay algo que consultar. */
@@ -192,6 +194,9 @@ export function openStatusHeader(options: GlobalCliOptions, margin = ''): Status
 
   return {
     cancel: () => query?.cancel(),
+    dismissResult: () => {
+      owesResult = false;
+    },
     possibleTexts: () => {
       if (settled) {
         return owesResult ? HEALTHS.map(renderLateNotice) : [];

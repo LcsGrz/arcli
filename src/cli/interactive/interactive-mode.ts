@@ -302,6 +302,11 @@ async function runAssistant(
       } else if (option === 'config') {
         await runAndReopenHeader(() => runConfigMenu(options));
       } else {
+        // Esa pantalla ya muestra como esta ARCA.
+        if (option === 'estado') {
+          header.dismissResult();
+        }
+
         await runOption(option, options);
       }
     } catch (error) {

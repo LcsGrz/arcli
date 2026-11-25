@@ -330,6 +330,27 @@ describe('se elige antes de saber cómo está ARCA (TUI-49)', () => {
     expect(text()).not.toMatch(/ARCA funcionando/i);
   });
 
+  it.each([true, false])('"Estado de ARCA" ya lo muestra: no avisa (antes de volver: %s)', async (early) => {
+    const flow = deferred<void>();
+
+    vi.mocked(runStatusFlow).mockImplementationOnce(() => flow.promise);
+    start();
+    await seen(PENDING);
+    await press('e', 's', 't', 'a', 'd', ENTER);
+    expect(text()).toContain('ARCA SIN VERIFICAR');
+
+    if (early) {
+      health[0]?.resolve('con-problemas');
+    }
+
+    flow.resolve();
+    await seen('Emitir nota de crédito');
+    health[0]?.resolve('con-problemas');
+    await pause(50);
+    await press(ENTER);
+    expect(text()).not.toMatch(/ARCA con problemas/i);
+  });
+
   it('si el resultado llega con el menú ya abierto otra vez, avisa ahí, sin duplicar nada', async () => {
     start();
     await seen(PENDING);
@@ -440,6 +461,42 @@ describe('la versión nueva llega con el menú abierto (TUI-49)', () => {
     expect(marked()).toEqual(['Emitir nota de crédito']);
     await press(ENTER);
     expect(runNoteFlow).toHaveBeenCalledTimes(1);
+  });
+
+  it('con un filtro sin coincidencias, al borrarlo queda marcada la de siempre', async () => {
+    start();
+    await seen(PENDING);
+    await press('z', 'z', 'z');
+    expect(screen()).toContain('Nada coincide');
+    await arrive();
+    await press(BACKSPACE, BACKSPACE, BACKSPACE);
+    await seen(UPDATE_ROW);
+    expect(marked()).toEqual(['Emitir factura']);
+    await press(ENTER);
+    expect(runInvoiceFlow).toHaveBeenCalledTimes(1);
+    expect(runUpdateFlow).not.toHaveBeenCalled();
+  });
+
+  it('al filtrar después, se marca la primera que coincide de las que ya estaban', async () => {
+    start();
+    await seen(PENDING);
+    await press(DOWN);
+    await arrive();
+    // "a" y "ac" tambien estan en "Actualizar…".
+    await press('a');
+    expect(screen()).toContain(UPDATE_ROW);
+    expect(marked()).toEqual(['Emitir factura']);
+    await press('c', ENTER);
+    expect(runInvoiceFlow).toHaveBeenCalledTimes(1);
+    expect(runUpdateFlow).not.toHaveBeenCalled();
+  });
+
+  it('al filtrar después, si es la única que coincide, se marca', async () => {
+    start();
+    await seen(PENDING);
+    await arrive();
+    await press('a', 'c', 't', 'u', 'a', 'l');
+    expect(marked()).toEqual([UPDATE_ROW]);
   });
 
   it('con "Salir" marcada, Enter sale', async () => {
