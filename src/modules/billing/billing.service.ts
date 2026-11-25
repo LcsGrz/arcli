@@ -22,7 +22,7 @@ import {
 import { resolveBillingDateRange } from './billing.date-range';
 import { futureDateWarnings, resolveBillingDate } from './billing.dates';
 import { shouldEmit } from './billing.emit-decision';
-import { EmissionUncertainError } from './billing.errors';
+import { EmissionUncertainError, type SentVoucher } from './billing.errors';
 import { resolveElectronicCreditOptionals } from './billing.fce';
 import { missingIvaReceiverMessage, validateIvaConditionForVoucher } from './billing.iva-receptor';
 import { type PadronResolution, resolveIvaConditionFromPadron } from './billing.padron';
@@ -38,6 +38,7 @@ import type {
 import { validateDocumentIdentity, validateUncategorizedReceiver } from './billing.validation';
 import { createDryRunResponse, mapBillingResponse } from './billing-response';
 import { findArcaCurrency, resolveBillingCurrencyCode } from './currency-codes';
+import type { BeforeSending } from './emission-interruption';
 import { getVoucherKindByShortcut } from './voucher-kind-map';
 import { formatNextVouchers, formatVoucherSubject } from './voucher-names';
 import type { UnnumberedVoucherRequest } from './voucher-request';
@@ -52,6 +53,7 @@ export interface BillingPreviewOptions {
 export type BillingEmissionGateway = Pick<BillingGateway, 'createVoucher' | 'getNextVoucherNumber'>;
 
 export interface BillingEmitOptions extends BillingPreviewOptions {
+  readonly beforeSending?: BeforeSending;
   readonly gateway: BillingEmissionGateway;
   /**
    * La vista previa que se confirmo: se emite su payload tal cual, sin armarlo de nuevo con la fecha de ahora (ARQ-21),
@@ -225,7 +227,17 @@ export class BillingService {
     // Fuera del try: si falla la autenticacion o el pedido del ultimo numero, no se envio nada a ARCA
     // y el error sale tal cual (certificado, ARCA no disponible), sin sugerir que pudo emitirse.
     const voucherNumber = await options.gateway.getNextVoucherNumber(payload.PtoVta, payload.CbteTipo);
+    const sent: SentVoucher = {
+      arcaType: voucherKind.arcaType,
+      environment: options.runtime.environment,
+      pointOfSale: payload.PtoVta,
+      shortcut: voucherKind.shortcut,
+      voucherNumber,
+    };
     let response: BillingResponseSummary;
+
+    // Tambien fuera del try: si frena, no se envio. Sin `await` entre esto y la llamada que emite.
+    options.beforeSending?.(sent);
 
     try {
       const answer = await options.gateway.createVoucher({
@@ -237,14 +249,7 @@ export class BillingService {
       // Adentro del try: lo que no se puede leer es una emision sin confirmar (ERR-16).
       response = mapBillingResponse(answer);
     } catch (error) {
-      throw new EmissionUncertainError({
-        arcaType: voucherKind.arcaType,
-        cause: error,
-        environment: options.runtime.environment,
-        pointOfSale: payload.PtoVta,
-        shortcut: voucherKind.shortcut,
-        voucherNumber,
-      });
+      throw new EmissionUncertainError({ ...sent, cause: error });
     }
 
     return {

@@ -12,6 +12,7 @@ import { bold } from '../primitives/text';
 const ERROR_TITLES: Readonly<Partial<Record<ErrorCode, string>>> = {
   BATCH_EMISSION_ERROR: 'Lote interrumpido',
   BATCH_VALIDATION_ERROR: 'Lote inválido',
+  CANCELLED: 'Emisión cancelada',
   CERTIFICATE_EXPIRED: 'Certificado vencido',
   CONFIGURATION_ERROR: 'Error de configuración',
   EMISSION_UNCERTAIN: 'Emisión sin confirmar',

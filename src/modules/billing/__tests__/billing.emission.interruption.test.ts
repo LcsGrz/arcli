@@ -131,8 +131,7 @@ async function emitExportInvoice(calls: string[], interruption: Interruption) {
 }
 
 describe('shouldStop', () => {
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('entre comprobantes: el siguiente ni pide su número, y lo emitido vuelve con el error', async () => {
+  it('entre comprobantes: el siguiente ni pide su número, y lo emitido vuelve con el error', async () => {
     const calls: string[] = [];
     const outcome = await emitBatchOf(3, calls, { shouldStop: () => calls.includes('emitido 1000') });
 
@@ -164,8 +163,7 @@ describe('shouldStop', () => {
 });
 
 describe('onSending', () => {
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('justo antes de la llamada que emite, una vez por comprobante que se emite', async () => {
+  it('justo antes de la llamada que emite, una vez por comprobante que se emite', async () => {
     const calls: string[] = [];
 
     await emitBatchOf(3, calls, { onSending: () => calls.push('se envía'), previews: [2] });
@@ -176,8 +174,7 @@ describe('onSending', () => {
     ]);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('si la llamada que emite falla, se avisó y no se reintenta', async () => {
+  it('si la llamada que emite falla, se avisó y no se reintenta', async () => {
     const calls: string[] = [];
 
     await emitBatchOf(2, calls, { failsAt: 'emitir', onSending: () => calls.push('se envía') });
@@ -193,8 +190,7 @@ describe('onSending', () => {
     expect(onSending).not.toHaveBeenCalled();
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('en la E, justo antes de `authorize`', async () => {
+  it('en la E, justo antes de `authorize`', async () => {
     const calls: string[] = [];
 
     await emitExportInvoice(calls, { onSending: () => calls.push('se envía') });

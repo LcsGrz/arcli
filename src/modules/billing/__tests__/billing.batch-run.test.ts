@@ -214,3 +214,118 @@ describe('emitBatch', () => {
     ).resolves.toEqual({ error: original, results: [] });
   });
 });
+
+describe('emitBatch, interrumpido', () => {
+  const voucher = {
+    arcaType: 11,
+    environment: 'testing',
+    pointOfSale: 3,
+    shortcut: 'fc',
+    voucherNumber: 42,
+  } as const;
+
+  it('abandonado con algo enviado: queda sin confirmar y lo que conteste tarde no se entrega ni sigue', async () => {
+    let abandon: () => void = () => undefined;
+    let answer: (value: string) => void = () => undefined;
+    const emit = vi.fn((_item: Item, _position: number, beforeSending: (sent: typeof voucher) => void) => {
+      beforeSending(voucher);
+
+      return new Promise<string>((resolve) => {
+        answer = resolve;
+      });
+    });
+    const onAnswered = vi.fn();
+    const running = emitBatch({
+      emit,
+      interruption: { abandoned: new Promise<void>((resolve) => (abandon = resolve)) },
+      items: items(['a', 'b']),
+      onAnswered,
+      scope: batch(2),
+    });
+
+    abandon();
+
+    const outcome = await running;
+
+    answer('CAE-a');
+    await Promise.resolve();
+    expect(batchError(outcome).details).toMatchObject({
+      codigoCausa: 'EMISSION_UNCERTAIN',
+      numero: 42,
+      sinConfirmar: 1,
+      sinProcesar: [2],
+    });
+    expect(outcome.results).toEqual([]);
+    expect(onAnswered).not.toHaveBeenCalled();
+    expect(emit).toHaveBeenCalledOnce();
+  });
+
+  it('abandonado antes de enviar: no se envía aunque el paso previo termine después', async () => {
+    let abandon: () => void = () => undefined;
+    let next: () => void = () => undefined;
+    const send = vi.fn();
+    const running = emitBatch({
+      emit: async (_item: Item, _position, beforeSending) => {
+        await new Promise<void>((resolve) => (next = resolve));
+        beforeSending(voucher);
+        send();
+
+        return 'CAE';
+      },
+      interruption: { abandoned: new Promise<void>((resolve) => (abandon = resolve)) },
+      items: items(['a']),
+      scope: batch(1),
+    });
+
+    abandon();
+
+    const outcome = await running;
+
+    next();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(outcome).toMatchObject({ error: { code: 'CANCELLED' }, results: [] });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('si se pide parar entre el número y el envío, no se envía', async () => {
+    let stop = false;
+    const onSending = vi.fn();
+    const outcome = await emitBatch({
+      emit: async (_item: Item, _position, beforeSending) => {
+        stop = true;
+        beforeSending(voucher);
+
+        return 'CAE';
+      },
+      interruption: { onSending, shouldStop: () => stop },
+      items: items(['a', 'b']),
+      scope: batch(2),
+    });
+
+    expect(batchError(outcome).details).toMatchObject({ codigoCausa: 'CANCELLED', fallo: 1, sinProcesar: [1, 2] });
+    expect(batchError(outcome).message).not.toMatch(/ya se emiti/i);
+    expect(onSending).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [['a'], 'Ya se emitió: #1.'],
+    [['a', 'c'], 'Ya se emitieron: #1 y #3.'],
+    [['a', 'b', 'c'], 'Ya se emitieron: #1 a #3 (3).'],
+    [['a', 'b', 'c', 'e'], 'Ya se emitieron: #1 a #3 y #5 (4).'],
+  ])('los que tienen CAE (%j), en rangos', async (issued, text) => {
+    const done: string[] = [];
+    const outcome = await emitBatch({
+      emit: async ({ input }: Item) => {
+        done.push(input);
+
+        return input;
+      },
+      interruption: { shouldStop: () => done.length === 5 },
+      isIssued: (input) => issued.includes(input),
+      items: items(['a', 'b', 'c', 'd', 'e', 'f']),
+      scope: batch(6),
+    });
+
+    expect(batchError(outcome).message).toBe(`Se cortó el lote.\n${text}\nProcesados: 5 de 6.\nSin procesar: #6.`);
+  });
+});

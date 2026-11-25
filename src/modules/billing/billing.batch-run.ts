@@ -1,4 +1,11 @@
 import { BatchEmissionError, type BatchItemError, BatchValidationError, toBatchItemError } from './billing.batch';
+import { EmissionUncertainError, type SentVoucher } from './billing.errors';
+import {
+  ABANDONED_REASON,
+  type BeforeSending,
+  type EmissionInterruption,
+  EmissionStoppedError,
+} from './emission-interruption';
 
 /** Si es un lote y de cuantos: lo que hace falta al emitir. */
 export interface BatchScope {
@@ -60,21 +67,70 @@ export async function prepareBatch<T, R>(options: {
  */
 export type EmissionOutcome<R> = { readonly results: R[] } | { readonly error: unknown; readonly results: R[] };
 
+const GIVEN_UP = Symbol('se dejo de esperar');
+
 /**
  * Emite los items en orden, de a uno, y corta en el primero que falla: en un lote, con un `BatchEmissionError` que dice
  * cual y cuales faltan; uno suelto, con su propio error. `index` es el lugar de cada uno en el lote, desde 1.
+ *
+ * Lo que se deja de esperar (`abandoned`) no se envia despues ni llama a `onAnswered`, aunque ARCA conteste tarde.
  */
 export async function emitBatch<T extends { readonly index: number }, R>(options: {
-  readonly emit: (item: T, position: number) => Promise<R>;
+  /** Tiene que llamar a `beforeSending` justo antes de la llamada que emite. */
+  readonly emit: (item: T, position: number, beforeSending: BeforeSending) => Promise<R>;
+  readonly interruption?: EmissionInterruption;
+  /** Si ese resultado tiene CAE. */
+  readonly isIssued?: (result: R) => boolean;
   readonly items: readonly T[];
+  /** Cada resultado, antes de seguir con el proximo. */
+  readonly onAnswered?: (item: T, result: R, position: number) => Promise<unknown>;
   readonly scope: BatchScope;
 }): Promise<EmissionOutcome<R>> {
-  const { emit, items, scope } = options;
+  const { emit, interruption = {}, isIssued, items, onAnswered, scope } = options;
   const results: R[] = [];
+  let hasGivenUp = false;
+  const givenUp = interruption.abandoned?.then((): typeof GIVEN_UP => {
+    hasGivenUp = true;
+
+    return GIVEN_UP;
+  });
+
+  function assertNotStopped(): void {
+    if (hasGivenUp || interruption.shouldStop?.()) {
+      throw new EmissionStoppedError();
+    }
+  }
+
+  /** Corre un item y, si se abandona, deja de esperarlo. */
+  async function emitOrGiveUp(item: T, position: number): Promise<R> {
+    const sent: SentVoucher[] = [];
+
+    assertNotStopped();
+
+    const emission = emit(item, position, (voucher) => {
+      assertNotStopped();
+      interruption.onSending?.(voucher);
+      sent.push(voucher);
+    });
+    const result = await (givenUp ? Promise.race([emission, givenUp]) : emission);
+
+    if (result !== GIVEN_UP) {
+      return result as R;
+    }
+
+    const [inFlight] = sent;
+
+    throw inFlight
+      ? new EmissionUncertainError({ ...inFlight, cause: new Error(ABANDONED_REASON) })
+      : new EmissionStoppedError();
+  }
 
   for (const [position, item] of items.entries()) {
     try {
-      results.push(await emit(item, position));
+      const result = await emitOrGiveUp(item, position);
+
+      results.push(result);
+      await onAnswered?.(item, result, position);
     } catch (error) {
       if (!scope.isBatch) {
         return { error, results };
@@ -85,6 +141,13 @@ export async function emitBatch<T extends { readonly index: number }, R>(options
           cause: error,
           emitted: results.length,
           failedIndex: item.index,
+          stopped:
+            hasGivenUp || error instanceof EmissionStoppedError
+              ? {
+                  issued: results.flatMap((result, order) => (isIssued?.(result) ? [items[order].index] : [])),
+                  message: interruption.stopMessage?.() ?? 'Se cortó el lote.',
+                }
+              : undefined,
           total: scope.total,
         }),
         results,

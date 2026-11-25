@@ -26,6 +26,9 @@ interface WsfexUncertainTarget {
   readonly voucherNumber: number;
 }
 
+/** Lo que se le mando a ARCA para emitir: alcanza para verificarlo. */
+export type SentVoucher = WsfeUncertainTarget | WsfexUncertainTarget;
+
 /** Las claves de `detalles` del `--json`, que son contrato. `idSolicitud`, solo en la E. */
 type EmissionUncertainDetails = {
   readonly causa: string;
@@ -50,7 +53,7 @@ export class EmissionUncertainError extends AppError {
    */
   public readonly verifyCommand: string;
 
-  public constructor(options: { readonly cause: unknown } & (WsfeUncertainTarget | WsfexUncertainTarget)) {
+  public constructor(options: { readonly cause: unknown } & SentVoucher) {
     const failure = describeEmissionFailure(options.cause);
     const reason = failure.message;
     const verifyCommand =

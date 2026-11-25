@@ -6,6 +6,7 @@ import type { BillingPreviewItem } from './billing.preview';
 import type { BillingCommandInput } from './billing.schemas';
 import { type BillingEmissionGateway, BillingService } from './billing.service';
 import type { BillingExecutionResult, BillingRuntime } from './billing.types.internal';
+import type { EmissionInterruption } from './emission-interruption';
 
 /** Un comprobante previsualizado, despues de preguntar (o no) si se emite. */
 export interface BillingDecidedItem extends BillingPreviewItem {
@@ -37,7 +38,7 @@ export function planBillingEmission(items: readonly BillingDecidedItem[]): Billi
   );
 }
 
-export interface EmitBillingOptions {
+export interface EmitBillingOptions extends EmissionInterruption {
   readonly clock: Clock;
   readonly gateway: BillingEmissionGateway;
   readonly items: readonly BillingEmissionItem[];
@@ -56,17 +57,23 @@ export async function emitBilling(options: EmitBillingOptions): Promise<Emission
   const service = new BillingService({ clock: options.clock });
 
   return emitBatch({
-    emit: async (item, position) => {
+    emit: async (item, _position, beforeSending) => {
       if (item.kind === 'preview') {
         return item.result;
       }
 
       const { input, preview, warnings } = item;
-      const result = await service.emit({ gateway, input, preview, runtime, warnings });
 
-      return notifyEmitted(onEmitted, result, position);
+      return service.emit({ beforeSending, gateway, input, preview, runtime, warnings });
     },
+    interruption: options,
+    isIssued: ({ dryRun, response }) => !dryRun && Boolean(response.cae),
     items,
+    onAnswered: async (item, result, position) => {
+      if (item.kind === 'emission') {
+        await notifyEmitted(onEmitted, result, position);
+      }
+    },
     scope,
   });
 }
