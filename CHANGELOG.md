@@ -48,6 +48,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - En una nota, si el asociado del JSON no trae `puntoVenta`, `--apv` o `--pv` de otro punto de venta descartan su `fecha`: pasá `--afecha`.
 > - Un comprobante A, B, C, FCE o recibo que ARCA devuelve con su número y su CAE pero no se puede leer: `ultimos` lo trae en su lugar, en `--json` solo con `numero`, `cae` y `error`, y avisa, con `--json` en stderr, y `consultar` sale con `ARCA_VOUCHER_QUERY_ERROR`, antes `VOUCHER_NOT_FOUND`.
 > - `estado` suma `servidoresExportacion`, `null` si WSFEX no responde. `listo` y el exit code no cambian.
+> - `--testing` con `--produccion` sale con `INPUT_VALIDATION_ERROR` en todos los comandos, antes `CONFIGURATION_ERROR` en casi todos. `error` y el exit code `1` no cambian.
+> - En la `E`, `WSFEX_SERVICE_NOT_AUTHORIZED` y el asociado que ARCA no tiene dicen qué hacer en `sugerencia`, antes al final de `error`. `ARCA_EXPORT_ERROR` por el ID de solicitud trae `sugerencia`, antes `null`.
+> - En la `E`, `detalles` es `{ "campos": […] }` con un dato inválido en `--cargar` y `{ "errores": [] }` en `ARCA_QUOTATION_ERROR`; antes `null`.
+> - `detalles.errores[].code` y `.msg`, de los errores de `wsfe`, quedan deprecadas hasta la 3.0.0, con un aviso en `detalles.deprecado`: usá `codigo` y `mensaje`.
 > - En los comandos de la `E` con `exportacion.cert` propio, `avisos` ya no trae el vencimiento del certificado general de ese entorno.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
@@ -142,10 +146,13 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 ### ⏳ Deprecado
 
 - **Config:** `cbu` y `aliasCbu` en `config establecer` y `config eliminar`, hasta la 3.0.0: usá `cuenta` (#284).
+- **Errores:** `code` y `msg` de `detalles.errores`, hasta la 3.0.0: usá `codigo` y `mensaje` (#290).
 
 <details><summary>Detalle</summary>
 
 **`cbu` y `aliasCbu` por separado.** Siguen guardando y borrando, con un aviso en stderr que muestra el comando nuevo. Ya no salen en la ayuda ni en el autocompletado. Leerlos no avisa: siguen en el archivo y en `arcli config --json`, y una FCE los usa como antes.
+
+**`code` y `msg` de los errores de ARCA.** En los errores de `wsfe` (el último número, `consultar`, `ultimos`, `parametros` y la cotización de A, B, C, FCE y recibos), cada elemento de `detalles.errores` trae lo mismo dos veces: `codigo` y `mensaje`, y `code` y `msg`. Las dos últimas siguen saliendo y `detalles.deprecado` lo avisa si vienen; se van en la 3.0.0, con `detalles.errors`. La terminal no muestra el aviso.
 
 </details>
 
@@ -185,6 +192,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Facturas:** `EMISSION_UNCERTAIN` trae `entorno`, `puntoVenta` y `tipoArca` en `detalles`, para conciliar sin leer la sugerencia (#280).
 - **Errores:** en `--cargar`, una clave `constructor` ya no sugiere un texto interno de JavaScript (#275).
 - **Asistente:** con un consumidor final en moneda extranjera, Esc en "¿Emitimos…?" vuelve a la última pregunta; podía repetir la vista previa (#289).
+- **Factura E:** un dato inválido en `--cargar` trae `detalles.campos`, y `ARCA_QUOTATION_ERROR`, `detalles.errores`, como A, B y C (#290).
+- **Factura E:** sin autorización de WSFEX, o si ARCA no tiene el asociado, qué hacer va en `sugerencia`, como A, B y C (#290).
+- **Factura E:** un error de ARCA al pedir el ID de solicitud dice que no se emitió nada (#290).
+- **Errores:** `--testing` con `--produccion` da `INPUT_VALIDATION_ERROR` en todos los comandos (#290).
 
 <details><summary>Detalle</summary>
 
@@ -247,6 +258,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **Qué usar en la `E`.** `arcli parametros` tiene las tablas de A, B y C, no las de WSFEX. Un incoterm o un idioma que no existe ahora lista los válidos en `sugerencia`; una moneda o una unidad, los más comunes de la tabla de WSFEX; el país, los parecidos, y el CUIT del país, el del destino. Un rechazo por el punto de venta aclara que en producción la `E` usa uno propio, y por el del asociado, `--apv`. El `error` del incoterm ya no trae la indicación, que pasó a `sugerencia`.
 
 **Esc en "¿Emitimos…?" en moneda extranjera.** Con un consumidor final, después de los opcionales el asistente consulta la cotización para saber si el total llega al tope. Esa consulta contaba como una pregunta: Esc volvía a ella, que no pregunta nada, y salía otra vez la vista previa, siempre si la consulta había fallado. Ahora vuelve a la última pregunta, en la factura, el recibo, las notas y "Repetir".
+
+**Los mismos datos en los errores de la `E`.** En `fe`, `nce`, `nde` y sus formas largas, un dato inválido en `--cargar` lista cada problema en `detalles.campos`, con `mensaje` y `ruta`; `error` no cambia, y un JSON que no es un objeto o con `monto` y `montoTotal` juntos sigue con `detalles` en `null`. `ARCA_QUOTATION_ERROR` trae `detalles.errores`, vacío: WSFEX contestó, sin esa moneda. El "Autorizalo igual que wsfe…" de `WSFEX_SERVICE_NOT_AUTHORIZED` y el "Revisá `--ar`…" del asociado que ARCA no tiene pasan de `error` a `sugerencia`; el panel muestra lo mismo. En el padrón y `fce-obligado` el texto no cambia. Si ARCA contesta con un error al pedir el ID de solicitud, `sugerencia` es "No se emitió nada. Revisá el mensaje de ARCA y reintentá.", como con el último número.
+
+**`--testing` con `--produccion`.** Salía con `CONFIGURATION_ERROR`, menos en `certificado generar` y `certificado importar`. Ahora es `INPUT_VALIDATION_ERROR` en todos, también al abrir el asistente, y el panel dice "Error de entrada" en vez de mandar a revisar la configuración. `error` y el exit code no cambian. `parametros` sin tabla sigue sin usar el entorno ni dar error.
 
 </details>
 

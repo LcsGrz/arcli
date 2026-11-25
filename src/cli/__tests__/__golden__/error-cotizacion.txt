@@ -8,7 +8,8 @@ exit: 1
   "codigo": "ARCA_QUOTATION_ERROR",
   "detalles": {
     "deprecado": [
-      "`detalles.errors` se saca en la 3.0.0: usá `detalles.errores`."
+      "`detalles.errors` se saca en la 3.0.0: usá `detalles.errores`.",
+      "`code` y `msg` de `detalles.errores` se sacan en la 3.0.0: usá `codigo` y `mensaje`."
     ],
     "errores": [
       {

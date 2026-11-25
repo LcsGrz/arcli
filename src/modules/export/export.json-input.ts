@@ -1,12 +1,12 @@
 import { z } from 'zod';
 
 import { InputValidationError } from '../../lib/errors/app-error';
-import { describeJsonIssue, describeReceived, type JsonInputKeys } from '../../lib/json/json-input-issues';
+import { describeReceived, jsonInputError, type JsonInputKeys } from '../../lib/json/json-input-issues';
 import { associatedVoucherJsonSchema } from '../vouchers/associated-voucher.json-input';
 
 import type { ExportItemInput } from './export.types';
 
-/** El problema de una clave que admite mas de un tipo o valor; `describeJsonIssue` pone la clave y el punto. */
+/** El problema de una clave que admite mas de un tipo o valor; `jsonInputError` pone la clave y el punto. */
 function expecting(expected: string, hint: (input: unknown) => string = () => '') {
   return ({ input }: { readonly input?: unknown }): string =>
     `tiene que ser ${expected} y llegó ${describeReceived(input)}${hint(input)}`;
@@ -120,12 +120,7 @@ function parseExportJsonInput(value: unknown): ExportJsonInput {
     return result.data;
   }
 
-  throw new InputValidationError(
-    `En el JSON de \`--cargar\`: ${result.error.issues
-      .flatMap((issue) => describeJsonIssue(issue, JSON_KEYS))
-      .map((issue) => issue.mensaje)
-      .join(' ')}`,
-  );
+  throw jsonInputError(result.error.issues, JSON_KEYS);
 }
 
 /** `--cargar` toma un solo comprobante; el lote de exportacion queda para mas adelante. */

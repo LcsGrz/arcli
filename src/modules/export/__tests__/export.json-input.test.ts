@@ -10,8 +10,8 @@ function expectError(source: unknown, message: string | RegExp): void {
   expect(() => readExportJsonInput(source)).toThrow(message);
 }
 
-/** El texto entero, con el mismo `codigo` y sin `detalles`: completarlo es de la 3.0.0. */
-function expectExactError(source: unknown, message: string): void {
+/** El texto entero, con el mismo `codigo`. Devuelve `detalles`. */
+function expectExactError(source: unknown, message: string): Record<string, unknown> | undefined {
   let error: unknown;
 
   try {
@@ -23,7 +23,19 @@ function expectExactError(source: unknown, message: string): void {
   expect(error).toBeInstanceOf(InputValidationError);
   expect((error as InputValidationError).message).toBe(message);
   expect((error as InputValidationError).code).toBe('INPUT_VALIDATION_ERROR');
-  expect((error as InputValidationError).details).toBeUndefined();
+
+  return (error as InputValidationError).details;
+}
+
+/** Cada problema del texto va tambien en `detalles.campos`, con su ruta (REV-58). */
+function expectFieldErrors(source: unknown, message: string): void {
+  const campos = expectExactError(source, `En el JSON de \`--cargar\`: ${message}`)?.campos as Array<{
+    mensaje: string;
+    ruta: string[];
+  }>;
+
+  expect(campos.map(({ mensaje }) => mensaje).join(' ')).toBe(message);
+  campos.forEach(({ mensaje, ruta }) => expect(mensaje).toContain(ruta.at(-1)));
 }
 
 describe('readExportJsonInput', () => {
@@ -92,7 +104,7 @@ describe('readExportJsonInput', () => {
         'La clave "moneda" no existe: ¿quisiste decir "codigoMoneda"? La clave "xyz" no existe.',
       ],
     ])('%j', (source, message) => {
-      expectExactError(source, `En el JSON de \`--cargar\`: ${message}`);
+      expectFieldErrors(source, message);
     });
   });
 
@@ -129,7 +141,7 @@ describe('readExportJsonInput', () => {
         '"cliente" tiene que ser un texto y llegó 1. "puntoVenta" tiene que ser un número y llegó el texto "4". Escribilo sin comillas. La clave "x" no existe.',
       ],
     ])('%j', (source, message) => {
-      expectExactError(source, `En el JSON de \`--cargar\`: ${message}`);
+      expectFieldErrors(source, message);
     });
   });
 
@@ -138,10 +150,12 @@ describe('readExportJsonInput', () => {
     [5, '5'],
     [null, 'null'],
   ])('rechaza una raíz que no es objeto: %j', (source, received) => {
-    expectExactError(
-      source,
-      `El JSON de \`--cargar\` de una E tiene que ser un objeto con un comprobante y es ${received}.`,
-    );
+    expect(
+      expectExactError(
+        source,
+        `El JSON de \`--cargar\` de una E tiene que ser un objeto con un comprobante y es ${received}.`,
+      ),
+    ).toBeUndefined();
   });
 
   it('rechaza un lote: la E toma un solo comprobante', () => {

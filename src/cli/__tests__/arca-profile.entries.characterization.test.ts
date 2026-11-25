@@ -119,11 +119,11 @@ describe('sesion de ARCA del asistente (createInteractiveSession)', () => {
     expect(Arca).not.toHaveBeenCalled();
   });
 
-  it('--testing y --produccion juntos: CONFIGURATION_ERROR', () => {
+  it('--testing y --produccion juntos: INPUT_VALIDATION_ERROR (REV-58)', () => {
     profile.writeConfig(profile.configWith(profile.healthy));
 
     expect(() => createInteractiveSession({ produccion: true, testing: true })).toThrow(
-      expect.objectContaining({ code: 'CONFIGURATION_ERROR', message: BOTH_FLAGS_MESSAGE }),
+      expect.objectContaining({ code: 'INPUT_VALIDATION_ERROR', message: BOTH_FLAGS_MESSAGE }),
     );
   });
 });
@@ -237,11 +237,11 @@ describe('arcli monotributo', () => {
     },
   );
 
-  it('--testing y --produccion juntos: CONFIGURATION_ERROR con el texto de siempre', async () => {
+  it('--testing y --produccion juntos: INPUT_VALIDATION_ERROR con el texto de siempre', async () => {
     profile.writeConfig(profile.configWith(profile.healthy));
 
     expect(await profile.runJsonError(['monotributo', '--testing', '--produccion'])).toMatchObject({
-      codigo: 'CONFIGURATION_ERROR',
+      codigo: 'INPUT_VALIDATION_ERROR',
       error: BOTH_FLAGS_MESSAGE,
     });
     expect(Arca).not.toHaveBeenCalled();

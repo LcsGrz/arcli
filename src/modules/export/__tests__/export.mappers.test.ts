@@ -212,9 +212,9 @@ describe('resolveExportQuotation', () => {
     );
   });
 
-  it('sin cotizacion para la moneda es ARCA_QUOTATION_ERROR, sin detalles de ARCA', () => {
+  it('sin cotizacion para la moneda es ARCA_QUOTATION_ERROR, sin errores de ARCA en detalles', () => {
     expect(() => resolveExportQuotation('019', QUOTATIONS, '20261028')).toThrow(
-      expect.objectContaining({ code: 'ARCA_QUOTATION_ERROR', details: undefined }),
+      expect.objectContaining({ code: 'ARCA_QUOTATION_ERROR', details: { errores: [] } }),
     );
   });
 

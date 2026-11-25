@@ -5,7 +5,7 @@ import type { BillingAuthorizationAnswer } from '../../modules/billing/authoriza
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
 import type { VoucherRequest } from '../../modules/billing/voucher-request';
 
-import { toDetailErrors, withDeprecatedErrors } from './arca-error-details';
+import { arcaErrorDetails, toDetailErrors, withDeprecatedErrors } from './arca-error-details';
 import type { Arca, IVoucher } from './arca-sdk.types';
 import { readBillingAnswer } from './authorization-answer';
 import { getLastAuthorizedNumber, rethrowIfWsfeNotAuthorized } from './last-voucher';
@@ -46,7 +46,7 @@ export class ArcaBillingGateway implements BillingGateway {
     if (errors.length > 0) {
       throw new AppError(`ARCA devolvió un error al consultar las monedas: ${errors.map((e) => e.msg).join('; ')}`, {
         code: 'ARCA_PARAMETERS_ERROR',
-        details: { errores: toDetailErrors(errors) },
+        details: arcaErrorDetails(errors),
       });
     }
 

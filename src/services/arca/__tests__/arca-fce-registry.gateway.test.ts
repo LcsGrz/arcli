@@ -59,6 +59,12 @@ describe('ArcaFceRegistryGateway', () => {
       throw new Error('ns1:coe.notAuthorized');
     });
 
-    await expect(gateway.getVoucherState(ID)).rejects.toMatchObject({ code: 'FCE_SERVICE_NOT_AUTHORIZED' });
+    // El texto se cita en un aviso: cómo autorizarlo va en el mensaje, no en la sugerencia.
+    await expect(gateway.getVoucherState(ID)).rejects.toMatchObject({
+      code: 'FCE_SERVICE_NOT_AUTHORIZED',
+      message:
+        'El certificado no está autorizado para el servicio wsfecred (Factura de Crédito Electrónica). Autorizalo igual que wsfe: en testing desde WSASS ("Crear autorización a servicio") y en producción desde el Administrador de Relaciones.',
+      suggestion: undefined,
+    });
   });
 });

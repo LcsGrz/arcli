@@ -4,7 +4,7 @@ import { ISSUES_URL } from '../../lib/links';
 import { VoucherQueryError, voucherQueryErrorMessage } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 
-import { toDetailErrors } from './arca-error-details';
+import { arcaErrorDetails } from './arca-error-details';
 
 /**
  * ARCA contesto, pero no se sabe si el comprobante existe. No puede parecer "no existe": con esta consulta se
@@ -26,7 +26,7 @@ export function voucherQueryError(query: {
     reasons
       ? voucherQueryErrorMessage(voucher, reasons)
       : `ARCA devolvió una respuesta inesperada al consultar ${voucher} y no se sabe si existe.`,
-    as?.details ?? { errores: toDetailErrors(errors) },
+    as?.details ?? arcaErrorDetails(errors),
     reasons
       ? ARCA_QUERY_ERROR_SUGGESTION
       : `Volvé a consultar en unos minutos. Si se repite, no insistas. ${VERIFY_BEFORE_RETRY}`,

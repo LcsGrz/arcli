@@ -7,7 +7,7 @@ exit: 1
 {
   "codigo": "WSFEX_SERVICE_NOT_AUTHORIZED",
   "detalles": null,
-  "error": "El certificado no está autorizado para el servicio wsfex (factura de exportación). Autorizalo igual que wsfe: en testing desde WSASS (\"Crear autorización a servicio\") y en producción desde el Administrador de Relaciones.",
-  "sugerencia": null
+  "error": "El certificado no está autorizado para el servicio wsfex (factura de exportación).",
+  "sugerencia": "Autorizalo igual que wsfe: en testing desde WSASS (\"Crear autorización a servicio\") y en producción desde el Administrador de Relaciones."
 }
 

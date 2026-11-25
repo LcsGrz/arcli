@@ -313,7 +313,7 @@ export function resolveExportQuotation(
     `ARCA no informó la cotización de ${code} para el ${formatArcaDateAsArgentineDate(voucherDate)}.${
       available ? ` Las monedas con cotización son ${available}.` : ''
     } Informá la cotización con \`--cotizacion-moneda\`.`,
-    { code: 'ARCA_QUOTATION_ERROR' },
+    { code: 'ARCA_QUOTATION_ERROR', details: { errores: [] } },
   );
 }
 

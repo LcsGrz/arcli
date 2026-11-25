@@ -4,7 +4,7 @@ import { AppError } from '../../lib/errors/app-error';
 import { lastNumberErrorSuggestion, type LastNumberPurpose } from '../../lib/errors/query-error';
 import { CERTIFICATE_GUIDE_URL, POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
 
-import { toDetailErrors } from './arca-error-details';
+import { arcaErrorDetails } from './arca-error-details';
 import { isNotAuthorized } from './not-authorized';
 
 /**
@@ -52,7 +52,7 @@ export async function getLastAuthorizedNumber(
       `ARCA devolvió un error al pedir el último comprobante del punto de venta ${pointOfSale}: ${errors.map((error) => `${error.code} ${error.msg}`).join('; ')}`,
       {
         code: 'ARCA_LAST_VOUCHER_ERROR',
-        details: { errores: toDetailErrors(errors) },
+        details: arcaErrorDetails(errors),
         suggestion: pointOfSaleProblem
           ? `El punto de venta no está habilitado para web service (los de "Factura en línea" no sirven). Revisá los habilitados con \`arcli parametros puntos-venta\` o creá uno para web service: ${POINT_OF_SALE_GUIDE_URL}`
           : lastNumberErrorSuggestion(purpose),
