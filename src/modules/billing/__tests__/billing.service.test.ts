@@ -1638,6 +1638,21 @@ describe('billing.service', () => {
     });
   });
 
+  it('reports in an uncertain emission the same number it sent to ARCA', async () => {
+    const service = new BillingService({ clock: systemClock });
+    const createVoucher = vi.fn().mockRejectedValue(new Error('socket hang up'));
+    const run = service.emit({
+      gateway: { createVoucher, getNextVoucherNumber: async () => 1057 },
+      input: createBillingInput({ documentNumber: 0, dryRun: false, emit: true }),
+      runtime: createRuntime(),
+    });
+
+    await expect(run).rejects.toMatchObject({ code: 'EMISSION_UNCERTAIN', details: { numero: 1057 } });
+    expect(createVoucher).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ CbteDesde: 1057, CbteHasta: 1057 }),
+    );
+  });
+
   it.each([
     ['an authentication (WSAA) failure', 'Certificado expirado'],
     ['a failure fetching the last voucher number', 'ARCA no disponible'],

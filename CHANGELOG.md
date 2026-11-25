@@ -61,7 +61,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 ### ✨ Agregado
 
 - **Config:** `config establecer cuenta <CBU> [ALIAS]` guarda el CBU y su alias juntos, y `config eliminar cuenta` borra los dos (#284).
-- **Errores:** con `--json`, `EMISSION_UNCERTAIN` de A, B, C, FCE y recibos trae `detalles.numero`, como la `E`, y un lote cortado también (#297).
+- **Errores:** con `--json`, `EMISSION_UNCERTAIN` de A, B, C, FCE y recibos trae `detalles.numero`, como la `E`; en un lote, si hay uno sin confirmar (#297).
 
 <details><summary>Detalle</summary>
 
