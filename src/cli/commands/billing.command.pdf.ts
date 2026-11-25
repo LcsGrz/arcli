@@ -62,6 +62,17 @@ export function withCancellationAsNo(deps: PdfStepDependencies): PdfStepDependen
   };
 }
 
+/** Se esta cortando por una señal: no se pregunta ni se genera, y cada PDF elegido sale como no generado. */
+export function withoutGeneratingPdfs(deps: PdfStepDependencies): PdfStepDependencies {
+  return {
+    ...deps,
+    confirm: async () => false,
+    createPlugin: () => {
+      throw new PdfError('PDF_GENERATION_ERROR', 'Se cortó antes de generar el PDF.');
+    },
+  };
+}
+
 export interface PdfStepOptions {
   readonly config: ArcliConfig;
   /** Alineados con `results`. */

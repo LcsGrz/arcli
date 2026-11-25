@@ -20,6 +20,7 @@ import { describeEmittedInThisRun, resetEmittedInThisRun } from '../../emitted-v
 import { reportCliError } from '../../error-output';
 import { registerGlobalOptions } from '../../global-options';
 import { listSelect } from '../../interactive/list-select';
+import { finishCut } from '../../interruption';
 import {
   type BillingCommandGateways,
   executeBillingCommand,
@@ -472,6 +473,7 @@ export async function runSequence(execute: () => Promise<unknown>, options: RunO
     // Lo que escribe el reporte ya es el evento `error`.
     pending = undefined;
     events.push(`fin: exit ${exitCode}`);
+    await finishCut();
   }
 
   return { events, sent, stderr, stdout };

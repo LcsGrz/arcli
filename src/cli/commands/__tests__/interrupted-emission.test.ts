@@ -39,7 +39,8 @@ interface Interruption {
   /** En cuál llamada a `method` llega la señal. */
   readonly call?: number;
   readonly method?: string;
-  readonly signal?: Signal;
+  /** Con varias, una por vez en ese orden. */
+  readonly signal?: Signal | readonly Signal[];
   readonly times: number;
 }
 
@@ -74,7 +75,9 @@ async function interrupt(
     const before = written();
 
     for (let sent = 0; sent < times; sent += 1) {
-      process.emit(signal, signal);
+      const next = typeof signal === 'string' ? signal : signal[sent];
+
+      process.emit(next, next);
       await pause(5);
     }
 
@@ -129,8 +132,7 @@ afterEach(() => {
 });
 
 describe('un lote, una señal', () => {
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails.each(['SIGINT', 'SIGTERM'] as const)('%s en el 2.º, --json: 2 CAE y el 3.º sin procesar', async (signal) => {
+  it.each(['SIGINT', 'SIGTERM'] as const)('%s en el 2.º, --json: 2 CAE y el 3.º sin procesar', async (signal) => {
     const run = await runBatch({ call: 2, signal, times: 1 }, { json: true });
 
     expect(emissionCalls(run)).toEqual([
@@ -151,8 +153,7 @@ describe('un lote, una señal', () => {
     expect(run.exit).toBe('fin: exit 1');
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('en el 2.º, en texto: los 2 CAE, qué falta y que no se vuelvan a cargar', async () => {
+  it('en el 2.º, en texto: los 2 CAE, qué falta y que no se vuelvan a cargar', async () => {
     const run = await runBatch({ call: 2, times: 1 });
 
     expect(sent(run)).toHaveLength(2);
@@ -163,8 +164,7 @@ describe('un lote, una señal', () => {
     expect(run.exit).toBe('fin: exit 1');
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('en el 2.º, que ARCA rechaza: se entrega el rechazo y no sigue', async () => {
+  it('en el 2.º, que ARCA rechaza: se entrega el rechazo y no sigue', async () => {
     const run = await runBatch({ call: 2, times: 1 }, { arca: ['A', 'R'], json: true });
 
     expect(sent(run)).toHaveLength(2);
@@ -183,8 +183,7 @@ describe('un lote, una señal', () => {
     expect(run.exit).toBe('fin: exit 1');
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('al pedir el número del 2.º, que todavía no se envió: no se envía', async () => {
+  it('al pedir el número del 2.º, que todavía no se envió: no se envía', async () => {
     const run = await runBatch({ call: 2, method: 'getNextVoucherNumber', times: 1 }, { json: true });
 
     expect(sent(run)).toEqual(['ARCA createVoucher 42 por 1000']);
@@ -207,8 +206,7 @@ describe('un lote, una señal', () => {
     expect(run.exit).toBe(`fin: exit ${exit}`);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('en un lote mixto: el que falta emitir no se envía', async () => {
+  it('en un lote mixto: el que falta emitir no se envía', async () => {
     const path = batch(3, (position) => ({ emitir: position !== 1 }));
     const run = await interrupt({ times: 1 }, (hook) => runBilling(['--cargar', path], { ...hook, json: true }));
 
@@ -217,8 +215,7 @@ describe('un lote, una señal', () => {
 });
 
 describe('un lote, dos señales', () => {
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('en el 2.º, --json: 1 CAE, el 2.º sin confirmar y el 3.º sin procesar, sin esperar a ARCA', async () => {
+  it('en el 2.º, --json: 1 CAE, el 2.º sin confirmar y el 3.º sin procesar, sin esperar a ARCA', async () => {
     const run = await runBatch({ call: 2, times: 2 }, { json: true });
 
     expect(sent(run)).toHaveLength(2);
@@ -231,23 +228,18 @@ describe('un lote, dos señales', () => {
     expect(run.answered).toBe(false);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails(
-    'en el 2.º, en texto: el 1.º con su CAE y con qué verificar el 2.º, que nunca se da por no emitido',
-    async () => {
-      const run = await runBatch({ call: 2, times: 2 });
-      const error = plainText(run.stderr);
+  it('en el 2.º, en texto: el 1.º con su CAE y con qué verificar el 2.º, que nunca se da por no emitido', async () => {
+    const run = await runBatch({ call: 2, times: 2 });
+    const error = plainText(run.stderr);
 
-      expect(run.stdout.match(CAE)).toHaveLength(1);
-      expect(error).toContain('El #2 puede haberse emitido');
-      expect(error).toContain('arcli ultimos fc --pv 3 --testing');
-      expect(error).toContain('Sin procesar: #3.');
-      expect(plainText(run.stdout) + error).not.toMatch(DENIED);
-    },
-  );
+    expect(run.stdout.match(CAE)).toHaveLength(1);
+    expect(error).toContain('El #2 puede haberse emitido');
+    expect(error).toContain('arcli ultimos fc --pv 3 --testing');
+    expect(error).toContain('Sin procesar: #3.');
+    expect(plainText(run.stdout) + error).not.toMatch(DENIED);
+  });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('cinco señales seguidas en el 2.º: lo mismo, una sola vez', async () => {
+  it('cinco señales seguidas en el 2.º: lo mismo, una sola vez', async () => {
     const run = await runBatch({ call: 2, times: 5 }, { json: true });
 
     expect(sent(run)).toHaveLength(2);
@@ -256,8 +248,7 @@ describe('un lote, dos señales', () => {
     expect(run.answered).toBe(false);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('al pedir el número del 2.º: no se envió, así que no queda sin confirmar', async () => {
+  it('al pedir el número del 2.º: no se envió, así que no queda sin confirmar', async () => {
     const run = await runBatch({ call: 2, method: 'getNextVoucherNumber', times: 2 }, { json: true });
 
     expect(sent(run)).toHaveLength(1);
@@ -266,8 +257,7 @@ describe('un lote, dos señales', () => {
     expect(details(run)).not.toHaveProperty('sinConfirmar');
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('en un lote de uno: nada procesado, el único sin confirmar', async () => {
+  it('en un lote de uno: nada procesado, el único sin confirmar', async () => {
     const run = await runBatch({ times: 2 }, { json: true }, 1);
 
     expect(sent(run)).toHaveLength(1);
@@ -337,8 +327,7 @@ describe.each(FAMILIES)('un comprobante (%s)', (_shortcut, method, run, verifyCo
     expect(interrupted.exit).toBe('fin: exit 1');
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('una señal, en texto: avisa enseguida que espera la respuesta, sin dar nada por no emitido', async () => {
+  it('una señal, en texto: avisa enseguida que espera la respuesta, sin dar nada por no emitido', async () => {
     const interrupted = await interrupt({ method, times: 1 }, run);
 
     expect(sent(interrupted)).toHaveLength(1);
@@ -354,22 +343,18 @@ describe.each(FAMILIES)('un comprobante (%s)', (_shortcut, method, run, verifyCo
     expect(interrupted.whileWaiting).toBe('');
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails.each(['A', 'incierta'] as const)(
-    'dos señales: no se sabe, aunque después ARCA conteste %s',
-    async (step) => {
-      const interrupted = await interrupt({ method, times: 2 }, (hook) => run({ ...hook, arca: [step], json: true }));
+  it.each(['A', 'incierta'] as const)('dos señales: no se sabe, aunque después ARCA conteste %s', async (step) => {
+    const interrupted = await interrupt({ method, times: 2 }, (hook) => run({ ...hook, arca: [step], json: true }));
 
-      expect(sent(interrupted)).toHaveLength(1);
-      expect(interrupted.answered).toBe(false);
-      expect(interrupted.stdout).toBe('');
-      expect(JSON.parse(interrupted.stderr)).toMatchObject({
-        codigo: 'EMISSION_UNCERTAIN',
-        sugerencia: expect.stringContaining(verifyCommand),
-      });
-      expect(interrupted.stderr).not.toMatch(DENIED);
-    },
-  );
+    expect(sent(interrupted)).toHaveLength(1);
+    expect(interrupted.answered).toBe(false);
+    expect(interrupted.stdout).toBe('');
+    expect(JSON.parse(interrupted.stderr)).toMatchObject({
+      codigo: 'EMISSION_UNCERTAIN',
+      sugerencia: expect.stringContaining(verifyCommand),
+    });
+    expect(interrupted.stderr).not.toMatch(DENIED);
+  });
 });
 
 describe('quién escucha las señales', () => {
@@ -419,11 +404,10 @@ describe('quién escucha las señales', () => {
     expect(outside).toEqual(outside.map(([text]) => [text, signals]));
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['fc', /createVoucher/, billing('fc', FC)],
     ['fe', /authorize/, exporting(FE)],
-  ] as const)('%s: mientras se emite, se escuchan las dos', async (_name, call, run) => {
+  ] as const)('%s: mientras se emite, se escuchan las dos y los de otros se apartan', async (_name, call, run) => {
     let whileEmitting = { ...signals };
 
     await run({
@@ -432,8 +416,7 @@ describe('quién escucha las señales', () => {
       },
     });
 
-    expect(whileEmitting.SIGINT).toBeGreaterThan(signals.SIGINT);
-    expect(whileEmitting.SIGTERM).toBeGreaterThan(signals.SIGTERM);
+    expect(whileEmitting).toEqual({ SIGINT: 1, SIGTERM: 1 });
   });
 });
 
@@ -465,3 +448,126 @@ it.each([1, 2])(
     );
   },
 );
+
+const errorText = (run: Run) => (JSON.parse(run.stderr) as { error: string }).error;
+
+describe('lo que se dice de un lote cortado', () => {
+  it('una señal: primero lo emitido, después lo que falta', async () => {
+    const run = await runBatch({ call: 2, times: 1 }, { json: true }, 5);
+
+    expect(errorText(run)).toBe(
+      'Cortaste el lote con Ctrl+C.\nYa se emitieron: #1 y #2.\nProcesados: 2 de 5.\nSin procesar: #3 a #5 (3).',
+    );
+    expect(details(run)).toEqual({
+      codigoCausa: 'CANCELLED',
+      fallo: 3,
+      procesados: 2,
+      sinProcesar: [3, 4, 5],
+      total: 5,
+    });
+  });
+
+  it('dos señales: el que no se esperó, con su número y la causa', async () => {
+    const run = await runBatch({ call: 2, times: 2 }, { json: true });
+
+    expect(errorText(run)).toBe(
+      'Cortaste el lote con Ctrl+C.\nYa se emitió: #1.\nProcesados: 1 de 3.\nSin procesar: #3.\nEl #2 puede haberse emitido: verificalo con `arcli ultimos fc --pv 3 --testing` antes de reintentarlo.',
+    );
+    expect(details(run)).toEqual({
+      codigoCausa: 'EMISSION_UNCERTAIN',
+      fallo: 2,
+      numero: 43,
+      procesados: 1,
+      sinConfirmar: 2,
+      sinProcesar: [3],
+      total: 3,
+    });
+  });
+
+  it('SIGTERM: no habla de Ctrl+C, tampoco en el aviso', async () => {
+    const run = await runBatch({ call: 2, signal: 'SIGTERM', times: 1 });
+
+    expect(run.whileWaiting).toMatch(/esper/i);
+    expect(plainText(run.stderr)).toContain('Se cortó el lote. Ya se emitieron: #1 y #2.');
+    expect(run.stderr).not.toContain('Ctrl+C');
+  });
+
+  it('con solo un rechazado, no dice que se emitió', async () => {
+    const run = await runBatch({ call: 1, times: 1 }, { arca: ['R'], json: true });
+
+    expect(details(run)).toMatchObject({ procesados: 1, sinProcesar: [2, 3] });
+    expect(run.stderr).not.toMatch(/ya se emiti/i);
+    expect(JSON.parse(run.stderr)).toMatchObject({
+      sugerencia: 'No se emitió ninguno: podés reintentar los que quedaron sin procesar.',
+    });
+  });
+
+  it('en un lote mixto, la vista previa ya procesada no cuenta como emitida y la pendiente queda sin procesar', async () => {
+    const path = batch(4, (position) => ({ emitir: position === 1 }));
+    const run = await interrupt({ times: 1 }, (hook) => runBilling(['--cargar', path], { ...hook, json: true }));
+
+    expect(errorText(run)).toContain('Ya se emitió: #2.\nProcesados: 2 de 4.\nSin procesar: #3, #4.');
+    expect(details(run)).toMatchObject({ codigoCausa: 'CANCELLED', fallo: 3, sinProcesar: [3, 4] });
+    expect(run.exit).toBe('fin: exit 1');
+  });
+});
+
+describe('por qué señal se corta', () => {
+  it('con una y la respuesta, por ninguna', async () => {
+    await runBatch({ call: 2, times: 1 });
+
+    expect(process.kill).not.toHaveBeenCalled();
+  });
+
+  it('SIGTERM y después SIGINT: por la última, una vez, con los listeners de siempre', async () => {
+    let atKill = { SIGINT: -1, SIGTERM: -1 };
+
+    vi.mocked(process.kill).mockImplementation(() => {
+      atKill = listeners();
+
+      return true;
+    });
+
+    const run = await runBatch({ call: 2, signal: ['SIGTERM', 'SIGINT'], times: 2 }, { json: true });
+
+    expect(details(run)).toMatchObject({ sinConfirmar: 2 });
+    expect(errorText(run)).toContain('Se cortó el lote.');
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGINT');
+    expect(atKill).toEqual(signals);
+  });
+
+  it('sin nada enviado, la primera corta como siempre y no se envía aunque ARCA dé el número', async () => {
+    const run = await runBatch({ method: 'getNextVoucherNumber', times: 1 }, { json: true });
+
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGINT');
+    expect(sent(run)).toEqual([]);
+  });
+});
+
+it('un listener de otro que reenvía la señal, como el de when-exit, no cuenta como la segunda', async () => {
+  const resend = vi.fn(() => process.emit('SIGINT', 'SIGINT'));
+
+  process.once('SIGINT', resend);
+
+  try {
+    const run = await runBatch({ call: 2, times: 1 }, { json: true });
+
+    expect(details(run)).toMatchObject({ codigoCausa: 'CANCELLED', procesados: 2 });
+    expect(resend).not.toHaveBeenCalled();
+    expect(process.listeners('SIGINT')).toContain(resend);
+  } finally {
+    process.off('SIGINT', resend);
+  }
+});
+
+it('tras dos señales no se genera ningún PDF: sale como no generado, con su CAE', async () => {
+  const run = await runBatch({ call: 2, times: 2 }, { config: { pdf: 'siempre' }, json: true });
+
+  expect(run.events.filter((text) => text.startsWith('PDF'))).toEqual([]);
+  expect(JSON.parse(run.stdout)).toMatchObject([
+    {
+      cae: '75123456789012',
+      pdf: { error: { codigo: 'PDF_GENERATION_ERROR', mensaje: 'Se cortó antes de generar el PDF.' } },
+    },
+  ]);
+});

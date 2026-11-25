@@ -53,6 +53,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - En la `E`, `detalles` es `{ "campos": […] }` con un dato inválido en `--cargar` y `{ "errores": [] }` en `ARCA_QUOTATION_ERROR`; antes `null`.
 > - `detalles.errores[].code` y `.msg`, de los errores de `wsfe`, quedan deprecadas hasta la 3.0.0, con un aviso en `detalles.deprecado`: usá `codigo` y `mensaje`.
 > - En los comandos de la `E` con `exportacion.cert` propio, `avisos` ya no trae el vencimiento del certificado general de ese entorno.
+> - `Ctrl+C` o `SIGTERM` con un comprobante ya enviado a ARCA esperan la respuesta, antes cortaban sin salida. Un lote cortado así sale con `BATCH_EMISSION_ERROR` y exit code `1`, con `codigoCausa` `CANCELLED`, código nuevo. Dos señales cortan, después de escribir lo que se sabe.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
 
@@ -174,6 +175,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### 🐛 Corregido
 
+- **Facturas:** `Ctrl+C` al emitir espera la respuesta de ARCA, y un lote cortado muestra los CAE ya emitidos y los que faltan (#299).
 - **Facturas:** si la medianoche pasa en "¿Emitimos?", se emite lo que mostró la vista previa, con sus fechas, como en la `E` (#274).
 - **Facturas:** una respuesta sin CAE ni rechazo, o con un error interno de ARCA, sale como `EMISSION_UNCERTAIN`, y con CAE y un error, como emitido (#273).
 - **Factura E:** en texto, la `E` y sus notas muestran el CAE antes de preguntar, instalar y generar el PDF, como A, B y C (#283).
@@ -281,6 +283,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **Los mismos datos en los errores de la `E`.** En `fe`, `nce`, `nde` y sus formas largas, un dato inválido en `--cargar` lista cada problema en `detalles.campos`, con `mensaje` y `ruta`; `error` no cambia, y un JSON que no es un objeto o con `monto` y `montoTotal` juntos sigue con `detalles` en `null`. `ARCA_QUOTATION_ERROR` trae `detalles.errores`, vacío: WSFEX contestó, sin esa moneda. El "Autorizalo igual que wsfe…" de `WSFEX_SERVICE_NOT_AUTHORIZED` y el "Revisá `--ar`…" del asociado que ARCA no tiene pasan de `error` a `sugerencia`; el panel muestra lo mismo. En el padrón y `fce-obligado` el texto no cambia. Si ARCA contesta con un error al pedir el ID de solicitud, `sugerencia` es "No se emitió nada. Revisá el mensaje de ARCA y reintentá.", como con el último número.
 
 **`--testing` con `--produccion`.** Salía con `CONFIGURATION_ERROR`, menos en `certificado generar` y `certificado importar`. Ahora es `INPUT_VALIDATION_ERROR` en todos, también al abrir el asistente, y el panel dice "Error de entrada" en vez de mandar a revisar la configuración. `error` y el exit code no cambian. `parametros` sin tabla sigue sin usar el entorno ni dar error.
+
+**`Ctrl+C` al emitir.** Antes, `Ctrl+C` o `SIGTERM` cortaban en el momento: un lote no mostraba ningún CAE ya emitido y un comprobante enviado quedaba sin avisar que ARCA pudo autorizarlo. Ahora, con algo enviado, la primera señal espera la respuesta: un lote no empieza el siguiente y sale con `BATCH_EMISSION_ERROR`, `codigoCausa` `CANCELLED` (nuevo) y lo pendiente en `sinProcesar`; si no quedó nada pendiente, la salida y el exit code son los de siempre. La segunda deja de esperar: `EMISSION_UNCERTAIN`, o `sinConfirmar` en un lote, sin generar los PDF, y termina por la señal. Sin nada enviado, en el asistente y mientras se genera el PDF corta como siempre. Detalle en [Cortar mientras se emite](docs/input-output.md#cortar-mientras-se-emite).
 
 </details>
 

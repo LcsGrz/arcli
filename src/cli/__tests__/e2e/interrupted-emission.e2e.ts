@@ -272,8 +272,7 @@ afterEach(() => {
 });
 
 describe.skipIf(process.platform === 'win32')('un lote interrumpido en el 2.º', () => {
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails.each(['SIGINT', 'SIGTERM'] as const)(
+  it.each(['SIGINT', 'SIGTERM'] as const)(
     'una señal (%s), --json: 2 CAE, el 3.º sin procesar y exit 1',
     async (signal) => {
       const result = await run([...batch(), '--json'], {
@@ -292,8 +291,7 @@ describe.skipIf(process.platform === 'win32')('un lote interrumpido en el 2.º',
     },
   );
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('una señal, en texto: los 2 CAE y qué falta', async () => {
+  it('una señal, en texto: los 2 CAE y qué falta', async () => {
     const result = await run(batch(), { answers: true, hold: ['createVoucher', 2], signals: ['SIGINT'] });
 
     expect(sent()).toEqual(['42', '43']);
@@ -302,8 +300,7 @@ describe.skipIf(process.platform === 'win32')('un lote interrumpido en el 2.º',
     expect(plain(result.stderr)).toContain('Sin procesar: #3.');
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('dos señales: el CAE del 1.º, el 2.º sin confirmar y corta por la señal, sin esperar a ARCA', async () => {
+  it('dos señales: el CAE del 1.º, el 2.º sin confirmar y corta por la señal, sin esperar a ARCA', async () => {
     const result = await run([...batch(), '--json'], {
       hold: ['createVoucher', 2],
       signals: ['SIGINT', 'SIGINT'],
@@ -320,8 +317,7 @@ describe.skipIf(process.platform === 'win32')('un lote interrumpido en el 2.º',
     expect(cutBySignal(result)).toBe(true);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('muchas señales seguidas: lo mismo, un solo documento por salida', async () => {
+  it('muchas señales seguidas: lo mismo, un solo documento por salida', async () => {
     const result = await run([...batch(), '--json'], {
       hold: ['createVoucher', 2],
       signals: ['SIGINT', 'SIGINT', 'SIGINT', 'SIGINT'],
@@ -334,8 +330,7 @@ describe.skipIf(process.platform === 'win32')('un lote interrumpido en el 2.º',
     expect(cutBySignal(result)).toBe(true);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('una señal en el último: los 3 CAE y exit 0', async () => {
+  it('una señal en el último: los 3 CAE y exit 0', async () => {
     const result = await run([...batch(), '--json'], {
       answers: true,
       hold: ['createVoucher', 3],
@@ -347,8 +342,7 @@ describe.skipIf(process.platform === 'win32')('un lote interrumpido en el 2.º',
     expect(JSON.parse(result.stdout)).toHaveLength(3);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('una señal al pedir el número del 2.º: el CAE del 1.º, y el 2.º no se envía', async () => {
+  it('una señal al pedir el número del 2.º: el CAE del 1.º, y el 2.º no se envía', async () => {
     const result = await run([...batch(), '--json'], {
       answers: true,
       hold: ['getNextVoucherNumber', 2],
@@ -361,8 +355,7 @@ describe.skipIf(process.platform === 'win32')('un lote interrumpido en el 2.º',
     expect(JSON.parse(result.stderr)).toMatchObject({ detalles: { procesados: 1, sinProcesar: [2, 3] } });
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('con stdout cerrado, el error igual sale con lo procesado', async () => {
+  it('con stdout cerrado, el error igual sale con lo procesado', async () => {
     const result = await run(batch(), {
       answers: true,
       closeStdout: true,
@@ -378,8 +371,7 @@ describe.skipIf(process.platform === 'win32')('un lote interrumpido en el 2.º',
 
 describe.skipIf(process.platform === 'win32')('un comprobante interrumpido', () => {
   // No quedó nada pendiente: el exit code de siempre.
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('una señal y ARCA contesta: avisa, espera y muestra el CAE', async () => {
+  it('una señal y ARCA contesta: avisa, espera y muestra el CAE', async () => {
     const result = await run(INVOICE, { answers: true, hold: ['createVoucher', 1], signals: ['SIGINT'] });
 
     expect(sent()).toEqual(['42']);
@@ -388,8 +380,7 @@ describe.skipIf(process.platform === 'win32')('un comprobante interrumpido', () 
     expect(result.stdout + result.stderr).toMatch(/esper/i);
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['fc', INVOICE, 'createVoucher', '42', 'arcli ultimos fc --pv 3 --testing'],
     ['fe', EXPORT_INVOICE, 'authorize', '9', 'arcli consultar fe 9 --pv 3 --testing'],
   ] as const)(
@@ -448,8 +439,7 @@ describe.skipIf(process.platform === 'win32')('el cursor que escondió el spinne
     expect(cursor(result)).toBe('\u001B[?25h');
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('vuelve: con una señal y la respuesta', async () => {
+  it('vuelve: con una señal y la respuesta', async () => {
     const result = await run(INVOICE, {
       answers: true,
       hold: ['createVoucher', 1],
@@ -461,8 +451,7 @@ describe.skipIf(process.platform === 'win32')('el cursor que escondió el spinne
     expect(cursor(result)).toBe('\u001B[?25h');
   });
 
-  // Tests primero (ARQ-11): pasa a it() al implementarlo.
-  it.fails('vuelve: con dos señales', async () => {
+  it('vuelve: con dos señales', async () => {
     const result = await run(INVOICE, {
       hold: ['createVoucher', 1],
       preloads: [fakeTerminal()],
