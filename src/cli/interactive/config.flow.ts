@@ -20,15 +20,11 @@ import {
 import { COMPLETION_SHELLS, type CompletionShell } from '../../modules/completion/shell-scripts';
 import { accountAliasRemovedWarning, cbuRemovalWarning } from '../../modules/config/cbu-alias-change';
 import { formatConfigAsText, formatConfigDoctorAsText } from '../../modules/config/config.presenter';
-import {
-  type ArcliConfig,
-  type ArcliEnvironment,
-  type ConfigPublicKey,
-  formatEnvironmentLabel,
-} from '../../modules/config/config.schemas';
+import { type ArcliConfig, type ArcliEnvironment, formatEnvironmentLabel } from '../../modules/config/config.schemas';
 import { CONFIG_SECTIONS } from '../../modules/config/config.sections';
 import { ConfigService, validateConfigValue } from '../../modules/config/config.service';
 import { buildConfigDoctorReport } from '../../modules/config/config-doctor';
+import type { ConfigPublicKey } from '../../modules/config/config-key-table';
 import { formatDesktopShortcutAsText } from '../../modules/desktop-shortcut/desktop-shortcut.presenter';
 import { createDesktopShortcut, currentDesktopShortcutEnvironment } from '../../modules/desktop-shortcut/installer';
 import {

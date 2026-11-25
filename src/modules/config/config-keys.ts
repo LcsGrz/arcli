@@ -1,54 +1,5 @@
-import {
-  accountKeyDeprecationWarning,
-  type ConfigPublicKey,
-  ROWS_PER_LIST_DEPRECATION_WARNING,
-} from './config.schemas';
-import type { CanonicalConfigKey } from './config-value-parser';
-
-/** Lo que guarda `cuenta`, cada uno en su clave del archivo. Como claves de `config establecer` estan deprecadas. */
-export type AccountStoredKey = 'aliasCbu' | 'cbu';
-
-/** Donde se guarda cada clave en el config.json. `cuenta` guarda ademas `aliasCbu`. */
-export const CONFIG_KEY_ALIASES: Record<AccountStoredKey | ConfigPublicKey, CanonicalConfigKey> = {
-  alicuota: 'alicuotaPorDefecto',
-  aliasCbu: 'aliasCbu',
-  cbu: 'cbu',
-  'cert.produccion': 'cert.produccion',
-  'cert.testing': 'cert.testing',
-  concepto: 'conceptoPorDefecto',
-  condicionVenta: 'condicionVenta',
-  cotizacion: 'cotizacionPorDefecto',
-  cuenta: 'cbu',
-  cuit: 'cuit',
-  'emisor.condicionIva': 'emisor.condicionIva',
-  'emisor.domicilio': 'emisor.domicilio',
-  'emisor.iibb': 'emisor.iibb',
-  'emisor.inicioActividades': 'emisor.inicioActividades',
-  'emisor.logo': 'emisor.logo',
-  'emisor.razonSocial': 'emisor.razonSocial',
-  entorno: 'entornoPorDefecto',
-  emitir: 'output.emitirPorDefecto',
-  'exportacion.actividad': 'exportacion.actividad',
-  'exportacion.cert.produccion': 'exportacion.cert.produccion',
-  'exportacion.cert.testing': 'exportacion.cert.testing',
-  'exportacion.key.produccion': 'exportacion.key.produccion',
-  'exportacion.key.testing': 'exportacion.key.testing',
-  filasPorLista: 'filasPorLista',
-  ivaReceptor: 'ivaReceptorPorDefecto',
-  json: 'output.jsonPorDefecto',
-  'key.produccion': 'key.produccion',
-  'key.testing': 'key.testing',
-  moneda: 'monedaPorDefecto',
-  'monotributo.tope': 'monotributo.tope',
-  bruto: 'output.brutoPorDefecto',
-  pdf: 'pdf',
-  pdfCarpeta: 'pdfCarpeta',
-  pdfNavegador: 'pdfNavegador',
-  puntoVenta: 'puntoVentaPorDefecto',
-  ticketPath: 'ticketPath',
-  verificarFce: 'verificarFce',
-  consultarPadron: 'consultarPadron',
-};
+import { accountKeyDeprecationWarning, ROWS_PER_LIST_DEPRECATION_WARNING } from './config.schemas';
+import type { AccountStoredKey, ConfigPublicKey } from './config-key-table';
 
 /**
  * Claves deprecadas que `config establecer` y `config eliminar` todavia aceptan, con la clave que las reemplaza. No

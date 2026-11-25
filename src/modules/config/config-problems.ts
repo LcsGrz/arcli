@@ -3,9 +3,9 @@ import { ZodError } from 'zod';
 import { InputIssuesError } from '../../lib/errors/app-error';
 import { describeZodIssues, parseZodInput } from '../billing/billing.zod-errors';
 
-import { arcliConfigSchema, type ConfigPublicKey } from './config.schemas';
-import { CONFIG_KEY_ALIASES, DEPRECATED_CONFIG_KEYS } from './config-keys';
-import type { CanonicalConfigKey } from './config-value-parser';
+import { arcliConfigSchema } from './config.schemas';
+import { type CanonicalConfigKey, type ConfigPublicKey, configPublicKeySchema, storedKeyOf } from './config-key-table';
+import { DEPRECATED_CONFIG_KEYS } from './config-keys';
 
 /**
  * Un CBU guardado que ya no pasa la validación (por ejemplo, desde que se controlan los verificadores): el error
@@ -38,14 +38,14 @@ function findSavedKey(path: string): SavedKey | undefined {
     return { canDelete: storedAs === 'cbu', key: replacement, names: [path] };
   }
 
-  const entries = Object.entries(CONFIG_KEY_ALIASES) as Array<[ConfigPublicKey, CanonicalConfigKey]>;
-  const exact = entries.find(([, canonical]) => canonical === path);
+  const publicKeys = configPublicKeySchema.options;
+  const exact = publicKeys.find((key) => storedKeyOf(key) === path);
 
   if (exact) {
-    return { canDelete: true, key: exact[0], names: [exact[0]] };
+    return { canDelete: true, key: exact, names: [exact] };
   }
 
-  const keys = entries.filter(([, canonical]) => canonical.startsWith(`${path}.`)).map(([key]) => key);
+  const keys = publicKeys.filter((key) => storedKeyOf(key).startsWith(`${path}.`));
 
   return keys.length === 0
     ? undefined

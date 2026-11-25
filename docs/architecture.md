@@ -102,10 +102,13 @@ La letra `E` no pasa por `VOUCHER_KIND_MAP`: WSFEX tiene otro contrato (autoriza
 
 ### Agregar una clave de configuración
 
-1. Sumala a `configPublicKeySchema` y al esquema en `src/modules/config/config.schemas.ts`.
-2. Mapeala en `config-keys.ts` y validala en `config-value-parser.ts`.
-3. Ubicala en una sección y ponele nombre en `config.sections.ts`: de ahí salen el orden de `arcli config` y de "Modificar configuración" (un test exige que cada clave esté en una sola sección). Agregá cómo se muestra su valor en `config.presenter.ts`.
-4. Documentala en [configuración](configuration.md) y, si el modo interactivo la expone, en `src/modules/interactive/config-fields.ts`.
+1. Sumá el dato a `arcliConfigSchema` en `src/modules/config/config.schemas.ts` y su fila a `CONFIG_KEY_TABLE` en `config-key-table.ts`: de ahí salen el tipo y el enum de claves, y dónde se guarda. Un dato sin clave, o una fila con una ruta que no está en el esquema, no compila. Si el dato vive en un grupo con default, completá también `CONFIG_DEFAULTS`. El orden de la tabla es el de `detalles` cuando una clave no existe: es contrato.
+2. Validala en `config-value-parser.ts`. El compilador no lo pide: sin su `case`, el valor se trata como texto: un número o un sí o no se rechaza al guardar.
+3. Ubicala en una sección y ponele nombre en `config.sections.ts`: de ahí salen el orden de `arcli config` y de "Modificar configuración" (un test exige que cada clave esté en una sola sección).
+4. En `config.presenter.ts`, sumala al JSON (`PublicConfigSnapshot` y `toPublicSnapshot`) y a `CONFIG_TEXT_VALUES`. Si es una ruta, va con `maskPath` en el JSON y en `CONFIG_PATHS` para el link. El compilador solo pide el texto.
+5. Si el asistente la edita, sumala a `src/modules/interactive/config-fields.ts` (también le da los valores a la ayuda y al autocompletado); si se elige de una lista, mirá `config-lists.ts`. Si no la edita o es un sí/no, sus valores en la ayuda van en `CONFIG_VALUE_OVERRIDES` (`src/cli/help.ts`).
+6. Sumá sus valores a los tests de caracterización (`config-keys.fixture.ts` y `config.characterization.test.ts`, que no compilan sin ellos), regenerá sus archivos y `public-contract.txt` (`yarn contrato:actualizar`), y revisá el diff.
+7. Documentala en [configuración](configuration.md), en `llms.txt` y en `CHANGELOG.md`.
 
 ### Extender el asistente
 

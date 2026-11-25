@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { configPublicKeySchema } from '../config.schemas';
 import { CONFIG_LABELS, CONFIG_SECTIONS } from '../config.sections';
+import { configPublicKeySchema } from '../config-key-table';
 
 describe('config.sections', () => {
   it('cada clave publica esta en una sola seccion', () => {
