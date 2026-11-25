@@ -138,7 +138,7 @@ describe('offerPdf', () => {
   ])('con el resultado %j quedan %i sin PDF (ERR-18)', async (pdf, missing) => {
     confirmMock.mockResolvedValueOnce(true);
     askTextMock.mockResolvedValue('');
-    attachPdfsMock.mockResolvedValueOnce([{ ...result, pdf }] as never);
+    attachPdfsMock.mockResolvedValueOnce([{ ...result, pdf, voucherNumber: 42 }] as never);
 
     try {
       await offerPdf(CONFIG, input, { ...result, voucherNumber: 42 });

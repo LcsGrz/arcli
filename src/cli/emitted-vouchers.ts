@@ -1,5 +1,6 @@
 import type { BillingExecutionResult } from '../modules/billing/billing.types.internal';
 import type { ExportExecutionResult } from '../modules/export/export.types';
+import type { PdfOutcome } from '../modules/pdf/pdf.types';
 import { MAX_RECENT_VOUCHERS } from '../modules/vouchers/voucher-history';
 
 /** Lo que alcanza para nombrar un comprobante con CAE y volver a encontrarlo. */
@@ -20,7 +21,7 @@ export function listEmittedVouchers(results: readonly BillingExecutionResult[]):
 }
 
 const emittedInThisRun: EmittedVoucher[] = [];
-/** Emitidos con el PDF elegido que se quedaron sin el porque no se pudo preguntar o mostrar. */
+/** Emitidos con el PDF elegido que se quedaron sin el: fallo, o no se pudo preguntar. */
 const withoutPdf: EmittedVoucher[] = [];
 /** Cuantos de los primeros ya nombro un aviso en stderr. */
 let announced = 0;
@@ -69,6 +70,21 @@ export function recordMissingPdf(result: BillingExecutionResult): void {
 
 export function recordMissingExportPdf(result: ExportExecutionResult): void {
   withoutPdf.push(...listEmittedExport(result));
+}
+
+/** Los PDF de `results` que fallaron. Va antes de mostrarlos: la salida puede ser lo que falla. */
+export function recordFailedPdfs(results: readonly BillingExecutionResult[]): void {
+  results.filter(hasFailedPdf).forEach(recordMissingPdf);
+}
+
+export function recordFailedExportPdf(result: ExportExecutionResult): void {
+  if (hasFailedPdf(result)) {
+    recordMissingExportPdf(result);
+  }
+}
+
+function hasFailedPdf({ pdf }: { readonly pdf?: PdfOutcome }): boolean {
+  return pdf !== undefined && 'error' in pdf;
 }
 
 /**

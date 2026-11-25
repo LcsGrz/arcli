@@ -17,7 +17,7 @@ import { systemClock } from '../../services/time/system-clock';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { type CliArcaRuntime, exportCertificateWarnings, resolveArcaRuntime } from '../arca-runtime';
 import { formatEmissionQuestion } from '../emission-texts';
-import { recordExportEmission } from '../emitted-vouchers';
+import { recordExportEmission, recordFailedExportPdf } from '../emitted-vouchers';
 import { getGlobalOptions } from '../global-options';
 import { startSpinner } from '../spinner';
 
@@ -174,18 +174,18 @@ export async function executeExportCommand(
     }
 
     // Como en A, B y C: en JSON el PDF va dentro del mismo resultado; en texto primero se ve el CAE.
-    if (runtime.outputJson) {
-      writeExportResult(await attachExportPdf(result, pdfOptions), outputOptions);
-
-      return;
+    if (!runtime.outputJson) {
+      writeExportResult(result, outputOptions);
     }
 
-    writeExportResult(result, outputOptions);
+    const withPdf = await attachExportPdf(result, pdfOptions);
 
-    const { pdf } = await attachExportPdf(result, pdfOptions);
+    recordFailedExportPdf(withPdf);
 
-    if (pdf) {
-      writeTerminalOutput(formatPdfOutcomeAsText(pdf));
+    if (runtime.outputJson) {
+      writeExportResult(withPdf, outputOptions);
+    } else if (withPdf.pdf) {
+      writeTerminalOutput(formatPdfOutcomeAsText(withPdf.pdf));
     }
   } catch (error) {
     spinner?.stop();

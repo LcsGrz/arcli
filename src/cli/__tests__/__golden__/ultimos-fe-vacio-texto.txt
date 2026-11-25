@@ -1,0 +1,12 @@
+$ arcli ultimos fe --pv 4
+exit: 0
+--- stdout ---
+
+┌                                                                                          ┐
+                                                                                            
+             No hay facturas de exportación E emitidas en el punto de venta 4.              
+                                                                                            
+└                                                                                          ┘
+
+
+--- stderr ---

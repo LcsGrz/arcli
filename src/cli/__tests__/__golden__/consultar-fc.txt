@@ -1,0 +1,43 @@
+$ arcli consultar fc 12 --json
+exit: 0
+--- stdout ---
+
+{
+  "atajo": "fc",
+  "comprobante": "Factura C",
+  "tipoArca": 11,
+  "cae": "76000000000012",
+  "caeVencimiento": "20261120",
+  "concepto": 2,
+  "cotizacion": 1,
+  "fecha": "20261110",
+  "importes": {
+    "exento": 0,
+    "iva": 0,
+    "neto": 5000,
+    "noGravado": 0,
+    "total": 5000,
+    "tributos": 0
+  },
+  "moneda": "PES",
+  "numero": 12,
+  "numeroDocumento": 0,
+  "resultado": "A",
+  "tipoDocumento": 99,
+  "alicuotasIva": [],
+  "comprobantesAsociados": [],
+  "condicionIvaReceptor": null,
+  "mismaMoneda": null,
+  "observaciones": [],
+  "opcionales": [],
+  "periodoAsociado": null,
+  "servicioDesde": null,
+  "servicioHasta": null,
+  "tributos": [],
+  "vencimientoPago": null,
+  "entorno": "testing",
+  "puntoVenta": 3
+}
+
+
+--- stderr ---

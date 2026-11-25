@@ -1,34 +1,13 @@
 import type { Command } from 'commander';
 
-import { AppError, InputValidationError } from '../../lib/errors/app-error';
-import { parseStrictInteger } from '../../lib/numbers/strict-integer';
-import { INVALID_POINT_OF_SALE_MESSAGE } from '../../modules/billing/billing.schemas';
-import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
-import { getVoucherKindByShortcut, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
-import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
-import {
-  formatEnvironmentLabel,
-  MISSING_POINT_OF_SALE_MESSAGE,
-  resolveRowsPerList,
-} from '../../modules/config/config.schemas';
-import { listRecentExportVouchers } from '../../modules/export/export.history';
+import { resolveRowsPerList } from '../../modules/config/config.schemas';
 import {
   formatExportVoucherDetailAsText,
   formatExportVoucherListAsText,
   serializeExportVoucherDetail,
   serializeExportVoucherList,
 } from '../../modules/export/export.history.presenter';
-import {
-  EXPORT_VOUCHER_KINDS,
-  type ExportVoucherKind,
-  getExportVoucherKindByShortcut,
-} from '../../modules/export/export.types';
-import {
-  type ListedVoucher,
-  listRecentVouchers,
-  MAX_RECENT_VOUCHERS,
-  RECENT_VOUCHERS_LIMIT,
-} from '../../modules/vouchers/voucher-history';
+import { MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../../modules/vouchers/voucher-history';
 import {
   formatUnreadableVouchers,
   formatVoucherDetailAsText,
@@ -36,10 +15,21 @@ import {
   serializeVoucherDetail,
   serializeVoucherList,
 } from '../../modules/vouchers/voucher-history.presenter';
-import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
+import {
+  getVoucher,
+  listVouchers,
+  parseQueriedNumber,
+  type QueryableVoucher,
+  resolveQueryableVoucher,
+  resolveQueryPointOfSale,
+  validateVoucherQuantity,
+  type VoucherDetail,
+  type VoucherList,
+  type VoucherSource,
+} from '../../modules/vouchers/voucher-query';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
 import { writeTerminalNotice } from '../../ui';
-import { type ArcaQuery, createArcaQuery, createExportQuery, withQuerySpinner, writeQueryOutput } from '../arca-query';
+import { createArcaQuery, createExportQuery, withQuerySpinner, writeQueryOutput } from '../arca-query';
 import type { CliArcaRuntime } from '../arca-runtime';
 import { outputState, settleOutput } from '../closed-output';
 import { registerQueryOptions } from '../global-options';
@@ -51,62 +41,43 @@ interface PointOfSaleOptions {
   readonly puntoVenta?: number;
 }
 
-/** A, B y C van por wsfe; la E (`fe`, `nde`, `nce`), por wsfex. */
-type QueryVoucherKind =
-  | { readonly kind: VoucherKindDefinition; readonly service: 'wsfe' }
-  | { readonly kind: ExportVoucherKind; readonly service: 'wsfex' };
-
-function requireVoucherKind(shortcut: string): QueryVoucherKind {
-  const normalized = shortcut.trim().toLowerCase();
-  const voucherKind = getVoucherKindByShortcut(normalized);
-
-  if (voucherKind) {
-    return { kind: voucherKind, service: 'wsfe' };
-  }
-
-  const exportKind = getExportVoucherKindByShortcut(normalized);
-
-  if (exportKind) {
-    return { kind: exportKind, service: 'wsfex' };
-  }
-
-  throw new InputValidationError(
-    `El tipo "${shortcut}" no es válido. Usá un atajo: ${[...VOUCHER_SHORTCUTS, ...EXPORT_VOUCHER_KINDS.map((kind) => kind.shortcut)].join(', ')}.`,
-  );
+function requestedPointOfSale({ pv, puntoVenta }: PointOfSaleOptions, runtime: CliArcaRuntime): number {
+  return resolveQueryPointOfSale(pv ?? puntoVenta, runtime.pointOfSale);
 }
 
-function voucherNotFound(
-  kind: VoucherKindDefinition | ExportVoucherKind,
-  pointOfSale: number,
-  number: number,
-  environment: CliArcaRuntime['environment'],
-): AppError {
-  return new AppError(
-    `No existe ${formatVoucherWithArticle(kind)} N° ${formatVoucherNumber(pointOfSale, number)} en ARCA (${formatEnvironmentLabel(environment)}).`,
-    { code: 'VOUCHER_NOT_FOUND' },
-  );
+type QueryOutput = Parameters<typeof writeQueryOutput>[1];
+
+// Lo unico que cambia con el servicio: el perfil con su gateway y los presenters.
+
+function openVoucherQuery(
+  command: Command,
+  voucher: QueryableVoucher,
+): { readonly runtime: CliArcaRuntime; readonly source: VoucherSource } {
+  if (voucher.service === 'wsfex') {
+    const { gateway, runtime } = createExportQuery(command);
+
+    return { runtime, source: { ...voucher, gateway } };
+  }
+
+  const { gateway, runtime } = createArcaQuery(command, (arca) => new ArcaVoucherHistoryGateway(arca));
+
+  return { runtime, source: { ...voucher, gateway } };
 }
 
-function requirePointOfSale(options: PointOfSaleOptions, runtime: CliArcaRuntime): number {
-  const pointOfSale = options.pv ?? options.puntoVenta ?? runtime.pointOfSale;
+function listOutput(list: VoucherList): QueryOutput {
+  return list.service === 'wsfex'
+    ? { json: () => serializeExportVoucherList(list), text: () => formatExportVoucherListAsText(list) }
+    : { json: () => serializeVoucherList(list), text: () => formatVoucherListAsText(list) };
+}
 
-  if (pointOfSale === undefined) {
-    throw new InputValidationError(MISSING_POINT_OF_SALE_MESSAGE);
-  }
-
-  if (!Number.isInteger(pointOfSale) || pointOfSale <= 0) {
-    throw new InputValidationError(INVALID_POINT_OF_SALE_MESSAGE);
-  }
-
-  return pointOfSale;
+function detailOutput(detail: VoucherDetail): QueryOutput {
+  return detail.service === 'wsfex'
+    ? { json: () => serializeExportVoucherDetail(detail), text: () => formatExportVoucherDetailAsText(detail) }
+    : { json: () => serializeVoucherDetail(detail), text: () => formatVoucherDetailAsText(detail) };
 }
 
 /** Con `--json` el aviso va a stderr, como el del certificado. Si fallo stdout, ahi va el JSON que lo dice. */
-async function warnUnreadableInJson(
-  runtime: CliArcaRuntime,
-  pointOfSale: number,
-  vouchers: ReadonlyArray<ListedVoucher<object>>,
-): Promise<void> {
+async function warnUnreadableInJson(runtime: CliArcaRuntime, { pointOfSale, vouchers }: VoucherList): Promise<void> {
   if (!runtime.outputJson || !formatUnreadableVouchers(pointOfSale, vouchers)) {
     return;
   }
@@ -116,10 +87,6 @@ async function warnUnreadableInJson(
   if (!outputState.failures.has('stdout')) {
     writeTerminalNotice(() => formatUnreadableVouchers(pointOfSale, vouchers));
   }
-}
-
-function createContext(command: Command): ArcaQuery<ArcaVoucherHistoryGateway> {
-  return createArcaQuery(command, (arca) => new ArcaVoucherHistoryGateway(arca));
 }
 
 function addPointOfSaleOptions(command: Command): Command {
@@ -145,47 +112,20 @@ export function registerVoucherQueryCommands(program: Command): void {
   configureSpanishHelp(recent);
 
   recent.action(async (shortcut: string, options: PointOfSaleOptions & { cantidad?: number }, self: Command) => {
-    const query = requireVoucherKind(shortcut);
-    const { cantidad } = options;
+    const voucher = resolveQueryableVoucher(shortcut);
 
-    if (cantidad !== undefined && (!Number.isInteger(cantidad) || cantidad < 1 || cantidad > MAX_RECENT_VOUCHERS)) {
-      throw new InputValidationError(`\`--cantidad\` tiene que ser un número entre 1 y ${MAX_RECENT_VOUCHERS}.`);
-    }
+    validateVoucherQuantity(options.cantidad);
 
-    if (query.service === 'wsfex') {
-      const { gateway, runtime } = createExportQuery(self);
-      const limit = cantidad ?? resolveRowsPerList(runtime.config);
-      const pointOfSale = requirePointOfSale(options, runtime);
-      const vouchers = await withQuerySpinner(runtime, () =>
-        listRecentExportVouchers(gateway, pointOfSale, query.kind.arcaType, { limit }),
-      );
-      const report = { environment: runtime.environment, pointOfSale, voucherKind: query.kind, vouchers };
-
-      writeQueryOutput(runtime, {
-        json: () => serializeExportVoucherList(report),
-        text: () => formatExportVoucherListAsText(report),
-      });
-
-      await warnUnreadableInJson(runtime, pointOfSale, vouchers);
-
-      return;
-    }
-
-    const voucherKind = query.kind;
-    const { gateway, runtime } = createContext(self);
-    const limit = cantidad ?? resolveRowsPerList(runtime.config);
-    const pointOfSale = requirePointOfSale(options, runtime);
-    const vouchers = await withQuerySpinner(runtime, () =>
-      listRecentVouchers(gateway, pointOfSale, voucherKind.arcaType, { limit }),
+    const { runtime, source } = openVoucherQuery(self, voucher);
+    const limit = options.cantidad ?? resolveRowsPerList(runtime.config);
+    const pointOfSale = requestedPointOfSale(options, runtime);
+    const list = await withQuerySpinner(runtime, () =>
+      listVouchers(source, { environment: runtime.environment, limit, pointOfSale }),
     );
-    const report = { environment: runtime.environment, pointOfSale, voucherKind, vouchers };
 
-    writeQueryOutput(runtime, {
-      json: () => serializeVoucherList(report),
-      text: () => formatVoucherListAsText(report),
-    });
+    writeQueryOutput(runtime, listOutput(list));
 
-    await warnUnreadableInJson(runtime, pointOfSale, vouchers);
+    await warnUnreadableInJson(runtime, list);
   });
 
   const detail = addPointOfSaleOptions(
@@ -200,50 +140,14 @@ export function registerVoucherQueryCommands(program: Command): void {
   configureSpanishHelp(detail);
 
   detail.action(async (shortcut: string, rawNumber: string, options: PointOfSaleOptions, self: Command) => {
-    const query = requireVoucherKind(shortcut);
-    const number = parseStrictInteger(rawNumber);
-
-    if (number === undefined || number <= 0) {
-      throw new InputValidationError(`El número "${rawNumber}" no es válido: tiene que ser un entero positivo.`);
-    }
-
-    if (query.service === 'wsfex') {
-      const { gateway, runtime } = createExportQuery(self);
-      const pointOfSale = requirePointOfSale(options, runtime);
-      const voucher = await withQuerySpinner(runtime, () =>
-        gateway.getVoucher({ arcaType: query.kind.arcaType, number, pointOfSale }),
-      );
-
-      if (!voucher) {
-        throw voucherNotFound(query.kind, pointOfSale, number, runtime.environment);
-      }
-
-      const report = { environment: runtime.environment, pointOfSale, voucher, voucherKind: query.kind };
-
-      writeQueryOutput(runtime, {
-        json: () => serializeExportVoucherDetail(report),
-        text: () => formatExportVoucherDetailAsText(report),
-      });
-
-      return;
-    }
-
-    const voucherKind = query.kind;
-    const { gateway, runtime } = createContext(self);
-    const pointOfSale = requirePointOfSale(options, runtime);
-    const voucher = await withQuerySpinner(runtime, () =>
-      gateway.getVoucher(number, pointOfSale, voucherKind.arcaType),
+    const voucher = resolveQueryableVoucher(shortcut);
+    const number = parseQueriedNumber(rawNumber);
+    const { runtime, source } = openVoucherQuery(self, voucher);
+    const pointOfSale = requestedPointOfSale(options, runtime);
+    const detailed = await withQuerySpinner(runtime, () =>
+      getVoucher(source, { environment: runtime.environment, number, pointOfSale }),
     );
 
-    if (!voucher) {
-      throw voucherNotFound(voucherKind, pointOfSale, number, runtime.environment);
-    }
-
-    const report = { environment: runtime.environment, pointOfSale, voucher, voucherKind };
-
-    writeQueryOutput(runtime, {
-      json: () => serializeVoucherDetail(report),
-      text: () => formatVoucherDetailAsText(report),
-    });
+    writeQueryOutput(runtime, detailOutput(detailed));
   });
 }

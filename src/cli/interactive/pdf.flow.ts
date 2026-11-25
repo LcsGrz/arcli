@@ -16,7 +16,7 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { isOutputLost } from '../closed-output';
 import { writePdfOutcomes } from '../commands/billing.command.output';
 import { attachPdfs } from '../commands/billing.command.pdf';
-import { recordMissingPdf } from '../emitted-vouchers';
+import { recordFailedPdfs, recordMissingPdf } from '../emitted-vouchers';
 
 import { askText, chooseOrTypeStep, confirm, isPromptCancellation } from './prompts';
 import { SKIP_HINT } from './text-hints';
@@ -177,11 +177,8 @@ export async function offerPdf(
       results: [result],
     });
 
+    recordFailedPdfs(withPdf);
     writePdfOutcomes([result], withPdf);
-
-    if (withPdf[0]?.pdf && 'error' in withPdf[0].pdf) {
-      recordMissingPdf(result);
-    }
   } catch (error) {
     if (!isPromptCancellation(error)) {
       throw error;

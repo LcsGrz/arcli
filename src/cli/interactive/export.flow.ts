@@ -36,7 +36,7 @@ import { systemClock } from '../../services/time/system-clock';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { isOutputLost } from '../closed-output';
 import { attachExportPdf } from '../commands/export.command.pdf';
-import { recordExportEmission, recordMissingExportPdf } from '../emitted-vouchers';
+import { recordExportEmission, recordFailedExportPdf, recordMissingExportPdf } from '../emitted-vouchers';
 import { withSpinner } from '../spinner';
 
 import { closeWithEmission } from './emission-closing';
@@ -355,14 +355,17 @@ async function offerExportPdf(
   result: ExportExecutionResult,
 ): Promise<void> {
   try {
-    const { pdf } = await attachExportPdf(result, { completeConfig: completeIssuer, config, input, interactive: true });
+    const withPdf = await attachExportPdf(result, {
+      completeConfig: completeIssuer,
+      config,
+      input,
+      interactive: true,
+    });
 
-    if (pdf) {
-      writeTerminalOutput(formatPdfOutcomeAsText(pdf));
+    recordFailedExportPdf(withPdf);
 
-      if ('error' in pdf) {
-        recordMissingExportPdf(result);
-      }
+    if (withPdf.pdf) {
+      writeTerminalOutput(formatPdfOutcomeAsText(withPdf.pdf));
     }
   } catch (error) {
     if (!isPromptCancellation(error)) {

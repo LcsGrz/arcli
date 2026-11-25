@@ -238,9 +238,11 @@ const PDF_ORDER: readonly PdfOrderCase[] = [
   },
 ];
 
-/** Lo que pasa después de que WSFEX responde y queda anotado. */
+/** Lo que pasa después de que WSFEX responde y queda anotado. El PDF que queda anotado es de `missing-pdf.test.ts`. */
 function afterEmission({ events }: Run): readonly string[] {
-  return events.slice(events.findIndex((text) => text.startsWith('anotado: ')) + 1);
+  const isNote = (text: string) => text.startsWith('anotado: ');
+
+  return events.slice(events.findIndex(isNote) + 1).filter((text) => !isNote(text));
 }
 
 /** `arcli <argv>` entero, con el perfil y el WSFEX falsos. */
