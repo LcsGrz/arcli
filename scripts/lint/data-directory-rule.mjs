@@ -9,7 +9,7 @@ const DIRECTORY_PACKAGES = ['conf', 'env-paths'];
 const REEXPORTED_SOURCE = /^(conf|env-paths)$|(^|\/)config\.service(\.js)?$/;
 
 const messages = {
-  conf: '`new Conf` lleva `cwd` escrito al final de sus opciones y nunca `projectName`: si no, `conf` elige la carpeta real de quien lo corre.',
+  conf: 'Las opciones de `new Conf` van escritas (sin spread ni claves calculadas), con `cwd` y sin `projectName`: si no, `conf` elige la carpeta real de quien lo corre.',
   confExtends: 'No heredes de `Conf`: quien la abra podría no decir la carpeta.',
   confImport: 'Importá `conf` con `import Conf from`: así se controla que lleve `cwd`.',
   configService: 'La config se abre con openConfigService o withConfigService, de src/cli/config-service.ts.',
@@ -18,25 +18,23 @@ const messages = {
   variable: 'ARCLI_CONFIG_DIR la lee solo src/cli/data-directory.ts: recibí la carpeta como parámetro.',
 };
 
-const keyOf = ({ key, type }) => (type === 'Property' ? (key.name ?? key.value) : undefined);
-
-/** `cwd` escrito y sin un spread después, que lo podría pisar; y sin `projectName`, con lo que `conf` elige la carpeta. */
+/** Solo claves escritas, para poder leerlas: con `cwd` y sin `projectName`, con lo que `conf` elige la carpeta. */
 function saysDirectory(options) {
-  const properties = options?.type === 'ObjectExpression' ? options.properties : [];
-  const cwd = properties.findIndex((property) => keyOf(property) === 'cwd');
+  if (options?.type !== 'ObjectExpression') return false;
+  if (options.properties.some(({ computed, type }) => computed || type !== 'Property')) return false;
 
-  return (
-    cwd >= 0 &&
-    !properties.some((property) => keyOf(property) === 'projectName') &&
-    !properties.slice(cwd).some(({ type }) => type === 'SpreadElement')
-  );
+  const values = new Map(options.properties.map(({ key, value }) => [key.name ?? key.value, value]));
+
+  return values.has('cwd') && values.get('cwd').name !== 'undefined' && !values.has('projectName');
 }
 
 export const dataDirectoryRule = {
   create(context) {
     const { opensConfig = false, resolvesDirectory = false } = context.options[0] ?? {};
     const confNames = new Set();
+    const envPathsNames = new Set();
     const serviceNames = new Set(['ConfigService']);
+    const isImported = (name) => [confNames, envPathsNames, serviceNames].some((names) => names.has(name));
     const report = (node, messageId) => context.report({ messageId, node });
     const checkVariable = (node, text) => {
       if (!resolvesDirectory && text === VARIABLE) report(node, 'variable');
@@ -52,14 +50,17 @@ export const dataDirectoryRule = {
       ExportAllDeclaration(node) {
         if (node.exportKind !== 'type' && REEXPORTED_SOURCE.test(node.source.value)) report(node, 'reexport');
       },
+      ExportDefaultDeclaration(node) {
+        if (isImported(node.declaration.name)) report(node, 'reexport');
+      },
       ExportNamedDeclaration(node) {
-        if (!node.source || node.exportKind === 'type') return;
+        if (node.exportKind === 'type') return;
 
         const values = node.specifiers.filter(({ exportKind }) => exportKind !== 'type');
 
         if (
-          (DIRECTORY_PACKAGES.includes(node.source.value) && values.length > 0) ||
-          values.some(({ local }) => local.name === 'ConfigService')
+          (DIRECTORY_PACKAGES.includes(node.source?.value) && values.length > 0) ||
+          values.some(({ local }) => (node.source ? local.name === 'ConfigService' : isImported(local.name)))
         ) {
           report(node, 'reexport');
         }
@@ -76,6 +77,7 @@ export const dataDirectoryRule = {
             else report(node, 'confImport');
           }
 
+          if (source === 'env-paths') envPathsNames.add(local.name);
           if (imported?.name === 'ConfigService') serviceNames.add(local.name);
         }
       },
@@ -89,6 +91,7 @@ export const dataDirectoryRule = {
 
         if (confNames.has(node.callee.name) && !saysDirectory(node.arguments[0])) report(node, 'conf');
       },
+      TemplateElement: (node) => checkVariable(node, node.value.cooked),
     };
   },
   meta: {

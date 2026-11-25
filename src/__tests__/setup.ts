@@ -16,9 +16,9 @@ process.env.APPDATA = join(home, 'AppData', 'Roaming');
 process.env.XDG_CONFIG_HOME = join(home, '.config');
 // HOME solo no alcanza: `env-paths` (lo usa Conf) toma la carpeta de `os.homedir()` al cargarse, y en un worker
 // thread `os.homedir()` no ve el `process.env` del worker. ARCLI_CONFIG_DIR la lee `dataDirectory()` en cada
-// llamada, de donde salen la config y los cachés, asi que vale con cualquier pool (TEST-14).
+// llamada, de donde salen la config y los cachés (TEST-14).
 process.env.ARCLI_CONFIG_DIR = join(home, 'arcli');
-// Sin la variable (un test que la vacia), la carpeta de siempre no se resuelve: falla con cualquier pool.
+// Sin la variable (un test que la vacia), la carpeta de siempre no se resuelve: falla.
 vi.mock('env-paths', () => ({
   default: () => {
     throw new Error('Los tests no usan la carpeta de datos real: definí ARCLI_CONFIG_DIR.');
