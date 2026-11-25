@@ -19,6 +19,7 @@ import { resolveExportCredentials } from '../../modules/config/config.export-cre
 import { systemClock } from '../time/system-clock';
 
 import { ArcaExportGateway, type WsfexAuthenticator } from './arca-export.gateway';
+import { installSoapDeadlines } from './soap-deadline';
 import { avoidWeakDhe } from './tls';
 
 /** El cliente de ARCA: quien lo pide se lo pasa a un gateway y no conoce el SDK. */
@@ -26,6 +27,7 @@ export type ArcaClient = Arca;
 
 function createArcaClient(context: Context): ArcaClient {
   avoidWeakDhe(context.production === true);
+  installSoapDeadlines();
 
   return new Arca(context);
 }
@@ -35,6 +37,8 @@ function createArcaClient(context: Context): ArcaClient {
  * guarda una llamada lo reusa la otra. Es para `FEXGetLast_CMP` (ver `ArcaExportGateway.getLastVoucherNumber`).
  */
 function createWsfexAuthenticator(context: Context): WsfexAuthenticator {
+  installSoapDeadlines();
+
   const production = context.production ?? false;
   const ticketStorage =
     context.ticketStorage ??

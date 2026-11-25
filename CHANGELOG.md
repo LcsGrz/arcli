@@ -55,6 +55,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - En los comandos de la `E` con `exportacion.cert` propio, `avisos` ya no trae el vencimiento del certificado general de ese entorno.
 > - `Ctrl+C` o `SIGTERM` con un comprobante ya enviado a ARCA esperan la respuesta, antes cortaban sin salida. Un lote cortado así sale con `BATCH_EMISSION_ERROR` y exit code `1`, con `codigoCausa` `CANCELLED`, código nuevo. Dos señales cortan, después de escribir lo que se sabe.
 > - `Ctrl+C` o `SIGTERM` mientras se genera el PDF de algo emitido: el resultado sale completo, con `PDF_GENERATION_ERROR` en `pdf.error`, y el exit code de siempre; antes, `130` sin salida con `Ctrl+C`. Dos señales cortan, después de escribirlo.
+> - Si ARCA no contesta un pedido a tiempo (30 segundos una consulta, 60 el login en WSAA), sale `UNEXPECTED_ERROR` y, en `estado`, `ARCA_UNAVAILABLE`; una emisión sin respuesta en 120, o un login de esa misma llamada, `EMISSION_UNCERTAIN`. Antes esperaba sin límite.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
 
@@ -176,6 +177,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### 🐛 Corregido
 
+- **Facturas:** si ARCA no contesta, ningún comando queda colgado: 30 segundos por consulta, 60 el login en WSAA y 120 la emisión (#302).
 - **Facturas:** `Ctrl+C` al emitir espera la respuesta de ARCA, y un lote cortado muestra los CAE ya emitidos y los que faltan (#299).
 - **PDF:** `Ctrl+C` mientras se genera ya no pierde el CAE: el resultado sale completo, con el aviso del PDF que faltó (#305).
 - **Facturas:** si la medianoche pasa en "¿Emitimos?", se emite lo que mostró la vista previa, con sus fechas, como en la `E` (#274).
@@ -288,7 +290,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 **`Ctrl+C` al emitir.** Antes, `Ctrl+C` o `SIGTERM` cortaban en el momento: un lote no mostraba ningún CAE ya emitido y un comprobante enviado quedaba sin avisar que ARCA pudo autorizarlo. Ahora, con algo enviado, la primera señal espera la respuesta: un lote no empieza el siguiente y sale con `BATCH_EMISSION_ERROR`, `codigoCausa` `CANCELLED` (nuevo) y lo pendiente en `sinProcesar`; si no quedó nada pendiente, la salida y el exit code son los de siempre. La segunda deja de esperar: `EMISSION_UNCERTAIN`, o `sinConfirmar` en un lote, sin generar los PDF, y termina por la señal. Sin nada enviado y en el asistente corta como siempre. Detalle en [Cortar mientras se emite](docs/input-output.md#cortar-mientras-se-emite).
 
-**`Ctrl+C` mientras se genera el PDF.** Con `--json`, el comprobante ya emitido salía recién con su PDF: cortar mientras se generaba terminaba sin ninguna salida y el CAE no se veía. Ahora la primera señal deja de esperar el PDF, o la instalación del plugin, y el resultado sale completo, con `PDF_GENERATION_ERROR` ("Se cortó antes de generar el PDF.") en los que faltaban y el exit code de siempre. La segunda termina por la señal, con todo escrito. El navegador se cierra y no queda un PDF a medio escribir. Por `npx`, la señal repetida no cuenta.
+**`Ctrl+C` mientras se genera el PDF.** Con `--json`, el comprobante ya emitido salía recién con su PDF: cortar mientras se generaba terminaba sin ninguna salida y el CAE no se veía. Ahora la primera señal deja de esperar el PDF, o la instalación del plugin, y el resultado sale completo, con `PDF_GENERATION_ERROR` ("Se cortó antes de generar el PDF.") en los que faltaban y el exit code de siempre. La segunda termina por la señal, después de escribirlo (si nadie lee la salida, espera hasta dos segundos). El navegador se cierra y no queda un PDF a medio escribir. Por `npx`, la señal repetida no cuenta. Si se corta la instalación del plugin, no pasa por instalado y la próxima empieza de cero.
+
+**Si ARCA no contesta.** Un pedido sin respuesta, o con una que no terminaba de llegar, dejaba el comando esperando sin límite. Ahora cada pedido tiene un plazo total: 30 segundos las consultas, 60 el login en WSAA y 120 la emisión. Una consulta o un login previo vencidos salen con `UNEXPECTED_ERROR` ("ARCA no contestó en 30 segundos.") y `estado` con `ARCA_UNAVAILABLE`. Una emisión vencida sale con `EMISSION_UNCERTAIN` y su número, porque ARCA pudo autorizarla igual: verificala antes de repetirla. ARCLI no reintenta nada. Las consultas que solo avisan si falla la red (el régimen FCE, el permiso de embarque, el rango de la cotización y una tabla de la `E` que no hace falta para emitir) avisan igual; una tabla obligatoria, o dos consultas de la `E` vencidas, cortan antes de emitir. Si vence el login que va en la misma llamada que emite (el ticket venció justo antes), sale `EMISSION_UNCERTAIN`. Los plazos son fijos, y lo que contesta a tiempo no cambia.
 
 </details>
 

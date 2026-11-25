@@ -77,7 +77,7 @@ export async function buildStatusReport(options: {
       servers,
     };
   } finally {
-    // Sin esto, una consulta colgada deja el proceso vivo, tambien si lo demas fallo.
+    // Sin esto, una consulta colgada deja el proceso vivo hasta que vence su plazo, tambien si lo demas fallo.
     exportQuery.abort();
   }
 }
