@@ -223,6 +223,20 @@ function aliveBrowsers(): number[] {
     });
 }
 
+/** Deja en `salida.txt` con qué código salió `arcli`. Si lo mata una señal no queda nada. */
+function noteExit(): string {
+  return writePreload(
+    'salida.mjs',
+    `import { writeFileSync } from 'node:fs';
+     import { execFileSync } from 'node:child_process';
+     const parent = execFileSync('ps', ['-o', 'pid=,args=', '-p', String(process.ppid)]).toString().trim().slice(0, 60);
+     process.on('exit', (code) => {
+       writeFileSync(${JSON.stringify(file('diagnostico.txt'))}, 'padre: ' + parent + ' | ppid al salir: ' + process.ppid);
+       writeFileSync(${JSON.stringify(file('salida.txt'))}, String(code));
+     });`,
+  );
+}
+
 /** Una terminal, para que el spinner se muestre y esconda el cursor. */
 function fakeTerminal(): string {
   return writePreload(
@@ -629,10 +643,19 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
   });
 
   it('por npm exec, un Ctrl+C (que llega dos veces): el CAE con pdf.error', async () => {
-    const result = await run([...INVOICE, '--pdf', '--json'], { hold: ['pdf', 1], npx: true, signals: ['SIGINT'] });
+    const result = await run([...INVOICE, '--pdf', '--json'], {
+      hold: ['pdf', 1],
+      npx: true,
+      preloads: [noteExit()],
+      signals: ['SIGINT'],
+    });
 
     expect(JSON.parse(result.stdout)).toMatchObject({ cae: '75123456789012', pdf: CUT });
-    expect(result).toMatchObject({ code: 0, killed: false, signal: null });
+    expect(result.killed).toBe(false);
+    // El de npm no es el de arcli: con una shell como dash, que recibe la misma señal, npm termina por ella.
+    expect(readFileSync(file('salida.txt'), 'utf8')).toBe('0');
+
+    console.log('DIAG', readFileSync(file('diagnostico.txt'), 'utf8'), '| npm:', result.code, result.signal);
     await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
   });
 

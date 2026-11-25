@@ -463,7 +463,12 @@ describe('al cortar', () => {
 
     await vi.waitFor(() => expect(readFileSync(pidFile, 'utf8')).not.toBe(''), { timeout: 10_000 });
     controller.abort();
-    expect(await result).toEqual({ code: null, output: '', timedOut: false });
+    // En Windows `kill` termina el proceso en el acto: no llega a hacer falta el SIGKILL de los dos segundos.
+    expect(await result).toEqual({
+      code: null,
+      output: '',
+      ...(process.platform === 'win32' ? {} : { timedOut: false }),
+    });
     await vi.waitFor(() => expect(() => process.kill(Number(readFileSync(pidFile, 'utf8')), 0)).toThrow());
   });
 
