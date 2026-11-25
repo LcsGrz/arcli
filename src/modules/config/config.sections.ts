@@ -1,4 +1,4 @@
-import type { ConfigPublicKey } from './config.schemas';
+import type { ConfigPublicKey } from './config-key-table';
 
 type ConfigSectionId =
   'certificados' | 'cuenta' | 'emisor' | 'exportacion' | 'facturacion' | 'fce' | 'monotributo' | 'pdf' | 'salida';

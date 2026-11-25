@@ -4,8 +4,8 @@ import { basename, dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, vi } from 'vitest';
 
-import { type ConfigPublicKey, configPublicKeySchema } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
+import { type ConfigPublicKey, configPublicKeySchema } from '../../modules/config/config-key-table';
 import { reportCliError, shouldPrintErrorAsJson } from '../error-output';
 import { createProgram } from '../program';
 

@@ -10,14 +10,15 @@ import { deleteAtPath, setAtPath } from '../../lib/json/object-path';
 import { describeZodIssues, parseZodInput } from '../billing/billing.zod-errors';
 
 import { accountAliasRemovedWarning, cbuAliasChange, cbuRemovalWarning } from './cbu-alias-change';
+import { type ArcliConfig, arcliConfigSchema, CONFIG_DEFAULTS } from './config.schemas';
 import {
-  type ArcliConfig,
-  arcliConfigSchema,
-  CONFIG_DEFAULTS,
+  type AccountStoredKey,
+  type CanonicalConfigKey,
   type ConfigPublicKey,
   configPublicKeySchema,
-} from './config.schemas';
-import { type AccountStoredKey, CONFIG_KEY_ALIASES, DEPRECATED_CONFIG_KEYS } from './config-keys';
+  storedKeyOf,
+} from './config-key-table';
+import { DEPRECATED_CONFIG_KEYS } from './config-keys';
 import {
   describePending,
   invalidSavedCbuError,
@@ -29,7 +30,7 @@ import {
   type PendingConfigProblems,
   suggestConfigFix,
 } from './config-problems';
-import { type CanonicalConfigKey, parseConfigValue } from './config-value-parser';
+import { parseConfigValue } from './config-value-parser';
 
 /**
  * Claves guardadas que se borran al cambiar o borrar la clave publica: la deprecada no puede quedar en el archivo
@@ -77,7 +78,7 @@ function withConfigHelp<T>(parse: () => T): T {
 
 /** Valida un valor como lo haria `arcli config establecer`, sin guardarlo. Lanza un Error con el motivo. */
 export function validateConfigValue(publicKey: ConfigPublicKey, rawValue: string): void {
-  parseConfigValue(CONFIG_KEY_ALIASES[publicKey], rawValue);
+  parseConfigValue(storedKeyOf(publicKey), rawValue);
 }
 
 export interface ConfigServiceOptions {
@@ -306,7 +307,7 @@ export class ConfigService {
       throw new InputValidationError(`El alias solo se guarda con \`cuenta\`, no con \`${rawKey.trim()}\`.`);
     }
 
-    const canonicalKey = CONFIG_KEY_ALIASES[key];
+    const canonicalKey = storedKeyOf(key);
     const parsedValue = withConfigHelp(() => parseConfigValue(canonicalKey, rawValue, key));
     const aliasChange = key === 'cbu' ? cbuAliasChange(this.readSaved(), rawValue) : undefined;
 
@@ -316,7 +317,7 @@ export class ConfigService {
         setAtPath(draft, canonicalKey, parsedValue);
 
         if (aliasChange?.removesAlias) {
-          deleteAtPath(draft, CONFIG_KEY_ALIASES.aliasCbu);
+          deleteAtPath(draft, 'aliasCbu');
         }
       },
       keys: [canonicalKey],
@@ -349,7 +350,7 @@ export class ConfigService {
     const key = this.resolveKey(rawKey);
     // Sin el CBU, su alias no se usa: se borran juntos.
     const keys: readonly CanonicalConfigKey[] =
-      key === 'cuenta' || key === 'cbu' ? ['cbu', 'aliasCbu'] : [CONFIG_KEY_ALIASES[key]];
+      key === 'cuenta' || key === 'cbu' ? ['cbu', 'aliasCbu'] : [storedKeyOf(key)];
 
     return {
       apply: (draft) => {

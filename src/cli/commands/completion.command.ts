@@ -29,8 +29,8 @@ import {
   COMPLETION_SHELLS,
   type CompletionShell,
 } from '../../modules/completion/shell-scripts';
-import { configPublicKeySchema } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
+import { configPublicKeySchema } from '../../modules/config/config-key-table';
 import { getExportVoucherKindByFamily } from '../../modules/export/export.kinds';
 import { CONFIG_FIELDS } from '../../modules/interactive/config-fields';
 import { PARAMETER_TABLE_NAMES } from '../../modules/parameters/parameters';

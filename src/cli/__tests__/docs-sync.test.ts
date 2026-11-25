@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { configPublicKeySchema } from '../../modules/config/config.schemas';
+import { configPublicKeySchema } from '../../modules/config/config-key-table';
 import { createProgram } from '../program';
 
 /**
