@@ -126,6 +126,15 @@ describe('sesion de ARCA del asistente (createInteractiveSession)', () => {
       expect.objectContaining({ code: 'CONFIGURATION_ERROR', message: BOTH_FLAGS_MESSAGE }),
     );
   });
+
+  // Tests primero (REV-58): pasa a it() al implementarlo.
+  it.fails('--testing y --produccion juntos: INPUT_VALIDATION_ERROR (REV-58)', () => {
+    profile.writeConfig(profile.configWith(profile.healthy));
+
+    expect(() => createInteractiveSession({ produccion: true, testing: true })).toThrow(
+      expect.objectContaining({ code: 'INPUT_VALIDATION_ERROR', message: BOTH_FLAGS_MESSAGE }),
+    );
+  });
 });
 
 describe('listas de la config: actividades de WSFEX (configFieldLists)', () => {
