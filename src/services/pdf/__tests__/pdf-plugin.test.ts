@@ -1,4 +1,13 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -454,7 +463,7 @@ describe('al cortar', () => {
 
     await vi.waitFor(() => expect(readFileSync(pidFile, 'utf8')).not.toBe(''), { timeout: 10_000 });
     controller.abort();
-    expect(await result).toMatchObject({ code: null });
+    expect(await result).toEqual({ code: null, output: '', timedOut: false });
     await vi.waitFor(() => expect(() => process.kill(Number(readFileSync(pidFile, 'utf8')), 0)).toThrow());
   });
 
@@ -484,6 +493,83 @@ describe('al cortar', () => {
     cut = false;
     expect((await plugin.install()).installed).toBe(true);
     expect(existsSync(leftover)).toBe(false);
+  });
+
+  it.each([
+    ['0.1.0', '0.1.0'],
+    [PDF_PLUGIN_VERSION, undefined],
+  ])('si falla la instalación sobre %s, informa la versión %s y no está instalado', async (found, informed) => {
+    const path = join(createTempDir(), 'pdf');
+
+    fakeNpmInstall(path, found);
+    writeFileSync(join(path, 'node_modules.incompleto'), '');
+
+    const plugin = new PdfPlugin({ env: {}, findSystemBrowser: () => '/Applications/Chrome', path });
+
+    expect(plugin.getStatus()).toMatchObject({ installed: false, installedVersion: informed });
+    expect(() => plugin.load()).toThrow(informed ? /está en la versión 0.1.0/ : /falta instalar/);
+  });
+
+  it('un package.json a medio escribir de una instalación cortada no es un error', () => {
+    const path = join(createTempDir(), 'pdf');
+
+    fakeNpmInstall(path);
+    writeFileSync(join(path, 'node_modules', '@arcasdk', 'pdf', 'package.json'), '{"name"');
+    writeFileSync(join(path, 'node_modules.incompleto'), '');
+
+    expect(new PdfPlugin({ env: {}, findSystemBrowser: () => '/x', path }).getStatus().installed).toBe(false);
+  });
+
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+    'si lo que quedó a medias no se puede borrar, es un error de la instalación',
+    async () => {
+      const path = join(createTempDir(), 'pdf');
+      const locked = join(path, 'node_modules', '@arcasdk');
+
+      fakeNpmInstall(path);
+      writeFileSync(join(path, 'node_modules.incompleto'), '');
+      chmodSync(locked, 0o555);
+
+      const runProcess = vi.fn<ProcessRunner>();
+
+      try {
+        await expect(
+          new PdfPlugin({ env: {}, findSystemBrowser: () => '/x', path, runProcess }).install(),
+        ).rejects.toMatchObject({
+          code: 'PDF_PLUGIN_INSTALL_ERROR',
+          message: expect.stringContaining('No se pudo borrar la instalación a medias'),
+        });
+        expect(runProcess).not.toHaveBeenCalled();
+      } finally {
+        chmodSync(locked, 0o755);
+      }
+    },
+  );
+
+  it.each([
+    ['sin marca, se instala sobre lo que hay', false],
+    ['con marca y sin nada que borrar, también se instala', true],
+  ])('%s', async (_name, marked) => {
+    const path = join(createTempDir(), 'pdf');
+    const previous = join(path, 'node_modules', 'de-antes');
+
+    mkdirSync(marked ? path : join(path, 'node_modules'), { recursive: true });
+    writeFileSync(marked ? join(path, 'node_modules.incompleto') : previous, '');
+
+    const plugin = new PdfPlugin({
+      env: {},
+      findSystemBrowser: () => '/x',
+      path,
+      runProcess: async () => {
+        fakeNpmInstall(path);
+
+        return { code: 0, output: '' };
+      },
+    });
+
+    expect((await plugin.install()).installed).toBe(true);
+    expect(existsSync(previous)).toBe(!marked);
+    expect(existsSync(join(path, 'node_modules.incompleto'))).toBe(false);
   });
 
   it('un navegador descargado a medias no se usa', async () => {

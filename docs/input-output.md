@@ -1270,6 +1270,7 @@ Con todo contestado, mientras se instala el plugin o se genera el PDF:
 
 - **Una señal:** no se lo espera más. El resultado sale completo: en `pdf.error`, o en un aviso en texto, `PDF_GENERATION_ERROR` ("Se cortó antes de generar el PDF.") para cada PDF que faltaba; los que ya se generaron salen con su archivo. El exit code es el de siempre: `0`, `2` con un rechazado, o `1` en un lote cortado.
 - **Otra, a medio segundo o más:** lo mismo, y después de escribir todo el proceso termina por la señal. Si quien lee la salida no la lee, se espera hasta dos segundos y puede quedar cortada.
+- Con una sola señal y una salida que nadie lee, se espera hasta 30 segundos; después sale con `1` (o `2`, con un rechazado) y la salida queda cortada.
 - Si una señal llegó mientras se esperaba a ARCA, los PDF de lo emitido se generan igual: la siguiente es la que no los espera.
 - En las preguntas del PDF, `Ctrl+C` es "No".
 

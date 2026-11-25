@@ -160,7 +160,18 @@ export class PdfPlugin {
    */
   private async fill(target: string, run: () => Promise<ProcessResult>): Promise<ProcessResult> {
     if (this.isIncomplete(target)) {
-      rmSync(target, { force: true, recursive: true });
+      try {
+        rmSync(target, { force: true, maxRetries: 5, recursive: true, retryDelay: 200 });
+      } catch (error) {
+        // En Windows, un proceso de la instalacion cortada puede seguir usandolo (EBUSY, EPERM).
+        throw new PdfError(
+          'PDF_PLUGIN_INSTALL_ERROR',
+          `No se pudo borrar la instalación a medias: ${errorText(error)}`,
+          {
+            suggestion: 'Esperá unos segundos y volvé a correr `arcli pdf instalar`.',
+          },
+        );
+      }
     }
 
     writeFileSync(incompleteMark(target), '');
@@ -177,11 +188,25 @@ export class PdfPlugin {
   private readInstalledVersion(): string | undefined {
     const manifest = join(this.modulesPath, ...PDF_PLUGIN_PACKAGE.split('/'), 'package.json');
 
-    if (!existsSync(manifest) || this.isIncomplete(this.modulesPath)) {
+    if (!existsSync(manifest)) {
       return undefined;
     }
 
-    return (JSON.parse(withFilePath(manifest, () => readFileSync(manifest, 'utf8'))) as { version?: string }).version;
+    const readVersion = () =>
+      (JSON.parse(withFilePath(manifest, () => readFileSync(manifest, 'utf8'))) as { version?: string }).version;
+
+    if (!this.isIncomplete(this.modulesPath)) {
+      return readVersion();
+    }
+
+    // A medias, la version que se estaba instalando no cuenta; una anterior se informa: igual no sirve.
+    try {
+      const version = readVersion();
+
+      return version === PDF_PLUGIN_VERSION ? undefined : version;
+    } catch {
+      return undefined;
+    }
   }
 
   /** Orden: config, variable de entorno de Puppeteer, navegador del sistema y, por ultimo, el descargado. */

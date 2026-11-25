@@ -295,6 +295,61 @@ describe('mientras se entrega', () => {
     expect(process.kill).not.toHaveBeenCalled();
   });
 
+  it('una pregunta espera solo lo que le falta al eco', async () => {
+    let asked = 0;
+
+    await deliverWith(
+      async (_outcome, { whileAsking }) => {
+        now += REPEATED_SIGNAL_MS - 100;
+
+        const start = Date.now();
+
+        await whileAsking(async () => {
+          asked = Date.now() - start;
+        });
+      },
+      ['SIGINT'],
+    );
+
+    expect(asked).toBeGreaterThanOrEqual(90);
+    expect(asked).toBeLessThan(REPEATED_SIGNAL_MS - 50);
+  });
+
+  it('un listener de otro evento no se toca', async () => {
+    const added = vi.fn();
+
+    try {
+      await deliverWith(async () => {
+        process.on('warning', added);
+        await Promise.resolve();
+        expect(process.listeners('warning')).toContain(added);
+      });
+
+      expect(process.listeners('warning')).toContain(added);
+    } finally {
+      process.off('warning', added);
+    }
+  });
+
+  it('un listener agregado justo antes de soltar no se aparta', async () => {
+    const added = vi.fn();
+    let whileAsked: readonly unknown[] = [];
+
+    try {
+      await deliverWith(async (_outcome, { whileAsking }) => {
+        process.on('SIGINT', added);
+        await whileAsking(async () => {
+          await Promise.resolve();
+          whileAsked = process.listeners('SIGINT');
+        });
+      });
+
+      expect(whileAsked).toContain(added);
+    } finally {
+      process.off('SIGINT', added);
+    }
+  });
+
   it('ya cortado no se pregunta', async () => {
     const ask = vi.fn();
     let answer: unknown = 'sin responder';
@@ -424,6 +479,44 @@ describe('mientras se entrega', () => {
     } finally {
       process.off('SIGTERM', added);
     }
+  });
+
+  it('con todo escrito, si la señal reenviada no termina el proceso, se sale con el código de la señal', async () => {
+    const added = vi.fn();
+    const exitCodes: Array<typeof process.exitCode> = [];
+
+    // Como el de Puppeteer con SIGTERM: cierra el navegador y nada más.
+    vi.mocked(process.kill).mockImplementation(() => true);
+
+    try {
+      await deliverWith(async () => {
+        process.on('SIGTERM', added);
+        await Promise.resolve();
+        send('SIGINT');
+      });
+      await finishCut(undefined, () => exitCodes.push(process.exitCode));
+      send('SIGTERM');
+
+      expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
+      expect(process.listeners('SIGTERM')).toContain(added);
+      await vi.waitFor(() => expect(exitCodes).toEqual([143, 143]));
+    } finally {
+      process.exitCode = undefined;
+      process.off('SIGTERM', added);
+    }
+  });
+
+  it('sin un PDF abandonado, la señal con todo escrito solo se reenvía', async () => {
+    const exit = vi.fn();
+
+    await deliverWith(async () => undefined, ['SIGINT']);
+    await finishCut(undefined, exit);
+    send('SIGTERM');
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
+    expect(exit).not.toHaveBeenCalled();
+    expect(process.exitCode).toBeUndefined();
   });
 
   it('sin nada enviado (una vista previa) no se ataja nada', async () => {

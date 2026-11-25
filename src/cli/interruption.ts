@@ -39,7 +39,7 @@ export class ResentSignalError extends Error {
 let cut: { readonly signal: NodeJS.Signals; readonly stopListening: () => void } | undefined;
 
 /** Llego una señal, o falta el error: se siguen atajando hasta que se escriba todo. */
-let unfinished: { readonly abandonedPdf: () => boolean; readonly finish: () => void } | undefined;
+let unfinished: { readonly abandonedPdf: () => boolean; readonly finish: (exit?: () => void) => void } | undefined;
 
 /** Deja de escuchar lo de una emision anterior del mismo proceso: cada una se atiende sola. */
 let stopPrevious: () => void = () => undefined;
@@ -151,6 +151,7 @@ export async function guardEmission<R>(
   let hasSent = false;
   let isDelivering = false;
   let isWritten = false;
+  let exitAfterPdf: (() => void) | undefined;
   let abandon: (() => void) | undefined;
   const abandoned = new Promise<void>((resolve) => {
     abandon = resolve;
@@ -190,7 +191,7 @@ export async function guardEmission<R>(
 
     if (isWritten) {
       stopListening();
-      process.kill(process.pid, signal);
+      void resend(signal, pdf.signal.aborted ? exitAfterPdf : undefined);
     } else if (isDelivering ? pdf.signal.aborted : !isFirst) {
       cut = { signal, stopListening };
       abandon?.();
@@ -268,7 +269,9 @@ export async function guardEmission<R>(
     if (deliver && hasSent && hasOutcome && (first || hasFailed)) {
       unfinished = {
         abandonedPdf: () => pdf.signal.aborted,
-        finish: () => {
+        finish: (exit) => {
+          exitAfterPdf = exit;
+
           const echoMs = countedAt + REPEATED_SIGNAL_MS - performance.now();
 
           isWritten = true;
@@ -285,6 +288,20 @@ export async function guardEmission<R>(
       stopListening();
     }
   }
+}
+
+/**
+ * La señal, ya sin los listeners propios. Con un PDF abandonado, el listener del plugin, ya repuesto, puede quedarse
+ * con ella sin terminar el proceso: ahi se sale con `exit`.
+ */
+async function resend(signal: NodeJS.Signals, exit?: () => void): Promise<void> {
+  if (exit) {
+    process.exitCode = 128 + constants.signals[signal];
+  }
+
+  process.kill(process.pid, signal);
+  await setTimeout(RESEND_GRACE_MS);
+  exit?.();
 }
 
 /** Lo que se le da al plugin abandonado para terminar solo antes de salir igual. */
@@ -306,7 +323,7 @@ export async function finishCut(beforeCut?: () => void, exit?: () => void): Prom
 
   // Puede haber llegado mientras se escribia.
   if (!cut) {
-    unfinished?.finish();
+    unfinished?.finish(exit);
     unfinished = undefined;
 
     if (abandonedPdf && exit) {
@@ -325,12 +342,5 @@ export async function finishCut(beforeCut?: () => void, exit?: () => void): Prom
   cut = undefined;
   unfinished = undefined;
   stopListening();
-  process.kill(process.pid, signal);
-  await setTimeout(RESEND_GRACE_MS);
-
-  // Un listener del plugin, ya repuesto, puede quedarse con la señal sin terminar el proceso.
-  if (abandonedPdf && exit) {
-    process.exitCode = 128 + constants.signals[signal];
-    exit();
-  }
+  await resend(signal, abandonedPdf ? exit : undefined);
 }
