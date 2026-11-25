@@ -55,7 +55,7 @@ const CTRL_C = '\u0003';
 const BACKSPACE = '\u007F';
 const UPDATE: UpdateCheckResult = { currentVersion: '2.6.0', latestVersion: '2.7.0' };
 const UPDATE_ROW = 'Actualizar a la versión 2.7.0';
-const PENDING = 'COMPROBANDO ARCA…';
+const PENDING = 'COMPROBANDO ARCA';
 /** Readline espera esto despues de un Esc, por si es el comienzo de una secuencia. */
 const ESCAPE_WAIT_MS = 600;
 
@@ -208,7 +208,7 @@ describe('el asistente abre sin esperar (TUI-49)', () => {
   it('con ARCA y npm pendientes el menú ya está y responde a flechas, filtro y Enter', async () => {
     start();
     await seen('¿Qué querés hacer?');
-    expect(screen()).toMatch(/━━ 20-33333333-4 · PV 3 ━+ COMPROBANDO ARCA… ━ TESTING ━━/);
+    expect(screen()).toMatch(/━━ 20-33333333-4 · PV 3 ━+ COMPROBANDO ARCA ━ TESTING ━━/);
     expect(marked()).toEqual(['Emitir factura']);
 
     await press(DOWN);
@@ -577,7 +577,7 @@ describe('volver de Configuración (TUI-49)', () => {
     health[0]?.resolve('sin-respuesta');
     await pause();
     expect(text()).not.toMatch(/ARCA sin respuesta/i);
-    expect(screen()).toMatch(/COMPROBANDO ARCA… ━ PRODUCCIÓN/);
+    expect(screen()).toMatch(/COMPROBANDO ARCA ━ PRODUCCIÓN/);
     await press(ENTER);
     expect(text()).not.toMatch(/ARCA sin respuesta/i);
   });
@@ -717,12 +717,12 @@ describe('terminal angosta, baja o ASCII (TUI-49)', () => {
     expect(count(/ PV 3 /g)).toBe(1);
   });
 
-  it('sin Unicode, "COMPROBANDO ARCA..."', async () => {
+  it('sin Unicode, "COMPROBANDO ARCA"', async () => {
     vi.stubEnv('ARCLI_ASCII', '1');
 
     try {
       start();
-      await seen('COMPROBANDO ARCA...');
+      await seen('COMPROBANDO ARCA');
       expect(text()).not.toContain('…');
     } finally {
       vi.unstubAllEnvs();

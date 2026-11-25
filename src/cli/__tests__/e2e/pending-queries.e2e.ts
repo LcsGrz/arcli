@@ -306,7 +306,7 @@ describe('el asistente con ARCA y npm colgados', () => {
       const result = await run([], { keys });
 
       expect(result).toMatchObject({ code: 0, stderr: '' });
-      expect(result.stdout).toContain('COMPROBANDO ARCA…');
+      expect(result.stdout).toContain('COMPROBANDO ARCA');
       expect(result.stdout).toContain('¡Hasta la próxima!');
       expect(result.stdout.trimEnd()).toMatch(/arcli\.com\.ar\S*$/);
       expect(result.elapsed).toBeLessThan(MAX_WAIT_MS);

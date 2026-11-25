@@ -120,7 +120,7 @@ describe('openStatusHeader: colores', () => {
   it('lo que no se sabe va en muted', () => {
     const header = openStatusHeader({});
 
-    expect(header.text()).toContain(colorize('COMPROBANDO ARCA…', 'muted'));
+    expect(header.text()).toContain(colorize('COMPROBANDO ARCA', 'muted'));
     expect(header.settle()).toContain(colorize('ARCA SIN VERIFICAR', 'muted'));
   });
 
@@ -236,7 +236,7 @@ describe('openStatusHeader: lo que queda en el historial y el aviso tardío', ()
   it('antes de quedar, puede decir cada estado', () => {
     const texts = openStatusHeader({})
       .possibleTexts()
-      .map((text) => stripAnsi(text).match(/(COMPROBANDO ARCA…|ARCA [A-Z ]+?) ━/)?.[1]);
+      .map((text) => stripAnsi(text).match(/(COMPROBANDO ARCA|ARCA [A-Z ]+?) ━/)?.[1]);
 
     expect(texts.toSorted()).toEqual([
       'ARCA CON DEMORAS',
@@ -244,7 +244,7 @@ describe('openStatusHeader: lo que queda en el historial y el aviso tardío', ()
       'ARCA FUNCIONANDO',
       'ARCA SIN RESPUESTA',
       'ARCA SIN VERIFICAR',
-      'COMPROBANDO ARCA…',
+      'COMPROBANDO ARCA',
     ]);
   });
 });

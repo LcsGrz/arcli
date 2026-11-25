@@ -189,7 +189,7 @@ export function openStatusHeader(options: GlobalCliOptions, margin = ''): Status
 
     return health && health !== 'funcionando' ? renderLateNotice(health) : '';
   };
-  const checking: StatusBarSegment = { color: 'muted', text: `COMPROBANDO ARCA${uiSymbol('ellipsis')}` };
+  const checking: StatusBarSegment = { color: 'muted', text: 'COMPROBANDO ARCA' };
   const unverified: StatusBarSegment = { color: 'muted', text: UNVERIFIED };
 
   return {

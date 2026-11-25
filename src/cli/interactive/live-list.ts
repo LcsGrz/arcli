@@ -15,7 +15,8 @@ const DEFAULT_ROWS = 24;
 
 /**
  * Si la lista entra entera en la terminal con cualquiera de los `tops`. Si no, al redibujarla quedarian lineas de mas:
- * @inquirer no puede borrar las que ya se desplazaron.
+ * @inquirer no puede borrar las que ya se desplazaron. Se mira al abrirla: achicar la terminal con la lista abierta
+ * puede dejar una barra de mas, y se acepta.
  */
 export function liveListFits<T>(
   choices: ReadonlyArray<ListSelectChoice<T> | Separator>,

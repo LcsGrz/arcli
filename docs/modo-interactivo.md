@@ -46,7 +46,7 @@ Debajo del logo va la versión de ARCLI. Arriba del menú, la barra de estado mu
 
 | Estado                 | Cuándo                                                                                                                        |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **Comprobando ARCA…**  | Se está consultando; el menú ya se puede usar                                                                                 |
+| **Comprobando ARCA**   | Se está consultando; el menú ya se puede usar                                                                                 |
 | **ARCA funcionando**   | Los servidores de facturación (app, base de datos y autenticación) responden OK                                               |
 | **ARCA con demoras**   | Responden OK, pero tardaron más de 3 segundos                                                                                 |
 | **ARCA con problemas** | Alguno de los servidores no responde OK                                                                                       |

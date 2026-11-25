@@ -268,7 +268,7 @@ function buildBordersScene(): string {
     `${colorize('Barra de estado, mientras se consulta ARCA:', 'muted')}\n${statusBar(
       [{ text: '20-33333333-4' }, { text: 'PV 3' }],
       [
-        { color: 'muted', text: `COMPROBANDO ARCA${uiSymbol('ellipsis')}` },
+        { color: 'muted', text: 'COMPROBANDO ARCA' },
         { color: 'testing', text: 'TESTING' },
       ],
       { rightSeparator: 'rule' },
