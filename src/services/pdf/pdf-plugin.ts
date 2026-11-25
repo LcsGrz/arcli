@@ -68,8 +68,17 @@ interface InvoicePdfGeneratorModule {
 }
 
 /** Lo que se usa de Puppeteer, que abre el SDK con `puppeteer.launch({ headless: true })`. */
-interface PuppeteerModule {
-  readonly default: { launch: (options?: Record<string, unknown>) => Promise<unknown> };
+interface Puppeteer {
+  launch: (options?: Record<string, unknown>) => Promise<unknown>;
+}
+
+/** El mismo Puppeteer que carga el SDK. Si no se encuentra, el PDF se genera igual, sin atarlo a las señales. */
+function loadPuppeteer(sdkPath: string): Puppeteer | undefined {
+  try {
+    return (createRequire(sdkPath)('puppeteer') as { readonly default?: Puppeteer }).default;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -77,11 +86,7 @@ interface PuppeteerModule {
  * cuenta y con SIGINT sale del proceso (130): aca no, porque quien aborta todavia tiene que escribir el comprobante
  * emitido. El SDK no deja pasar opciones, asi que se reemplaza `launch` mientras dura: el CLI genera de a uno (API-1).
  */
-async function withBrowserTiedTo<T>(
-  puppeteer: PuppeteerModule['default'],
-  signal: AbortSignal,
-  generate: () => Promise<T>,
-): Promise<T> {
+async function withBrowserTiedTo<T>(puppeteer: Puppeteer, signal: AbortSignal, generate: () => Promise<T>): Promise<T> {
   const { launch } = puppeteer;
 
   puppeteer.launch = (options) => launch({ ...options, handleSIGINT: false, handleSIGTERM: false, signal });
@@ -316,21 +321,14 @@ export class PdfPlugin {
 
     const require = createRequire(join(this.options.path, 'package.json'));
     const sdk = require(PDF_PLUGIN_PACKAGE) as InvoicePdfGeneratorModule;
+    const puppeteer = signal && loadPuppeteer(require.resolve(PDF_PLUGIN_PACKAGE));
 
     return {
       render: async (data, options) => {
         try {
           const generate = () => new sdk.InvoicePdfGenerator(options).generate(data);
 
-          if (!signal) {
-            return await generate();
-          }
-
-          // El mismo Puppeteer que carga el SDK.
-          const requireFromSdk = createRequire(require.resolve(PDF_PLUGIN_PACKAGE));
-          const puppeteer = requireFromSdk('puppeteer') as PuppeteerModule;
-
-          return await withBrowserTiedTo(puppeteer.default, signal, generate);
+          return await (signal && puppeteer ? withBrowserTiedTo(puppeteer, signal, generate) : generate());
         } catch (error) {
           throw new PdfError('PDF_GENERATION_ERROR', `No se pudo generar el PDF: ${errorText(error)}`, {
             suggestion: 'Si el navegador falla, probá con otro: `arcli config establecer pdfNavegador <ruta>`.',
