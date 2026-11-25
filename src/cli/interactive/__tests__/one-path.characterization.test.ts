@@ -372,9 +372,9 @@ describe('las consultas de la vista previa', () => {
     ['nde', 'debito'],
   ];
 
-  // Tests primero (REV-53): pasa a it() al implementarlo. La solicitud y la vista previa, con los defaults del asociado,
+  // La solicitud y la vista previa, con los defaults del asociado,
   // las compara con las del comando "Nota de crédito E" y "Nota de débito E", arriba.
-  it.fails.each(NOTES_E)('%s: el asistente no vuelve a consultar el asociado ya leído', async (shortcut, kind) => {
+  it.each(NOTES_E)('%s: el asistente no vuelve a consultar el asociado ya leído', async (shortcut, kind) => {
     const steps: Steps = [...NOTE_E_STEPS, EMIT];
     const command = await runCommand(noteEArgs(shortcut), { steps: [EMIT] });
     const assistant = await runAssistant(noteFlow(kind), { steps });

@@ -7,10 +7,11 @@ import { systemClock } from '../../../services/time/system-clock';
 import { billingAnswer } from '../../../testing/arca-answers';
 import { fakeBillingGateway } from '../../../testing/arca-gateways';
 import type { CliArcaRuntime } from '../../arca-runtime';
+import { EMIT_IN_PRODUCTION_LABEL } from '../emission-closing';
 import { DO_NOT_EMIT_LABEL, EMIT_NOW_LABEL } from '../emission-prompt';
 import { listSelect } from '../list-select';
 import { confirm } from '../prompts';
-import { EMIT_IN_PRODUCTION_LABEL, type InteractiveSession, previewAndEmit } from '../session';
+import { type InteractiveSession, previewAndEmit } from '../session';
 
 /*
  * Sin mockear `confirm` ni `chooseOne` (TEST-21): solo la lista de abajo, que elige la opcion por su texto. Asi se

@@ -101,7 +101,7 @@ function createSession(vouchers: IssuedVoucher[] = [], officialRate = 1000) {
     service,
   };
 
-  return { billingGateway, payload: vi.spyOn(service, 'buildVoucherPayload'), session };
+  return { billingGateway, payload: vi.spyOn(BillingService.prototype, 'buildVoucherPayload'), session };
 }
 
 const invoice = (overrides: Partial<IssuedVoucher> = {}): IssuedVoucher => ({

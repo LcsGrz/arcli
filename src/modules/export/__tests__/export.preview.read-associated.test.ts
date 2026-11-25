@@ -44,8 +44,7 @@ const credit = (overrides: Partial<ExportVoucherInput> = {}): ExportVoucherInput
 const debit = (overrides: Partial<ExportVoucherInput> = {}) =>
   credit({ voucherKind: EXPORT_DEBIT_NOTE_KIND, ...overrides });
 
-/** La opcion todavia no existe: si se implementa con otro nombre, se cambia solo aca. */
-const withRead = (associated: ExportIssuedVoucher) => ({ associated }) as Partial<PreviewExportOptions>;
+const withRead = (associated: ExportIssuedVoucher): Partial<PreviewExportOptions> => ({ associated });
 
 async function run(input: ExportVoucherInput, answer: ExportIssuedVoucher | null, read?: ExportIssuedVoucher) {
   const gateway = fakeExportGateway({ getVoucher: vi.fn(async () => answer) });
@@ -118,8 +117,7 @@ describe('previewExport con el asociado ya leído', () => {
     expect(describeResult(result)).toMatch(expected);
   });
 
-  // Tests primero (REV-53): pasa a it() al implementarlo.
-  it.fails.each(CASES)('sin consultarlo, %s', async (_name, { associated, input }) => {
+  it.each(CASES)('sin consultarlo, %s', async (_name, { associated, input }) => {
     const voucher = { ...ISSUED, ...associated };
     const queried = await run(input, voucher);
     const { gateway, result } = await run(input, voucher, voucher);

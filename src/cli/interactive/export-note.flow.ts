@@ -331,7 +331,7 @@ export async function runExportNoteFlow(
   const state = await runWizard(exportNoteSteps(kind, gateway, pointOfSale), { associatedKind }, undefined, {
     // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15).
     confirm: emissionStep<ExportNoteState>((answered) =>
-      emitExportVoucher(session, gateway, buildExportNoteInput(answered, { kind })),
+      emitExportVoucher(session, gateway, buildExportNoteInput(answered, { kind }), { associated: answered.invoice }),
     ).confirm,
     // Las reglas sobre la nota final: si una falla, vuelve a la pregunta que escribe el campo.
     finalize: exportNoteFinalize(noteRuleEnv(kind)),

@@ -6,12 +6,15 @@ import { type ExportRuntime, ExportService } from './export.service';
 import type {
   ExportEmissionGateway,
   ExportExecutionResult,
+  ExportIssuedVoucher,
   ExportPreviewGateway,
   ExportVoucherInput,
   ResolvedExportVoucher,
 } from './export.types';
 
 export interface PreviewExportOptions {
+  /** El asociado de la nota, si quien llama ya lo consulto: si es el de la entrada, no se consulta de nuevo. */
+  readonly associated?: ExportIssuedVoucher;
   readonly clock: Clock;
   /** Avisos de quien llama (certificado, entrada, flags salteados): van antes que los de la resolucion. */
   readonly extraWarnings?: readonly string[];
@@ -29,9 +32,9 @@ export interface ExportPreview {
 
 /** La vista previa de la E y sus notas. Consulta WSFEX, tambien el numero siguiente, pero nunca emite. */
 export async function previewExport(options: PreviewExportOptions): Promise<ExportPreview> {
-  const { extraWarnings = [], gateway, input, runtime } = options;
+  const { associated, extraWarnings = [], gateway, input, runtime } = options;
   const service = new ExportService({ clock: options.clock });
-  const resolved = await service.resolve(input, gateway, runtime);
+  const resolved = await service.resolve(input, gateway, runtime, associated);
   const warnings = [...extraWarnings, ...(resolved.warnings ?? [])];
 
   return { preview: service.preview(resolved, runtime, warnings), resolved, warnings };

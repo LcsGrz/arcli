@@ -19,8 +19,20 @@ type ReadAssociated =
   | { readonly unreadable: VoucherQueryError }
   | { readonly voucher: IssuedVoucher };
 
-/** La opcion todavia no existe: si se implementa con otro nombre o forma, se cambia solo aca. */
-const withRead = (associated: ReadAssociated) => ({ associated }) as Partial<PreviewBillingOptions>;
+/** El leido dice de que comprobante es: por defecto, el de la entrada. */
+const withRead = (
+  associated: ReadAssociated,
+  { associatedVoucher }: BillingCommandInput,
+  other: { readonly arcaType?: number; readonly number?: number; readonly pointOfSale?: number } = {},
+): Partial<PreviewBillingOptions> => ({
+  associated: {
+    ...associated,
+    arcaType: associatedVoucher?.shortcut === 'fcea' ? 201 : 1,
+    number: associatedVoucher?.numero ?? 0,
+    pointOfSale: associatedVoucher?.puntoVenta ?? 0,
+    ...other,
+  },
+});
 
 const issued = (overrides: Partial<IssuedVoucher> = {}): IssuedVoucher => ({
   currency: 'PES',
@@ -55,7 +67,12 @@ const overA = (overrides: Partial<BillingCommandInput> = {}) =>
 /** El asociado que contesta ARCA, para quien consulta. */
 type Answer = IssuedVoucher | VoucherQueryError | undefined;
 
-async function run(input: BillingCommandInput, answer: Answer, read?: ReadAssociated) {
+async function run(
+  input: BillingCommandInput,
+  answer: Answer,
+  read?: ReadAssociated,
+  other?: Parameters<typeof withRead>[2],
+) {
   const getVoucher = vi.fn(async () => {
     if (answer instanceof Error) {
       throw answer;
@@ -77,7 +94,7 @@ async function run(input: BillingCommandInput, answer: Answer, read?: ReadAssoci
     },
     plan: { inputIndexes: [1], inputs: [input], invalidItems: [], isBatch: false, total: 1 },
     runtime,
-    ...(read ? withRead(read) : {}),
+    ...(read ? withRead(read, input, other) : {}),
   }).then(
     (items) => ({ items }),
     (error: unknown) => ({ error }),
@@ -170,12 +187,22 @@ describe('previewBilling con el asociado ya leído', () => {
     expect(describeResult(result)).toMatch(expected);
   });
 
-  // Tests primero (REV-53): pasa a it() al implementarlo.
-  it.fails.each(CASES)('sin consultar ARCA, %s', async (_name, { answer, input, read: associated }) => {
+  it.each(CASES)('sin consultar ARCA, %s', async (_name, { answer, input, read: associated }) => {
     const queried = await run(input, answer);
     const { lookups, result } = await run(input, answer, associated);
 
     expect(result).toEqual(queried.result);
     expect(lookups).toBe(0);
+  });
+
+  it.each([
+    ['tipo', { arcaType: 6 }],
+    ['punto de venta', { pointOfSale: 4 }],
+    ['número', { number: 13 }],
+  ])('si el leído es de otro %s, se consulta el de la entrada', async (_name, other) => {
+    const { lookups, result } = await run(overA(), issued({ total: 500 }), { voucher: issued() }, other);
+
+    expect(lookups).toBe(1);
+    expect(describeResult(result)).toMatch(/no puede superar el total/);
   });
 });

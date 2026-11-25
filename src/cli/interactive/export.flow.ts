@@ -1,8 +1,9 @@
 import { isForeignCurrency } from '../../modules/billing/billing.currency';
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
+import type { ArcliConfig } from '../../modules/config/config.schemas';
+import { emitExport, type ExportPreview, previewExport } from '../../modules/export/export.emission';
 import { EXPORT_PAYMENT_TERMS_SUGGESTIONS } from '../../modules/export/export.mappers';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
-import { ExportService } from '../../modules/export/export.service';
 import {
   BILLS_EXPORT_TYPE,
   DEFAULT_EXPORT_CURRENCY_CODE,
@@ -10,7 +11,9 @@ import {
   EXPORT_VOUCHER_KIND,
   type ExportActivity,
   type ExportCurrency,
+  type ExportExecutionResult,
   type ExportGateway,
+  type ExportIssuedVoucher,
   type ExportType,
   type ExportVoucherInput,
   OTHER_EXPORT_TYPE,
@@ -24,34 +27,26 @@ import {
   exportRuleScope,
 } from '../../modules/interactive/export-input';
 import { isCountryCuitMissing } from '../../modules/interactive/export-optionals';
-import { activityToSave, isAuthorized } from '../../modules/interactive/steps/config-offer';
+import { activityToSave } from '../../modules/interactive/steps/config-offer';
 import { fieldLens } from '../../modules/interactive/steps/lens';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
-import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { systemClock } from '../../services/time/system-clock';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { isOutputLost } from '../closed-output';
 import { attachExportPdf } from '../commands/export.command.pdf';
-import { formatEmissionQuestion } from '../emission-texts';
 import { recordExportEmission, recordMissingExportPdf } from '../emitted-vouchers';
 import { withSpinner } from '../spinner';
 
+import { closeWithEmission } from './emission-closing';
 import { askCountryCuit, askDestinationCountry, exportOptionalsStep, validateExportText } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
 import { exportExchangeRateLoader } from './official-exchange-rate';
-import { assertOutputVisible } from './output-guard';
 import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseOrTypeStep, chooseStep, isPromptCancellation } from './prompts';
 import { offerConfig } from './save-to-config';
-import {
-  confirmEmission,
-  emissionStep,
-  formatEquivalentCommand,
-  type InteractiveSession,
-  rejectedAsBack,
-} from './session';
+import { emissionStep, type InteractiveSession } from './session';
 import {
   activitiesLoader,
   activityStep,
@@ -351,79 +346,21 @@ function exportSteps(
 }
 
 /**
- * Vista previa, comando equivalente, confirmacion, emision y PDF: lo mismo para la factura y las notas E. Sin
- * `activity` (las notas la toman del asociado), el comando equivalente no la repite. Devuelve si ARCA la autorizo
- * (`isAuthorized`): un rechazo no es una emision. Con Esc en "¿Emitimos?", o si la vista previa rechaza la entrada,
- * devuelve BACK sin emitir: el flujo lo corre
- * como `confirm` de `runWizard`, que vuelve a la ultima pregunta (TUI-15).
+ * El PDF elegido en "¿Emitimos?". Ya se emitio: un Ctrl+C mientras se piden los datos del emisor no puede terminar en
+ * "No se emitio nada".
  */
-export async function emitExportVoucher(
-  session: InteractiveSession,
-  gateway: ExportGateway,
-  rawInput: ExportVoucherInput,
-  activity?: number,
-): Promise<typeof BACK | boolean> {
-  const { runtime } = session;
-  // ExportService toma el de la config: uno elegido en el asistente va en la entrada (y en el comando equivalente).
-  const input: ExportVoucherInput = { ...rawInput, pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale };
-  const service = new ExportService({ clock: systemClock });
-  // Si la vista previa rechaza la entrada, vuelve a la ultima pregunta (TUI-15).
-  const resolved = await rejectedAsBack(
-    () => withSpinner('Consultando WSFEX...', () => service.resolve(input, gateway, runtime)),
-    { queryErrors: true },
-  );
-
-  if (resolved === BACK) {
-    return BACK;
-  }
-
-  const preview = service.preview(resolved, runtime, resolved.warnings);
-
-  writeTerminalOutput(formatExportResultAsText(preview, { environment: runtime.environment, raw: false }));
-  writeTerminalOutput(
-    formatEquivalentCommand(
-      buildExportEquivalentCommand(input, { activity, environment: runtime.environment, platform: process.platform }),
-    ),
-  );
-
-  const label = formatVoucherWithArticle(input.voucherKind ?? EXPORT_VOUCHER_KIND);
-
-  const emission = await confirmEmission(
-    formatEmissionQuestion(label, runtime.environment),
-    runtime.environment,
-    planEmissionConfirmation({ flags: [input.pdf], mode: runtime.config.pdf }),
-  );
-
-  if (emission === BACK || !emission) {
-    return emission;
-  }
-
-  await assertOutputVisible();
-
-  const result = recordExportEmission(
-    await withSpinner(`Emitiendo ${label} en ARCA...`, () =>
-      service.execute({ gateway, resolved, runtime, warnings: resolved.warnings }),
-    ),
-  );
-
-  writeTerminalOutput(
-    formatExportResultAsText(result, { environment: runtime.environment, previewShown: true, raw: false }),
-  );
-
-  // Ya se emitio: un Ctrl+C mientras se piden los datos del emisor no puede terminar en "No se emitio nada".
+async function offerExportPdf(
+  config: ArcliConfig,
+  input: ExportVoucherInput,
+  result: ExportExecutionResult,
+): Promise<void> {
   try {
-    const withPdf = await attachExportPdf(result, {
-      completeConfig: completeIssuer,
-      config: runtime.config,
-      // Lo elegido en "¿Emitimos?" decide el PDF: despues de emitir no se pregunta nada mas.
-      input: { ...input, pdf: resolvePdfAfterConfirmation(input.pdf, emission) },
-      interactive: true,
-    });
+    const { pdf } = await attachExportPdf(result, { completeConfig: completeIssuer, config, input, interactive: true });
 
-    if (withPdf.pdf) {
-      writeTerminalOutput(formatPdfOutcomeAsText(withPdf.pdf));
+    if (pdf) {
+      writeTerminalOutput(formatPdfOutcomeAsText(pdf));
 
-      if ('error' in withPdf.pdf) {
+      if ('error' in pdf) {
         recordMissingExportPdf(result);
       }
     }
@@ -438,8 +375,50 @@ export async function emitExportVoucher(
 
     writeTerminalOutput(noticePanel('El comprobante ya quedó emitido; no se generó el PDF.', 'muted'));
   }
+}
 
-  return isAuthorized(result.response);
+/**
+ * El cierre de los flujos de la E y sus notas (`closeWithEmission`), con los casos de uso de `arcli fe`, `nce` y `nde`.
+ * Sin `activity` (las notas la toman del asociado), el comando equivalente no la repite. `associated` es el comprobante
+ * que ajusta la nota, ya leido por el flujo: no se consulta otra vez.
+ */
+export async function emitExportVoucher(
+  session: InteractiveSession,
+  gateway: ExportGateway,
+  rawInput: ExportVoucherInput,
+  options: { readonly activity?: number; readonly associated?: ExportIssuedVoucher } = {},
+): Promise<typeof BACK | boolean> {
+  const { runtime } = session;
+  const { activity, associated } = options;
+  // ExportService toma el de la config: uno elegido en el asistente va en la entrada (y en el comando equivalente).
+  const input: ExportVoucherInput = { ...rawInput, pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale };
+
+  return closeWithEmission<ExportExecutionResult, ExportPreview>({
+    emit: ({ resolved, warnings }) =>
+      emitExport({
+        clock: systemClock,
+        gateway,
+        input: { emit: true },
+        onEmitted: (result) => {
+          recordExportEmission(result);
+        },
+        resolved,
+        runtime,
+        warnings,
+      }),
+    equivalentCommand: () =>
+      buildExportEquivalentCommand(input, { activity, environment: runtime.environment, platform: process.platform }),
+    format: (result, { previewShown }) =>
+      formatExportResultAsText(result, { environment: runtime.environment, previewShown, raw: false }),
+    generatePdf: (result, _previewed, pdf) => offerExportPdf(runtime.config, { ...input, pdf }, result),
+    pdf: input.pdf,
+    preview: () =>
+      withSpinner('Consultando WSFEX...', () =>
+        previewExport({ associated, clock: systemClock, gateway, input, runtime }),
+      ),
+    queryErrors: true,
+    runtime,
+  });
 }
 
 /**
@@ -455,7 +434,7 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
   const emission = emissionStep<ExportFlowState>((state) => {
     const input = buildExportInput(state, { configuredActivity });
 
-    return emitExportVoucher(session, gateway, input, input.activity);
+    return emitExportVoucher(session, gateway, input, { activity: input.activity });
   });
   const state = await runWizard<ExportFlowState>(
     withFinalizeNotice(

@@ -2,22 +2,17 @@ import type { Command } from 'commander';
 
 import { billingDefaultsFromConfig } from '../../modules/billing/billing.defaults';
 import { emitBilling, planBillingEmission } from '../../modules/billing/billing.emission';
-import { type BillingPreviewGateways, previewBilling } from '../../modules/billing/billing.preview';
+import { previewBilling } from '../../modules/billing/billing.preview';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
-import type { BillingExecutionResult, BillingGateway } from '../../modules/billing/billing.types.internal';
+import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map';
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
-import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
-import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
-import { ArcaFceRegistryGateway } from '../../services/arca/arca-fce-registry.gateway';
-import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
-import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
-import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
 import { systemClock } from '../../services/time/system-clock';
 import { certificateWarnings, type CliArcaRuntime, resolveArcaRuntime } from '../arca-runtime';
+import { type BillingGateways, createBillingGateways } from '../billing-gateways';
 import { recordEmission } from '../emitted-vouchers';
 import { getGlobalOptions, registerGlobalOptions } from '../global-options';
 import { withPendingSpinner } from '../pending-spinner';
@@ -117,34 +112,17 @@ export interface BillingCommandOptions {
   readonly extraWarnings?: readonly string[];
 }
 
-/**
- * Los gateways de ARCA que usa el comando.
- *
- * @internal Exportado para los tests.
- */
-export interface BillingCommandGateways extends BillingPreviewGateways {
-  readonly billing: BillingGateway;
-}
+/** @internal Exportado para los tests. */
+export type BillingCommandGateways = BillingGateways;
 
 /** Lo que el comando toma de afuera: en los tests, una config y un ARCA falsos. */
 export interface BillingCommandDependencies {
-  readonly createGateways: (runtime: CliArcaRuntime) => BillingCommandGateways;
+  readonly createGateways: (runtime: CliArcaRuntime) => BillingGateways;
   readonly resolveRuntime: typeof resolveArcaRuntime;
 }
 
 const DEFAULT_DEPENDENCIES: BillingCommandDependencies = {
-  createGateways: (runtime) => {
-    const arca = new ArcaClientFactory().create(runtime);
-
-    return {
-      billing: new ArcaBillingGateway(arca),
-      fce: new ArcaFceObligationGateway(arca),
-      fceRegistry: new ArcaFceRegistryGateway(arca),
-      history: new ArcaVoucherHistoryGateway(arca),
-      padron: new ArcaPadronGateway(arca),
-      salesPoints: new ArcaParametersGateway(arca),
-    };
-  },
+  createGateways: (runtime) => createBillingGateways(new ArcaClientFactory().create(runtime)),
   resolveRuntime: resolveArcaRuntime,
 };
 

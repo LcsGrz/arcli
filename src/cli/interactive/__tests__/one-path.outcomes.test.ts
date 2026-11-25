@@ -341,9 +341,7 @@ describe('"Sí, emitir y generar el PDF"', () => {
 });
 
 describe('el asistente emite por los casos de uso de modules', () => {
-  // Con la E, hoy el asistente emite sin pasar por el control de "¿la entrada pide emitir?".
-  // Tests primero (REV-53): pasa a it() al implementarlo.
-  it.fails('Factura E: si la entrada no pide emitir, no llega a ARCA', async () => {
+  it('Factura E: si la entrada no pide emitir, no llega a ARCA', async () => {
     const assistant = await forcing('neverEmit', () => runAssistant(invoiceFlow, { steps: [...FE_STEPS, EMIT] }));
 
     expect(assistant.requests).toEqual([]);
@@ -362,8 +360,7 @@ describe('el asistente emite por los casos de uso de modules', () => {
     expect(text(command.after)).toMatch(/7646392658\d{4}/);
   });
 
-  // Tests primero (REV-53): pasa a it() al implementarlo.
-  it.fails.each(FAMILIES)('$name: si no se puede anotar lo emitido, igual se muestra', async ({ steps }) => {
+  it.each(FAMILIES)('$name: si no se puede anotar lo emitido, igual se muestra', async ({ steps }) => {
     const assistant = await forcing('failRecord', () => runAssistant(invoiceFlow, { steps: [...steps, EMIT] }));
 
     expect(text(assistant.after)).toMatch(/7646392658\d{4}/);

@@ -61,6 +61,15 @@ function createSession(
   };
 }
 
+/** `DD/MM/YYYY` en Argentina, de hoy en adelante. */
+const argentineDay = (offset: number) =>
+  new Intl.DateTimeFormat('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+  }).format(Date.now() + offset * 24 * 60 * 60 * 1000);
+
 const input = billingCommandSchema.parse({
   concept: 'servicios',
   ivaCondition: 'consumidor-final',
@@ -93,15 +102,19 @@ describe('previewAndEmit', () => {
   });
 
   it('avisa la fecha futura, una sola vez y como el comando (10016, ARQ-22)', async () => {
-    const tomorrow = new Intl.DateTimeFormat('es-AR', {
-      day: '2-digit',
-      month: '2-digit',
-      timeZone: 'America/Argentina/Buenos_Aires',
-      year: 'numeric',
-    }).format(Date.now() + 24 * 60 * 60 * 1000);
+    const tomorrow = argentineDay(1);
 
     chooseOneMock.mockResolvedValueOnce(false);
-    await previewAndEmit(createSession('testing'), { ...input, billingDate: tomorrow }, ['AVISO DEL ASOCIADO']);
+    await previewAndEmit(
+      createSession('testing'),
+      {
+        ...input,
+        associatedVoucher: { fecha: argentineDay(0), numero: 15, puntoVenta: 50, shortcut: 'fc' },
+        billingDate: tomorrow,
+        shortcut: 'ncc',
+      },
+      { arcaType: 11, number: 15, origin: 'other', pointOfSale: 50 },
+    );
 
     const output = stripAnsi(
       vi
@@ -111,7 +124,8 @@ describe('previewAndEmit', () => {
     );
 
     // Como en el comando: primero el asociado.
-    expect(output.indexOf('AVISO DEL ASOCIADO')).toBeLessThan(output.indexOf('es futura'));
+    expect(output.indexOf('No se encontró la factura C')).toBeGreaterThan(-1);
+    expect(output.indexOf('No se encontró la factura C')).toBeLessThan(output.indexOf('es futura'));
     expect(output.match(/error\s+[^\d]*10016/g)).toHaveLength(1);
   });
 
@@ -541,12 +555,12 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
     expect(getObligation).not.toHaveBeenCalled();
 
     chooseOneMock.mockResolvedValueOnce(false);
-    await previewAndEmit({ ...session, runtime }, entry, ['aviso del flujo']);
+    await previewAndEmit({ ...session, runtime }, { ...entry, billingDate: argentineDay(1) });
 
     const shown = write.mock.calls.map(([chunk]) => String(chunk)).join('');
 
     expect(getObligation).toHaveBeenCalledTimes(1);
-    expect(shown.indexOf('aviso del flujo')).toBeGreaterThan(-1);
-    expect(shown.indexOf('está obligado')).toBeGreaterThan(shown.indexOf('aviso del flujo'));
+    expect(shown.indexOf('es futura')).toBeGreaterThan(-1);
+    expect(shown.indexOf('está obligado')).toBeGreaterThan(shown.indexOf('es futura'));
   });
 });

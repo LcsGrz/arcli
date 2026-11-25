@@ -170,12 +170,16 @@ interface ResolvedAssociatedVoucher {
   readonly voucher: ExportIssuedVoucher;
 }
 
-/** Consulta en ARCA el comprobante que ajusta la nota. Es una lectura: no emite nada. */
+/**
+ * El comprobante que ajusta la nota: el que ya leyo quien llama, si es el de la entrada, o el que se consulta en ARCA.
+ * Es una lectura: no emite nada.
+ */
 async function fetchAssociated(
   input: ExportVoucherInput,
   gateway: ExportPreviewGateway,
   runtime: ExportRuntime,
   kind: ExportVoucherKind,
+  read: ExportIssuedVoucher | undefined,
 ): Promise<ResolvedAssociatedVoucher> {
   const query = resolveExportAssociatedQuery({
     emitterCuit: runtime.cuit,
@@ -183,7 +187,9 @@ async function fetchAssociated(
     kind,
     pointOfSale: resolveExportPointOfSale(input.pointOfSale, runtime.config),
   });
-  const voucher = await fetchExportAssociatedVoucher(gateway, query);
+  const isRead =
+    read?.arcaType === query.arcaType && read.number === query.number && read.pointOfSale === query.pointOfSale;
+  const voucher = isRead ? read : await fetchExportAssociatedVoucher(gateway, query);
 
   if (!voucher) {
     throw missingExportAssociatedVoucherError(query);
@@ -313,12 +319,14 @@ export class ExportService {
 
   /**
    * Resuelve todo lo que pide WSFEX antes de emitir: tablas de paises, incoterms, idiomas y unidades,
-   * numeracion y cotizacion. Son llamadas de lectura: no emiten nada.
+   * numeracion y cotizacion. Son llamadas de lectura: no emiten nada. `read` es el asociado que quien llama ya consulto:
+   * si es el de la entrada, no se consulta de nuevo.
    */
   public async resolve(
     rawInput: ExportVoucherInput,
     gateway: ExportPreviewGateway,
     runtime: ExportRuntime,
+    read?: ExportIssuedVoucher,
   ): Promise<ResolvedExportVoucher> {
     const now = this.clock.now();
     const today = formatDateAsArcaDate(now);
@@ -332,7 +340,7 @@ export class ExportService {
     // Sin asociado (solo en notas de bienes y otros, 2047) la nota lleva todo por flag.
     const associated =
       isExportNote(voucherKind) && exportNoteHasAssociated(rawInput, voucherKind)
-        ? await fetchAssociated(rawInput, gateway, runtime, voucherKind)
+        ? await fetchAssociated(rawInput, gateway, runtime, voucherKind, read)
         : undefined;
     const input = associated ? applyExportAssociatedDefaults(rawInput, associated.voucher) : rawInput;
     const activityCode = input.activity ?? config.exportacion?.actividad;
