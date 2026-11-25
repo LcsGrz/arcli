@@ -22,7 +22,7 @@ import { accountAliasRemovedWarning, cbuRemovalWarning } from '../../modules/con
 import { formatConfigAsText, formatConfigDoctorAsText } from '../../modules/config/config.presenter';
 import { type ArcliConfig, type ArcliEnvironment, formatEnvironmentLabel } from '../../modules/config/config.schemas';
 import { CONFIG_SECTIONS } from '../../modules/config/config.sections';
-import { ConfigService, validateConfigValue } from '../../modules/config/config.service';
+import { type ConfigService, validateConfigValue } from '../../modules/config/config.service';
 import { buildConfigDoctorReport } from '../../modules/config/config-doctor';
 import type { ConfigPublicKey } from '../../modules/config/config-key-table';
 import { formatDesktopShortcutAsText } from '../../modules/desktop-shortcut/desktop-shortcut.presenter';
@@ -42,6 +42,7 @@ import { formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import { bold, noticePanel, productionBanner, uiSymbol, writeTerminalOutput } from '../../ui';
 import { buildRuntimeChecks } from '../commands/config.command';
+import { withConfigService } from '../config-service';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
@@ -77,20 +78,16 @@ const ISSUER_KEYS: readonly ConfigPublicKey[] = [
   'emisor.iibb',
 ];
 
-function withConfigService<T>(run: (service: ConfigService) => T): T {
-  const service = new ConfigService();
-
-  try {
+function withInitializedConfig<T>(run: (service: ConfigService) => T): T {
+  return withConfigService((service) => {
     service.ensureInitialized();
 
     return run(service);
-  } finally {
-    service.close();
-  }
+  });
 }
 
 function readConfig(): ArcliConfig {
-  return withConfigService((service) => service.getConfig());
+  return withInitializedConfig((service) => service.getConfig());
 }
 
 function validate(key: ConfigPublicKey, value: string): string | true {
@@ -218,7 +215,7 @@ async function askField(
   }
 
   if (value === CLEAR) {
-    withConfigService((service) => service.unsetValue(field.key));
+    withInitializedConfig((service) => service.unsetValue(field.key));
 
     return 'borrado';
   }
@@ -227,7 +224,7 @@ async function askField(
     return 'sin-cambios';
   }
 
-  withConfigService((service) => service.setValue(field.key, value));
+  withInitializedConfig((service) => service.setValue(field.key, value));
 
   return 'guardado';
 }
@@ -287,7 +284,7 @@ async function askAccount(config: ArcliConfig): Promise<'borrado' | 'guardado' |
   const { alias, cbu } = answer;
 
   if (isClear(cbu)) {
-    withConfigService((service) => service.unsetValue('cuenta'));
+    withInitializedConfig((service) => service.unsetValue('cuenta'));
 
     const removed = cbuRemovalWarning(config);
 
@@ -304,7 +301,7 @@ async function askAccount(config: ArcliConfig): Promise<'borrado' | 'guardado' |
     return 'sin-cambios';
   }
 
-  withConfigService((service) => service.setValue('cuenta', cbu, alias));
+  withInitializedConfig((service) => service.setValue('cuenta', cbu, alias));
 
   if (isSame && !alias) {
     return 'borrado';
@@ -494,7 +491,7 @@ async function runChangeField(flags: EnvironmentFlags): Promise<void> {
 }
 
 async function runPdfPluginMenu(): Promise<void> {
-  const plugin = withConfigService(
+  const plugin = withInitializedConfig(
     (service) =>
       new PdfPlugin({
         configuredBrowser: service.getConfig().pdfNavegador,
@@ -583,7 +580,7 @@ type ConfigOption =
 /** Un error aca no corta el menu: se avisa y se puede seguir (por ejemplo, si no hay escritorio). */
 async function runDesktopShortcut(): Promise<void> {
   try {
-    const environment = withConfigService((service) => currentDesktopShortcutEnvironment(service.getPath()));
+    const environment = withInitializedConfig((service) => currentDesktopShortcutEnvironment(service.getPath()));
 
     writeTerminalOutput(formatDesktopShortcutAsText(createDesktopShortcut(undefined, environment)));
   } catch (error) {
@@ -596,7 +593,7 @@ async function runDesktopShortcut(): Promise<void> {
 }
 
 function showConfig(): void {
-  withConfigService((service) => {
+  withInitializedConfig((service) => {
     const config = service.getConfig();
 
     writeTerminalOutput(formatConfigAsText(config, service.resolvePaths(config)));

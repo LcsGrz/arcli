@@ -70,6 +70,8 @@ yarn lint
 yarn test
 ```
 
+Ningún test toca la config real: `src/__tests__/setup.ts` fija carpetas temporales y falla si la de datos queda afuera. Un test que abre la config o un caché dice la carpeta (`new ConfigService({ cwd })`) o usa la de la app (`openConfigService`, que toma `ARCLI_CONFIG_DIR`); sin carpeta no compila y, si se saltean los tipos, falla. En código de producción lo controla la regla `arcli/data-directory` (`scripts/lint`).
+
 Para cambios de empaquetado o publicación, `yarn open-source:check`.
 
 ### Propiedades

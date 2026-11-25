@@ -5,6 +5,8 @@ import eslintConfigPrettier from 'eslint-config-prettier/flat';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import eslintTS from 'typescript-eslint';
 
+import { dataDirectoryRule } from './scripts/lint/data-directory-rule.mjs';
+
 const UI_STYLE_IMPORTS = [
   { name: 'boxen', message: 'Usá los paneles de src/ui.' },
   ...['node:util', 'util'].map((name) => ({
@@ -128,14 +130,10 @@ const CORE_ON_FS = ['node:fs', 'node:fs/promises', 'fs', 'fs/promises'].map((nam
   message:
     'El núcleo no lee ni escribe archivos: recibí el contenido, o un puerto (TicketStore, un repositorio) como dependencia. Lo cierra ARQ-12.',
 }));
-/** Leen el proceso junto con los archivos o la carpeta de la config: se mudan con ellos. Ningún otro del núcleo. */
-const PROCESS_DEBT_FILES = [
-  'src/lib/files/restrict-to-owner.ts',
-  'src/modules/certificates/certificate-store.ts',
-  'src/modules/config/config.service.ts',
-];
+/** Leen el proceso junto con los archivos: se mudan con ellos. Ningún otro del núcleo. */
+const PROCESS_DEBT_FILES = ['src/lib/files/restrict-to-owner.ts', 'src/modules/certificates/certificate-store.ts'];
 const PROCESS_DEBT_MESSAGE =
-  'La plataforma y ARCLI_CONFIG_DIR se leen acá junto con los archivos: pasan al adaptador con ellos. Lo cierra ARQ-12. No copies el patrón.';
+  'La plataforma se lee acá junto con los archivos: pasa al adaptador con ellos. Lo cierra ARQ-12. No copies el patrón.';
 
 /** Las reglas de deuda del núcleo; en los módulos de la app, todas con el mensaje de ARQ-7. */
 const coreDebtRules = ({ message, extraPaths = [] } = {}) => {
@@ -305,6 +303,21 @@ export default defineConfig([
       ...noProcessGlobal('warn', APP_MODULE_MESSAGE),
       ...coreDebtRules({ message: APP_MODULE_MESSAGE, extraPaths: processModule(APP_MODULE_MESSAGE) }),
     },
+  },
+  {
+    // La carpeta de datos siempre explícita: cada excepción habilita solo lo suyo.
+    files: ['src/**/*.ts'],
+    ignores: TESTING_USERS,
+    plugins: { arcli: { rules: { 'data-directory': dataDirectoryRule } } },
+    rules: { 'arcli/data-directory': 'error' },
+  },
+  {
+    files: ['src/cli/config-service.ts'],
+    rules: { 'arcli/data-directory': ['error', { opensConfig: true }] },
+  },
+  {
+    files: ['src/cli/data-directory.ts'],
+    rules: { 'arcli/data-directory': ['error', { resolvesDirectory: true }] },
   },
   ...layerImports({
     files: ['src/services/**/*.ts'],

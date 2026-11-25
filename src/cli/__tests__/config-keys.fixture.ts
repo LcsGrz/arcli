@@ -4,8 +4,9 @@ import { basename, dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, vi } from 'vitest';
 
-import { ConfigService } from '../../modules/config/config.service';
+import type { ConfigService } from '../../modules/config/config.service';
 import { type ConfigPublicKey, configPublicKeySchema } from '../../modules/config/config-key-table';
+import { openConfigService } from '../config-service';
 import { reportCliError, shouldPrintErrorAsJson } from '../error-output';
 import { createProgram } from '../program';
 
@@ -107,7 +108,7 @@ export function fullValue(key: string): readonly [value: string, alias?: string]
 }
 
 export function withConfigService<T>(run: (service: ConfigService) => T): T {
-  const service = new ConfigService();
+  const service = openConfigService();
 
   try {
     return run(service);

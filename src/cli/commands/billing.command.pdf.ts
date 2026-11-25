@@ -3,12 +3,12 @@ import { join } from 'node:path';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
-import { ConfigService } from '../../modules/config/config.service';
 import { PDF_INSTALL_SUGGESTION, PdfError } from '../../modules/pdf/pdf.errors';
 import { answerPdfDecisions, canHavePdf, decidePdfs, type PdfDecision } from '../../modules/pdf/pdf-decision';
 import { billingPdfVoucher, generatePdfs, type PdfExporter } from '../../modules/pdf/pdf-generation';
 import { createPdfFileExporter } from '../../services/pdf/pdf-file-exporter';
 import { PdfPlugin, type PdfRenderer } from '../../services/pdf/pdf-plugin';
+import { withConfigService } from '../config-service';
 import { confirm, isPromptCancellation } from '../interactive/prompts';
 import { startSpinner } from '../spinner';
 
@@ -25,22 +25,14 @@ export interface PdfStepDependencies {
 export const defaultPdfStepDependencies: PdfStepDependencies = {
   confirm: (message, yesLabel, noLabel) => confirm(message, yesLabel, noLabel),
   createPlugin: (config) => {
-    const service = new ConfigService();
-
-    try {
+    return withConfigService((service) => {
       return new PdfPlugin({ configuredBrowser: config.pdfNavegador, path: join(service.getPluginsPath(), 'pdf') });
-    } finally {
-      service.close();
-    }
+    });
   },
   resolveFolder: (config) => {
-    const service = new ConfigService();
-
-    try {
+    return withConfigService((service) => {
       return service.resolvePdfFolder(config);
-    } finally {
-      service.close();
-    }
+    });
   },
 };
 

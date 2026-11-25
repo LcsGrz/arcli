@@ -24,26 +24,26 @@ afterEach(() => {
   Object.defineProperty(process.stderr, 'isTTY', { configurable: true, value: originalIsTty });
 });
 
-// Tests primero: `it.fails` hasta que la carpeta sea obligatoria.
 describe.each([
   ['sin definir', undefined],
   ['vacía', ''],
+  ['en blanco', '  '],
 ])('con la carpeta %s', (_name, value) => {
-  it.fails('ConfigService falla sin escribir nada', () => {
+  it('ConfigService falla sin escribir nada', () => {
     const before = homeEntries();
 
     expect(() => new ConfigService({ cwd: skippingTypes(value) }).close()).toThrow(/carpeta de datos/);
     expect(homeEntries()).toEqual(before);
   });
 
-  it.fails('el store del monotributo falla sin escribir nada', () => {
+  it('el store del monotributo falla sin escribir nada', () => {
     const before = homeEntries();
 
     expect(() => new FileMonotributoStore(skippingTypes(value))).toThrow(/carpeta de datos/);
     expect(homeEntries()).toEqual(before);
   });
 
-  it.fails('el caché de la versión falla sin consultar npm ni escribir nada', async () => {
+  it('el caché de la versión falla sin consultar npm ni escribir nada', async () => {
     const before = homeEntries();
     const request = vi.fn();
 

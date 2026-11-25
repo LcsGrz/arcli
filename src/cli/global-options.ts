@@ -1,8 +1,8 @@
 import type { Command } from 'commander';
 
 import type { ArcliConfig } from '../modules/config/config.schemas';
-import { ConfigService } from '../modules/config/config.service';
 
+import { withConfigService } from './config-service';
 import type { GlobalCliOptions } from './types';
 
 /**
@@ -44,13 +44,9 @@ type OutputConfig = Pick<ArcliConfig, 'output'>;
 /** `json` de la config. Si la config no se puede leer, texto: el error de la config ya sale por su lado. */
 export function readJsonDefault(): boolean {
   try {
-    const service = new ConfigService();
-
-    try {
+    return withConfigService((service) => {
       return service.getConfig().output.jsonPorDefecto;
-    } finally {
-      service.close();
-    }
+    });
   } catch {
     return false;
   }

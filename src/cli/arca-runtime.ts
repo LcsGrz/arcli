@@ -9,10 +9,11 @@ import {
   renewalGuideUrl,
 } from '../modules/config/certificate-expiry';
 import type { ArcliConfig, ArcliEnvironment } from '../modules/config/config.schemas';
-import { ConfigService } from '../modules/config/config.service';
+import type { ConfigService } from '../modules/config/config.service';
 import { checkArcaProfile, loadArcaProfile } from '../services/arca/arca-profile.loader';
 import { certificateBanner, writeTerminalNotice } from '../ui';
 
+import { withConfigService } from './config-service';
 import type { GlobalCliOptions } from './types';
 
 /** El perfil de ARCA mas como responde el comando: lo que reciben los comandos y el modo interactivo. */
@@ -64,16 +65,6 @@ export function writeCertificateNotice(runtime: CertificateRuntime): void {
 /** Lo que se suma a `avisos` en el JSON de facturacion. En texto el aviso ya salio arriba: no se repite. */
 export function certificateWarnings(runtime: CertificateRuntime): string[] {
   return runtime.outputJson ? runtime.certificateNotices.map((notice) => notice.message) : [];
-}
-
-function withConfigService<T>(run: (service: ConfigService) => T): T {
-  const service = new ConfigService();
-
-  try {
-    return run(service);
-  } finally {
-    service.close();
-  }
 }
 
 /** Con la config incompleta corta con su error, antes de tocar las carpetas. */

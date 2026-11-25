@@ -29,12 +29,12 @@ import {
   COMPLETION_SHELLS,
   type CompletionShell,
 } from '../../modules/completion/shell-scripts';
-import { ConfigService } from '../../modules/config/config.service';
 import { configPublicKeySchema } from '../../modules/config/config-key-table';
 import { getExportVoucherKindByFamily } from '../../modules/export/export.kinds';
 import { CONFIG_FIELDS } from '../../modules/interactive/config-fields';
 import { PARAMETER_TABLE_NAMES } from '../../modules/parameters/parameters';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
+import { withConfigService } from '../config-service';
 import { registerJsonOption, resolveOutputJson } from '../global-options';
 import { configureSpanishHelp, createCompletionHelp } from '../help';
 
@@ -125,13 +125,9 @@ function resolveShell(value: string | undefined, environment: CompletionEnvironm
 }
 
 function isJson(command: Command): boolean {
-  const service = new ConfigService();
-
-  try {
+  return withConfigService((service) => {
     return resolveOutputJson(command, service.getConfig());
-  } finally {
-    service.close();
-  }
+  });
 }
 
 export function registerCompletionCommands(program: Command): void {

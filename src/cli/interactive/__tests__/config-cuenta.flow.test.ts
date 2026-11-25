@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfigService } from '../../../modules/config/config.service';
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
+import { openConfigService } from '../../config-service';
 import { runConfigMenu } from '../config.flow';
 import { askTextStep, chooseOne, chooseStep } from '../prompts';
 
@@ -29,7 +30,7 @@ let output = '';
 let fceKeys: unknown[] = [];
 
 function withConfig<T>(run: (service: ConfigService) => T): T {
-  const service = new ConfigService();
+  const service = openConfigService();
 
   try {
     return run(service);
