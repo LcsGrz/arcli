@@ -9,7 +9,7 @@ import { EXPORT_VOUCHER_KIND } from '../../modules/export/export.types';
 import { serializeFceObligation } from '../../modules/fce/fce-obligation.presenter';
 import { serializePadron } from '../../modules/padron/padron.presenter';
 import { serializeStatus } from '../../modules/parameters/parameters.presenter';
-import { toDetailErrors, withDeprecatedErrors } from '../../services/arca/arca-error-details';
+import { arcaErrorDetails, toDetailErrors, withDeprecatedErrors } from '../../services/arca/arca-error-details';
 
 function billingResult(errors: unknown[] = [], events: unknown[] = []): BillingExecutionResult {
   return {
@@ -105,6 +105,13 @@ describe('detalles de los errores de ARCA', () => {
     expect(toDetailErrors([{ code: 11002, msg: 'Mal' }])).toEqual([
       { code: 11002, codigo: 11002, mensaje: 'Mal', msg: 'Mal' },
     ]);
+  });
+
+  it('avisa por code y msg solo si vienen', () => {
+    expect(arcaErrorDetails([{ code: null, msg: 'Mal' }]).deprecado).toEqual([
+      '`code` y `msg` de `detalles.errores` se sacan en la 3.0.0: usá `codigo` y `mensaje`.',
+    ]);
+    expect(arcaErrorDetails([])).toEqual({ errores: [] });
   });
 
   it('deja detalles.errors con su aviso', () => {

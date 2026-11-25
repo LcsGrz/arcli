@@ -7,6 +7,9 @@ exit: 1
 {
   "codigo": "ARCA_PARAMETERS_ERROR",
   "detalles": {
+    "deprecado": [
+      "`code` y `msg` de `detalles.errores` se sacan en la 3.0.0: usá `codigo` y `mensaje`."
+    ],
     "errores": [
       {
         "code": 600,

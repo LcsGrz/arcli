@@ -24,11 +24,11 @@ import {
 
 import type { Arca, IFEXAuthorizeInput, IFEXGetLast_CMPInput } from './arca-sdk.types';
 import { readExportAnswer } from './authorization-answer';
-import { isNotAuthorized, notAuthorizedMessage } from './not-authorized';
+import { AUTHORIZE_SERVICE_SUGGESTION, isNotAuthorized, notAuthorizedTitle } from './not-authorized';
 import type { SdkRequest } from './sdk-request';
 import { unreadableVoucherError, voucherQueryError } from './voucher-query-error';
 
-const NOT_AUTHORIZED_MESSAGE = notAuthorizedMessage('wsfex', 'factura de exportación');
+const NOT_AUTHORIZED_MESSAGE = notAuthorizedTitle('wsfex', 'factura de exportación');
 
 type FexCmp = IFEXAuthorizeInput['Cmp'];
 /** Los campos que ARCA no siempre acepta: el SDK, como el WSDL, los tipa obligatorios. */
@@ -208,7 +208,10 @@ export class ArcaExportGateway implements ExportGateway {
       return await request(this.arca.wsfexService);
     } catch (error) {
       if (isNotAuthorized(error)) {
-        throw new AppError(NOT_AUTHORIZED_MESSAGE, { code: 'WSFEX_SERVICE_NOT_AUTHORIZED' });
+        throw new AppError(NOT_AUTHORIZED_MESSAGE, {
+          code: 'WSFEX_SERVICE_NOT_AUTHORIZED',
+          suggestion: AUTHORIZE_SERVICE_SUGGESTION,
+        });
       }
 
       throw error;
@@ -422,7 +425,8 @@ export class ArcaExportGateway implements ExportGateway {
   public async getLastRequestId(): Promise<number> {
     const data = (await this.call((service) => service.getLastId({}))).FEXGetLast_IDResult;
 
-    assertNoError(data, 'el último ID de solicitud');
+    // Solo se pide al facturar.
+    assertNoError(data, 'el último ID de solicitud', lastNumberErrorSuggestion('emitir'));
 
     return Number(data?.FEXResultGet?.Id) || 0;
   }

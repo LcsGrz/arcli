@@ -14,10 +14,10 @@ describe('resolveEnvironment', () => {
     expect(resolveEnvironment(flags, { entornoPorDefecto })).toBe(expected);
   });
 
-  it('con los dos flags es un error de configuracion', () => {
+  it('con los dos flags es un error de entrada', () => {
     expect(() => resolveEnvironment({ produccion: true, testing: true }, { entornoPorDefecto: 'testing' })).toThrow(
       expect.objectContaining({
-        code: 'CONFIGURATION_ERROR',
+        code: 'INPUT_VALIDATION_ERROR',
         message: 'Usá `--testing` o `--produccion`, pero no ambos a la vez.',
       }),
     );

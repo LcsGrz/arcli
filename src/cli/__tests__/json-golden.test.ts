@@ -2060,8 +2060,8 @@ describe('el certificado sin autorizar, en las consultas (ERR-7)', () => {
       expect(await failure(['ultimos', shortcut])).toEqual({
         codigo: 'WSFEX_SERVICE_NOT_AUTHORIZED',
         detalles: null,
-        error: expect.stringContaining('El certificado no está autorizado para el servicio wsfex'),
-        sugerencia: null,
+        error: 'El certificado no está autorizado para el servicio wsfex (factura de exportación).',
+        sugerencia: expect.stringContaining('Autorizalo igual que wsfe'),
       });
       expect(sdk.wsfex.getLastCmp).not.toHaveBeenCalled();
     },
@@ -3103,7 +3103,10 @@ describe('otros comandos que van a ARCA', () => {
 
       expect(await failure(['ultimos', 'fc'])).toEqual({
         codigo: 'ARCA_LAST_VOUCHER_ERROR',
-        detalles: { errores: [{ code: 501, codigo: 501, mensaje: 'Error interno', msg: 'Error interno' }] },
+        detalles: {
+          deprecado: ['`code` y `msg` de `detalles.errores` se sacan en la 3.0.0: usá `codigo` y `mensaje`.'],
+          errores: [{ code: 501, codigo: 501, mensaje: 'Error interno', msg: 'Error interno' }],
+        },
         error: 'ARCA devolvió un error al pedir el último comprobante del punto de venta 3: 501 Error interno',
         sugerencia: `Revisá el mensaje de ARCA: si es pasajero, volvé a consultar en unos minutos; si no, corregí lo que dice. Si se repite, no insistas. ${VERIFY}`,
       });
@@ -3854,8 +3857,7 @@ describe('los mismos datos en los errores de todas las familias (REV-58)', () =>
       });
     });
 
-    // Tests primero (REV-58): pasa a it() al implementarlo.
-    it.fails.each([
+    it.each([
       ['nce', NCE],
       ['nde', NDE],
     ])('%s: qué revisar va en la sugerencia, como en A, B y C', async (_name, args) => {
@@ -3896,8 +3898,7 @@ describe('los mismos datos en los errores de todas las familias (REV-58)', () =>
       ['consultar fe', ['consultar', 'fe', '8'], () => sdk.wsfex.getCmp.mockRejectedValue(NOT_AUTHORIZED)],
     ];
 
-    // Tests primero (REV-58): pasa a it() al implementarlo.
-    it.fails.each(WSFEX_CASES)('%s: cómo autorizarlo va en la sugerencia, como en wsfe', async (_name, args, fail) => {
+    it.each(WSFEX_CASES)('%s: cómo autorizarlo va en la sugerencia, como en wsfe', async (_name, args, fail) => {
       fail();
 
       expect(await failure(args)).toEqual({
@@ -3917,6 +3918,21 @@ describe('los mismos datos en los errores de todas las familias (REV-58)', () =>
 
       expect(shown).toContain('El certificado no está autorizado para el servicio wsfex (factura de exportación).');
       expect(shown).toMatch(/Autorizalo .*WSASS \("Crear autorización a servicio"\).*el Administrador de Relaciones/);
+    });
+
+    it.each([
+      ['fe', FE],
+      ['nce', NCE],
+      ['nde', NDE],
+    ])('%s: un error de ARCA al pedir el ID de solicitud trae la sugerencia del último número', async (_name, args) => {
+      sdk.wsfex.getLastId.mockResolvedValue({ FEXGetLast_IDResult: { FEXErr: { ErrCode: 1000, ErrMsg: 'x' } } });
+
+      expect(await failure(args)).toEqual({
+        codigo: 'ARCA_EXPORT_ERROR',
+        detalles: { errores: [{ codigo: 1000, mensaje: 'x' }] },
+        error: 'ARCA devolvió un error al consultar el último ID de solicitud: x',
+        sugerencia: 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.',
+      });
     });
 
     it('sin cambios: el aviso de una FCE cita a wsfecred con cómo autorizarlo', async () => {
@@ -3990,8 +4006,7 @@ describe('los mismos datos en los errores de todas las familias (REV-58)', () =>
       ],
     ];
 
-    // Tests primero (REV-58): pasa a it() al implementarlo.
-    it.fails.each(INVALID)('%s', async (_name, command, content, campos) => {
+    it.each(INVALID)('%s', async (_name, command, content, campos) => {
       expect((await load(command, content)).detalles).toEqual({ campos });
     });
 
@@ -4003,8 +4018,7 @@ describe('los mismos datos en los errores de todas las familias (REV-58)', () =>
       });
     });
 
-    // Tests primero (REV-58): pasa a it() al implementarlo.
-    it.fails('el mismo problema da el mismo error en la E y en A, B y C', async () => {
+    it('el mismo problema da el mismo error en la E y en A, B y C', async () => {
       const content = { comprobanteAsociado: { numero: '1' }, montototal: 1000, puntoVenta: '4' };
       const fc = await load(['fc'], content);
 
@@ -4038,8 +4052,7 @@ describe('los mismos datos en los errores de todas las familias (REV-58)', () =>
       });
     });
 
-    // Tests primero (REV-58): pasa a it() al implementarlo.
-    it.fails('detalles.errores vacío, sin las claves viejas que la E nunca tuvo', async () => {
+    it('detalles.errores vacío, sin las claves viejas que la E nunca tuvo', async () => {
       expect((await failure(FE)).detalles).toEqual({ errores: [] });
     });
 
@@ -4103,15 +4116,13 @@ describe('los mismos datos en los errores de todas las familias (REV-58)', () =>
       ],
     ];
 
-    // Tests primero (REV-58): pasa a it() al implementarlo.
-    it.fails.each(WITH_OLD_KEYS)('%s: avisa', async (_name, args, entry, fail) => {
+    it.each(WITH_OLD_KEYS)('%s: avisa', async (_name, args, entry, fail) => {
       fail();
 
       expect((await failure(args)).detalles).toEqual({ deprecado: [CODE_AND_MSG], errores: [entry] });
     });
 
-    // Tests primero (REV-58): pasa a it() al implementarlo.
-    it.fails.each(WITH_BOTH)('%s: avisa también por detalles.errors', async (_name, args, fail) => {
+    it.each(WITH_BOTH)('%s: avisa también por detalles.errors', async (_name, args, fail) => {
       fail();
 
       const { deprecado } = (await failure(args)).detalles as { deprecado: string[] };

@@ -11,7 +11,7 @@ import type {
   ServerStatus,
 } from '../../modules/parameters/parameters';
 
-import { toDetailErrors, withDeprecatedErrors } from './arca-error-details';
+import { arcaErrorDetails, toDetailErrors, withDeprecatedErrors } from './arca-error-details';
 import { rethrowIfWsfeNotAuthorized } from './last-voucher';
 
 interface ArcaParameterRow {
@@ -35,7 +35,7 @@ function readRows<T>(result: ArcaListResult, key: string, operation: string): T[
   if (errors.some((error) => error.code !== NO_RESULTS_CODE)) {
     throw new AppError(`ARCA devolvió un error al consultar ${operation}: ${errors.map((e) => e.msg).join('; ')}`, {
       code: 'ARCA_PARAMETERS_ERROR',
-      details: { errores: toDetailErrors(errors) },
+      details: arcaErrorDetails(errors),
     });
   }
 

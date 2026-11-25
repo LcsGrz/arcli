@@ -6,6 +6,9 @@ export const DEPRECATED_POINT_OF_SALE_OBJECT =
 
 export const DEPRECATED_DETAILS_ERRORS = '`detalles.errors` se saca en la 3.0.0: usá `detalles.errores`.';
 
+export const DEPRECATED_DETAILS_ERROR_KEYS =
+  '`code` y `msg` de `detalles.errores` se sacan en la 3.0.0: usá `codigo` y `mensaje`.';
+
 export const DEPRECATED_BILLING_RESPONSE_KEYS =
   '`Code` y `Msg` de `errores` y `eventos` se sacan en la 3.0.0: usá `codigo` y `mensaje`.';
 

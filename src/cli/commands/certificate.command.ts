@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { readFileSync } from 'node:fs';
 
-import { AppError, ConfigurationError, InputValidationError } from '../../lib/errors/app-error';
+import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import { maskPath } from '../../lib/paths/mask-path';
 import {
   formatGeneratedRequestAsText,
@@ -37,16 +37,9 @@ function withService<T>(run: (service: CertificateService, config: ConfigService
   }
 }
 
-/**
- * `--testing` / `--produccion`; sin ninguno, `undefined` (cada subcomando decide su default). Los dos juntos salen aca
- * con `INPUT_VALIDATION_ERROR`: el codigo es contrato y lo unifica REV-58.
- */
+/** `--testing` / `--produccion`; sin ninguno, `undefined` (cada subcomando decide su default). */
 function requestedEnvironment(command: Command): ArcliEnvironment | undefined {
-  try {
-    return explicitEnvironment(getGlobalOptions(command));
-  } catch (error) {
-    throw error instanceof ConfigurationError ? new InputValidationError(error.message) : error;
-  }
+  return explicitEnvironment(getGlobalOptions(command));
 }
 
 function readCertificateFile(path: string): string {

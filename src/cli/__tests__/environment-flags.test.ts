@@ -103,13 +103,9 @@ describe('--testing con --produccion', () => {
     expect(await runJsonError(argv)).toMatchObject({ detalles: null, error: MESSAGE, exitCode: 1, sugerencia: null });
   });
 
-  // Tests primero (REV-58): pasa a it() al implementarlo.
-  it.fails.each(COMMANDS.filter(([name]) => !ALREADY_INPUT.has(name)))(
-    '%s: INPUT_VALIDATION_ERROR',
-    async (_name, argv) => {
-      expect(await runJsonError(argv)).toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR', error: MESSAGE });
-    },
-  );
+  it.each(COMMANDS.filter(([name]) => !ALREADY_INPUT.has(name)))('%s: INPUT_VALIDATION_ERROR', async (_name, argv) => {
+    expect(await runJsonError(argv)).toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR', error: MESSAGE });
+  });
 
   it.each(COMMANDS.filter(([name]) => ALREADY_INPUT.has(name)))(
     'sin cambios: %s, INPUT_VALIDATION_ERROR',
