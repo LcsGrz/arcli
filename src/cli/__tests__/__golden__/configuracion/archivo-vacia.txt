@@ -1,0 +1,377 @@
+# Después de `arcli config`; cada cambio es sobre este
+{
+	"cert": {},
+	"emisor": {},
+	"entornoPorDefecto": "testing",
+	"key": {},
+	"monedaPorDefecto": "PES",
+	"cotizacionPorDefecto": 1,
+	"output": {
+		"emitirPorDefecto": false,
+		"jsonPorDefecto": false,
+		"brutoPorDefecto": false
+	}
+}
+
+alicuota
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"alicuotaPorDefecto": "10.5"
+  eliminar
+    igual
+cert.produccion
+  establecer
+    línea 2
+    - 	"cert": {},
+    + 	"cert": {
+    + 		"produccion": "<config>/cert-produccion.pem"
+    + 	},
+  eliminar
+    igual
+cert.testing
+  establecer
+    línea 2
+    - 	"cert": {},
+    + 	"cert": {
+    + 		"testing": "<config>/cert-testing.pem"
+    + 	},
+  eliminar
+    igual
+concepto
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"conceptoPorDefecto": "productos-servicios"
+  eliminar
+    igual
+condicionVenta
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"condicionVenta": "a 45 días"
+  eliminar
+    igual
+cuenta
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"cbu": "0110599520000012345678",
+    + 	"aliasCbu": "mi.alias.cbu"
+  eliminar
+    igual
+    aviso: AVISOS • Se borró también el alias mi.alias.cbu de la config: sin el CBU no se usa.
+cuit
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"cuit": "20123456786"
+  eliminar
+    igual
+cotizacion
+  establecer
+    línea 7
+    - 	"cotizacionPorDefecto": 1,
+    + 	"cotizacionPorDefecto": 1350.5,
+    aviso: La clave "cotizacion" está deprecada y se va a sacar en la 3.0.0: una cotización guardada queda vieja. Sin ella se usa la cotización oficial de ARCA; para otra, pasá `--cm` al facturar.
+  eliminar
+    igual
+emisor.condicionIva
+  establecer
+    línea 3
+    - 	"emisor": {},
+    + 	"emisor": {
+    + 		"condicionIva": "responsable-inscripto"
+    + 	},
+  eliminar
+    igual
+emisor.domicilio
+  establecer
+    línea 3
+    - 	"emisor": {},
+    + 	"emisor": {
+    + 		"domicilio": "Calle Ficticia 123"
+    + 	},
+  eliminar
+    igual
+emisor.iibb
+  establecer
+    línea 3
+    - 	"emisor": {},
+    + 	"emisor": {
+    + 		"iibb": "901-123456-7"
+    + 	},
+  eliminar
+    igual
+emisor.inicioActividades
+  establecer
+    línea 3
+    - 	"emisor": {},
+    + 	"emisor": {
+    + 		"inicioActividades": "20200301"
+    + 	},
+  eliminar
+    igual
+emisor.logo
+  establecer
+    línea 3
+    - 	"emisor": {},
+    + 	"emisor": {
+    + 		"logo": "<config>/logo.png"
+    + 	},
+  eliminar
+    igual
+emisor.razonSocial
+  establecer
+    línea 3
+    - 	"emisor": {},
+    + 	"emisor": {
+    + 		"razonSocial": "Ana Ficticia"
+    + 	},
+  eliminar
+    igual
+entorno
+  establecer
+    línea 4
+    - 	"entornoPorDefecto": "testing",
+    + 	"entornoPorDefecto": "produccion",
+  eliminar
+    igual
+emitir
+  establecer
+    línea 9
+    - 		"emitirPorDefecto": false,
+    + 		"emitirPorDefecto": true,
+  eliminar
+    igual
+exportacion.actividad
+  establecer
+    línea 12
+    + 	},
+    + 	"exportacion": {
+    + 		"actividad": 620100,
+    + 		"cert": {},
+    + 		"key": {}
+  eliminar
+    línea 12
+    + 	},
+    + 	"exportacion": {
+    + 		"cert": {},
+    + 		"key": {}
+exportacion.cert.produccion
+  establecer
+    línea 12
+    + 	},
+    + 	"exportacion": {
+    + 		"cert": {
+    + 			"produccion": "<config>/expo-cert-produccion.pem"
+    + 		},
+    + 		"key": {}
+  eliminar
+    línea 12
+    + 	},
+    + 	"exportacion": {
+    + 		"cert": {},
+    + 		"key": {}
+exportacion.cert.testing
+  establecer
+    línea 12
+    + 	},
+    + 	"exportacion": {
+    + 		"cert": {
+    + 			"testing": "<config>/expo-cert-testing.pem"
+    + 		},
+    + 		"key": {}
+  eliminar
+    línea 12
+    + 	},
+    + 	"exportacion": {
+    + 		"cert": {},
+    + 		"key": {}
+exportacion.key.produccion
+  establecer
+    línea 12
+    + 	},
+    + 	"exportacion": {
+    + 		"cert": {},
+    + 		"key": {
+    + 			"produccion": "<config>/expo-key-produccion.pem"
+    + 		}
+  eliminar
+    línea 12
+    + 	},
+    + 	"exportacion": {
+    + 		"cert": {},
+    + 		"key": {}
+exportacion.key.testing
+  establecer
+    línea 12
+    + 	},
+    + 	"exportacion": {
+    + 		"cert": {},
+    + 		"key": {
+    + 			"testing": "<config>/expo-key-testing.pem"
+    + 		}
+  eliminar
+    línea 12
+    + 	},
+    + 	"exportacion": {
+    + 		"cert": {},
+    + 		"key": {}
+filasPorLista
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"filasPorLista": 20
+  eliminar
+    igual
+ivaReceptor
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"ivaReceptorPorDefecto": "consumidor-final"
+  eliminar
+    igual
+json
+  establecer
+    línea 10
+    - 		"jsonPorDefecto": false,
+    + 		"jsonPorDefecto": true,
+  eliminar
+    igual
+key.produccion
+  establecer
+    línea 5
+    - 	"key": {},
+    + 	"key": {
+    + 		"produccion": "<config>/key-produccion.pem"
+    + 	},
+  eliminar
+    igual
+key.testing
+  establecer
+    línea 5
+    - 	"key": {},
+    + 	"key": {
+    + 		"testing": "<config>/key-testing.pem"
+    + 	},
+  eliminar
+    igual
+moneda
+  establecer
+    línea 6
+    - 	"monedaPorDefecto": "PES",
+    + 	"monedaPorDefecto": "USD",
+  eliminar
+    igual
+monotributo.tope
+  establecer
+    línea 12
+    + 	},
+    + 	"monotributo": {
+    + 		"tope": 30000000
+  eliminar
+    línea 12
+    - 	}
+    + 	},
+    + 	"monotributo": {}
+bruto
+  establecer
+    línea 11
+    - 		"brutoPorDefecto": false
+    + 		"brutoPorDefecto": true
+  eliminar
+    igual
+pdf
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"pdf": "siempre"
+  eliminar
+    igual
+pdfCarpeta
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"pdfCarpeta": "<config>/pdfs"
+  eliminar
+    igual
+pdfNavegador
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"pdfNavegador": "<config>/navegador"
+  eliminar
+    igual
+puntoVenta
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"puntoVentaPorDefecto": 3
+  eliminar
+    igual
+ticketPath
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"ticketPath": "<config>/tickets-propios"
+  eliminar
+    igual
+verificarFce
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"verificarFce": true
+  eliminar
+    igual
+consultarPadron
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"consultarPadron": false
+  eliminar
+    igual
+aliasCbu
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"aliasCbu": "mi.alias.cbu"
+    aviso: La clave "aliasCbu" está deprecada y se va a sacar en la 3.0.0: usá `arcli config establecer cuenta <CBU> [ALIAS]`.
+  eliminar
+    igual
+    aviso: La clave "aliasCbu" está deprecada y se va a sacar en la 3.0.0: usá `arcli config establecer cuenta <CBU>`, que deja la cuenta sin alias.
+cbu
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"cbu": "0110599520000012345678"
+    aviso: La clave "cbu" está deprecada y se va a sacar en la 3.0.0: usá `arcli config establecer cuenta <CBU> [ALIAS]`.
+  eliminar
+    igual
+    aviso: La clave "cbu" está deprecada y se va a sacar en la 3.0.0: usá `arcli config eliminar cuenta`.
+comprobantesPorLista
+  establecer
+    línea 12
+    - 	}
+    + 	},
+    + 	"filasPorLista": 12
+    aviso: La clave "comprobantesPorLista" está deprecada y se va a sacar en la 3.0.0: usá `filasPorLista`.
+  eliminar
+    igual
+    aviso: La clave "comprobantesPorLista" está deprecada y se va a sacar en la 3.0.0: usá `filasPorLista`.

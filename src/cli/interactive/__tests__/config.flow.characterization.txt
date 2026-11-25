@@ -1,0 +1,429 @@
+# Ninguna clave
+Cuenta
+  CUIT del emisor: sin configurar [cuit]
+  Punto de venta: sin configurar [puntoVenta]
+  Entorno: testing [entorno]
+
+Certificados
+  Certificado de testing: sin configurar [cert.testing]
+  Clave privada de testing: sin configurar [key.testing]
+  Certificado de producción: sin configurar [cert.produccion]
+  Clave privada de producción: sin configurar [key.produccion]
+  Certificado de exportación (testing): sin configurar [exportacion.cert.testing]
+  Clave de exportación (testing): sin configurar [exportacion.key.testing]
+  Certificado de exportación (producción): sin configurar [exportacion.cert.produccion]
+  Clave de exportación (producción): sin configurar [exportacion.key.produccion]
+  Carpeta de tickets WSAA: sin configurar [ticketPath]
+
+Al facturar
+  Concepto: sin configurar [concepto]
+  IVA del receptor: sin configurar [ivaReceptor]
+  IVA del receptor desde el padrón: sin configurar [consultarPadron]
+  Alícuota de IVA (A y B): sin configurar [alicuota]
+  Moneda: PES [moneda]
+  Cotización (deprecada): 1 [cotizacion]
+
+Factura de crédito electrónica (FCE)
+  Cuenta bancaria (CBU y alias): sin configurar [cuenta]
+  Verificar régimen FCE del receptor: sin configurar [verificarFce]
+
+Factura de exportación (E)
+  Actividad de exportación (WSFEX): sin configurar [exportacion.actividad]
+
+Monotributo
+  Tope de ingresos anuales propio: sin configurar [monotributo.tope]
+
+Datos del emisor (PDF)
+  Razón social: sin configurar [emisor.razonSocial]
+  Domicilio comercial: sin configurar [emisor.domicilio]
+  Inicio de actividades: sin configurar [emisor.inicioActividades]
+  Ingresos Brutos: sin configurar [emisor.iibb]
+  Condición de IVA: sin configurar [emisor.condicionIva]
+  Logo (PNG o JPG): sin configurar [emisor.logo]
+
+PDF
+  Cuándo generar el PDF: sin configurar [pdf]
+  Carpeta de PDFs: sin configurar [pdfCarpeta]
+  Navegador para PDFs: sin configurar [pdfNavegador]
+  Condición de venta (PDF de A, B y C): sin configurar [condicionVenta]
+
+Salida y listados
+  Filas por lista: sin configurar [filasPorLista]
+
+Preguntas
+  cuit
+    escribe: CUIT del emisor (11 dígitos):
+      propone nada
+  puntoVenta
+    escribe: Punto de venta (número; en testing sirve cualquiera, en producción tiene que ser uno de web service, no el de Factura en línea):
+      propone nada
+  entorno
+    elige: Entorno:
+      "testing" testing
+      "produccion" produccion
+      Symbol(borrar) Quitar el valor por defecto
+      propone "testing"
+  cert.testing
+    escribe: Certificado de testing (podés arrastrar el archivo):
+      propone nada
+  key.testing
+    escribe: Clave privada de testing (podés arrastrar el archivo):
+      propone nada
+  cert.produccion
+    escribe: Certificado de producción (podés arrastrar el archivo):
+      propone nada
+  key.produccion
+    escribe: Clave privada de producción (podés arrastrar el archivo):
+      propone nada
+  exportacion.cert.testing
+    escribe: Certificado de exportación (testing) (podés arrastrar el archivo):
+      propone nada
+  exportacion.key.testing
+    escribe: Clave de exportación (testing) (podés arrastrar el archivo):
+      propone nada
+  exportacion.cert.produccion
+    escribe: Certificado de exportación (producción) (podés arrastrar el archivo):
+      propone nada
+  exportacion.key.produccion
+    escribe: Clave de exportación (producción) (podés arrastrar el archivo):
+      propone nada
+  ticketPath
+    escribe: Carpeta de tickets WSAA (podés arrastrar el archivo):
+      propone nada
+  concepto
+    elige: Concepto:
+      "productos" Productos
+      "productos-servicios" Productos y servicios
+      "servicios" Servicios
+      Symbol(mantener) Dejar sin configurar
+      propone nada
+  ivaReceptor
+    elige: IVA del receptor:
+      "cliente-del-exterior" Cliente del exterior
+      "consumidor-final" Consumidor final
+      "iva-liberado" IVA liberado
+      "iva-no-alcanzado" IVA no alcanzado
+      "monotributista-social" Monotributista social
+      "monotributo-trabajador-independiente-promovido" Monotributo trabajador independiente promovido
+      "proveedor-del-exterior" Proveedor del exterior
+      "responsable-inscripto" Responsable inscripto
+      "responsable-monotributo" Responsable monotributo
+      "sujeto-exento" Sujeto exento
+      "sujeto-no-categorizado" Sujeto no categorizado
+      Symbol(mantener) Dejar sin configurar
+      propone nada
+  consultarPadron
+    elige: IVA del receptor desde el padrón:
+      "si" Sí
+      "no" No
+      Symbol(mantener) Dejar sin configurar
+      propone nada
+  alicuota
+    elige: Alícuota de IVA (A y B):
+      "21" 21%
+      "10.5" 10,5%
+      "27" 27%
+      "5" 5%
+      "2.5" 2,5%
+      "0" 0%
+      Symbol(mantener) Dejar sin configurar
+      propone nada
+  moneda
+    elige o escribe: Moneda:
+      "PES" PES     Pesos argentinos
+      "DOL" DOL     Dólares estadounidenses
+      "060" 060     Euros
+      Symbol(borrar) Quitar el valor por defecto
+      (50 filas)
+      propone "PES"
+  cotizacion
+    escribe: Cotización (deprecada) (solo para moneda extranjera, "-" para borrar):
+      propone "1"
+  cuenta
+    escribe: CBU (22 dígitos):
+      propone nada
+  verificarFce
+    elige: Verificar régimen FCE del receptor:
+      "si" Sí
+      "no" No
+      Symbol(mantener) Dejar sin configurar
+      propone nada
+  exportacion.actividad
+    escribe: Actividad de exportación (WSFEX) (código de la tabla de WSFEX, por ejemplo 620100):
+      propone nada
+  monotributo.tope
+    escribe: Tope de ingresos anuales propio (ingresos anuales en pesos, por ejemplo 30.000.000; sin configurar, el de tu categoría):
+      propone nada
+  emisor.razonSocial
+    escribe: Razón social:
+      propone nada
+  emisor.domicilio
+    escribe: Domicilio comercial:
+      propone nada
+  emisor.inicioActividades
+    escribe: Inicio de actividades (D/MM/YYYY):
+      propone nada
+  emisor.iibb
+    escribe: Ingresos Brutos (número, o "Exento" si lo estás):
+      propone nada
+  emisor.condicionIva
+    elige: Condición de IVA:
+      "cliente-del-exterior" Cliente del exterior
+      "consumidor-final" Consumidor final
+      "iva-liberado" IVA liberado
+      "iva-no-alcanzado" IVA no alcanzado
+      "monotributista-social" Monotributista social
+      "monotributo-trabajador-independiente-promovido" Monotributo trabajador independiente promovido
+      "proveedor-del-exterior" Proveedor del exterior
+      "responsable-inscripto" Responsable inscripto
+      "responsable-monotributo" Responsable monotributo
+      "sujeto-exento" Sujeto exento
+      "sujeto-no-categorizado" Sujeto no categorizado
+      Symbol(mantener) Dejar sin configurar
+      propone nada
+  emisor.logo
+    escribe: Logo (PNG o JPG) (podés arrastrar el archivo):
+      propone nada
+  pdf
+    elige: Cuándo generar el PDF:
+      "siempre" siempre
+      "preguntar" preguntar
+      "nunca" nunca
+      Symbol(mantener) Dejar sin configurar
+      propone nada
+  pdfCarpeta
+    escribe: Carpeta de PDFs (podés arrastrar el archivo):
+      propone nada
+  pdfNavegador
+    escribe: Navegador para PDFs (podés arrastrar el archivo):
+      propone nada
+  condicionVenta
+    elige o escribe: Condición de venta (PDF de A, B y C):
+      "contado" Contado
+      "tarjeta-debito" Tarjeta de Débito
+      "tarjeta-credito" Tarjeta de Crédito
+      "cuenta-corriente" Cuenta Corriente
+      "cheque" Cheque
+      "transferencia" Transferencia Bancaria
+      "otros-medios-electronicos" Otros medios de pago electrónico
+      "otra" Otra
+      Symbol(mantener) Dejar sin configurar
+      propone Symbol(mantener)
+  filasPorLista
+    escribe: Filas por lista (1 a 50, por defecto 15):
+      propone nada
+
+# Todas las claves
+Cuenta
+  CUIT del emisor: 20123456786 [cuit]
+  Punto de venta: 3 [puntoVenta]
+  Entorno: produccion [entorno]
+
+Certificados
+  Certificado de testing: .../config/cert-testing.pem [cert.testing]
+  Clave privada de testing: .../config/key-testing.pem [key.testing]
+  Certificado de producción: .../config/cert-produccion.pem [cert.produccion]
+  Clave privada de producción: .../config/key-produccion.pem [key.produccion]
+  Certificado de exportación (testing): .../config/expo-cert-testing.pem [exportacion.cert.testing]
+  Clave de exportación (testing): .../config/expo-key-testing.pem [exportacion.key.testing]
+  Certificado de exportación (producción): .../config/expo-cert-produccion.pem [exportacion.cert.produccion]
+  Clave de exportación (producción): .../config/expo-key-produccion.pem [exportacion.key.produccion]
+  Carpeta de tickets WSAA: .../config/tickets-propios [ticketPath]
+
+Al facturar
+  Concepto: Productos y servicios [concepto]
+  IVA del receptor: Consumidor final [ivaReceptor]
+  IVA del receptor desde el padrón: No [consultarPadron]
+  Alícuota de IVA (A y B): 10,5% [alicuota]
+  Moneda: USD [moneda]
+  Cotización (deprecada): 1350,50 [cotizacion]
+
+Factura de crédito electrónica (FCE)
+  Cuenta bancaria (CBU y alias): 0110599520000012345678 (mi.alias.cbu) [cuenta]
+  Verificar régimen FCE del receptor: Sí [verificarFce]
+
+Factura de exportación (E)
+  Actividad de exportación (WSFEX): 620100 [exportacion.actividad]
+
+Monotributo
+  Tope de ingresos anuales propio: 30000000 [monotributo.tope]
+
+Datos del emisor (PDF)
+  Razón social: Ana Ficticia [emisor.razonSocial]
+  Domicilio comercial: Calle Ficticia 123 [emisor.domicilio]
+  Inicio de actividades: 01/03/2020 [emisor.inicioActividades]
+  Ingresos Brutos: 901-123456-7 [emisor.iibb]
+  Condición de IVA: Responsable inscripto [emisor.condicionIva]
+  Logo (PNG o JPG): .../config/logo.png [emisor.logo]
+
+PDF
+  Cuándo generar el PDF: siempre [pdf]
+  Carpeta de PDFs: .../config/pdfs [pdfCarpeta]
+  Navegador para PDFs: .../config/navegador [pdfNavegador]
+  Condición de venta (PDF de A, B y C): a 45 días [condicionVenta]
+
+Salida y listados
+  Filas por lista: 20 [filasPorLista]
+
+Preguntas
+  cuit
+    escribe: CUIT del emisor (11 dígitos, "-" para borrar):
+      propone "20123456786"
+  puntoVenta
+    escribe: Punto de venta (número; en testing sirve cualquiera, en producción tiene que ser uno de web service, no el de Factura en línea, "-" para borrar):
+      propone "3"
+  entorno
+    elige: Entorno:
+      "testing" testing
+      "produccion" produccion
+      Symbol(borrar) Quitar el valor por defecto
+      propone "produccion"
+  cert.testing
+    escribe: Certificado de testing (podés arrastrar el archivo, "-" para borrar):
+      propone "<config>/cert-testing.pem"
+  key.testing
+    escribe: Clave privada de testing (podés arrastrar el archivo, "-" para borrar):
+      propone "<config>/key-testing.pem"
+  cert.produccion
+    escribe: Certificado de producción (podés arrastrar el archivo, "-" para borrar):
+      propone "<config>/cert-produccion.pem"
+  key.produccion
+    escribe: Clave privada de producción (podés arrastrar el archivo, "-" para borrar):
+      propone "<config>/key-produccion.pem"
+  exportacion.cert.testing
+    escribe: Certificado de exportación (testing) (podés arrastrar el archivo, "-" para borrar):
+      propone "<config>/expo-cert-testing.pem"
+  exportacion.key.testing
+    escribe: Clave de exportación (testing) (podés arrastrar el archivo, "-" para borrar):
+      propone "<config>/expo-key-testing.pem"
+  exportacion.cert.produccion
+    escribe: Certificado de exportación (producción) (podés arrastrar el archivo, "-" para borrar):
+      propone "<config>/expo-cert-produccion.pem"
+  exportacion.key.produccion
+    escribe: Clave de exportación (producción) (podés arrastrar el archivo, "-" para borrar):
+      propone "<config>/expo-key-produccion.pem"
+  ticketPath
+    escribe: Carpeta de tickets WSAA (podés arrastrar el archivo, "-" para borrar):
+      propone "<config>/tickets-propios"
+  concepto
+    elige: Concepto:
+      "productos" Productos
+      "productos-servicios" Productos y servicios
+      "servicios" Servicios
+      Symbol(borrar) Quitar el valor por defecto
+      propone "productos-servicios"
+  ivaReceptor
+    elige: IVA del receptor:
+      "cliente-del-exterior" Cliente del exterior
+      "consumidor-final" Consumidor final
+      "iva-liberado" IVA liberado
+      "iva-no-alcanzado" IVA no alcanzado
+      "monotributista-social" Monotributista social
+      "monotributo-trabajador-independiente-promovido" Monotributo trabajador independiente promovido
+      "proveedor-del-exterior" Proveedor del exterior
+      "responsable-inscripto" Responsable inscripto
+      "responsable-monotributo" Responsable monotributo
+      "sujeto-exento" Sujeto exento
+      "sujeto-no-categorizado" Sujeto no categorizado
+      Symbol(borrar) Quitar el valor por defecto
+      propone "consumidor-final"
+  consultarPadron
+    elige: IVA del receptor desde el padrón:
+      "si" Sí
+      "no" No
+      Symbol(borrar) Quitar el valor por defecto
+      propone "no"
+  alicuota
+    elige: Alícuota de IVA (A y B):
+      "21" 21%
+      "10.5" 10,5%
+      "27" 27%
+      "5" 5%
+      "2.5" 2,5%
+      "0" 0%
+      Symbol(borrar) Quitar el valor por defecto
+      propone "10.5"
+  moneda
+    elige o escribe: Moneda:
+      "PES" PES     Pesos argentinos
+      "DOL" DOL     Dólares estadounidenses
+      "060" 060     Euros
+      Symbol(borrar) Quitar el valor por defecto
+      (50 filas)
+      propone "DOL"
+  cotizacion
+    escribe: Cotización (deprecada) (solo para moneda extranjera, "-" para borrar):
+      propone "1350,50"
+  cuenta
+    escribe: CBU (22 dígitos, "-" para borrar la cuenta):
+      propone "0110599520000012345678"
+  verificarFce
+    elige: Verificar régimen FCE del receptor:
+      "si" Sí
+      "no" No
+      Symbol(borrar) Quitar el valor por defecto
+      propone "si"
+  exportacion.actividad
+    escribe: Actividad de exportación (WSFEX) (código de la tabla de WSFEX, por ejemplo 620100, "-" para borrar):
+      propone "620100"
+  monotributo.tope
+    escribe: Tope de ingresos anuales propio (ingresos anuales en pesos, por ejemplo 30.000.000; sin configurar, el de tu categoría, "-" para borrar):
+      propone "30000000"
+  emisor.razonSocial
+    escribe: Razón social ("-" para borrar):
+      propone "Ana Ficticia"
+  emisor.domicilio
+    escribe: Domicilio comercial ("-" para borrar):
+      propone "Calle Ficticia 123"
+  emisor.inicioActividades
+    escribe: Inicio de actividades (D/MM/YYYY, "-" para borrar):
+      propone "01/03/2020"
+  emisor.iibb
+    escribe: Ingresos Brutos (número, o "Exento" si lo estás, "-" para borrar):
+      propone "901-123456-7"
+  emisor.condicionIva
+    elige: Condición de IVA:
+      "cliente-del-exterior" Cliente del exterior
+      "consumidor-final" Consumidor final
+      "iva-liberado" IVA liberado
+      "iva-no-alcanzado" IVA no alcanzado
+      "monotributista-social" Monotributista social
+      "monotributo-trabajador-independiente-promovido" Monotributo trabajador independiente promovido
+      "proveedor-del-exterior" Proveedor del exterior
+      "responsable-inscripto" Responsable inscripto
+      "responsable-monotributo" Responsable monotributo
+      "sujeto-exento" Sujeto exento
+      "sujeto-no-categorizado" Sujeto no categorizado
+      Symbol(borrar) Quitar el valor por defecto
+      propone "responsable-inscripto"
+  emisor.logo
+    escribe: Logo (PNG o JPG) (podés arrastrar el archivo, "-" para borrar):
+      propone "<config>/logo.png"
+  pdf
+    elige: Cuándo generar el PDF:
+      "siempre" siempre
+      "preguntar" preguntar
+      "nunca" nunca
+      Symbol(borrar) Quitar el valor por defecto
+      propone "siempre"
+  pdfCarpeta
+    escribe: Carpeta de PDFs (podés arrastrar el archivo, "-" para borrar):
+      propone "<config>/pdfs"
+  pdfNavegador
+    escribe: Navegador para PDFs (podés arrastrar el archivo, "-" para borrar):
+      propone "<config>/navegador"
+  condicionVenta
+    elige o escribe: Condición de venta (PDF de A, B y C):
+      "contado" Contado
+      "tarjeta-debito" Tarjeta de Débito
+      "tarjeta-credito" Tarjeta de Crédito
+      "cuenta-corriente" Cuenta Corriente
+      "cheque" Cheque
+      "transferencia" Transferencia Bancaria
+      "otros-medios-electronicos" Otros medios de pago electrónico
+      "otra" Otra
+      Symbol(borrar) Quitar el valor por defecto
+      propone "a 45 días"
+  filasPorLista
+    escribe: Filas por lista (1 a 50, por defecto 15, "-" para borrar):
+      propone "20"

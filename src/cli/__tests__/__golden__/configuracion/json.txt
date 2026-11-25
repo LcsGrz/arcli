@@ -1,0 +1,58 @@
+
+{
+  "alicuota": "10.5",
+  "aliasCbu": "mi.alias.cbu",
+  "comprobantesPorLista": 20,
+  "cbu": "0110599520000012345678",
+  "cert": {
+    "produccion": ".../config/cert-produccion.pem",
+    "testing": ".../config/cert-testing.pem"
+  },
+  "concepto": "productos-servicios",
+  "condicionVenta": "a 45 días",
+  "cotizacion": 1350.5,
+  "cuit": "20123456786",
+  "emisor": {
+    "condicionIva": "responsable-inscripto",
+    "domicilio": "Calle Ficticia 123",
+    "iibb": "901-123456-7",
+    "inicioActividades": "20200301",
+    "logo": ".../config/logo.png",
+    "razonSocial": "Ana Ficticia"
+  },
+  "emitir": true,
+  "entorno": "produccion",
+  "exportacion": {
+    "actividad": 620100,
+    "cert": {
+      "produccion": ".../config/expo-cert-produccion.pem",
+      "testing": ".../config/expo-cert-testing.pem"
+    },
+    "key": {
+      "produccion": ".../config/expo-key-produccion.pem",
+      "testing": ".../config/expo-key-testing.pem"
+    }
+  },
+  "filasPorLista": 20,
+  "ivaReceptor": "consumidor-final",
+  "json": true,
+  "key": {
+    "produccion": ".../config/key-produccion.pem",
+    "testing": ".../config/key-testing.pem"
+  },
+  "moneda": "USD",
+  "monotributo": {
+    "tope": 30000000
+  },
+  "pdf": "siempre",
+  "pdfCarpeta": ".../config/pdfs",
+  "pdfNavegador": ".../config/navegador",
+  "puntoVenta": 3,
+  "bruto": true,
+  "ticketPath": ".../config/tickets-propios",
+  "verificarFce": true,
+  "consultarPadron": false,
+  "deprecado": [
+    "`comprobantesPorLista` se saca en la 3.0.0: usá `filasPorLista`, que trae el mismo valor."
+  ]
+}
