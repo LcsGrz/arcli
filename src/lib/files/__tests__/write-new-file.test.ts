@@ -53,6 +53,19 @@ describe('writeNewFile', () => {
     expect(readFileSync(path, 'utf8')).toBe('original');
   });
 
+  // Caracterización antes de ARQ-12 (writeNewFile pasa a services/files): el sufijo va antes de la última extensión.
+  it('sin extensión suma el sufijo al final; con varios puntos, antes del último', () => {
+    const folder = createTempDir();
+    const [plain, dotted] = [join(folder, 'factura'), join(folder, 'factura.v1.pdf')];
+
+    writeFileSync(plain, 'original');
+    writeFileSync(dotted, 'original');
+
+    expect(writeNewFile(plain, new Uint8Array([2]))).toBe(join(folder, 'factura-2'));
+    expect(writeNewFile(dotted, new Uint8Array([2]))).toBe(join(folder, 'factura.v1-2.pdf'));
+    expect(readFileSync(join(folder, 'factura.v1-2.pdf'))).toEqual(Buffer.from([2]));
+  });
+
   // TEST-19: un error que no es "ya existe" no se traga, y el tope de intentos es exacto.
   it('propaga un error que no es EEXIST en vez de dar el archivo por guardado', () => {
     const path = join(createTempDir(), 'no-existe', 'factura.pdf');
