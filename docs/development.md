@@ -70,7 +70,7 @@ yarn lint
 yarn test
 ```
 
-Ningún test toca la config real: `src/__tests__/setup.ts` fija carpetas temporales y falla si la de datos queda afuera. Un test que abre la config o un caché dice la carpeta (`new ConfigService({ cwd })`) o usa la de la app (`openConfigService`, que toma `ARCLI_CONFIG_DIR`); sin carpeta no compila y, si se saltean los tipos, falla. En código de producción lo controla la regla `arcli/data-directory` (`scripts/lint`).
+Ningún test toca la config real: `src/__tests__/setup.ts` fija carpetas temporales y falla si la de datos queda afuera, y sin `ARCLI_CONFIG_DIR` (un test que la vacía) `dataDirectory()` falla en vez de resolver la de siempre, con cualquier pool. Un test que abre la config o un caché dice la carpeta (`new ConfigService({ cwd })`) o usa la de la app (`openConfigService`, que toma `ARCLI_CONFIG_DIR`); sin carpeta no compila y, si se saltean los tipos, falla. En `src` (sin los tests) y en los `.ts` y `.mts` de `scripts`, lo controla la regla `arcli/data-directory` (`scripts/lint`), que no ve un alias local ni un `createRequire`.
 
 Para cambios de empaquetado o publicación, `yarn open-source:check`.
 
@@ -260,7 +260,7 @@ node scripts/agent/stryker.mjs --desde origin/dev # lo cambiado en la rama
 node scripts/agent/stryker.mjs src/modules/billing
 ```
 
-El script instala Stryker con versión fija en `node_modules/.cache/arcli-stryker`, corre todo con `HOME` y `ARCLI_CONFIG_DIR` temporales y `pool: 'forks'` (`vitest.stryker.config.ts`, que falla si no lo lanza el script), y vigila la carpeta de config real cada 3 s: si cambia, corta Stryker y sale con 3. El informe queda en `reports/stryker/` (ignorado), junto con el archivo incremental: la próxima corrida reusa los resultados de lo que no cambió. Un archivo chico tarda un par de minutos; un módulo grande, decenas.
+El script instala Stryker con versión fija en `node_modules/.cache/arcli-stryker`, corre todo con `HOME` y `ARCLI_CONFIG_DIR` temporales y `pool: 'forks'` (`vitest.stryker.config.ts`, que falla si no lo lanza el script), y vigila la carpeta de config de siempre, y la de `ARCLI_CONFIG_DIR` si es otra, cada 3 s: si cambia alguna, corta Stryker y sale con 3. El informe queda en `reports/stryker/` (ignorado), junto con el archivo incremental: la próxima corrida reusa los resultados de lo que no cambió. Un archivo chico tarda un par de minutos; un módulo grande, decenas.
 
 ### Permisos
 

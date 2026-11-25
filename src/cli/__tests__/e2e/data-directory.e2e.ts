@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 /**
@@ -35,7 +36,7 @@ afterEach(() => {
 });
 
 /** Sin la `ARCLI_CONFIG_DIR` de quien corre la suite: cada test la define o no. */
-function isolatedEnv(configDirectory: string | undefined): NodeJS.ProcessEnv {
+function isolatedEnv(configDirectory?: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     APPDATA: join(home, 'AppData', 'Roaming'),
@@ -72,6 +73,21 @@ function usualDirectory(): string {
   if (process.platform === 'win32') return join(home, 'AppData', 'Roaming', 'arcli', 'Config');
 
   return join(home, '.config', 'arcli');
+}
+
+/** Una terminal que muestra el aviso de version, sin red: nada llega a conectar. */
+function offlineTerminal(): string {
+  const path = join(root, 'sin-red.mjs');
+
+  writeFileSync(
+    path,
+    `import net from 'node:net';
+     net.Socket.prototype.connect = function () { return this; };
+     globalThis.fetch = async () => { throw new Error('sin red'); };
+     Object.defineProperty(process.stderr, 'isTTY', { value: true });`,
+  );
+
+  return pathToFileURL(path).href;
 }
 
 describe('la carpeta de datos', () => {
@@ -112,6 +128,44 @@ describe('la carpeta de datos', () => {
     );
 
     expect(JSON.parse(run(undefined, 'config', '--json'))).toMatchObject({ cuit: '20409509763', filasPorLista: 20 });
+    expect(readdirSync(usualDirectory())).toEqual(['config.json']);
+    // Se completa con los defaults, sin perder ni renombrar lo que habia.
+    expect(JSON.parse(readFileSync(join(usualDirectory(), 'config.json'), 'utf8'))).toMatchObject({
+      comprobantesPorLista: 20,
+      cuit: '20409509763',
+      entornoPorDefecto: 'testing',
+    });
+  });
+
+  it.each([
+    ['con XDG_CONFIG_HOME y APPDATA', false],
+    ['sin XDG_CONFIG_HOME ni APPDATA', true],
+  ])('los cachés de la versión y del monotributo también van a la de siempre, %s', (_name, unset) => {
+    const env = isolatedEnv();
+
+    delete env.CI;
+    delete env.NO_UPDATE_NOTIFIER;
+
+    if (unset) {
+      delete env.APPDATA;
+      delete env.XDG_CONFIG_HOME;
+    }
+
+    const result = spawnSync(process.execPath, ['--import', offlineTerminal(), CLI, 'monotributo'], {
+      cwd: workingDirectory,
+      encoding: 'utf8',
+      env,
+      timeout: 30_000,
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(readdirSync(usualDirectory()).sort()).toEqual(['config.json', 'monotributo.json', 'update-cache.json']);
+    expect(JSON.parse(readFileSync(join(usualDirectory(), 'monotributo.json'), 'utf8'))).toHaveProperty(
+      'primeraConsulta',
+    );
+    expect(JSON.parse(readFileSync(join(usualDirectory(), 'update-cache.json'), 'utf8'))).toHaveProperty(
+      'lastCheckedAt',
+    );
   });
 
   it.skipIf(process.platform === 'win32')('la carpeta y el archivo que crea son solo del usuario', () => {

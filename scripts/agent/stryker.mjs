@@ -12,7 +12,7 @@
 // 1. Todo el proceso corre con HOME, USERPROFILE, APPDATA, XDG_CONFIG_HOME y ARCLI_CONFIG_DIR temporales.
 // 2. vitest con pool forks (vitest.stryker.config.ts): en threads el HOME temporal no cambia os.homedir().
 // 3. El guard de src/__tests__/setup.ts falla si la config se resuelve fuera del temporal.
-// 4. Un watchdog mira la carpeta de config real cada 3 s y mata a Stryker si cambia algo.
+// 4. Un watchdog mira las carpetas de config reales (la de siempre y la de ARCLI_CONFIG_DIR) cada 3 s y mata a Stryker si cambia algo.
 // Stryker no es dependencia del proyecto: se instala con versión fija en node_modules/.cache/arcli-stryker.
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -44,7 +44,7 @@ if (mutate.length === 0) {
   process.exit(0);
 }
 
-const realConfigDir = await resolveRealConfigDir();
+const realConfigDirs = await resolveRealConfigDirs();
 installStryker();
 
 const home = mkdtempSync(join(tmpdir(), 'arcli-stryker-home-'));
@@ -52,8 +52,8 @@ mkdirSync(reportsDir, { recursive: true });
 const configPath = join(reportsDir, 'stryker.config.json');
 writeFileSync(configPath, JSON.stringify(strykerConfig(mutate, options), null, 2));
 
-const before = snapshot(realConfigDir);
-console.log(`Mutando ${mutate.length} rutas. Config real vigilada: ${realConfigDir}`);
+const before = snapshotAll();
+console.log(`Mutando ${mutate.length} rutas. Config real vigilada: ${realConfigDirs.join(' y ')}`);
 
 const child = spawn(join(cacheDir, 'node_modules', '.bin', 'stryker'), ['run', configPath], {
   cwd: root,
@@ -64,7 +64,7 @@ const child = spawn(join(cacheDir, 'node_modules', '.bin', 'stryker'), ['run', c
 
 let tampered = false;
 const watchdog = setInterval(() => {
-  if (snapshot(realConfigDir) === before) return;
+  if (snapshotAll() === before) return;
   tampered = true;
   killTree();
 }, WATCH_INTERVAL_MS);
@@ -76,9 +76,9 @@ child.on('exit', (code) => {
   rmSync(home, { force: true, recursive: true });
   // Si se cortó Stryker, sus sandbox quedan en .stryker-tmp con una copia de los tests.
   rmSync(join(root, '.stryker-tmp'), { force: true, recursive: true });
-  if (tampered || snapshot(realConfigDir) !== before) {
+  if (tampered || snapshotAll() !== before) {
     console.error(
-      `\nLA CONFIG REAL CAMBIÓ (${realConfigDir}). Se cortó Stryker. Revisala antes de usar ARCLI: ` +
+      `\nLA CONFIG REAL CAMBIÓ (${realConfigDirs.join(' o ')}). Se cortó Stryker. Revisala antes de usar ARCLI: ` +
         'cert, key, ticketPath, emitir y archivos sueltos. No la arregles sin avisarle a quien mantiene el proyecto.',
     );
     process.exit(3);
@@ -167,12 +167,16 @@ function isolatedEnv(home) {
   return env;
 }
 
-// La carpeta que usaría ARCLI con el entorno real: la de ARCLI_CONFIG_DIR si quien corre la definió, o la de Conf.
-async function resolveRealConfigDir() {
-  const custom = process.env.ARCLI_CONFIG_DIR?.trim();
-  if (custom) return resolve(custom);
+// La de siempre, aunque quien corre defina ARCLI_CONFIG_DIR: es la que pisaría un test que pierde la variable. Y
+// además la de la variable.
+async function resolveRealConfigDirs() {
   const { default: envPaths } = await import('env-paths');
-  return envPaths('arcli', { suffix: '' }).config;
+  const custom = process.env.ARCLI_CONFIG_DIR?.trim();
+  return [...new Set([resolve(envPaths('arcli', { suffix: '' }).config), ...(custom ? [resolve(custom)] : [])])];
+}
+
+function snapshotAll() {
+  return realConfigDirs.map(snapshot).join('\n');
 }
 
 // Nombres, tamaños y contenido de todo lo que hay en la carpeta (no el mtime: Conf la reescribe igual al abrirla).

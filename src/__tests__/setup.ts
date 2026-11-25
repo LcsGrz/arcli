@@ -18,6 +18,12 @@ process.env.XDG_CONFIG_HOME = join(home, '.config');
 // thread `os.homedir()` no ve el `process.env` del worker. ARCLI_CONFIG_DIR la lee `dataDirectory()` en cada
 // llamada, de donde salen la config y los cachés, asi que vale con cualquier pool (TEST-14).
 process.env.ARCLI_CONFIG_DIR = join(home, 'arcli');
+// Sin la variable (un test que la vacia), la carpeta de siempre no se resuelve: falla con cualquier pool.
+vi.mock('env-paths', () => ({
+  default: () => {
+    throw new Error('Los tests no usan la carpeta de datos real: definí ARCLI_CONFIG_DIR.');
+  },
+}));
 
 delete process.env.FORCE_COLOR;
 delete process.env.NO_COLOR;

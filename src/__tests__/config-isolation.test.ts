@@ -2,7 +2,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { openConfigService } from '../cli/config-service';
 import { dataDirectory } from '../cli/data-directory';
+import { checkCliUpdate } from '../cli/update-check';
 import { resolveConfigLocation } from '../modules/config/config.service';
 
 import { assertConfigIsolated, isInsideDirectory } from './config-isolation';
@@ -53,6 +55,19 @@ describe('assertConfigIsolated', () => {
       /no está dentro de la carpeta temporal/,
     );
   });
+
+  it.each([undefined, '', '  '])(
+    'con ARCLI_CONFIG_DIR en %j, abrir datos falla en vez de usar la real',
+    async (value) => {
+      vi.stubEnv('ARCLI_CONFIG_DIR', value);
+
+      const { signal } = new AbortController();
+
+      expect(() => dataDirectory()).toThrow(/no usan la carpeta de datos real/);
+      expect(() => openConfigService()).toThrow(/no usan la carpeta de datos real/);
+      await expect(checkCliUpdate({ signal })).rejects.toThrow(/no usan la carpeta de datos real/);
+    },
+  );
 
   it('con el setup de la suite, la config y los tickets quedan en el temporal', () => {
     const home = process.env.HOME ?? '';

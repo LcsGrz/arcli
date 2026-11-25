@@ -178,7 +178,7 @@ export default defineConfig([
   // JavaScript/TypeScript files
   // =========================
   {
-    files: ['**/*.js', '**/*.jsx', '**/*.mjs', '**/*.ts', '**/*.tsx'],
+    files: ['**/*.js', '**/*.jsx', '**/*.mjs', '**/*.mts', '**/*.ts', '**/*.tsx'],
     // El formato lo controla Prettier por su lado (`yarn lint:prettier` y lint-staged): eslint-config-prettier solo
     // apaga las reglas de ESLint que chocan con él.
     extends: [eslintJS.configs.recommended, eslintTS.configs.recommended, eslintConfigPrettier],
@@ -306,7 +306,7 @@ export default defineConfig([
   },
   {
     // La carpeta de datos siempre explícita: cada excepción habilita solo lo suyo.
-    files: ['src/**/*.ts'],
+    files: ['src/**/*.ts', 'scripts/**/*.{ts,mts}'],
     ignores: TESTING_USERS,
     plugins: { arcli: { rules: { 'data-directory': dataDirectoryRule } } },
     rules: { 'arcli/data-directory': 'error' },

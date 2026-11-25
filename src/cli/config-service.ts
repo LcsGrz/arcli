@@ -7,8 +7,11 @@ export function openConfigService(): ConfigService {
   return new ConfigService({ cwd: dataDirectory() });
 }
 
+/** Lo que no hay que esperar: con una promesa, la config se cerraria antes de que termine. */
+export type Synchronous<T> = T extends PromiseLike<unknown> ? never : T;
+
 /** Abre la config, hace una operacion sincronica y la cierra. */
-export function withConfigService<T>(run: (service: ConfigService) => T): T {
+export function withConfigService<T>(run: (service: ConfigService) => Synchronous<T>): Synchronous<T> {
   const service = openConfigService();
 
   try {

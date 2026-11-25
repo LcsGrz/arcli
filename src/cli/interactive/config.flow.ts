@@ -42,7 +42,7 @@ import { formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import { bold, noticePanel, productionBanner, uiSymbol, writeTerminalOutput } from '../../ui';
 import { buildRuntimeChecks } from '../commands/config.command';
-import { withConfigService } from '../config-service';
+import { type Synchronous, withConfigService } from '../config-service';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
@@ -78,8 +78,8 @@ const ISSUER_KEYS: readonly ConfigPublicKey[] = [
   'emisor.iibb',
 ];
 
-function withInitializedConfig<T>(run: (service: ConfigService) => T): T {
-  return withConfigService((service) => {
+function withInitializedConfig<T>(run: (service: ConfigService) => Synchronous<T>): Synchronous<T> {
+  return withConfigService<T>((service) => {
     service.ensureInitialized();
 
     return run(service);

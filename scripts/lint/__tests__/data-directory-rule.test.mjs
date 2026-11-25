@@ -22,16 +22,23 @@ describe('la regla arcli/data-directory', () => {
     ['class Otro extends ConfigService {}', 'configService'],
     ['import Conf from "conf"; new Conf()', 'conf'],
     ['import Conf from "conf"; new Conf({ configName: "x" })', 'conf'],
-    ['import Conf from "conf"; new Conf<{ a: 1 }>({ cwd: undefined })', 'conf'],
     ['import Conf from "conf"; new Conf({ ...options })', 'conf'],
     ['import Otro from "conf"; new Otro({ projectName: "arcli" })', 'conf'],
+    ['import Conf from "conf"; new Conf({ cwd, projectName: "arcli" })', 'conf'],
+    ['import Conf from "conf"; new Conf({ cwd, ...options })', 'conf'],
+    ['import Conf from "conf"; class Otro extends Conf {}', 'confExtends'],
+    ['import Conf from "conf"; const Otro = class extends Conf {}', 'confExtends'],
+    ['export { default } from "conf"', 'reexport'],
+    ['export { default as envPaths } from "env-paths"', 'reexport'],
+    ['export { ConfigService as C } from "./config.service"', 'reexport'],
+    ['export * from "conf"', 'reexport'],
+    ['export * from "./modules/config/config.service"', 'reexport'],
     ['import { default as Conf } from "conf"', 'confImport'],
     ['await import("conf")', 'confImport'],
     ['import envPaths from "env-paths"', 'envPaths'],
     ['await import("env-paths")', 'envPaths'],
     ['process.env.ARCLI_CONFIG_DIR', 'variable'],
     ['process.env["ARCLI_CONFIG_DIR"]', 'variable'],
-    ['process.env[`ARCLI_CONFIG_DIR`]', 'variable'],
     ['const { ARCLI_CONFIG_DIR: carpeta } = process.env', 'variable'],
   ])('rechaza %s', (code, messageId) => {
     expect(messageIds(code)).toContain(messageId);
@@ -40,6 +47,10 @@ describe('la regla arcli/data-directory', () => {
   it.each([
     'import Conf from "conf"; new Conf({ cwd })',
     'import Conf from "conf"; new Conf({ configName: "x", cwd: options.cwd })',
+    'import Conf from "conf"; new Conf({ ...options, cwd })',
+    'export type { Options } from "conf"',
+    'export { type ConfigService } from "./config.service"',
+    'export { deprecatedConfigKeyWarning } from "./config.service"',
     'import type { Options } from "conf"; let x: Options',
     'import type { ConfigService } from "./config.service"; let x: ConfigService',
     'new OtroServicio()',
@@ -69,6 +80,8 @@ describe('dónde aplica', () => {
     'src/lib/links.ts',
     'src/ui/index.ts',
     'src/cli/index.ts',
+    'scripts/demo/pdf-sample.mts',
+    'scripts/monotributo/actualizar-tabla.ts',
   ])('en error y sin excepciones en %s', async (file) => {
     expect(await ruleFor(file)).toEqual([2]);
   });

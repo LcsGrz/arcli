@@ -74,6 +74,17 @@ describe('quien abre datos usa esa carpeta', () => {
     close.mockRestore();
   });
 
+  it('withConfigService no acepta una operación async, por tipo', async () => {
+    // @ts-expect-error la config se cerraria antes de que termine.
+    await withConfigService(async () => 1);
+    // @ts-expect-error lo mismo con una promesa a veces.
+    await withConfigService((service) => (service.getPath() ? Promise.resolve(1) : 2));
+
+    const path: string = withConfigService((service) => service.getPath());
+
+    expect(path).toBe(join(directory, 'config.json'));
+  });
+
   it('el caché de la versión', async () => {
     const { signal } = new AbortController();
 
