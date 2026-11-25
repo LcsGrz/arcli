@@ -77,9 +77,10 @@ describe('lo que ARCA contesta a la emisión (ERR-16)', () => {
       environment: 'testing',
       pointOfSale: 3,
       shortcut: 'fc',
+      voucherNumber: 42,
     });
 
-    expect(error.details).toEqual({ causa, entorno: 'testing', puntoVenta: 3, tipoArca: 11 });
+    expect(error.details).toEqual({ causa, entorno: 'testing', numero: 42, puntoVenta: 3, tipoArca: 11 });
     expect((error.cause as Error).cause).toBe(cause);
   });
 
@@ -91,6 +92,7 @@ describe('lo que ARCA contesta a la emisión (ERR-16)', () => {
       environment: 'testing',
       pointOfSale: 3,
       shortcut: 'fc',
+      voucherNumber: 42,
     });
 
     expect(error.message).toBe(

@@ -2,12 +2,14 @@ import { AppError } from '../../lib/errors/app-error';
 
 import { describeEmissionFailure } from './emission-response';
 
-/** A, B y C: el numero lo pone ARCA, asi que se verifica con `arcli ultimos`. */
+/** A, B y C: el numero es el proximo a autorizar, se conoce antes de emitir. Se verifica con `arcli ultimos`. */
 interface WsfeUncertainTarget {
   readonly arcaType: number;
   readonly environment: 'produccion' | 'testing';
   readonly pointOfSale: number;
   readonly shortcut: string;
+  /** El que se pidio en la solicitud. */
+  readonly voucherNumber: number;
 }
 
 /**
@@ -24,11 +26,11 @@ interface WsfexUncertainTarget {
   readonly voucherNumber: number;
 }
 
-/** Las claves de `detalles` del `--json`, que son contrato. `idSolicitud` y `numero`, solo en la E. */
+/** Las claves de `detalles` del `--json`, que son contrato. `idSolicitud`, solo en la E. */
 type EmissionUncertainDetails = {
   readonly causa: string;
   readonly idSolicitud?: number;
-  readonly numero?: number;
+  readonly numero: number;
   /** Con estos tres y el numero se concilia sin leer la `sugerencia`. */
   readonly entorno: 'produccion' | 'testing';
   readonly puntoVenta: number;
@@ -52,7 +54,7 @@ export class EmissionUncertainError extends AppError {
     const failure = describeEmissionFailure(options.cause);
     const reason = failure.message;
     const verifyCommand =
-      'voucherNumber' in options
+      'requestId' in options
         ? `arcli consultar ${options.shortcut} ${options.voucherNumber} --pv ${options.pointOfSale} --${options.environment}`
         : `arcli ultimos ${options.shortcut} --pv ${options.pointOfSale} --${options.environment}`;
 
@@ -60,13 +62,14 @@ export class EmissionUncertainError extends AppError {
       code: 'EMISSION_UNCERTAIN',
       details: {
         causa: reason,
-        ...('voucherNumber' in options ? { idSolicitud: options.requestId, numero: options.voucherNumber } : {}),
+        ...('requestId' in options ? { idSolicitud: options.requestId } : {}),
+        numero: options.voucherNumber,
         entorno: options.environment,
         puntoVenta: options.pointOfSale,
         tipoArca: options.arcaType,
       } satisfies EmissionUncertainDetails,
       suggestion:
-        'voucherNumber' in options
+        'requestId' in options
           ? `Puede haberse emitido igual. Verificalo con \`${verifyCommand}\`: si figura, ya está emitido. Si reintentás, usá el mismo número y la misma solicitud (\`--numero ${options.voucherNumber} --id-solicitud ${options.requestId} --pv ${options.pointOfSale} --${options.environment}\`): si ya se había emitido, ARCA no lo autoriza dos veces.`
           : `Puede haberse emitido igual. Antes de reintentar, verificá con \`${verifyCommand}\`: si figura, ya está emitido y no hay que repetirlo.`,
     });

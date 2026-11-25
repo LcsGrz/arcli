@@ -80,6 +80,7 @@ describe.each(['wsfe', 'wsfex'] as const)('%s: lo que contesta ARCA no es SOAP',
       environment: 'testing',
       pointOfSale: 3,
       shortcut: 'fc',
+      voucherNumber: 42,
     });
 
     expect(error.message).not.toContain('[object Object]');

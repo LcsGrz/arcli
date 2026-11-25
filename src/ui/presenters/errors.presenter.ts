@@ -54,7 +54,6 @@ const DETAIL_LABELS: Readonly<Record<string, string>> = {
   cause: 'Causa',
   entorno: 'Entorno',
   idSolicitud: 'Solicitud',
-  numero: 'Número',
   path: 'Ruta',
   salida: 'Salida',
   vencimiento: 'Vencimiento',
@@ -65,7 +64,8 @@ const JSON_ONLY_DETAILS: ReadonlySet<string> = new Set(['codigoCausa']);
 
 /** Los que son solo para el JSON en un codigo y en otros se muestran. */
 const JSON_ONLY_DETAILS_BY_CODE: Readonly<Partial<Record<ErrorCode, ReadonlySet<string>>>> = {
-  EMISSION_UNCERTAIN: new Set(['entorno', 'puntoVenta', 'tipoArca']),
+  BATCH_EMISSION_ERROR: new Set(['numero']),
+  EMISSION_UNCERTAIN: new Set(['entorno', 'numero', 'puntoVenta', 'tipoArca']),
 };
 
 /** Si el texto ya trae el valor, entero: un `7` no cuenta como dicho por un `17`. */

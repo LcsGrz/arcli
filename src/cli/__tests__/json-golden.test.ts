@@ -1144,7 +1144,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
 
     expect(await uncertain(FC)).toEqual({
       codigo: 'EMISSION_UNCERTAIN',
-      detalles: { causa, entorno: 'testing', puntoVenta: 3, tipoArca: 11 },
+      detalles: { causa, entorno: 'testing', numero: 42, puntoVenta: 3, tipoArca: 11 },
       error: `No se pudo confirmar la emisión: ${causa}`,
       sugerencia: expect.stringContaining('`arcli ultimos fc --pv 3 --testing`'),
     });
@@ -1236,7 +1236,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
 
     expect(await uncertain(args)).toMatchObject({
       codigo: 'EMISSION_UNCERTAIN',
-      detalles: { causa: CAUSE },
+      detalles: { causa: CAUSE, numero: 42 },
       sugerencia: expect.stringContaining(`\`arcli ultimos ${shortcut} --pv 3 --testing\``),
     });
   });
@@ -1386,6 +1386,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
       detalles: { fallo: 1, procesados: 0, sinProcesar: [1, 2], total: 2 },
     });
     expect(result.stderr).not.toContain('sinConfirmar');
+    expect(result.stderr).not.toContain('numero');
     expect(sdk.wsfe.createVoucher).not.toHaveBeenCalled();
   });
 
@@ -1563,6 +1564,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
         detalles: {
           causa,
           entorno: 'testing',
+          numero: 42,
           puntoVenta: 'idSolicitud' in extra ? 4 : 3,
           tipoArca: ARCA_TYPES[args[0]!],
           ...extra,
@@ -2007,7 +2009,7 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
       expect(batch.code).toBe(1);
       expect(JSON.parse(batch.stderr)).toMatchObject({
         codigo: 'BATCH_EMISSION_ERROR',
-        detalles: { fallo: 2, procesados: 1, sinConfirmar: 2, sinProcesar: [3] },
+        detalles: { fallo: 2, numero: 42, procesados: 1, sinConfirmar: 2, sinProcesar: [3] },
         error: expect.stringContaining(contradiction(CAE)),
       });
       expect(sdk.wsfe.createVoucher).toHaveBeenCalledTimes(2);
@@ -3763,19 +3765,19 @@ describe('lo que suma el JSON de error (REV-49)', () => {
   const NDE = ['nde', ...NCE.slice(1)];
   const RC = ['rc', '-m', '1000', '--cs', '--cfinal'];
   const UNCERTAIN: ReadonlyArray<[string, string[], Record<string, unknown>]> = [
-    ['fa', FA, { puntoVenta: 3, tipoArca: 1 }],
-    ['fb', FB, { puntoVenta: 3, tipoArca: 6 }],
-    ['fc', FC, { puntoVenta: 3, tipoArca: 11 }],
-    ['fc en otro punto de venta', [...FC, '--pv', '7'], { puntoVenta: 7, tipoArca: 11 }],
-    ['rc', RC, { puntoVenta: 3, tipoArca: 15 }],
-    ['ncc', NCC, { puntoVenta: 3, tipoArca: 13 }],
-    ['fcea', FCEA, { puntoVenta: 3, tipoArca: 201 }],
+    ['fa', FA, { numero: 42, puntoVenta: 3, tipoArca: 1 }],
+    ['fb', FB, { numero: 42, puntoVenta: 3, tipoArca: 6 }],
+    ['fc', FC, { numero: 42, puntoVenta: 3, tipoArca: 11 }],
+    ['fc en otro punto de venta', [...FC, '--pv', '7'], { numero: 42, puntoVenta: 7, tipoArca: 11 }],
+    ['rc', RC, { numero: 42, puntoVenta: 3, tipoArca: 15 }],
+    ['ncc', NCC, { numero: 42, puntoVenta: 3, tipoArca: 13 }],
+    ['fcea', FCEA, { numero: 42, puntoVenta: 3, tipoArca: 201 }],
     ['fe', [...FE, '--pv', '4'], { idSolicitud: 42, numero: 8, puntoVenta: 4, tipoArca: 19 }],
     ['nde', NDE, { idSolicitud: 42, numero: 8, puntoVenta: 4, tipoArca: 20 }],
     ['nce', NCE, { idSolicitud: 42, numero: 8, puntoVenta: 4, tipoArca: 21 }],
   ];
 
-  it.each(UNCERTAIN)('EMISSION_UNCERTAIN, %s: entorno, puntoVenta y tipoArca', async (_name, args, details) => {
+  it.each(UNCERTAIN)('EMISSION_UNCERTAIN, %s: entorno, numero, puntoVenta y tipoArca', async (_name, args, details) => {
     sdk.wsfe.createVoucher.mockRejectedValue(new Error('socket hang up'));
     sdk.wsfex.authorize.mockRejectedValue(new Error('socket hang up'));
 
@@ -3787,7 +3789,7 @@ describe('lo que suma el JSON de error (REV-49)', () => {
   });
 
   it.each<[string, string[], Record<string, unknown>]>([
-    ['fc', FC, { puntoVenta: 3, tipoArca: 11 }],
+    ['fc', FC, { numero: 42, puntoVenta: 3, tipoArca: 11 }],
     ['fe', FE, { idSolicitud: 42, numero: 8, puntoVenta: 3, tipoArca: 19 }],
   ])('EMISSION_UNCERTAIN, %s en producción: entorno produccion', async (_name, args, details) => {
     // Con el SDK falso, como todo el archivo.

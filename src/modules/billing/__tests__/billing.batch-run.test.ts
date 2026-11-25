@@ -168,6 +168,7 @@ describe('emitBatch', () => {
       environment: 'produccion',
       pointOfSale: 3,
       shortcut: 'fc',
+      voucherNumber: 42,
     });
     const outcome = await emitBatch({
       emit: async ({ input }: Item) => {
@@ -184,7 +185,7 @@ describe('emitBatch', () => {
 
     expect(error.message).toContain('El #2 puede haberse emitido');
     expect(error.message).toContain('`arcli ultimos fc --pv 3 --produccion`');
-    expect(error.details).toMatchObject({ fallo: 2, sinConfirmar: 2, sinProcesar: [3] });
+    expect(error.details).toMatchObject({ fallo: 2, numero: 42, sinConfirmar: 2, sinProcesar: [3] });
   });
 
   it('en un lote de un solo comprobante corta con BATCH_EMISSION_ERROR', async () => {
