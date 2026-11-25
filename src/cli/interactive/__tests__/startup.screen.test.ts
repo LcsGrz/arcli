@@ -223,6 +223,16 @@ describe('el asistente abre sin esperar (TUI-49)', () => {
     expect(runStatusFlow).toHaveBeenCalledTimes(1);
   });
 
+  it('antes de que llegue la versión no hay líneas reservadas a la vista', async () => {
+    start();
+    await seen(PENDING);
+
+    const lines = terminal.screen();
+    const bar = lines.findIndex((line) => line.includes(PENDING));
+
+    expect(lines.slice(bar + 1, bar + 6)).toEqual(['', '', '? ¿Qué querés hacer?', '', '❯ Emitir factura']);
+  });
+
   it.each<[ArcaHealth, string]>([
     ['funcionando', 'ARCA FUNCIONANDO'],
     ['con-demoras', 'ARCA CON DEMORAS'],
@@ -349,6 +359,30 @@ describe('se elige antes de saber cómo está ARCA (TUI-49)', () => {
     await pause(50);
     await press(ENTER);
     expect(text()).not.toMatch(/ARCA con problemas/i);
+  });
+
+  it.each(['falla', 'cancela'])('si "Estado de ARCA" se %s sin mostrarse, avisa', async (how) => {
+    const name = how === 'cancela' ? 'ExitPromptError' : 'Error';
+
+    vi.mocked(runStatusFlow).mockRejectedValueOnce(Object.assign(new Error('x'), { name }));
+    start();
+    await seen(PENDING);
+    await press('e', 's', 't', 'a', 'd', ENTER);
+    health[0]?.resolve('con-problemas');
+    await seen('ARCA con problemas');
+    expect(count(/ARCA con problemas/g)).toBe(1);
+  });
+
+  it('si "Estado de ARCA" no abre porque la sesión falla, avisa', async () => {
+    start();
+    await seen(PENDING);
+    vi.mocked(createInteractiveSession).mockImplementation(() => {
+      throw new Error('Falta el CUIT');
+    });
+    await press('e', 's', 't', 'a', 'd', ENTER);
+    expect(runStatusFlow).not.toHaveBeenCalled();
+    health[0]?.resolve('con-problemas');
+    await seen('ARCA con problemas');
   });
 
   it('si el resultado llega con el menú ya abierto otra vez, avisa ahí, sin duplicar nada', async () => {

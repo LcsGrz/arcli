@@ -245,6 +245,56 @@ describe('un comando sin npm colgado', () => {
   );
 });
 
+describe('la consulta a npm con NODE_USE_ENV_PROXY', () => {
+  it.each([
+    ['1', ['CONNECT registro.invalid:443 HTTP/1.1']],
+    ['0', []],
+  ])(
+    '%s',
+    async (useProxy, expected) => {
+      const requests: string[] = [];
+      const proxy = createServer((socket) => {
+        socket
+          .on('error', () => undefined)
+          .once('data', (data) => {
+            requests.push(String(data).split('\r\n')[0] ?? '');
+            socket.end('HTTP/1.1 502 Bad Gateway\r\n\r\n');
+          });
+      }).listen(0, '127.0.0.1');
+
+      await once(proxy, 'listening');
+
+      try {
+        const module = pathToFileURL(resolve('dist/services/npm/npm-registry.js')).href;
+        // `.invalid` no existe: sin proxy no sale a ningun lado.
+        const script = `import { requestNpmRegistry } from ${JSON.stringify(module)};
+         requestNpmRegistry('https://registro.invalid/arcli', { signal: new AbortController().signal })
+           .then(() => process.exit(3), () => undefined);`;
+        const url = `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`;
+        const child = spawn(process.execPath, ['--input-type=module', '--eval', script], {
+          env: {
+            ...process.env,
+            HTTPS_PROXY: url,
+            https_proxy: url,
+            NODE_USE_ENV_PROXY: useProxy,
+            NO_PROXY: '',
+            no_proxy: '',
+          },
+          stdio: 'ignore',
+          timeout: 60_000,
+        });
+        const [code] = (await once(child, 'close')) as [number | null];
+
+        expect(code).toBe(0);
+        expect(requests).toEqual(expected);
+      } finally {
+        proxy.close();
+      }
+    },
+    70_000,
+  );
+});
+
 describe('el asistente con ARCA y npm colgados', () => {
   it.each([
     ['Esc', '\u001B'],

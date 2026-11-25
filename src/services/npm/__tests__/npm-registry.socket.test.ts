@@ -122,6 +122,14 @@ describe('requestNpmRegistry con conexiones de verdad', () => {
     expect(open.size).toBe(0);
   });
 
+  it('rechaza un certificado que no es de confianza', async () => {
+    delete agentOptions.ca;
+
+    await expect(requestNpmRegistry(url(), { signal: new AbortController().signal })).rejects.toMatchObject({
+      code: 'DEPTH_ZERO_SELF_SIGNED_CERT',
+    });
+  });
+
   it('usa el proxy del agente global, el de `NODE_USE_ENV_PROXY`', async () => {
     answer = 'completo';
     tunnel = 'completo';

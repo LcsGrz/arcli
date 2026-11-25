@@ -66,14 +66,15 @@ async function resolveSession(options: GlobalCliOptions): Promise<InteractiveSes
   }
 }
 
+/** Devuelve si la opcion corrio: sin una sesion, no. */
 async function runOption(
   option: Exclude<MenuOption, 'actualizar' | 'config' | 'salir'>,
   options: GlobalCliOptions,
-): Promise<void> {
+): Promise<boolean> {
   const session = await resolveSession(options);
 
   if (!session) {
-    return;
+    return false;
   }
 
   if (option === 'factura') await runInvoiceFlow(session);
@@ -83,6 +84,8 @@ async function runOption(
   if (option === 'nota-debito') await runNoteFlow(session, 'debito');
   if (option === 'consultas') await runQueriesMenu(session);
   if (option === 'estado') await runStatusFlow(session);
+
+  return true;
 }
 
 function updateChoice(update: UpdateCheckResult) {
@@ -302,12 +305,12 @@ async function runAssistant(
       } else if (option === 'config') {
         await runAndReopenHeader(() => runConfigMenu(options));
       } else {
-        // Esa pantalla ya muestra como esta ARCA.
-        if (option === 'estado') {
+        const ran = await runOption(option, options);
+
+        // Esa pantalla ya mostro como esta ARCA.
+        if (ran && option === 'estado') {
           header.dismissResult();
         }
-
-        await runOption(option, options);
       }
     } catch (error) {
       if (isPromptCancellation(error)) {

@@ -184,4 +184,26 @@ describe('listSelect', () => {
 
     expect(frames[0]).toContain('↓ 3 más');
   });
+
+  it('con una lista que puede cambiar, al borrar el filtro la marcada queda aunque no sea la primera', async () => {
+    const input = new PassThrough();
+    const answer = listSelect<number, typeof BACK>(
+      {
+        choices: MANY,
+        default: 3,
+        initialTerm: 'o',
+        live: { firstChoice: () => undefined, subscribe: () => () => undefined, top: () => '' },
+        message: '¿Cuál?',
+        pageSize: 5,
+        theme: THEME,
+      },
+      { input, output: new PassThrough() },
+    );
+
+    await tick();
+    input.write('\u007F');
+    await tick();
+    input.write(ENTER);
+    expect(await answer).toBe(3);
+  });
 });
