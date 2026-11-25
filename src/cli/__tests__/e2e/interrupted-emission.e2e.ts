@@ -655,7 +655,9 @@ describe.skipIf(process.platform === 'win32')('mientras se genera el PDF', () =>
     // El de npm no es el de arcli: con una shell como dash, que recibe la misma señal, npm termina por ella.
     expect(readFileSync(file('salida.txt'), 'utf8')).toBe('0');
 
-    console.log('DIAG', readFileSync(file('diagnostico.txt'), 'utf8'), '| npm:', result.code, result.signal);
+    expect
+      .soft(`DIAG ${readFileSync(file('diagnostico.txt'), 'utf8')} | npm: ${result.code} ${result.signal}`)
+      .toBe('');
     await waitFor(() => aliveBrowsers().length === 0, 'que se cierre el navegador');
   });
 
