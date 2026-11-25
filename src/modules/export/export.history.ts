@@ -1,4 +1,4 @@
-import { fetchVouchersBackwards, type ListVouchersOptions } from '../vouchers/voucher-history';
+import { fetchVouchersBackwards, type ListedVoucher, type ListVouchersOptions } from '../vouchers/voucher-history';
 
 import type { ExportGateway, ExportIssuedVoucher } from './export.types';
 
@@ -8,7 +8,7 @@ export async function listRecentExportVouchers(
   pointOfSale: number,
   arcaType: number,
   options: ListVouchersOptions = {},
-): Promise<ExportIssuedVoucher[]> {
+): Promise<Array<ListedVoucher<ExportIssuedVoucher>>> {
   const last = await gateway.getLastVoucherNumber(arcaType, pointOfSale);
 
   return fetchVouchersBackwards(last, (number) => gateway.getVoucher({ arcaType, number, pointOfSale }), options);

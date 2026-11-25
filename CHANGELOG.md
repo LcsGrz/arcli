@@ -16,7 +16,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - En el mismo caso, una nota A, B, C o FCE que frenaba con "ARCA no tiene…" sigue con un aviso y, con `--emitir`, se emite. Si el punto de venta es de otro sistema ya seguía: cambia el texto del aviso.
 > - Una falla con "no existe" en el texto (`El dominio no existe`) ya no es `VOUCHER_NOT_FOUND`: sale con su error, por ejemplo `UNEXPECTED_ERROR`. Por el asociado de una nota es un aviso, y en FCE sin `--afecha` frena.
 > - Si de lo que ARCA contestó al emitir no se puede saber si hay CAE (la `E` sin respuesta, o un CAE que no es texto ni número), sale `EMISSION_UNCERTAIN`, antes `UNEXPECTED_ERROR`. Si A, B y C contestan vacío ya era `EMISSION_UNCERTAIN`: cambia el texto de `error` y `detalles.causa`, también si contesta HTML o XML cortado (antes `[object Object]`).
-> - Si ARCA contesta la consulta de una `E` sin sus datos, `consultar` sale con `ARCA_VOUCHER_QUERY_ERROR`, antes `VOUCHER_NOT_FOUND`; `ultimos` también, con exit code `1`, antes `0` con la lista incompleta; y una nota `E` sobre ella, antes `INPUT_VALIDATION_ERROR`. Si vino con su número y su CAE, `ultimos` la saltea como antes y avisa, con `--json` en stderr.
+> - Si ARCA contesta la consulta de una `E` sin sus datos, `consultar` sale con `ARCA_VOUCHER_QUERY_ERROR`, antes `VOUCHER_NOT_FOUND`; `ultimos` también, con exit code `1`, antes `0` con la lista incompleta; y una nota `E` sobre ella, antes `INPUT_VALIDATION_ERROR`. Si vino con su número y su CAE, `ultimos` la muestra en su lugar (en `--json`, solo `numero`, `cae` y `error`), antes la salteaba, y avisa, con `--json` en stderr.
 > - Si ARCA contesta a la emisión sin CAE y sin un rechazo, sale `EMISSION_UNCERTAIN` con exit code `1` y un lote se corta ahí. Antes: vacía, `estado: "observado"` y `0`; aprobada u observada sin CAE, `aprobado` u `observado` y `0`; y con errores internos (500, 501 o 502; en la `E`, también 1000) o, en A, B y C, sin código, `rechazado` y `2`. En la `E`, un error sin código salía `observado` o `aprobado` y `0`, y sin `ErrCode` no se mostraba.
 > - Si ARCA contesta `R` y un CAE legible, sale `EMISSION_UNCERTAIN`, con el CAE en `error` y `detalles.causa`; antes `rechazado` y `2`, en A, B y C sin el CAE.
 > - Si ARCA da el CAE y además informa un error, `estado` es `observado` con exit code `0`, antes `rechazado` y `2`. `sugerencias` ya no trae las del error. En la `E` vale también para un error sin código, antes `aprobado` u `observado` y `0`. Una observación con CAE tampoco sugiere ya emitir de nuevo.
@@ -46,7 +46,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - En una nota, `E` incluida, con `--ac`, `--at` o `--ar` de otro comprobante que uno de CUIT ajeno del JSON, su `puntoVenta` tampoco va: sin `--apv`, o `--acuit` propio, `INPUT_VALIDATION_ERROR`; antes se usaba.
 > - En una nota, si el JSON trae el `cuit` del asociado, un `--acuit` que lo cambia entre propio y ajeno descarta su `fecha`: pasá `--afecha`.
 > - En una nota, si el asociado del JSON no trae `puntoVenta`, `--apv` o `--pv` de otro punto de venta descartan su `fecha`: pasá `--afecha`.
-> - Un comprobante A, B, C, FCE o recibo que ARCA devuelve con su número y su CAE pero no se puede leer: `ultimos` lo saltea y avisa, con `--json` en stderr, y `consultar` sale con `ARCA_VOUCHER_QUERY_ERROR`, antes `VOUCHER_NOT_FOUND`.
+> - Un comprobante A, B, C, FCE o recibo que ARCA devuelve con su número y su CAE pero no se puede leer: `ultimos` lo trae en su lugar, en `--json` solo con `numero`, `cae` y `error`, y avisa, con `--json` en stderr, y `consultar` sale con `ARCA_VOUCHER_QUERY_ERROR`, antes `VOUCHER_NOT_FOUND`.
 > - `estado` suma `servidoresExportacion`, `null` si WSFEX no responde. `listo` y el exit code no cambian.
 > - En los comandos de la `E` con `exportacion.cert` propio, `avisos` ya no trae el vencimiento del certificado general de ese entorno.
 >
@@ -151,7 +151,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Facturas:** si la medianoche pasa en "¿Emitimos?", se emite lo que mostró la vista previa, con sus fechas, como en la `E` (#274).
 - **Facturas:** una respuesta sin CAE ni rechazo, o con un error interno de ARCA, sale como `EMISSION_UNCERTAIN`, y con CAE y un error, como emitido (#273).
 - **Factura E:** en texto, la `E` y sus notas muestran el CAE antes de preguntar, instalar y generar el PDF, como A, B y C (#283).
-- **Consultas:** `ultimos` y las listas del asistente saltean y avisan un A, B o C que existe pero no se puede leer (#288).
+- **Consultas:** `ultimos` muestra en su lugar, con `error`, un comprobante que existe pero no se puede leer; el asistente lo saltea y avisa (#288).
 - **PDF:** en la `E`, "Generando PDF..." ya no gira sobre la pregunta de instalar el plugin (#283).
 - **Facturas:** un evento u observación con otra forma ya no pierde el CAE; si no se sabe si lo hay, sale `EMISSION_UNCERTAIN` (#272).
 - **Consultas:** `consultar` y `ultimos` dan `ARCA_VOUCHER_QUERY_ERROR` si ARCA contesta con un error, en vez de decir que no existe (#268).

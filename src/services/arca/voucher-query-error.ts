@@ -48,6 +48,6 @@ export function unreadableVoucherError(voucher: {
     { errores: [] },
     `Si estabas verificando una emisión, ya está emitido: no lo repitas. Miralo en ARCA y avisanos en ${ISSUES_URL}.`,
     'existe, pero ARCLI no pudo leer sus datos',
-    { exists: true },
+    { existing: { cae: voucher.cae, number: voucher.number } },
   );
 }

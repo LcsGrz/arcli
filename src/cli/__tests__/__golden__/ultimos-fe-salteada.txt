@@ -28,6 +28,11 @@ exit: 0
       "resultado": "A",
       "tipoExpo": 2,
       "total": 1500
+    },
+    {
+      "cae": "76463926585300",
+      "error": "No se pudieron leer los datos que devolvió ARCA.",
+      "numero": 6
     }
   ],
   "entorno": "testing",
@@ -39,7 +44,7 @@ exit: 0
 
 ┌                                                                                          ┐
                                                                                             
-     No se muestra 1 comprobante, porque ARCLI no pudo leer sus datos: 00004-00000006.      
-                               Existe en ARCA: no lo repitas.                               
+    ARCLI no pudo leer los datos de 1 comprobante: 00004-00000006. Existe en ARCA: no lo    
+                                          repitas.                                          
                                                                                             
 └                                                                                          ┘

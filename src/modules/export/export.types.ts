@@ -311,6 +311,8 @@ export interface ExportIssuedItem {
  * destino y la moneda, y ARCA compara varios contra los del asociado (errores 2049 a 2053).
  */
 export interface ExportIssuedVoucher {
+  /** Solo en los que no se pudieron leer (`UnreadableVoucher`). */
+  readonly unreadable?: undefined;
   readonly activities: readonly number[];
   readonly arcaType: number;
   /** El comprobante que este ajusta, si es una nota: ARCA mira su tipo en la ND de servicios (error 2055). */
