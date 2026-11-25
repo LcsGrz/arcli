@@ -247,7 +247,7 @@ y cualquiera de ellos, `periodoAsociado` (y `--pd`/`--ph`, `comprobanteAsociado`
 `domicilioCliente` e `idImpositivo`; otro `--pais-destino`, `cuitPais`; otro `--incoterm`, `descripcionIncoterm`; `--cm`, `mismaMoneda` (y al revés). En las notas E, `--moneda` descarta además una `cotizacionMoneda` sin `codigoMoneda`, y con otro cliente, país o incoterm
 que el asociado (por flag o archivo) la nota no hereda su domicilio e ID impositivo, su CUIT del país o su descripción: pasalos.
 Una clave desconocida (`montototal`, `vencimiento`, `moneda`) o un tipo incorrecto (`"puntoVenta": "3"`, `"emitir": "true"`,
-`null` salvo en `condicionVenta`) es `INPUT_VALIDATION_ERROR` (en un lote, `BATCH_VALIDATION_ERROR` con el índice): no se ignora. Números sin comillas. En la E, igual, con `detalles` en `null`.
+`null` salvo en `condicionVenta`) es `INPUT_VALIDATION_ERROR` (en un lote, `BATCH_VALIDATION_ERROR` con el índice): no se ignora. Números sin comillas. En la E, igual. Con un solo comprobante, `detalles.campos` lista cada `{mensaje, ruta}`, también en la E.
 
 ## Forma de la respuesta (`--json`, sin `--bruto`)
 
@@ -295,7 +295,8 @@ aprobado (tiene CAE), con observaciones o con un error en `errores`. `previsuali
 ## Salida de error
 
 Sin `--json` (ni `json=true` en la config): panel de texto en stderr. Con `--json` o `json=true`: JSON en stderr con la forma
-`{"codigo": "...", "detalles": {...} | [{mensaje, ruta}] | null, "error": "mensaje", "sugerencia": "..." | null}`. `detalles` es un array solo en los errores de validación de esquema.
+`{"codigo": "...", "detalles": {...} | [{mensaje, ruta}] | null, "error": "mensaje", "sugerencia": "..." | null}`. `detalles` es un array solo en los errores de validación de esquema. En los errores de ARCA, `detalles.errores` trae cada `{codigo, mensaje}` (`[]` si no informó ninguno); `code` y `msg` ahí, y `detalles.errors`, se sacan en la 3.0.0 (lo avisa `detalles.deprecado`).
+`--testing` con `--produccion` es `INPUT_VALIDATION_ERROR` en todos los comandos que aceptan los dos, menos `parametros` sin tabla, que los ignora.
 `INPUT_VALIDATION_ERROR` con `detalles.codigoCausa` (el código de la falla: `UNEXPECTED_ERROR`, `TRANSIENT_ERROR`, `PADRON_SERVICE_NOT_AUTHORIZED`, `WSFE_SERVICE_NOT_AUTHORIZED`, `ARCA_VOUCHER_QUERY_ERROR`): falló el padrón (sin IVA receptor) o la consulta del asociado (nota FCE sin `--afecha`); pasá `--ir` o `--afecha`, o resolvé la causa y reintentá.
 `codigo` es `CONFIGURATION_ERROR`, `INPUT_VALIDATION_ERROR`, `EMISSION_UNCERTAIN` (falló la llamada
 que emite o de su respuesta no se puede saber si se emitió (ilegible, vacía, aprobada sin CAE, rechazada con CAE, o sin CAE ni resultado y solo con errores internos, 500/501/502 y en la E 1000, o sin código), no el login ni el pedido del último número: puede haberse emitido igual; antes de reintentar, verificar con el `arcli ultimos <tipo> --pv <n> --<entorno>`
