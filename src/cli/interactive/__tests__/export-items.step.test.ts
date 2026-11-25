@@ -549,20 +549,26 @@ describe('exportItemsStep (NAV-10)', () => {
     expect(second?.[2]).toBe('confirmar');
   });
 
-  it('la tabla de unidades se consulta una vez por flujo', async () => {
-    const { units } = await run(
-      [
-        ...FIRST_DEFAULTS,
-        [/^(?:Importe|Precio)/, '10'],
-        [/ítem 2/, ''],
-        [TOTAL, 'Confirmar'],
-        [ITEMS, editing({})],
-        [TOTAL, 'Confirmar'],
-      ],
-      { backsAfter: 1 },
-    );
+  it('una falla de la tabla de unidades no queda guardada: al volver a la pregunta se consulta de nuevo', async () => {
+    const error = new Error('socket hang up');
+    const units = vi.fn().mockRejectedValueOnce(error).mockResolvedValue(UNITS);
+    const wizard = [
+      exportItemsStep<State>({
+        currency: () => 'DOL',
+        initial: () => [JUICE],
+        items: fieldLens('items'),
+        units,
+        voucher: 'la factura de exportación E',
+      }),
+    ];
 
-    expect(units).toHaveBeenCalledTimes(1);
+    script = createScript([
+      [ITEMS, editing({})],
+      [TOTAL, 'Confirmar'],
+    ]);
+    await expect(runWizard(wizard, {})).rejects.toBe(error);
+    expect(await runWizard(wizard, {})).toMatchObject({ items: [JUICE] });
+    expect(units).toHaveBeenCalledTimes(2);
   });
 });
 

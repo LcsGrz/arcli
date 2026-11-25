@@ -55,6 +55,27 @@ function createWsfexAuthenticator(context: Context): WsfexAuthenticator {
   return async () => auth.getAuthParams(await auth.login(ArcaServiceNames.WSFEX), context.cuit).Auth;
 }
 
+/** Los pedidos simultaneos comparten el login. Ni el ticket ni un error quedan guardados aca: el ticket, en su storage. */
+function shareLogin(authenticate: WsfexAuthenticator): WsfexAuthenticator {
+  let pending: ReturnType<WsfexAuthenticator> | undefined;
+
+  return () => {
+    pending ??= authenticate().finally(() => {
+      pending = undefined;
+    });
+
+    return pending;
+  };
+}
+
+/**
+ * Si el cliente del SDK encuentra el ticket que pide el autenticador. Con `handleTicket` nadie lo guarda, y sin
+ * `ticketPath` ni storage el SDK usa una carpeta propia: ahi el login previo de las lecturas seria uno de mas.
+ */
+function sharesTicket(context: Context): boolean {
+  return !context.handleTicket && Boolean(context.ticketStorage ?? context.ticketPath);
+}
+
 export interface ArcaClientFactoryOptions {
   /**
    * Donde guardar los tickets de WSAA. Sin definir, en disco, en el `ticketPath` del perfil. Los del SDK fijan el CUIT
@@ -92,7 +113,13 @@ export class ArcaClientFactory {
   ): ArcaExportGateway {
     const context = this.resolveExportContext(runtime);
 
-    return new ArcaExportGateway(createArcaClient(context), createWsfexAuthenticator(context));
+    const authenticate = shareLogin(createWsfexAuthenticator(context));
+
+    return new ArcaExportGateway(
+      createArcaClient(context),
+      authenticate,
+      sharesTicket(context) ? authenticate : undefined,
+    );
   }
 
   /**

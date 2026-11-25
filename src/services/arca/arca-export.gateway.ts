@@ -187,6 +187,8 @@ export class ArcaExportGateway implements ExportGateway {
   public constructor(
     private readonly arca: Arca,
     private readonly authenticate?: WsfexAuthenticator,
+    /** Deja un ticket valido donde lo busca el SDK, con un solo login en vuelo. Sin el, cada llamada hace el suyo. */
+    private readonly ensureTicket?: () => Promise<unknown>,
   ) {}
 
   /** Todas las llamadas autentican en WSAA: si el certificado no esta autorizado a wsfex, el error lo dice. */
@@ -203,6 +205,15 @@ export class ArcaExportGateway implements ExportGateway {
 
       throw error;
     }
+  }
+
+  /** Una lectura. Las que van a la vez esperan el mismo login: el SDK haria uno por llamada. `authorize` no pasa por aca. */
+  private read<T>(request: (service: Arca['wsfexService']) => Promise<T>): Promise<T> {
+    return this.call(async (service) => {
+      await this.ensureTicket?.();
+
+      return request(service);
+    });
   }
 
   /**
@@ -227,7 +238,7 @@ export class ArcaExportGateway implements ExportGateway {
    */
   public async checkPermit(permit: string, destinationCountry: number): Promise<string> {
     const data = (
-      await this.call((service) => service.checkPermiso({ Dst_merc: destinationCountry, ID_Permiso: permit }))
+      await this.read((service) => service.checkPermiso({ Dst_merc: destinationCountry, ID_Permiso: permit }))
     ).FEXCheck_PermisoResult;
 
     assertNoError(data, `el permiso de embarque ${permit}`);
@@ -240,7 +251,7 @@ export class ArcaExportGateway implements ExportGateway {
    * suyos. El WSDL no la tipa (devuelve `ClsFEXResponse_ActividadTipo`), asi que se lee como array tolerante.
    */
   public async getActivities(): Promise<ExportActivity[]> {
-    const data = (await this.call((service) => service.getParamActividades({}))).FEXGetPARAM_ActividadesResult;
+    const data = (await this.read((service) => service.getParamActividades({}))).FEXGetPARAM_ActividadesResult;
 
     assertNoError(data, 'las actividades');
 
@@ -266,7 +277,7 @@ export class ArcaExportGateway implements ExportGateway {
    */
   public async getVoucher(query: ExportVoucherQuery): Promise<ExportIssuedVoucher | null> {
     const data = (
-      await this.call((service) =>
+      await this.read((service) =>
         service.getCmp({ Cmp: { Cbte_nro: query.number, Cbte_tipo: query.arcaType, Punto_vta: query.pointOfSale } }),
       )
     )?.FEXGetCMPResult;
@@ -303,7 +314,7 @@ export class ArcaExportGateway implements ExportGateway {
   }
 
   public async getCurrencies(): Promise<ExportCurrency[]> {
-    const data = (await this.call((service) => service.getParamMon({}))).FEXGetPARAM_MONResult;
+    const data = (await this.read((service) => service.getParamMon({}))).FEXGetPARAM_MONResult;
 
     assertNoError(data, 'las monedas');
 
@@ -315,7 +326,7 @@ export class ArcaExportGateway implements ExportGateway {
   }
 
   public async getDestinationCountries(): Promise<ExportCountry[]> {
-    const data = (await this.call((service) => service.getParamDstPais({}))).FEXGetPARAM_DST_paisResult;
+    const data = (await this.read((service) => service.getParamDstPais({}))).FEXGetPARAM_DST_paisResult;
 
     assertNoError(data, 'los países de destino');
 
@@ -328,7 +339,7 @@ export class ArcaExportGateway implements ExportGateway {
   }
 
   public async getDestinationCountryCuits(): Promise<ExportCountryCuit[]> {
-    const data = (await this.call((service) => service.getParamDstCuit({}))).FEXGetPARAM_DST_CUITResult;
+    const data = (await this.read((service) => service.getParamDstCuit({}))).FEXGetPARAM_DST_CUITResult;
 
     assertNoError(data, 'los CUIT de países');
 
@@ -341,7 +352,7 @@ export class ArcaExportGateway implements ExportGateway {
   }
 
   public async getIncoterms(): Promise<ExportIncoterm[]> {
-    const data = (await this.call((service) => service.getParamIncoterms({}))).FEXGetPARAM_IncotermsResult;
+    const data = (await this.read((service) => service.getParamIncoterms({}))).FEXGetPARAM_IncotermsResult;
 
     assertNoError(data, 'los incoterms');
 
@@ -353,7 +364,7 @@ export class ArcaExportGateway implements ExportGateway {
   }
 
   public async getLanguages(): Promise<ExportLanguage[]> {
-    const data = (await this.call((service) => service.getParamIdiomas({}))).FEXGetPARAM_IdiomasResult;
+    const data = (await this.read((service) => service.getParamIdiomas({}))).FEXGetPARAM_IdiomasResult;
 
     assertNoError(data, 'los idiomas');
 
@@ -365,7 +376,7 @@ export class ArcaExportGateway implements ExportGateway {
   }
 
   public async getUnits(): Promise<ExportUnit[]> {
-    const data = (await this.call((service) => service.getParamUMed({}))).FEXGetPARAM_UMedResult;
+    const data = (await this.read((service) => service.getParamUMed({}))).FEXGetPARAM_UMedResult;
 
     assertNoError(data, 'las unidades de medida');
 
@@ -410,7 +421,7 @@ export class ArcaExportGateway implements ExportGateway {
   }
 
   public async getLastRequestId(): Promise<number> {
-    const data = (await this.call((service) => service.getLastId({}))).FEXGetLast_IDResult;
+    const data = (await this.read((service) => service.getLastId({}))).FEXGetLast_IDResult;
 
     // Solo se pide al facturar.
     assertNoError(data, 'el último ID de solicitud', lastNumberErrorSuggestion('emitir'));
@@ -424,7 +435,7 @@ export class ArcaExportGateway implements ExportGateway {
    * `yyyymmdd`: con guiones ARCA contesta el error 2054.
    */
   public async getQuotations(arcaDate: string): Promise<ExportQuotation[]> {
-    const data = (await this.call((service) => service.getParamMonConCotizacion({ Fecha_CTZ: arcaDate })))
+    const data = (await this.read((service) => service.getParamMonConCotizacion({ Fecha_CTZ: arcaDate })))
       .FEXGetPARAM_MON_CON_COTIZACIONResult;
 
     assertNoError(data, `las cotizaciones al ${formatArcaDateAsArgentineDate(arcaDate)}`);

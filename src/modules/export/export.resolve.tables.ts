@@ -6,7 +6,7 @@ import type { ExportPreviewGateway } from './export.gateway';
 import { resolveExportIncoterm } from './export.incoterm';
 import { buildExportItems, DEFAULT_EXPORT_ITEM_DESCRIPTION } from './export.items';
 import type { ExportRequest } from './export.resolve.local';
-import type { ExportTableReader } from './export.tables';
+import { type ExportTableReader, isTolerableTableError } from './export.tables';
 import type {
   ExportActivity,
   ExportCountry,
@@ -33,24 +33,38 @@ export interface StartedExportTables {
 
 /**
  * Arranca las tablas en el orden en que se usan, hasta 4 a la vez. Quien resuelve las espera y valida en ese orden, asi
- * que con que error se corta no depende de cual conteste antes. Va despues de los paises, que piden el ticket de WSAA:
- * las que van a la vez ya lo encuentran. Al cortar, las que estan en vuelo no se abortan y sus respuestas se ignoran: el
- * error se muestra enseguida, pero el proceso termina recien cuando contestan (el SDK no tiene timeout propio).
+ * que con que error se corta no depende de cual conteste antes. Va despues de los paises, que suelen dejar el ticket de
+ * WSAA; si salieron de la memoria y el ticket vencio, las que van a la vez esperan un mismo login (`ArcaExportGateway`).
+ * Un error que no se tolera va a cortar la resolucion, asi que lo que esta en la cola ya no arranca. Al cortar, las que
+ * estan en vuelo no se abortan y sus respuestas se ignoran: el error se muestra enseguida, pero el proceso termina recien
+ * cuando contestan (el SDK no tiene timeout propio).
  */
 export function startExportTables(request: ExportRequest, gateway: ExportPreviewGateway): StartedExportTables {
   const queue = createTaskQueue(MAX_SIMULTANEOUS_TABLES);
+  const start = <T>(query: () => Promise<T>) =>
+    queue.add(async () => {
+      try {
+        return await query();
+      } catch (error) {
+        if (!isTolerableTableError(error)) {
+          queue.stop();
+        }
+
+        throw error;
+      }
+    });
 
   return {
-    countryCuits: queue.add(() => gateway.getDestinationCountryCuits()),
-    units: queue.add(() => gateway.getUnits()),
+    countryCuits: start(() => gateway.getDestinationCountryCuits()),
+    units: start(() => gateway.getUnits()),
     // Sin `--incoterms-desc`, la descripcion (`Incoterms_Ds`) sale de la tabla.
-    incoterms: request.input.incoterm?.trim() ? queue.add(() => gateway.getIncoterms()) : undefined,
+    incoterms: request.input.incoterm?.trim() ? start(() => gateway.getIncoterms()) : undefined,
     // Se consulta siempre: la vista previa muestra el nombre del idioma, tambien el de por defecto.
-    languages: queue.add(() => gateway.getLanguages()),
+    languages: start(() => gateway.getLanguages()),
     // Se consulta siempre: la vista previa muestra el nombre de la moneda.
-    currencies: queue.add(() => gateway.getCurrencies()),
+    currencies: start(() => gateway.getCurrencies()),
     // Sin `--actividad` ni `exportacion.actividad` la E va sin el bloque `Actividades`: ARCA no lo exige.
-    activities: request.activityCode === undefined ? undefined : queue.add(() => gateway.getActivities()),
+    activities: request.activityCode === undefined ? undefined : start(() => gateway.getActivities()),
     stop: queue.stop,
   };
 }

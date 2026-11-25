@@ -14,7 +14,7 @@ const TOKEN_ERROR = /ValidacionDeToken|usuario no autorizado/i;
  * Los errores que se toleran en una tabla: que WSFEX conteste con un error, o uno claro de red. Los demas (WSAA, tickets,
  * certificado, programacion o desconocidos) cortan: con ellos no se sabe si se puede emitir.
  */
-function isTolerable(error: unknown): boolean {
+export function isTolerableTableError(error: unknown): boolean {
   if (error instanceof AppError) {
     return error.code === 'ARCA_EXPORT_ERROR' && !TOKEN_ERROR.test(error.message);
   }
@@ -37,7 +37,8 @@ export interface ExportTableReader {
 /**
  * Una tabla auxiliar de WSFEX: si no responde, la vista previa sigue sin ella y avisa (EXPO-13). Nunca se emite un dato
  * distinto del que saldria con la tabla: si de ella sale algo que se emite, es `required` y corta con su error, antes de
- * pedir los numeros. Se usa despues de una lectura obligatoria de WSFEX (los paises), asi que el acceso ya anduvo. Con
+ * pedir los numeros. Se usa despues de los paises, que son obligatorios: el acceso ya anduvo al leerlos, recien o, si
+ * salieron de la memoria (`cacheExportTables`), antes en el mismo comprobante. Con
  * dos errores de conexion ya no es una tabla, es la red: corta con el primero, para no emitir a ciegas. Las tablas pueden
  * haber arrancado juntas (`startExportTables`): el primero es el de la que se lee antes, no el que llego antes.
  */
@@ -72,7 +73,7 @@ export function createExportTableReader(): ExportTableReader {
           firstConnectionError = error;
         }
 
-        if (options.required || !isTolerable(error)) {
+        if (options.required || !isTolerableTableError(error)) {
           throw error;
         }
 

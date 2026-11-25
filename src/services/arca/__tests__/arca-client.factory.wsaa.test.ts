@@ -1,4 +1,12 @@
-import { ArcaServiceNames, type Context, MemoryTicketStorage, SoapClient } from '@arcasdk/core';
+import {
+  AccessTicket,
+  ArcaServiceNames,
+  type Context,
+  FileSystemTicketStorage,
+  type ITicketStoragePort,
+  MemoryTicketStorage,
+  SoapClient,
+} from '@arcasdk/core';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -7,7 +15,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { OPENSSL_WARM_UP_TIMEOUT_MS } from '../../../lib/security/__tests__/self-signed-certificate';
 import { CONFIG_DEFAULTS } from '../../../modules/config/config.schemas';
+import type { ExportGateway } from '../../../modules/export/export.gateway';
 import { ExportService } from '../../../modules/export/export.service';
+import { cacheExportTables } from '../../../modules/export/export.table-cache';
 import { systemClock } from '../../time/system-clock';
 import { ArcaClientFactory } from '../arca-client.factory';
 
@@ -79,6 +89,25 @@ function runtime(): Parameters<ArcaClientFactory['createExportGateway']>[0] {
   };
 }
 
+/** Una factura E que consulta todo WSFEX. */
+function resolveInvoice(gateway: ExportGateway) {
+  return new ExportService({ clock: systemClock }).resolve(
+    {
+      activity: 620100,
+      amount: 1500,
+      clientAddress: 'Alameda 100',
+      clientName: 'ACME LTDA',
+      destinationCountry: '202',
+      emit: false,
+      exportType: 1,
+      incoterm: 'FOB',
+      pointOfSale: 3,
+    },
+    gateway,
+    { config: CONFIG_DEFAULTS, cuit: CUIT, environment: 'testing' },
+  );
+}
+
 /** WSFE y WSFEX: los dos servicios piden y guardan su ticket. */
 async function useBothServices(factory: ArcaClientFactory): Promise<void> {
   await factory.create(runtime()).electronicBillingService.getSalesPoints();
@@ -109,7 +138,8 @@ beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), 'arcli-wsaa-'));
   ticketPath = join(directory, 'tickets');
   exportReads.mockClear();
-  login.mockClear();
+  login.mockReset();
+  login.mockImplementation(async () => [{ loginCmsReturn: LOGIN_RESPONSE }]);
   wsfe.mockClear();
   wsfex.mockClear();
 
@@ -172,24 +202,90 @@ describe('ArcaClientFactory: tickets de WSAA con el SDK verdadero', () => {
   });
 
   it('una factura E entera pide un solo ticket, aunque consulte todo WSFEX (ARQ8-6)', async () => {
-    const { payload } = await new ExportService({ clock: systemClock }).resolve(
-      {
-        activity: 620100,
-        amount: 1500,
-        clientAddress: 'Alameda 100',
-        clientName: 'ACME LTDA',
-        destinationCountry: '202',
-        emit: false,
-        exportType: 1,
-        incoterm: 'FOB',
-        pointOfSale: 3,
-      },
-      new ArcaClientFactory().createExportGateway(runtime()),
-      { config: CONFIG_DEFAULTS, cuit: CUIT, environment: 'testing' },
-    );
+    const { payload } = await resolveInvoice(new ArcaClientFactory().createExportGateway(runtime()));
 
     expect(payload).toMatchObject({ Cbte_nro: 42, Cuit_pais_cliente: 55000000052, Id: 8, Moneda_ctz: 900.5 });
     expect(exportReads.mock.calls.flat().toSorted()).toEqual(Object.keys(EXPORT_READS).toSorted());
+    expect(login).toHaveBeenCalledTimes(1);
+  });
+});
+
+it('con handleTicket nadie guarda el ticket: una lectura no hace un login de más', async () => {
+  const profile = runtime();
+  const context = { ...profile.context, handleTicket: true };
+
+  await new ArcaClientFactory().createExportGateway({ ...profile, context }).getUnits();
+
+  expect(login).toHaveBeenCalledTimes(1);
+});
+
+describe.each<[string, boolean, () => ITicketStoragePort]>([
+  ['en ticketPath', false, () => new FileSystemTicketStorage({ cuit: CUIT, production: false, ticketPath })],
+  ['en un storage propio', true, () => new MemoryTicketStorage({ cuit: CUIT, production: false })],
+])('el ticket %s vence con los países ya en memoria (ARQ8-6)', (_name, own, createStorage) => {
+  let storage: ITicketStoragePort;
+  let gateway: ExportGateway;
+
+  /** Los países leídos con un ticket que después vence, como en el asistente. */
+  beforeEach(async () => {
+    storage = createStorage();
+    gateway = cacheExportTables(
+      new ArcaClientFactory(own ? { ticketStorage: storage } : {}).createExportGateway(runtime()),
+    );
+    await gateway.getDestinationCountries();
+
+    const ticket = await storage.get(ArcaServiceNames.WSFEX);
+    const [header, times] = ticket!.getHeaders();
+
+    await storage.save(
+      AccessTicket.create({
+        credentials: ticket!.getCredentials(),
+        header: [header, { ...times, expirationtime: '2000-01-01T00:00:00-03:00' }],
+      }),
+      ArcaServiceNames.WSFEX,
+    );
+    login.mockClear();
+  });
+
+  afterEach(async () => {
+    await storage.delete(ArcaServiceNames.WSFEX);
+  });
+
+  const delayed = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  it('las tablas que van a la vez esperan un solo login', async () => {
+    login.mockImplementation(async () => {
+      await delayed();
+
+      return [{ loginCmsReturn: LOGIN_RESPONSE }];
+    });
+
+    expect((await resolveInvoice(gateway)).payload).toMatchObject({ Cbte_nro: 42, Id: 8 });
+    expect(login).toHaveBeenCalledTimes(1);
+  });
+
+  it('si falla, corta con su error sin otro login, y el intento siguiente vuelve a pedirlo', async () => {
+    const error = new Error('ns1:coe.alreadyAuthenticated: El CEE ya posee un TA valido');
+
+    login.mockImplementationOnce(async () => {
+      await delayed();
+
+      throw error;
+    });
+
+    await expect(resolveInvoice(gateway)).rejects.toBe(error);
+    await delayed();
+    expect(login).toHaveBeenCalledTimes(1);
+    expect((await resolveInvoice(gateway)).payload).toMatchObject({ Cbte_nro: 42 });
+    expect(login).toHaveBeenCalledTimes(2);
+  });
+
+  it('sin la relación con wsfex, el mismo aviso', async () => {
+    login.mockImplementationOnce(async () => {
+      throw new Error('ns1:coe.notAuthorized: Computador no autorizado a acceder al servicio');
+    });
+
+    await expect(resolveInvoice(gateway)).rejects.toMatchObject({ code: 'WSFEX_SERVICE_NOT_AUTHORIZED' });
     expect(login).toHaveBeenCalledTimes(1);
   });
 });

@@ -491,7 +491,11 @@ export async function runBilling(
 
 export async function runExport(
   args: readonly string[],
-  options: RunOptions & { readonly kind?: ExportVoucherKind } = {},
+  options: RunOptions & {
+    /** Con lo que el comando toma de afuera por defecto: el archivo de tests simula el perfil y el WSFEX de abajo. */
+    readonly defaultDependencies?: boolean;
+    readonly kind?: ExportVoucherKind;
+  } = {},
 ): Promise<Run> {
   const voucherKind = options.kind ?? EXPORT_VOUCHER_KIND;
   const command = new Command(voucherKind.shortcut);
@@ -505,7 +509,9 @@ export async function runExport(
       executeExportCommand(
         command,
         { voucherKind },
-        { createGateway: () => exportGateway(options.arca), resolveRuntime: () => emissionRuntime(options) },
+        options.defaultDependencies
+          ? undefined
+          : { createGateway: () => exportGateway(options.arca), resolveRuntime: () => emissionRuntime(options) },
       ),
     options,
   );
