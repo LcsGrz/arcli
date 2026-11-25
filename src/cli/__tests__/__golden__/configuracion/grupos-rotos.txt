@@ -1,0 +1,184 @@
+cert
+  error: La configuración guardada tiene un dato inválido. `cert`: tiene que ser un objeto.
+  detalles: [{"mensaje":"`cert` tiene que ser un objeto.","ruta":["cert"]}]
+  sugerencia: Corregilo con `arcli config establecer cert.produccion <valor>` o a mano en <config>/config.json.
+key
+  error: La configuración guardada tiene un dato inválido. `key`: tiene que ser un objeto.
+  detalles: [{"mensaje":"`key` tiene que ser un objeto.","ruta":["key"]}]
+  sugerencia: Corregilo con `arcli config establecer key.produccion <valor>` o a mano en <config>/config.json.
+exportacion
+  error: La configuración guardada tiene un dato inválido. `exportacion`: tiene que ser un objeto.
+  detalles: [{"mensaje":"`exportacion` tiene que ser un objeto.","ruta":["exportacion"]}]
+  sugerencia: Corregilo con `arcli config establecer exportacion.actividad <valor>` o a mano en <config>/config.json.
+exportacion.cert
+  error: La configuración guardada tiene un dato inválido. `exportacion.cert`: tiene que ser un objeto.
+  detalles: [{"mensaje":"`exportacion.cert` tiene que ser un objeto.","ruta":["exportacion","cert"]}]
+  sugerencia: Corregilo con `arcli config establecer exportacion.cert.produccion <valor>` o a mano en <config>/config.json.
+exportacion.key
+  error: La configuración guardada tiene un dato inválido. `exportacion.key`: tiene que ser un objeto.
+  detalles: [{"mensaje":"`exportacion.key` tiene que ser un objeto.","ruta":["exportacion","key"]}]
+  sugerencia: Corregilo con `arcli config establecer exportacion.key.produccion <valor>` o a mano en <config>/config.json.
+monotributo
+  error: La configuración guardada tiene un dato inválido. `monotributo`: tiene que ser un objeto.
+  detalles: [{"mensaje":"`monotributo` tiene que ser un objeto.","ruta":["monotributo"]}]
+  sugerencia: Corregilo con `arcli config establecer monotributo.tope <valor>`.
+emisor
+  error: La configuración guardada tiene un dato inválido. `emisor`: tiene que ser un objeto.
+  detalles: [{"mensaje":"`emisor` tiene que ser un objeto.","ruta":["emisor"]}]
+  sugerencia: Corregilo con `arcli config establecer emisor.condicionIva <valor>`.
+output
+  error: La configuración guardada tiene un dato inválido. `emitir`, `json`, `bruto`: tiene que ser un objeto.
+  detalles: [{"mensaje":"`output` tiene que ser un objeto.","ruta":["output"]}]
+  sugerencia: Corregilo con `arcli config establecer emitir <valor>`.
+cert.produccion
+  error: La configuración guardada tiene un dato inválido. `cert.produccion`: tiene que ser un texto.
+  detalles: [{"mensaje":"`cert.produccion` tiene que ser un texto.","ruta":["cert","produccion"]}]
+  sugerencia: Corregilo con `arcli config establecer cert.produccion <valor>` o borralo con `arcli config eliminar cert.produccion`.
+cert.testing
+  error: La configuración guardada tiene un dato inválido. `cert.testing`: tiene que ser un texto.
+  detalles: [{"mensaje":"`cert.testing` tiene que ser un texto.","ruta":["cert","testing"]}]
+  sugerencia: Corregilo con `arcli config establecer cert.testing <valor>` o borralo con `arcli config eliminar cert.testing`.
+emisor.condicionIva
+  error: La configuración guardada tiene un dato inválido. `emisor.condicionIva`: tiene un valor no soportado. Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+  detalles: [{"mensaje":"`emisor.condicionIva` tiene un valor no soportado. Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.","ruta":["emisor","condicionIva"]}]
+  sugerencia: Corregilo con `arcli config establecer emisor.condicionIva <valor>` o borralo con `arcli config eliminar emisor.condicionIva`.
+emisor.domicilio
+  error: La configuración guardada tiene un dato inválido. `emisor.domicilio`: tiene que ser un texto.
+  detalles: [{"mensaje":"`emisor.domicilio` tiene que ser un texto.","ruta":["emisor","domicilio"]}]
+  sugerencia: Corregilo con `arcli config establecer emisor.domicilio <valor>` o borralo con `arcli config eliminar emisor.domicilio`.
+emisor.iibb
+  error: La configuración guardada tiene un dato inválido. `emisor.iibb`: tiene que ser un texto.
+  detalles: [{"mensaje":"`emisor.iibb` tiene que ser un texto.","ruta":["emisor","iibb"]}]
+  sugerencia: Corregilo con `arcli config establecer emisor.iibb <valor>` o borralo con `arcli config eliminar emisor.iibb`.
+emisor.inicioActividades
+  error: La configuración guardada tiene un dato inválido. `emisor.inicioActividades`: tiene que ser un texto.
+  detalles: [{"mensaje":"`emisor.inicioActividades` tiene que ser un texto.","ruta":["emisor","inicioActividades"]}]
+  sugerencia: Corregilo con `arcli config establecer emisor.inicioActividades <valor>` o borralo con `arcli config eliminar emisor.inicioActividades`.
+emisor.logo
+  error: La configuración guardada tiene un dato inválido. `emisor.logo`: tiene que ser un texto.
+  detalles: [{"mensaje":"`emisor.logo` tiene que ser un texto.","ruta":["emisor","logo"]}]
+  sugerencia: Corregilo con `arcli config establecer emisor.logo <valor>` o borralo con `arcli config eliminar emisor.logo`.
+emisor.razonSocial
+  error: La configuración guardada tiene un dato inválido. `emisor.razonSocial`: tiene que ser un texto.
+  detalles: [{"mensaje":"`emisor.razonSocial` tiene que ser un texto.","ruta":["emisor","razonSocial"]}]
+  sugerencia: Corregilo con `arcli config establecer emisor.razonSocial <valor>` o borralo con `arcli config eliminar emisor.razonSocial`.
+entornoPorDefecto
+  error: La configuración guardada tiene un dato inválido. `entorno`: tiene un valor no soportado. Valores válidos: testing, produccion.
+  detalles: [{"mensaje":"`entornoPorDefecto` tiene un valor no soportado. Valores válidos: testing, produccion.","ruta":["entornoPorDefecto"]}]
+  sugerencia: Corregilo con `arcli config establecer entorno <valor>` o borralo con `arcli config eliminar entorno`.
+key.produccion
+  error: La configuración guardada tiene un dato inválido. `key.produccion`: tiene que ser un texto.
+  detalles: [{"mensaje":"`key.produccion` tiene que ser un texto.","ruta":["key","produccion"]}]
+  sugerencia: Corregilo con `arcli config establecer key.produccion <valor>` o borralo con `arcli config eliminar key.produccion`.
+key.testing
+  error: La configuración guardada tiene un dato inválido. `key.testing`: tiene que ser un texto.
+  detalles: [{"mensaje":"`key.testing` tiene que ser un texto.","ruta":["key","testing"]}]
+  sugerencia: Corregilo con `arcli config establecer key.testing <valor>` o borralo con `arcli config eliminar key.testing`.
+monedaPorDefecto
+  error: La configuración guardada tiene un dato inválido. `moneda`: tiene que ser un texto.
+  detalles: [{"mensaje":"`monedaPorDefecto` tiene que ser un texto.","ruta":["monedaPorDefecto"]}]
+  sugerencia: Corregilo con `arcli config establecer moneda <valor>` o borralo con `arcli config eliminar moneda`.
+cotizacionPorDefecto
+  error: La configuración guardada tiene un dato inválido. `cotizacion`: tiene que ser un número.
+  detalles: [{"mensaje":"`cotizacionPorDefecto` tiene que ser un número.","ruta":["cotizacionPorDefecto"]}]
+  sugerencia: Corregilo con `arcli config establecer cotizacion <valor>` o borralo con `arcli config eliminar cotizacion`.
+output.emitirPorDefecto
+  error: La configuración guardada tiene un dato inválido. `emitir`: tiene que ser true o false.
+  detalles: [{"mensaje":"`output.emitirPorDefecto` tiene que ser true o false.","ruta":["output","emitirPorDefecto"]}]
+  sugerencia: Corregilo con `arcli config establecer emitir <valor>` o borralo con `arcli config eliminar emitir`.
+output.jsonPorDefecto
+  error: La configuración guardada tiene un dato inválido. `json`: tiene que ser true o false.
+  detalles: [{"mensaje":"`output.jsonPorDefecto` tiene que ser true o false.","ruta":["output","jsonPorDefecto"]}]
+  sugerencia: Corregilo con `arcli config establecer json <valor>` o borralo con `arcli config eliminar json`.
+output.brutoPorDefecto
+  error: La configuración guardada tiene un dato inválido. `bruto`: tiene que ser true o false.
+  detalles: [{"mensaje":"`output.brutoPorDefecto` tiene que ser true o false.","ruta":["output","brutoPorDefecto"]}]
+  sugerencia: Corregilo con `arcli config establecer bruto <valor>` o borralo con `arcli config eliminar bruto`.
+alicuotaPorDefecto
+  error: La configuración guardada tiene un dato inválido. `alicuota`: tiene un valor no soportado. Valores válidos: 0, 5, 21, 27, 2.5, 10.5.
+  detalles: [{"mensaje":"`alicuotaPorDefecto` tiene un valor no soportado. Valores válidos: 0, 5, 21, 27, 2.5, 10.5.","ruta":["alicuotaPorDefecto"]}]
+  sugerencia: Corregilo con `arcli config establecer alicuota <valor>` o borralo con `arcli config eliminar alicuota`.
+cuit
+  error: La configuración guardada tiene un dato inválido. `cuit`: tiene que ser un texto.
+  detalles: [{"mensaje":"`cuit` tiene que ser un texto.","ruta":["cuit"]}]
+  sugerencia: Corregilo con `arcli config establecer cuit <valor>` o borralo con `arcli config eliminar cuit`.
+cbu
+  error: La configuración guardada tiene un dato inválido. `cbu`: CBU tiene que ser un texto.
+  detalles: [{"mensaje":"CBU tiene que ser un texto.","ruta":["cbu"]}]
+  sugerencia: Corregilo con `arcli config establecer cuenta <CBU> [ALIAS]` (sin el alias, se borra el guardado) o borralo con `arcli config eliminar cuenta`.
+aliasCbu
+  error: La configuración guardada tiene un dato inválido. `aliasCbu`: tiene que ser un texto.
+  detalles: [{"mensaje":"`aliasCbu` tiene que ser un texto.","ruta":["aliasCbu"]}]
+  sugerencia: Corregilo con `arcli config establecer cuenta <CBU> [ALIAS]` (sin el alias, se borra el guardado).
+conceptoPorDefecto
+  error: La configuración guardada tiene un dato inválido. `concepto`: tiene un valor no soportado. Valores válidos: productos, productos-servicios, servicios.
+  detalles: [{"mensaje":"`conceptoPorDefecto` tiene un valor no soportado. Valores válidos: productos, productos-servicios, servicios.","ruta":["conceptoPorDefecto"]}]
+  sugerencia: Corregilo con `arcli config establecer concepto <valor>` o borralo con `arcli config eliminar concepto`.
+ivaReceptorPorDefecto
+  error: La configuración guardada tiene un dato inválido. `ivaReceptor`: tiene un valor no soportado. Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.
+  detalles: [{"mensaje":"`ivaReceptorPorDefecto` tiene un valor no soportado. Valores válidos: cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado.","ruta":["ivaReceptorPorDefecto"]}]
+  sugerencia: Corregilo con `arcli config establecer ivaReceptor <valor>` o borralo con `arcli config eliminar ivaReceptor`.
+exportacion.actividad
+  error: La configuración guardada tiene un dato inválido. `exportacion.actividad`: tiene que ser un número.
+  detalles: [{"mensaje":"`exportacion.actividad` tiene que ser un número.","ruta":["exportacion","actividad"]}]
+  sugerencia: Corregilo con `arcli config establecer exportacion.actividad <valor>` o borralo con `arcli config eliminar exportacion.actividad`.
+exportacion.cert.produccion
+  error: La configuración guardada tiene un dato inválido. `exportacion.cert.produccion`: tiene que ser un texto.
+  detalles: [{"mensaje":"`exportacion.cert.produccion` tiene que ser un texto.","ruta":["exportacion","cert","produccion"]}]
+  sugerencia: Corregilo con `arcli config establecer exportacion.cert.produccion <valor>` o borralo con `arcli config eliminar exportacion.cert.produccion`.
+exportacion.cert.testing
+  error: La configuración guardada tiene un dato inválido. `exportacion.cert.testing`: tiene que ser un texto.
+  detalles: [{"mensaje":"`exportacion.cert.testing` tiene que ser un texto.","ruta":["exportacion","cert","testing"]}]
+  sugerencia: Corregilo con `arcli config establecer exportacion.cert.testing <valor>` o borralo con `arcli config eliminar exportacion.cert.testing`.
+exportacion.key.produccion
+  error: La configuración guardada tiene un dato inválido. `exportacion.key.produccion`: tiene que ser un texto.
+  detalles: [{"mensaje":"`exportacion.key.produccion` tiene que ser un texto.","ruta":["exportacion","key","produccion"]}]
+  sugerencia: Corregilo con `arcli config establecer exportacion.key.produccion <valor>` o borralo con `arcli config eliminar exportacion.key.produccion`.
+exportacion.key.testing
+  error: La configuración guardada tiene un dato inválido. `exportacion.key.testing`: tiene que ser un texto.
+  detalles: [{"mensaje":"`exportacion.key.testing` tiene que ser un texto.","ruta":["exportacion","key","testing"]}]
+  sugerencia: Corregilo con `arcli config establecer exportacion.key.testing <valor>` o borralo con `arcli config eliminar exportacion.key.testing`.
+monotributo.tope
+  error: La configuración guardada tiene un dato inválido. `monotributo.tope`: tiene que ser un número.
+  detalles: [{"mensaje":"`monotributo.tope` tiene que ser un número.","ruta":["monotributo","tope"]}]
+  sugerencia: Corregilo con `arcli config establecer monotributo.tope <valor>` o borralo con `arcli config eliminar monotributo.tope`.
+pdf
+  error: La configuración guardada tiene un dato inválido. `pdf`: tiene un valor no soportado. Valores válidos: siempre, preguntar, nunca.
+  detalles: [{"mensaje":"`pdf` tiene un valor no soportado. Valores válidos: siempre, preguntar, nunca.","ruta":["pdf"]}]
+  sugerencia: Corregilo con `arcli config establecer pdf <valor>` o borralo con `arcli config eliminar pdf`.
+pdfCarpeta
+  error: La configuración guardada tiene un dato inválido. `pdfCarpeta`: tiene que ser un texto.
+  detalles: [{"mensaje":"`pdfCarpeta` tiene que ser un texto.","ruta":["pdfCarpeta"]}]
+  sugerencia: Corregilo con `arcli config establecer pdfCarpeta <valor>` o borralo con `arcli config eliminar pdfCarpeta`.
+pdfNavegador
+  error: La configuración guardada tiene un dato inválido. `pdfNavegador`: tiene que ser un texto.
+  detalles: [{"mensaje":"`pdfNavegador` tiene que ser un texto.","ruta":["pdfNavegador"]}]
+  sugerencia: Corregilo con `arcli config establecer pdfNavegador <valor>` o borralo con `arcli config eliminar pdfNavegador`.
+condicionVenta
+  error: La configuración guardada tiene un dato inválido. `condicionVenta`: tiene que ser un texto.
+  detalles: [{"mensaje":"`condicionVenta` tiene que ser un texto.","ruta":["condicionVenta"]}]
+  sugerencia: Corregilo con `arcli config establecer condicionVenta <valor>` o borralo con `arcli config eliminar condicionVenta`.
+filasPorLista
+  error: La configuración guardada tiene un dato inválido. `filasPorLista`: tiene que ser un número.
+  detalles: [{"mensaje":"`filasPorLista` tiene que ser un número.","ruta":["filasPorLista"]}]
+  sugerencia: Corregilo con `arcli config establecer filasPorLista <valor>` o borralo con `arcli config eliminar filasPorLista`.
+puntoVentaPorDefecto
+  error: La configuración guardada tiene un dato inválido. `puntoVenta`: tiene que ser un número.
+  detalles: [{"mensaje":"`puntoVentaPorDefecto` tiene que ser un número.","ruta":["puntoVentaPorDefecto"]}]
+  sugerencia: Corregilo con `arcli config establecer puntoVenta <valor>` o borralo con `arcli config eliminar puntoVenta`.
+ticketPath
+  error: La configuración guardada tiene un dato inválido. `ticketPath`: tiene que ser un texto.
+  detalles: [{"mensaje":"`ticketPath` tiene que ser un texto.","ruta":["ticketPath"]}]
+  sugerencia: Corregilo con `arcli config establecer ticketPath <valor>` o borralo con `arcli config eliminar ticketPath`.
+consultarPadron
+  error: La configuración guardada tiene un dato inválido. `consultarPadron`: tiene que ser true o false.
+  detalles: [{"mensaje":"`consultarPadron` tiene que ser true o false.","ruta":["consultarPadron"]}]
+  sugerencia: Corregilo con `arcli config establecer consultarPadron <valor>` o borralo con `arcli config eliminar consultarPadron`.
+verificarFce
+  error: La configuración guardada tiene un dato inválido. `verificarFce`: tiene que ser true o false.
+  detalles: [{"mensaje":"`verificarFce` tiene que ser true o false.","ruta":["verificarFce"]}]
+  sugerencia: Corregilo con `arcli config establecer verificarFce <valor>` o borralo con `arcli config eliminar verificarFce`.
+comprobantesPorLista
+  error: La configuración guardada tiene un dato inválido. `comprobantesPorLista`: tiene que ser un número.
+  detalles: [{"mensaje":"`comprobantesPorLista` tiene que ser un número.","ruta":["comprobantesPorLista"]}]
+  sugerencia: Corregilo con `arcli config establecer filasPorLista <valor>`.

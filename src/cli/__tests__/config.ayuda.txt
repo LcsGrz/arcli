@@ -1,0 +1,178 @@
+$ arcli config --ayuda
+Uso: arcli config [opciones] [comando]
+
+guardar valores por defecto y credenciales, y revisar si el CLI está listo para
+emitir
+
+Opciones:
+  --json                                         imprimir salida JSON
+  --ayuda                                        mostrar ayuda
+
+Comandos:
+  revisar [opciones]                             revisar configuración, valores por defecto, credenciales y validación de cada entorno
+  ruta [opciones]                                mostrar la ruta del archivo de configuración
+  establecer [opciones] <clave> <valor> [alias]  guardar un valor de configuración
+  eliminar [opciones] <clave>                    eliminar un valor de configuración
+
+Para qué sirve
+  - Guardar valores por defecto para no repetir flags en cada corrida.
+  - Definir rutas de certificados y claves por entorno.
+  - Revisar si el entorno está listo antes de emitir.
+
+Casos comunes
+  - Guardar valores por defecto para no repetir flags como puntoVenta, concepto o IVA receptor.
+  - Revisar si testing o producción tienen credenciales y contexto válidos.
+  - Entender por qué un comando pide datos que pensabas tener guardados.
+
+Comandos más usados
+  - Ver config actual: arcli config
+  - Revisar entorno: arcli config revisar
+  - Ver ruta del archivo: arcli config ruta
+  - Guardar un valor por defecto: arcli config establecer puntoVenta 3
+  - Sacar el certificado de ARCA: arcli certificado generar --testing
+  - Guardar una credencial: arcli config establecer cert.testing /ruta/cert.crt
+
+Claves
+  Cuenta
+    - cuit: CUIT del emisor (11 dígitos)
+    - puntoVenta: Punto de venta (número; en testing sirve cualquiera, en producción tiene que ser uno de web service, no el de Factura en línea)
+    - entorno: Entorno (testing, produccion)
+  Certificados
+    - cert.testing: Certificado de testing (ruta)
+    - key.testing: Clave privada de testing (ruta)
+    - cert.produccion: Certificado de producción (ruta)
+    - key.produccion: Clave privada de producción (ruta)
+    - exportacion.cert.testing: Certificado de exportación (testing) (ruta)
+    - exportacion.key.testing: Clave de exportación (testing) (ruta)
+    - exportacion.cert.produccion: Certificado de exportación (producción) (ruta)
+    - exportacion.key.produccion: Clave de exportación (producción) (ruta)
+    - ticketPath: Carpeta de tickets WSAA (ruta)
+  Al facturar
+    - concepto: Concepto (productos, productos-servicios, servicios)
+    - ivaReceptor: IVA del receptor (cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado)
+    - consultarPadron: IVA del receptor desde el padrón (true/false, si/no o 1/0; por defecto si)
+    - alicuota: Alícuota de IVA (A y B) (general, reducida, incrementada, cero o el número: 0, 2.5, 5, 10.5, 21, 27; por defecto 21)
+    - moneda: Moneda (código de moneda, por ejemplo PES o USD)
+    - cotizacion: Cotización (deprecada) (solo para moneda extranjera)
+  Factura de crédito electrónica (FCE)
+    - cuenta: Cuenta bancaria (CBU y alias) (CBU de 22 dígitos y alias opcional)
+    - verificarFce: Verificar régimen FCE del receptor (true/false, si/no o 1/0)
+  Factura de exportación (E)
+    - exportacion.actividad: Actividad de exportación (WSFEX) (código de la tabla de WSFEX, por ejemplo 620100)
+  Monotributo
+    - monotributo.tope: Tope de ingresos anuales propio (ingresos anuales en pesos, por ejemplo 30.000.000; sin configurar, el de tu categoría)
+  Datos del emisor (PDF)
+    - emisor.razonSocial: Razón social
+    - emisor.domicilio: Domicilio comercial
+    - emisor.inicioActividades: Inicio de actividades (D/MM/YYYY)
+    - emisor.iibb: Ingresos Brutos (número, o "Exento" si lo estás)
+    - emisor.condicionIva: Condición de IVA (cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado)
+    - emisor.logo: Logo (PNG o JPG) (ruta)
+  PDF
+    - pdf: Cuándo generar el PDF (siempre, preguntar, nunca)
+    - pdfCarpeta: Carpeta de PDFs (ruta)
+    - pdfNavegador: Navegador para PDFs (ruta)
+    - condicionVenta: Condición de venta (PDF de A, B y C) (contado, tarjeta-debito, tarjeta-credito, cuenta-corriente, cheque, transferencia, otros-medios-electronicos, otra)
+  Salida y listados
+    - filasPorLista: Filas por lista (1 a 50, por defecto 15)
+    - emitir: Emitir sin `--emitir` (true/false, si/no o 1/0)
+    - json: Salida JSON (true/false, si/no o 1/0)
+    - bruto: Salida bruta (true/false, si/no o 1/0)
+  Guardar: arcli config establecer <clave> <valor>. Borrar: arcli config eliminar <clave>.
+
+Ejemplos
+  - arcli config establecer cuit 20333333334
+  - arcli config establecer entorno produccion
+  - arcli config establecer ivaReceptor consumidor-final
+  - arcli config establecer key.produccion /ruta/clave.key
+  - arcli config establecer ticketPath /ruta/tickets
+  - arcli config eliminar json
+
+Errores frecuentes
+  - Faltan cert.testing o key.testing: corré `arcli config revisar`.
+  - Punto de venta no configurado: guardá puntoVenta o pasalo por flag.
+  - Emitir por defecto activado sin querer: revisá el valor de emitir.
+
+¿No tenés certificado todavía?
+  - Guía paso a paso (testing y producción), con capturas de ARCA:
+    https://arcli.com.ar/empezar/certificado-testing/
+
+
+$ arcli config establecer --ayuda
+Uso: arcli config establecer [opciones] <clave> <valor> [alias]
+
+guardar un valor de configuración
+
+Argumentos:
+  clave    clave pública de configuración
+  valor    valor a guardar; en `cuenta`, el CBU
+  alias    solo en `cuenta`: el alias del CBU; sin él, se borra el guardado
+
+Opciones:
+  --json   imprimir salida JSON
+  --ayuda  mostrar ayuda
+
+Claves
+  Cuenta
+    - cuit: CUIT del emisor (11 dígitos)
+    - puntoVenta: Punto de venta (número; en testing sirve cualquiera, en producción tiene que ser uno de web service, no el de Factura en línea)
+    - entorno: Entorno (testing, produccion)
+  Certificados
+    - cert.testing: Certificado de testing (ruta)
+    - key.testing: Clave privada de testing (ruta)
+    - cert.produccion: Certificado de producción (ruta)
+    - key.produccion: Clave privada de producción (ruta)
+    - exportacion.cert.testing: Certificado de exportación (testing) (ruta)
+    - exportacion.key.testing: Clave de exportación (testing) (ruta)
+    - exportacion.cert.produccion: Certificado de exportación (producción) (ruta)
+    - exportacion.key.produccion: Clave de exportación (producción) (ruta)
+    - ticketPath: Carpeta de tickets WSAA (ruta)
+  Al facturar
+    - concepto: Concepto (productos, productos-servicios, servicios)
+    - ivaReceptor: IVA del receptor (cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado)
+    - consultarPadron: IVA del receptor desde el padrón (true/false, si/no o 1/0; por defecto si)
+    - alicuota: Alícuota de IVA (A y B) (general, reducida, incrementada, cero o el número: 0, 2.5, 5, 10.5, 21, 27; por defecto 21)
+    - moneda: Moneda (código de moneda, por ejemplo PES o USD)
+    - cotizacion: Cotización (deprecada) (solo para moneda extranjera)
+  Factura de crédito electrónica (FCE)
+    - cuenta: Cuenta bancaria (CBU y alias) (CBU de 22 dígitos y alias opcional)
+    - verificarFce: Verificar régimen FCE del receptor (true/false, si/no o 1/0)
+  Factura de exportación (E)
+    - exportacion.actividad: Actividad de exportación (WSFEX) (código de la tabla de WSFEX, por ejemplo 620100)
+  Monotributo
+    - monotributo.tope: Tope de ingresos anuales propio (ingresos anuales en pesos, por ejemplo 30.000.000; sin configurar, el de tu categoría)
+  Datos del emisor (PDF)
+    - emisor.razonSocial: Razón social
+    - emisor.domicilio: Domicilio comercial
+    - emisor.inicioActividades: Inicio de actividades (D/MM/YYYY)
+    - emisor.iibb: Ingresos Brutos (número, o "Exento" si lo estás)
+    - emisor.condicionIva: Condición de IVA (cliente-del-exterior, consumidor-final, iva-liberado, iva-no-alcanzado, monotributista-social, monotributo-trabajador-independiente-promovido, proveedor-del-exterior, responsable-inscripto, responsable-monotributo, sujeto-exento, sujeto-no-categorizado)
+    - emisor.logo: Logo (PNG o JPG) (ruta)
+  PDF
+    - pdf: Cuándo generar el PDF (siempre, preguntar, nunca)
+    - pdfCarpeta: Carpeta de PDFs (ruta)
+    - pdfNavegador: Navegador para PDFs (ruta)
+    - condicionVenta: Condición de venta (PDF de A, B y C) (contado, tarjeta-debito, tarjeta-credito, cuenta-corriente, cheque, transferencia, otros-medios-electronicos, otra)
+  Salida y listados
+    - filasPorLista: Filas por lista (1 a 50, por defecto 15)
+    - emitir: Emitir sin `--emitir` (true/false, si/no o 1/0)
+    - json: Salida JSON (true/false, si/no o 1/0)
+    - bruto: Salida bruta (true/false, si/no o 1/0)
+  Guardar: arcli config establecer <clave> <valor>. Borrar: arcli config eliminar <clave>.
+
+Ejemplos
+  - arcli config establecer puntoVenta 3
+  - arcli config establecer cuenta 0110599520000012345678 mi.alias.cbu
+
+
+$ arcli config eliminar --ayuda
+Uso: arcli config eliminar [opciones] <clave>
+
+eliminar un valor de configuración
+
+Argumentos:
+  clave    clave pública de configuración
+
+Opciones:
+  --json   imprimir salida JSON
+  --ayuda  mostrar ayuda
