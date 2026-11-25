@@ -101,7 +101,7 @@ function requirePointOfSale(options: PointOfSaleOptions, runtime: CliArcaRuntime
   return pointOfSale;
 }
 
-/** El JSON no tiene donde: va a stderr, como el aviso del certificado. Si fallo stdout, ahi va el JSON que lo dice. */
+/** Con `--json` el aviso va a stderr, como el del certificado. Si fallo stdout, ahi va el JSON que lo dice. */
 async function warnUnreadableInJson(
   runtime: CliArcaRuntime,
   pointOfSale: number,
