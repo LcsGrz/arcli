@@ -8,7 +8,8 @@ export type Back = typeof BACK;
 /**
  * La respuesta de un paso que corrio sin preguntar (consulto algo y resulto que no hacia falta): no escribe nada ni
  * entra en la historia, asi "Volver" y la vista previa rechazada llegan a una pregunta de verdad, sin consultar de nuevo
- * por el camino. Se compara por identidad.
+ * por el camino. Se compara por identidad. Entre las respuestas queda solo como marca de que corrio, para que `resume`
+ * lo pase de largo: no es una respuesta anterior ni hace olvidar a los que dependen del paso.
  */
 export const NOT_ASKED: Readonly<Record<string, never>> = Object.freeze({});
 
@@ -244,6 +245,10 @@ function findResumeIndex<S>(
       break;
     }
 
+    if (answer === NOT_ASKED) {
+      continue;
+    }
+
     if (!automatic) {
       answered.push({ index, writes: writesOf(step, state, memo) });
     }
@@ -398,7 +403,14 @@ export async function runWizard<S>(
       continue;
     }
 
-    const previous = answers.get(step.name);
+    const stored = answers.get(step.name);
+
+    if (resumeAt > index && stored === NOT_ASKED) {
+      index += 1;
+      continue;
+    }
+
+    const previous = stored === NOT_ASKED ? undefined : stored;
 
     if (resumeAt > index && previous) {
       history.push({ index, state });
@@ -438,11 +450,13 @@ export async function runWizard<S>(
       insisted.add(retry.key);
     }
 
-    if (result !== NOT_ASKED) {
+    if (result === NOT_ASKED) {
+      answers.set(step.name, NOT_ASKED as Partial<S>);
+    } else {
       history.push({ index, state });
+      answer(step, previous, result);
     }
 
-    answer(step, previous, result);
     index += 1;
   }
 }

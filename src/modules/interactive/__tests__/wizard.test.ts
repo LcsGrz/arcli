@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { BACK, NOT_ASKED, requireStepValue, runWizard, type WizardStep } from '../wizard';
+import { BACK, NOT_ASKED, requireStepValue, runWizard, type WizardAnswers, type WizardStep } from '../wizard';
 
 interface State {
   readonly a?: string;
@@ -310,6 +310,80 @@ describe('un paso que no preguntó (NOT_ASKED)', () => {
       ...['a', 'consulta', 'b', 'consulta-final', 'confirmar'],
       ...['b', 'consulta-final', 'confirmar'],
     ]);
+  });
+
+  it('tampoco cuenta en `resume`: se pasa de largo, y "Volver" llega a la pregunta anterior', async () => {
+    const calls: string[] = [];
+    const answers: WizardAnswers<State> = new Map();
+    let goBack = false;
+    const steps: Array<WizardStep<State>> = [
+      {
+        name: 'a',
+        run: async () => {
+          calls.push('a');
+
+          return goBack ? BACK : { a: '1' };
+        },
+        writes: ['a'],
+      },
+      {
+        name: 'consulta',
+        run: async () => {
+          calls.push('consulta');
+
+          return NOT_ASKED;
+        },
+        writes: ['consulta'],
+      },
+      {
+        name: 'b',
+        run: async () => {
+          calls.push('b');
+
+          return goBack ? BACK : { b: '2' };
+        },
+        writes: ['b'],
+      },
+    ];
+
+    await runWizard(steps, {}, answers);
+    calls.length = 0;
+    goBack = true;
+    await runWizard(steps, {}, answers, { resume: { fields: ['consulta', 'b'], message: 'mal' } });
+
+    expect(calls).toEqual(['b', 'a']);
+  });
+
+  it('no recuerda lo que respondió antes ni hace olvidar a los que dependen de él', async () => {
+    const answers: WizardAnswers<State> = new Map([
+      ['consulta', { b: 'vieja' }],
+      ['c', { c: '3' }],
+    ]);
+    const memos = new Map<string, unknown>([['c', 'memo']]);
+    const seen: unknown[] = [];
+    const steps: Array<WizardStep<State>> = [
+      {
+        name: 'consulta',
+        run: async (_state, { previous }) => {
+          seen.push(previous);
+
+          return NOT_ASKED;
+        },
+      },
+      {
+        dependsOn: ['consulta'],
+        name: 'c',
+        run: async (_state, { memo, previous }) => {
+          seen.push(previous, memo.get());
+
+          return { c: '3' };
+        },
+      },
+    ];
+
+    expect(await runWizard(steps, {}, answers, { memos })).toEqual({ c: '3' });
+    expect(await runWizard(steps, {}, answers, { memos })).toEqual({ c: '3' });
+    expect(seen).toEqual([{ b: 'vieja' }, { c: '3' }, 'memo', undefined, { c: '3' }, 'memo']);
   });
 
   it('una respuesta vacía de un paso que sí preguntó entra en la historia', async () => {

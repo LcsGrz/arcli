@@ -20,12 +20,14 @@ import {
   invoiceFlow,
   NO_OPTIONALS,
   noteFlow,
+  over,
   productionInvoiceFlow,
   receiptFlow,
   repeatFlow,
   RI_ARGS,
   runAssistant,
   runCommand,
+  TO_INVOICE,
   useOnePathFixture,
 } from './one-path.fixture';
 import { ctrlC, type Steps } from './one-path.prompts';
@@ -312,6 +314,28 @@ describe.each(FAMILIES)('$name: no se confirma', (family) => {
   });
 });
 
+describe('Esc en "¿Emitimos?", cambiar un dato y emitir', () => {
+  const NCC_STEPS: Steps = [
+    ...over('Factura C', TO_INVOICE),
+    [/Total o parcial/, 'Parcial'],
+    [/Monto de la nota de crédito/, '100'],
+    NO_OPTIONALS,
+  ];
+
+  it.each<[string, () => Promise<unknown>, Steps, Steps[number], object]>([
+    ['Factura C', invoiceFlow, FC_STEPS, [/Monto total/, '2500'], { ImpTotal: 2500 }],
+    ['Nota de crédito C', noteFlow('credito'), NCC_STEPS, [/Monto de la nota/, '250'], { ImpTotal: 250 }],
+    ['Factura E', invoiceFlow, FE_STEPS, [/Fecha de pago/, '20/11/2026'], { Fecha_pago: '20261120' }],
+  ])('%s: una sola solicitud, con el dato nuevo', async (_name, flow, first, changed, expected) => {
+    const steps: Steps = [...first, [/Emitimos/, BACK], [/Agregamos/, BACK], changed, NO_OPTIONALS, EMIT];
+    const assistant = await runAssistant(flow, { steps });
+
+    expectFinished(assistant, steps);
+    expect(assistant.requests).toEqual([expect.objectContaining(expected)]);
+    expect(assistant.emitted).toHaveLength(1);
+  });
+});
+
 describe.each(FAMILIES)('$name: lo emitido', (family) => {
   it('queda anotado antes de mostrar el CAE, por los dos caminos', async () => {
     const recorded: string[][] = [];
@@ -427,16 +451,29 @@ describe('"Sí, emitir y generar el PDF"', () => {
 });
 
 describe('el asistente emite por los casos de uso de modules', () => {
-  it('Factura E: si la entrada no pide emitir, no llega a ARCA', async () => {
-    const assistant = await forcing('neverEmit', () => runAssistant(invoiceFlow, { steps: [...FE_STEPS, EMIT] }));
-
+  /** Un error, sin nada mostrado como emitido, ni anotado, ni PDF. */
+  const expectNothingEmitted = (assistant: Awaited<ReturnType<typeof runAssistant>>) => {
+    expect(assistant.error).toBeInstanceOf(Error);
+    expect(String(assistant.error)).toContain('no pide emitir');
     expect(assistant.requests).toEqual([]);
+    expect(assistant.emitted).toEqual([]);
+    expect(assistant.after).toEqual([]);
+  };
+
+  it('Factura E: si la entrada no pide emitir, no llega a ARCA', async () => {
+    const assistant = await forcing('neverEmit', () =>
+      runAssistant(invoiceFlow, { steps: [...FE_STEPS, EMIT_WITH_PDF] }),
+    );
+
+    expectNothingEmitted(assistant);
   });
 
   it('Factura C: si la entrada no pide emitir, no llega a ARCA', async () => {
-    const assistant = await forcing('neverEmit', () => runAssistant(invoiceFlow, { steps: [...FC_STEPS, EMIT] }));
+    const assistant = await forcing('neverEmit', () =>
+      runAssistant(invoiceFlow, { steps: [...FC_STEPS, EMIT_WITH_PDF] }),
+    );
 
-    expect(assistant.requests).toEqual([]);
+    expectNothingEmitted(assistant);
   });
 
   it.each(FAMILIES)('$name: en el comando, si no se puede anotar lo emitido, igual se muestra', async ({ args }) => {

@@ -172,7 +172,7 @@ export async function previewAndEmit(
             billing: session.billingGateway,
             history: session.historyGateway,
           },
-          plan: { ...SINGLE, inputs: [{ ...entry, dryRun: true, emit: false }] },
+          plan: { ...SINGLE, inputs: [entry] },
           runtime,
         }),
       );

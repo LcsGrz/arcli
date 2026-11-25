@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import { BACK } from '../../../modules/interactive/wizard';
+import { VoucherQueryError } from '../../../modules/vouchers/voucher-history';
 import { ArcaFceObligationGateway } from '../../../services/arca/arca-fce-obligation.gateway';
 import { systemClock } from '../../../services/time/system-clock';
 import { billingAnswer } from '../../../testing/arca-answers';
@@ -507,6 +508,17 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
     );
     expect(chooseOneMock).not.toHaveBeenCalled();
     expect(session.createVoucher).not.toHaveBeenCalled();
+  });
+
+  it('un error al consultar un comprobante en la vista previa de A, B o C sale al menú, no vuelve a la pregunta', async () => {
+    const failure = new VoucherQueryError('No se sabe si existe', {}, 'Volvé a consultar.', 'respuesta inesperada');
+
+    vi.spyOn(BillingService.prototype, 'preview').mockImplementationOnce(() => {
+      throw failure;
+    });
+
+    await expect(previewAndEmit(createSession('testing'), input)).rejects.toBe(failure);
+    expect(chooseOneMock).not.toHaveBeenCalled();
   });
 
   it('un inválido falla antes de consultar el régimen FCE, y uno válido lleva sus avisos en orden', async () => {

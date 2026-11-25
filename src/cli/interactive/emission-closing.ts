@@ -52,8 +52,8 @@ function formatEquivalentCommand(command: string): string {
  * con `INPUT_VALIDATION_ERROR`), o una moneda sin cotizacion de ARCA (`ARCA_QUOTATION_ERROR`), se muestra y devuelve
  * BACK: como `confirm` de `runWizard`, el asistente vuelve a la ultima pregunta con todo lo respondido, en vez de volver
  * al menu y perderlo (TUI-15). Los demas errores de ARCA o de red siguen de largo, como antes. Con `queryErrors` (la E,
- * que en una nota consulta el asociado si ARCA lo contesto sin su tipo o su punto de venta) tambien vuelve si no se sabe
- * si un comprobante existe (`VoucherQueryError`), como al elegirlo (ARQ-22).
+ * que en una nota consulta el asociado si ARCA lo contesto sin su tipo) tambien vuelve si no se sabe si un comprobante
+ * existe (`VoucherQueryError`), como al elegirlo (ARQ-22).
  */
 async function rejectedAsBack<T>(
   preview: () => Promise<T>,
@@ -88,6 +88,7 @@ async function rejectedAsBack<T>(
 
 /** Lo que el cierre usa de un resultado, en cualquier familia. */
 interface ClosingResult {
+  readonly dryRun: boolean;
   readonly response: Parameters<typeof isAuthorized>[0];
   readonly voucherKind: Parameters<typeof formatVoucherWithArticle>[0];
 }
@@ -148,6 +149,11 @@ export async function closeWithEmission<R extends ClosingResult, P extends { rea
   }
 
   const [result] = outcome.results;
+
+  // Error de quien llama: una vista previa nunca se muestra como emitida ni lleva PDF.
+  if (result.dryRun) {
+    throw new Error('El cierre del asistente recibió una entrada que no pide emitir.');
+  }
 
   writeTerminalOutput(closing.format(result, { previewShown: true }));
   await closing.generatePdf(result, previewed, resolvePdfAfterConfirmation(pdf, choice));
