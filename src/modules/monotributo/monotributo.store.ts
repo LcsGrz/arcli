@@ -1,8 +1,8 @@
 import Conf from 'conf';
 import { z } from 'zod';
 
+import { requireDataDirectory } from '../../lib/files/require-data-directory';
 import type { ArcliEnvironment } from '../config/config.schemas';
-import { resolveConfigDirectory } from '../config/config.service';
 
 import { MONOTRIBUTO_CATEGORY_LETTERS, type MonotributoCategoryLetter, type MonotributoTable } from './monotributo';
 import { deserializeMonotributoTable, serializeMonotributoTable } from './monotributo.serialization';
@@ -44,19 +44,17 @@ const ownCategorySchema = z.object({
 const savedTableSchema = z.object({ consultadaEl: dateSchema, tabla: z.unknown() });
 
 /**
- * `monotributo.json` en la carpeta de config: la tabla consultada, la categoria del padron y si ya se intento la
+ * `monotributo.json` en la carpeta de datos: la tabla consultada, la categoria del padron y si ya se intento la
  * primera consulta. Es un cache: si el archivo no se puede leer o no pasa el control, se ignora (y Conf lo vacia).
  */
 export class FileMonotributoStore implements MonotributoStore {
   private readonly store: Conf<Record<string, unknown>>;
 
-  public constructor(cwd?: string) {
+  public constructor(cwd: string) {
     this.store = new Conf<Record<string, unknown>>({
       clearInvalidConfig: true,
       configName: 'monotributo',
-      cwd: cwd ?? resolveConfigDirectory(),
-      projectName: 'arcli',
-      projectSuffix: '',
+      cwd: requireDataDirectory(cwd),
     });
   }
 

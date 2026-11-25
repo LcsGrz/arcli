@@ -6,14 +6,17 @@ import { mkdtempSync, renameSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
+import { withConfigService } from '../../src/cli/config-service';
 import { getVoucherKindByShortcut } from '../../src/modules/billing/voucher-kind-map';
-import { ConfigService } from '../../src/modules/config/config.service';
 import { exportBillingPdf } from '../../src/services/pdf/pdf-exporter';
 import { PdfPlugin } from '../../src/services/pdf/pdf-plugin';
 
-const service = new ConfigService();
-const pluginPath = process.env.ARCLI_PDF_PLUGIN ?? join(service.getPluginsPath(), 'pdf');
-service.close();
+const pluginPath =
+  process.env.ARCLI_PDF_PLUGIN ??
+  join(
+    withConfigService((service) => service.getPluginsPath()),
+    'pdf',
+  );
 
 const renderer = new PdfPlugin({ path: pluginPath }).load();
 const folder = mkdtempSync(join(tmpdir(), 'arcli-pdf-sample-'));

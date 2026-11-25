@@ -1,12 +1,12 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { ConfigurationError } from '../../../lib/errors/app-error';
 import { serializeConfig } from '../config.presenter';
 import { resolveRowsPerList, ROWS_PER_LIST_DEPRECATION_WARNING } from '../config.schemas';
-import { ConfigService, deprecatedConfigKeyWarning, resolveConfigDirectory } from '../config.service';
+import { ConfigService, deprecatedConfigKeyWarning } from '../config.service';
 
 const temporaryDirectories: string[] = [];
 
@@ -15,10 +15,7 @@ function createService(): ConfigService {
 
   temporaryDirectories.push(cwd);
 
-  return new ConfigService({
-    cwd,
-    projectName: 'arcli-test',
-  });
+  return new ConfigService({ cwd });
 }
 
 function writePemFile(directory: string, filename: string, content: string): string {
@@ -337,7 +334,7 @@ describe('config.service', () => {
     let thrown: unknown;
 
     try {
-      new ConfigService({ cwd, projectName: 'arcli-test' }).close();
+      new ConfigService({ cwd }).close();
     } catch (error) {
       thrown = error;
     }
@@ -573,34 +570,5 @@ describe('config escrita por una versión anterior', () => {
     } finally {
       service.close();
     }
-  });
-});
-
-describe('ARCLI_CONFIG_DIR', () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it('usa esa carpeta para el config.json y sus carpetas', () => {
-    const directory = mkdtempSync(join(tmpdir(), 'arcli-config-dir-'));
-
-    vi.stubEnv('ARCLI_CONFIG_DIR', ` ${directory} `);
-
-    const service = new ConfigService();
-
-    try {
-      expect(resolveConfigDirectory()).toBe(directory);
-      expect(service.getPath()).toBe(join(directory, 'config.json'));
-    } finally {
-      service.close();
-      rmSync(directory, { force: true, recursive: true });
-    }
-  });
-
-  // Solo resuelve: sin cwd, un ConfigService con la variable vacia apuntaria a la config real.
-  it('vacia o sin definir, usa la carpeta de siempre', () => {
-    vi.stubEnv('ARCLI_CONFIG_DIR', '  ');
-
-    expect(resolveConfigDirectory()).toBeUndefined();
   });
 });

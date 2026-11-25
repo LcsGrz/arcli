@@ -3,7 +3,6 @@ import type { Command } from 'commander';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { resolveEnvironment } from '../../modules/config/arca-profile';
 import { type ArcliConfig, CONFIG_DEFAULTS } from '../../modules/config/config.schemas';
-import { ConfigService } from '../../modules/config/config.service';
 import { type MonotributoCategoryLetter, parseMonotributoLetter } from '../../modules/monotributo/monotributo';
 import {
   formatMonotributoCategoryAsText,
@@ -15,6 +14,7 @@ import {
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { writeTerminalJson, writeTerminalNotice, writeTerminalOutput } from '../../ui';
 import { loadArcaRuntime } from '../arca-runtime';
+import { withConfigService } from '../config-service';
 import { getGlobalOptions, registerQueryOptions, resolveOutputJson } from '../global-options';
 import { configureSpanishHelp, createMonotributoHelp } from '../help';
 import { loadMonotributoReport } from '../monotributo-report';
@@ -28,13 +28,9 @@ interface MonotributoCommandOptions {
 /** La tabla no necesita config: si no se puede leer, se muestra igual, sin la categoria propia. */
 function readConfigIfAny(): ArcliConfig | undefined {
   try {
-    const service = new ConfigService();
-
-    try {
+    return withConfigService((service) => {
       return service.getConfig();
-    } finally {
-      service.close();
-    }
+    });
   } catch {
     return undefined;
   }

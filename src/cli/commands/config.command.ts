@@ -15,19 +15,20 @@ import {
   type ArcliEnvironment,
   COTIZACION_DEPRECATION_WARNING,
 } from '../../modules/config/config.schemas';
-import { type ConfigChange, ConfigService, deprecatedConfigKeyWarning } from '../../modules/config/config.service';
+import { type ConfigChange, type ConfigService, deprecatedConfigKeyWarning } from '../../modules/config/config.service';
 import { buildConfigDoctorReport, type ConfigDoctorRuntimeCheck } from '../../modules/config/config-doctor';
 import { acceptsAlias } from '../../modules/config/config-keys';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import { writeTerminalJson, writeTerminalNotice, writeTerminalOutput } from '../../ui';
 import { checkProfileFromConfig } from '../arca-runtime';
+import { openConfigService, withConfigService } from '../config-service';
 import { registerJsonOption, resolveOutputJson } from '../global-options';
 import { configureSpanishHelp, createConfigHelp, createConfigSetHelp } from '../help';
 import { startSpinner } from '../spinner';
 import { UsageErrorWithSuggestion } from '../usage-error';
 
 function createConfigService(): ConfigService {
-  const service = new ConfigService();
+  const service = openConfigService();
   service.ensureInitialized();
 
   return service;
@@ -195,9 +196,7 @@ export function registerConfigCommand(program: Command): void {
       rejectExcessArguments(key, command);
 
       // Sin ensureInitialized: si la config quedo invalida, establecer o eliminar la clave es la forma de arreglarla.
-      const service = new ConfigService();
-
-      try {
+      withConfigService((service) => {
         const change = service.repairValue(key, value, alias);
 
         if (key === 'cotizacion') {
@@ -207,9 +206,7 @@ export function registerConfigCommand(program: Command): void {
         warnIfDeprecatedKey(key, 'establecer');
 
         printConfigChange(service, change, command);
-      } finally {
-        service.close();
-      }
+      });
     });
   registerJsonOption(establecerCommand);
   configureSpanishHelp(establecerCommand);
@@ -220,16 +217,12 @@ export function registerConfigCommand(program: Command): void {
     .argument('<clave>', 'clave pública de configuración')
     .action((key: string, _options: unknown, command: Command) => {
       // Sin ensureInitialized: si la config quedo invalida, establecer o eliminar la clave es la forma de arreglarla.
-      const service = new ConfigService();
-
-      try {
+      withConfigService((service) => {
         const change = service.repairUnset(key);
 
         warnIfDeprecatedKey(key, 'eliminar');
         printConfigChange(service, change, command);
-      } finally {
-        service.close();
-      }
+      });
     });
   registerJsonOption(eliminarCommand);
   configureSpanishHelp(eliminarCommand);

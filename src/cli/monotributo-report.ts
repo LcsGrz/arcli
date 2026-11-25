@@ -10,6 +10,7 @@ import {
 import type { ArcaClient } from '../services/arca/arca-client.factory';
 import { ArcaPadronGateway } from '../services/arca/arca-padron.gateway';
 
+import { dataDirectory } from './data-directory';
 import { withSpinner } from './spinner';
 import { CLI_VERSION } from './version';
 
@@ -26,10 +27,10 @@ export interface LoadMonotributoReportInput {
   readonly store?: MonotributoStore;
 }
 
-/** La carpeta de config puede no poder escribirse (permisos, disco lleno): la tabla se muestra igual, sin guardarla. */
+/** La carpeta de datos puede no poder escribirse (permisos, disco lleno): la tabla se muestra igual, sin guardarla. */
 function openStore(): MonotributoStore {
   try {
-    return new FileMonotributoStore();
+    return new FileMonotributoStore(dataDirectory());
   } catch {
     return new MemoryMonotributoStore();
   }

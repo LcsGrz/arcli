@@ -7,7 +7,6 @@ import {
   type SaleConditionKey,
 } from '../../modules/billing/sale-condition';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
-import { ConfigService } from '../../modules/config/config.service';
 import { parseConfigValue } from '../../modules/config/config-value-parser';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { decidePdfs } from '../../modules/pdf/pdf-decision';
@@ -16,6 +15,7 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { isOutputLost } from '../closed-output';
 import { writePdfOutcomes } from '../commands/billing.command.output';
 import { attachPdfs } from '../commands/billing.command.pdf';
+import { withConfigService } from '../config-service';
 import { recordFailedPdfs, recordMissingPdf } from '../emitted-vouchers';
 
 import { askText, chooseOrTypeStep, confirm, isPromptCancellation } from './prompts';
@@ -100,15 +100,11 @@ export async function completeIssuer(config: ArcliConfig): Promise<ArcliConfig> 
   }
 
   if (await confirm('¿Guardamos estos datos en la config para la próxima?', 'Sí, guardar', 'No, solo esta vez')) {
-    const service = new ConfigService();
-
-    try {
+    withConfigService((service) => {
       for (const [key, value] of answers) {
         service.setValue(key, value);
       }
-    } finally {
-      service.close();
-    }
+    });
   }
 
   return completed;

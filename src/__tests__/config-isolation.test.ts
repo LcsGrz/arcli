@@ -1,8 +1,10 @@
-import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { openConfigService } from '../cli/config-service';
+import { dataDirectory } from '../cli/data-directory';
+import { checkCliUpdate } from '../cli/update-check';
 import { resolveConfigLocation } from '../modules/config/config.service';
 
 import { assertConfigIsolated, isInsideDirectory } from './config-isolation';
@@ -46,23 +48,30 @@ describe('assertConfigIsolated', () => {
 
   it('falla con la resolución real si ARCLI_CONFIG_DIR apunta afuera del temporal', () => {
     const home = process.env.HOME ?? '';
-    // Hermana del temporal: Conf puede crear la carpeta al resolver la ruta, pero no escribe el config.json.
-    const outside = `${home}-afuera`;
 
-    vi.stubEnv('ARCLI_CONFIG_DIR', outside);
+    vi.stubEnv('ARCLI_CONFIG_DIR', `${home}-afuera`);
 
-    try {
-      expect(() => assertConfigIsolated(home, resolveConfigLocation())).toThrow(
-        /no está dentro de la carpeta temporal/,
-      );
-    } finally {
-      rmSync(outside, { force: true, recursive: true });
-    }
+    expect(() => assertConfigIsolated(home, resolveConfigLocation({ cwd: dataDirectory() }))).toThrow(
+      /no está dentro de la carpeta temporal/,
+    );
   });
+
+  it.each([undefined, '', '  '])(
+    'con ARCLI_CONFIG_DIR en %j, abrir datos falla en vez de usar la real',
+    async (value) => {
+      vi.stubEnv('ARCLI_CONFIG_DIR', value);
+
+      const { signal } = new AbortController();
+
+      expect(() => dataDirectory()).toThrow(/no usan la carpeta de datos real/);
+      expect(() => openConfigService()).toThrow(/no usan la carpeta de datos real/);
+      await expect(checkCliUpdate({ signal })).rejects.toThrow(/no usan la carpeta de datos real/);
+    },
+  );
 
   it('con el setup de la suite, la config y los tickets quedan en el temporal', () => {
     const home = process.env.HOME ?? '';
-    const location = resolveConfigLocation();
+    const location = resolveConfigLocation({ cwd: dataDirectory() });
 
     expect(home.startsWith(tmpdir())).toBe(true);
     expect(location).toEqual({

@@ -1,6 +1,6 @@
 import Conf from 'conf';
 
-import { resolveConfigDirectory } from '../config/config.service';
+import { requireDataDirectory } from '../../lib/files/require-data-directory';
 
 const PACKAGE_NAME = 'arcli';
 const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
@@ -42,7 +42,10 @@ export function isNewerVersion(latestVersion: string, currentVersion: string): b
   return latestPatch > currentPatch;
 }
 
-async function fetchLatestVersion({ request = fetch, signal }: CheckForUpdateOptions): Promise<string | null> {
+async function fetchLatestVersion({
+  request = fetch,
+  signal,
+}: Pick<CheckForUpdateOptions, 'request' | 'signal'>): Promise<string | null> {
   const controller = new AbortController();
   const cancel = () => controller.abort();
   const timeout = setTimeout(cancel, FETCH_TIMEOUT_MS);
@@ -67,13 +70,11 @@ async function fetchLatestVersion({ request = fetch, signal }: CheckForUpdateOpt
   }
 }
 
-function createCacheStore(cwd?: string): Conf<UpdateCheckCache> {
+function createCacheStore(cwd: string): Conf<UpdateCheckCache> {
   return new Conf<UpdateCheckCache>({
     configName: 'update-cache',
-    cwd: cwd ?? resolveConfigDirectory(),
+    cwd: requireDataDirectory(cwd),
     defaults: CACHE_DEFAULTS,
-    projectName: PACKAGE_NAME,
-    projectSuffix: '',
   });
 }
 
@@ -84,7 +85,8 @@ export type RegistryRequest = (
 ) => Promise<{ readonly json: () => Promise<unknown>; readonly ok: boolean }>;
 
 export interface CheckForUpdateOptions {
-  readonly cwd?: string;
+  /** La carpeta de datos, donde va el caché. */
+  readonly cwd: string;
   /** Cada cuanto se consulta el registry; por defecto, una vez por dia. */
   readonly maxAgeMs?: number;
   /** Por defecto, `fetch`. */
@@ -95,7 +97,7 @@ export interface CheckForUpdateOptions {
 
 export async function checkForUpdate(
   currentVersion: string,
-  options: CheckForUpdateOptions = {},
+  options: CheckForUpdateOptions,
 ): Promise<UpdateCheckResult | null> {
   if (isUpdateCheckDisabled()) {
     return null;

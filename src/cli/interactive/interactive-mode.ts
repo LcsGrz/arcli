@@ -1,15 +1,15 @@
 import { Separator } from '@inquirer/core';
 
 import { DOCS_SITE_URL } from '../../lib/links';
-import { ConfigService } from '../../modules/config/config.service';
 import { listMissingSetupKeys, resolveActiveEnvironment } from '../../modules/interactive/config-fields';
 import { CONFIG_MENU_NEW_OPTIONS } from '../../modules/interactive/new-options';
-import { checkForUpdate, type UpdateCheckResult } from '../../modules/update-check/update-check.service';
-import { requestNpmRegistry } from '../../services/npm/npm-registry';
+import type { UpdateCheckResult } from '../../modules/update-check/update-check.service';
 import { colorize, noticePanel, renderLogo, writeTerminalOutput, writeTerminalRaw } from '../../ui';
+import { withConfigService } from '../config-service';
 import { CANCELLED_NOTICE } from '../emission-texts';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
+import { checkCliUpdate } from '../update-check';
 import { CLI_VERSION } from '../version';
 
 import { type BackgroundQuery, startBackgroundQuery } from './background-query';
@@ -42,17 +42,13 @@ type MenuOption =
 
 /** Lo que falta para emitir en el entorno activo: el de la config o el de `--produccion`/`--testing`. */
 function listMissingSetup(options: GlobalCliOptions): string[] {
-  const service = new ConfigService();
-
-  try {
+  return withConfigService((service) => {
     service.ensureInitialized();
 
     const config = service.getConfig();
 
     return listMissingSetupKeys(config, resolveActiveEnvironment(config, options));
-  } finally {
-    service.close();
-  }
+  });
 }
 
 async function resolveSession(options: GlobalCliOptions): Promise<InteractiveSession | undefined> {
@@ -185,7 +181,7 @@ async function prepareHeader(header: StatusHeader, choices: ReadonlyArray<Choice
 export async function runInteractiveMode(options: GlobalCliOptions = {}): Promise<void> {
   // En el modo interactivo se consulta npm siempre (no una vez por dia).
   const updateQuery = startBackgroundQuery<null | UpdateCheckResult>(
-    (signal) => checkForUpdate(CLI_VERSION, { maxAgeMs: 0, request: requestNpmRegistry, signal }),
+    (signal) => checkCliUpdate({ maxAgeMs: 0, signal }),
     null,
   );
   const headers: StatusHeader[] = [];

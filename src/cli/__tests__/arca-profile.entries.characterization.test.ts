@@ -4,11 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CertificateExpiredError } from '../../modules/config/certificate-expiry';
 import { MISSING_CUIT_MESSAGE } from '../../modules/config/config.schemas';
-import { ConfigService } from '../../modules/config/config.service';
 import { getConfigField } from '../../modules/interactive/config-fields';
 import { ArcaExportGateway } from '../../services/arca/arca-export.gateway';
 import { stripAnsi } from '../../ui';
 import { buildRuntimeChecks } from '../commands/config.command';
+import { openConfigService } from '../config-service';
 import { configFieldLists } from '../interactive/config-lists';
 import { createInteractiveSession } from '../interactive/session';
 import { createProgram } from '../program';
@@ -288,7 +288,7 @@ describe('config revisar: validacion de cada entorno (buildRuntimeChecks)', () =
   function checks(config: Record<string, unknown>) {
     profile.writeConfig(config);
 
-    const service = new ConfigService();
+    const service = openConfigService();
 
     try {
       return buildRuntimeChecks(service.getConfig());

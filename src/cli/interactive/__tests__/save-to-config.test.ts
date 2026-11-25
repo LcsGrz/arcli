@@ -6,9 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { VOUCHER_KIND_MAP } from '../../../modules/billing/voucher-kind-map';
 import type { ArcliConfig } from '../../../modules/config/config.schemas';
-import { ConfigService } from '../../../modules/config/config.service';
+import type { ConfigService } from '../../../modules/config/config.service';
 import type { InvoiceState } from '../../../modules/interactive/invoice-input';
 import { stripAnsi } from '../../../ui';
+import { openConfigService } from '../../config-service';
 import { confirm } from '../prompts';
 import { offerSavingCbu } from '../steps/cbu';
 
@@ -32,7 +33,7 @@ let directory = '';
 let output = '';
 
 function withConfig<T>(run: (service: ConfigService) => T): T {
-  const service = new ConfigService();
+  const service = openConfigService();
 
   try {
     return run(service);
