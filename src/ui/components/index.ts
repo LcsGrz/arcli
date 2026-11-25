@@ -2,6 +2,7 @@ export * from './certificateBanner';
 export * from './errorPanel';
 export * from './noticePanel';
 export * from './pointerRow';
+export * from './productionBanner';
 export * from './rolePanels';
 export * from './rowActionsList';
 export * from './scrollWindow';

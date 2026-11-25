@@ -39,11 +39,12 @@ import {
   resolveActiveEnvironment,
 } from '../../modules/interactive/config-fields';
 import { changesArcaAccess } from '../../modules/interactive/config-lists';
+import { inspectProductionCredentials } from '../../modules/interactive/production-credentials';
 import { validateCbu, validateOptionalCbuAlias } from '../../modules/interactive/validators';
 import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
-import { bold, noticePanel, uiSymbol, writeTerminalOutput } from '../../ui';
+import { bold, noticePanel, productionBanner, uiSymbol, writeTerminalOutput } from '../../ui';
 import { buildRuntimeChecks } from '../commands/config.command';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
@@ -477,7 +478,20 @@ async function runChangeField(flags: EnvironmentFlags): Promise<void> {
       lists.reset();
     }
 
-    if (result !== BACK) {
+    if (result === BACK) {
+      continue;
+    }
+
+    const saved = readConfig();
+
+    if (field.key === 'entorno' && result === 'guardado' && saved.entornoPorDefecto === 'produccion') {
+      writeTerminalOutput(
+        productionBanner({
+          ...inspectProductionCredentials(saved, new Date()),
+          sessionInTesting: resolveActiveEnvironment(saved, flags) === 'testing',
+        }),
+      );
+    } else {
       writeTerminalOutput(noticePanel(messages[result], result === 'sin-cambios' ? 'muted' : 'success'));
     }
   }

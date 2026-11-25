@@ -97,7 +97,11 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Certificados:** el propio de exportación avisa que vence en los comandos y el asistente, y dice cómo renovarlo (#287).
 - **Fechas:** en un lote que cruza la medianoche, `hoy` y las demás fechas relativas son del mismo día en todos los comprobantes (#282).
 - **Asistente:** en producción pregunta una sola vez antes de emitir, como los comandos (#289).
+- **Asistente:** al cambiar el entorno a producción en Configuración, un aviso dice que los comprobantes van a tener validez fiscal (#300).
 - **Factura E:** la vista previa consulta varias tablas de WSFEX a la vez, y el asistente, cada una una vez por comprobante (#294).
+- **Asistente:** el menú abre sin esperar a ARCA ni a npm: el estado de ARCA y la versión nueva se completan solos (#295).
+- **Salida:** los comandos no esperan a npm al terminar; si no contestó, consulta el próximo (#295).
+- **Factura E:** en el asistente, la lista de incoterms muestra el nombre del marcado, como `Free on Board` (#296).
 
 <details><summary>Detalle</summary>
 
@@ -144,6 +148,14 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **Moneda y actividad de exportación en la config.** La moneda lista las monedas de ARCA, que se buscan por nombre, código de ARCA o ISO (`usd`), y elegir una guarda el código de ARCA (`DOL`), como el default `PES`. La actividad lista la tabla de WSFEX, consultada como en `arcli fe`: hacen falta el CUIT y el certificado y la clave de facturación del entorno, y el de exportación se usa si está configurado; sin eso o si ARCA no responde, se escribe el código como antes. Sin valor guardado, la lista arranca en "Dejar sin configurar": Enter ya no guarda la primera opción sin elegirla, también en la condición de venta. Lo escrito se valida como `arcli config establecer`, y las claves no cambian.
 
 **Una sola confirmación en producción.** El asistente preguntaba "¿Emitimos…?" y, en producción, otra vez con **Sí, emitir en producción**. Ahora pregunta una sola vez, como los comandos con flags, en la factura, el recibo, las notas, "Repetir" y la `E`. La pregunta sigue diciendo PRODUCCIÓN. **No, dejar sin emitir** termina sin emitir y Esc vuelve a la última pregunta. Los comandos no cambian.
+
+**Pasar a producción.** En "Modificar configuración", cambiar **Entorno** a `produccion` decía "Guardado.". Ahora dice que estás en PRODUCCIÓN, que los comprobantes van a tener validez fiscal y que se usa el certificado de producción, o si falta, venció o no se pudo leer. Con `arcli interactivo --testing` dice que la sesión sigue en testing. Se guarda igual, sin preguntar, y `config establecer entorno` no cambia.
+
+**El asistente abre sin esperar.** El menú aparecía cuando contestaba ARCA (hasta 5 segundos) y npm (hasta 1,5). Ahora aparece enseguida, con `COMPROBANDO ARCA` en la barra, que se reemplaza por el resultado. Si elegís una opción antes queda `ARCA SIN VERIFICAR`, y si después ARCA está con demoras, con problemas o sin respuesta, lo avisa una vez al volver al menú. "Actualizar a la versión X.Y.Z" aparece arriba cuando llega, sin mover la opción marcada ni lo escrito. Volver de Configuración tampoco espera, y al salir las consultas pendientes se cancelan. Si la barra y el menú no entran enteros en la terminal, espera a ARCA y a npm como antes. Emitir no cambia.
+
+**npm al terminar un comando.** Una vez por día, un comando que terminaba antes que la consulta a npm la esperaba hasta 1,5 segundos, y más si la conexión no se establecía. Ahora cancela la consulta y corta la conexión, y el próximo comando vuelve a consultar; si ya se sabía de una versión más nueva, la avisa igual. Una falla de npm se sigue anotando hasta el día siguiente. stdout, `--json`, el exit code y el lugar del aviso no cambian.
+
+**Nombre del incoterm.** La lista mostraba solo el código (`FOB`). Ahora, debajo, se ve el nombre de la tabla de WSFEX del que está marcado; si la tabla no lo trae o repite el código, no se ve nada. El filtro, que ya encontraba por el nombre, lo que se emite y el comando equivalente no cambian.
 
 </details>
 

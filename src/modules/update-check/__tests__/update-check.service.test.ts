@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { checkForUpdate, isNewerVersion } from '../update-check.service';
 
 const temporaryDirectories: string[] = [];
+/** Para que `Date.now()` avance. */
+const pause = () => new Promise((resolve) => setTimeout(resolve, 5));
 let originalStderrIsTty: boolean | undefined;
 
 function createCwd(): string {
@@ -113,6 +115,9 @@ describe('isNewerVersion', () => {
     ['2.5.3', '2.5.2', true],
     ['2.5.2', '2.5.3', false],
     ['2.5.2', '2.5.2', false],
+    ['3.0.1', '3.0.0', true],
+    ['2.6.0', '2.6.1', false],
+    ['2.6.10', '2.6.9', true],
   ])('%s contra la instalada %s: %s', (latest, current, expected) => {
     expect(isNewerVersion(latest, current)).toBe(expected);
   });
@@ -139,5 +144,144 @@ describe('checkForUpdate: cache', () => {
     );
 
     expect(await checkForUpdate('0.1.0', { cwd: createCwd() })).toBeNull();
+  });
+});
+
+/** El comando termino y no se espera a npm (TUI-49). */
+describe('checkForUpdate: cancelada', () => {
+  /** npm colgado: contesta solo si lo cancelan, como el `fetch` de verdad. */
+  function hangRegistry() {
+    const request = vi.fn(
+      (_url: string, { signal }: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          const fail = () => reject(new DOMException('cancelada', 'AbortError'));
+
+          if (signal.aborted) {
+            fail();
+          } else {
+            signal.addEventListener('abort', fail);
+          }
+        }),
+    );
+
+    vi.stubGlobal('fetch', request);
+
+    return request;
+  }
+
+  function cancelled(cwd: string, currentVersion = '0.1.0') {
+    const controller = new AbortController();
+    const result = checkForUpdate(currentVersion, { cwd, maxAgeMs: -1, signal: controller.signal });
+
+    controller.abort();
+
+    return result;
+  }
+
+  const cached = (cwd: string) =>
+    JSON.parse(readFileSync(join(cwd, 'update-cache.json'), 'utf8')) as Record<string, number | string>;
+
+  it('no avisa, no anota la consulta y la próxima reintenta', async () => {
+    const cwd = createCwd();
+
+    hangRegistry();
+    expect(await cancelled(cwd)).toBeNull();
+    expect(existsSync(join(cwd, 'update-cache.json')) ? cached(cwd).lastCheckedAt : 0).toBe(0);
+
+    mockRegistryResponse('0.2.0');
+    expect(await checkForUpdate('0.1.0', { cwd })).toMatchObject({ latestVersion: '0.2.0' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('con una más nueva ya guardada, avisa con esa', async () => {
+    const cwd = createCwd();
+
+    mockRegistryResponse('0.2.0');
+    await checkForUpdate('0.1.0', { cwd });
+
+    const before = cached(cwd);
+
+    hangRegistry();
+    await pause();
+    expect(await cancelled(cwd)).toEqual({ currentVersion: '0.1.0', latestVersion: '0.2.0' });
+    expect(cached(cwd)).toEqual(before);
+    expect(await cancelled(cwd, '0.2.0')).toBeNull();
+  });
+
+  it('corta el pedido en curso, sin esperar su tope', async () => {
+    const controller = new AbortController();
+    let received: AbortSignal | undefined;
+    const result = checkForUpdate('0.1.0', {
+      cwd: createCwd(),
+      request: async (url, { signal }) => {
+        expect(url).toBe('https://registry.npmjs.org/arcli/latest');
+        received = signal;
+
+        return new Promise((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(new Error('cortado')));
+        });
+      },
+      signal: controller.signal,
+    });
+
+    expect(received?.aborted).toBe(false);
+    controller.abort();
+    expect(received?.aborted).toBe(true);
+    expect(await result).toBeNull();
+  });
+
+  it('cancelar después de la respuesta no toca ese pedido', async () => {
+    const controller = new AbortController();
+    let received: AbortSignal | undefined;
+
+    await checkForUpdate('0.1.0', {
+      cwd: createCwd(),
+      request: async (_url, { signal }) => {
+        received = signal;
+
+        return { json: async () => ({ version: '0.2.0' }), ok: true };
+      },
+      signal: controller.signal,
+    });
+    controller.abort();
+    expect(received?.aborted).toBe(false);
+  });
+
+  it('una falla de npm se anota igual que siempre, también si después se cancela', async () => {
+    const cwd = createCwd();
+    const controller = new AbortController();
+
+    vi.stubGlobal('fetch', async () => Promise.reject(new Error('sin red')));
+    expect(await checkForUpdate('0.1.0', { cwd, signal: controller.signal })).toBeNull();
+    controller.abort();
+    expect(cached(cwd).lastCheckedAt).toBeGreaterThan(0);
+  });
+
+  it('una respuesta que llegó antes de cancelar se guarda', async () => {
+    const cwd = createCwd();
+    const controller = new AbortController();
+
+    mockRegistryResponse('0.2.0');
+    await checkForUpdate('0.1.0', { cwd, signal: controller.signal });
+    controller.abort();
+    expect(cached(cwd)).toMatchObject({ latestVersion: '0.2.0' });
+  });
+
+  it('sin respuesta en 1,5 segundos se anota, como siempre', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+
+    try {
+      const cwd = createCwd();
+
+      hangRegistry();
+
+      const result = checkForUpdate('0.1.0', { cwd });
+
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(await result).toBeNull();
+      expect(cached(cwd).lastCheckedAt).toBeGreaterThan(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

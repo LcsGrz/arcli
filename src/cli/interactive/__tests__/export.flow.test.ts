@@ -592,6 +592,42 @@ describe('runExportFlow', () => {
       expect(printed()).toContain('--incoterm EXW');
     });
 
+    it('el incoterm muestra el código, con el nombre de la tabla como descripción si dice otra cosa', async () => {
+      vi.spyOn(gateway, 'getIncoterms').mockResolvedValue([
+        { code: 'FOB', name: 'Free on Board' },
+        { code: 'EXW', name: 'exw ' },
+        { code: 'CIF', name: ' ' },
+      ]);
+      script = createScript([
+        [/cliente del exterior/, 'ACME LLC'],
+        [/Domicilio/, '123 Main St'],
+        [/País de destino/, '212'],
+        [/ID impositivo/, ''],
+        [/Qué exportás/, 'Bienes'],
+        [/Moneda del comprobante/, 'Pesos'],
+        ...singleExportItem('800'),
+        [/Incoterm/, 'FOB'],
+        [/Permisos de embarque/, ''],
+        [/Forma de pago/, 'Transferencia Internacional'],
+        [/Agregamos algún opcional/, []],
+        [/Emitimos/, 'No, dejar sin emitir'],
+      ]);
+
+      await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+      const incoterms = script.chooseStep.mock.calls.find(([message]) => /Incoterm/.test(message))?.[1] ?? [];
+
+      expect(
+        onlyChoices(incoterms).map(({ description, keywords, name }) => ({ description, keywords, name })),
+      ).toEqual([
+        { description: 'Free on Board', keywords: 'Free on Board', name: 'FOB' },
+        { description: undefined, keywords: 'exw ', name: 'EXW' },
+        { description: undefined, keywords: ' ', name: 'CIF' },
+      ]);
+      expect(printed()).toContain('--incoterm FOB');
+      expect(printed()).not.toContain('--incoterms-desc');
+    });
+
     it('en servicios en dólares no pregunta la cotización: ARCA exige la suya (2053)', async () => {
       script = createScript([
         [/cliente del exterior/, 'ACME LLC'],
