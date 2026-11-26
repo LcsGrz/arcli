@@ -22,6 +22,9 @@ const state = vi.hoisted(() => ({ config: {} as Record<string, unknown>, root: '
 
 vi.mock('../../../modules/config/config.service', () => ({
   ConfigService: class {
+    public changeValues({ set }: { readonly set: ReadonlyArray<readonly [string, string]> }) {
+      set.forEach(([key, value]) => this.setValue(key, value));
+    }
     public close() {}
     public getCertificatesPath() {
       return join(state.root, 'certificados');

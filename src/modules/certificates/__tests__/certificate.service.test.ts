@@ -47,7 +47,7 @@ function setup(overrides: Partial<ArcliConfig> = {}) {
       config = { ...config, [group]: { ...config[group], [environment]: value } };
     }
   };
-  // Con `changeValues`, como ConfigService (ARQ-12 PR 3). Va en una variable: el puerto de hoy no lo tiene.
+  // Con `changeValues`, como ConfigService (ARQ-12 PR 3).
   const configPort = {
     changeValues: ({
       set,
@@ -56,7 +56,6 @@ function setup(overrides: Partial<ArcliConfig> = {}) {
       readonly set: ReadonlyArray<readonly [string, string]>;
     }) => save(set),
     getConfig: () => config,
-    setValue: (key: string, value: string) => save([[key, value]]),
   };
   const service = new CertificateService({
     certificatesRoot: root,
@@ -310,8 +309,7 @@ describe('CertificateService', () => {
     expect(config().key.testing).toBe(files.key);
   });
 
-  // Tests primero (ARQ-12 PR 3): pasa a it() al implementarlo.
-  it.fails('importar guarda el certificado y la clave en la config en un solo cambio (ARQ-12)', () => {
+  it('importar guarda el certificado y la clave en la config en un solo cambio (ARQ-12)', () => {
     const { root, service, writes } = setup();
     const request = service.generate({ environment: 'produccion' });
     const files = resolveCertificateFiles(root, CUIT, 'produccion');
