@@ -136,6 +136,8 @@ const WAITS: readonly Wait[] = [
     mock: () => vi.mocked(fetchMonotributoPage) as unknown as Mock,
     name: 'Consultas: la tabla del monotributo',
     notice: QUERY_CANCELLED,
+    // No pasa por el SDK: se corta con la señal que recibe, como el `fetch` real.
+    options: { cancelWith: (_fetch, _timeout, signal) => signal as AbortSignal | undefined },
     steps: [CONSULTAS, [QUERY, 'Categorías del monotributo']],
   },
   {
@@ -282,6 +284,8 @@ describe.each(WAITS)('$name', (wait) => {
 
     expect(pending.reached(), 'nunca llegó a la consulta').toBe(true);
     expect(run.menus[1]?.answered, 'esperó a ARCA antes de volver al menú').toBe(false);
+    // La consulta se corto (la conexion, en el real): ni siquiera contesto despues.
+    expect(pending.cut(), 'la consulta no se cortó').toBe(true);
     expect(shown).toContain(wait.notice);
 
     if (wait.notice === QUERY_CANCELLED) {

@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BillingService } from '../../../modules/billing/billing.service';
+import { currentQuerySignal } from '../../../services/arca/query-cancellation';
 import { systemClock } from '../../../services/time/system-clock';
+import { isPromptCancellation } from '../../prompt-cancellation';
 import {
   exchangeRateSuggestionLoader,
   exportExchangeRateLoader,
@@ -29,6 +31,40 @@ afterEach(() => {
 });
 
 describe('officialExchangeRateLoader', () => {
+  it('cortada con Ctrl+C no queda como fallida: la próxima vez, con el mismo loader, se vuelve a pedir', async () => {
+    vi.spyOn(process, 'kill').mockImplementation(() => true);
+
+    let calls = 0;
+    const getQuotation = vi.fn(async () => {
+      calls += 1;
+
+      if (calls > 1) {
+        return 1450;
+      }
+
+      // Como el SDK con `soap-deadline`: la consulta se corta con la señal del contexto.
+      const signal = currentQuerySignal();
+
+      process.emit('SIGINT', 'SIGINT');
+
+      return new Promise<number>((_resolve, reject) => {
+        if (signal?.aborted) {
+          reject(signal.reason);
+        }
+
+        signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+      });
+    });
+    const load = loader(getQuotation);
+    const cancelled = await load({ currencyCode: 'USD' }).catch((error: unknown) => error);
+
+    expect(isPromptCancellation(cancelled)).toBe(true);
+    expect(load.known({ currencyCode: 'USD' })).toBeUndefined();
+    expect(await load({ currencyCode: 'USD' })).toBe(1450);
+    expect(getQuotation).toHaveBeenCalledTimes(2);
+    vi.mocked(process.kill).mockRestore();
+  });
+
   it('consulta la oficial de ARCA como el CLI sin --cm, una vez por moneda', async () => {
     const getQuotation = vi.fn(async (currencyCode: string) => (currencyCode === 'DOL' ? 1450 : 1600));
     const load = loader(getQuotation);

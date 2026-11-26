@@ -72,6 +72,11 @@ export interface CtrlC {
    * del contexto (`currentQuerySignal`). Por defecto si; no en lo que emite ni en lo que no es de ARCA.
    */
   readonly cancellable?: boolean;
+  /**
+   * Con que señal se corta, si no es la del contexto: la que recibe la llamada, como `fetchMonotributoPage`, que no pasa
+   * por el SDK.
+   */
+  readonly cancelWith?: (...args: unknown[]) => AbortSignal | undefined;
   /** Cuanto pasa entre una señal y la otra. Por defecto, lo justo para que cuenten por separado. */
   readonly gap?: number;
   /** Al llegar a la llamada, antes de las señales. */
@@ -88,6 +93,8 @@ export interface CtrlC {
 export interface PendingAnswer {
   /** ARCA ya contesto (no cuenta si la consulta se corto). */
   readonly answered: () => boolean;
+  /** La señal con la que se corta la consulta (la del contexto o `cancelWith`) quedo abortada con las señales. */
+  readonly cut: () => boolean;
   /** Se llego a la llamada y se mandaron las señales. */
   readonly reached: () => boolean;
   /** ARCA contesta ya. */
@@ -107,6 +114,7 @@ export function ctrlCDuring(
   {
     call = 1,
     cancellable = true,
+    cancelWith,
     gap = REPEATED_SIGNAL_MS,
     onReach,
     signal = 'SIGINT',
@@ -119,6 +127,7 @@ export function ctrlCDuring(
   let seen = 0;
   let isReached = false;
   let isAnswered = false;
+  let wasCut = false;
   let before = '';
   let after: string | undefined;
   let spinningAfter: readonly string[] = [];
@@ -155,7 +164,7 @@ export function ctrlCDuring(
           return original?.(...args);
         }
 
-        const query = cancellable ? currentQuerySignal() : undefined;
+        const query = cancellable ? (cancelWith ? cancelWith(...args) : currentQuerySignal()) : undefined;
         const cut = new Promise<never>((_resolve, reject) => {
           if (query?.aborted) {
             reject(query.reason);
@@ -168,6 +177,7 @@ export function ctrlCDuring(
         cut.catch(() => undefined);
         await vi.waitFor(() => expect(until()).toBe(true), { interval: 5, timeout: ANSWER_MS }).catch(() => undefined);
         await sendSignals();
+        wasCut = query?.aborted === true;
 
         try {
           await Promise.race([released, pause(ANSWER_MS), cut]);
@@ -184,6 +194,7 @@ export function ctrlCDuring(
 
   return {
     answered: () => isAnswered,
+    cut: () => wasCut,
     reached: () => isReached,
     release,
     spinningAfterSignals: () => spinningAfter,
@@ -270,7 +281,8 @@ export function useAssistantInterruptionFixture(): ArcaProfileFixture {
       process.env.NO_UPDATE_NOTIFIER = original.notifier;
     }
 
-    // Lo que una espera cortada todavia escucha por el eco; si quedo otra cosa, se vuelve a lo de antes del test.
+    // Lo que una espera cortada todavia escucha por el eco. Si no volvieron, se reponen para el test siguiente y este
+    // falla: un listener que no vuelve es un error.
     const restored = await vi
       .waitFor(() => expect(signalListeners()).toEqual(listeners), { timeout: REPEATED_SIGNAL_MS + 250 })
       .then(
@@ -283,6 +295,8 @@ export function useAssistantInterruptionFixture(): ArcaProfileFixture {
         process.removeAllListeners(signal);
         listeners[signal].forEach((listener) => process.on(signal, listener));
       }
+
+      throw new Error('Los listeners de SIGINT y SIGTERM no volvieron a ser los de antes del test.');
     }
   });
 
