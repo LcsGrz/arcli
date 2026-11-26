@@ -1,5 +1,3 @@
-import { readFileSync, writeFileSync } from 'node:fs';
-
 import { AppError, ConfigurationError, InputValidationError } from '../../lib/errors/app-error';
 import type { ErrorCode } from '../../lib/errors/error-codes';
 import { fileErrorReason } from '../../lib/files/file-error';
@@ -15,15 +13,7 @@ import type { Clock } from '../../lib/time/clock';
 import { formatCertificateExpiryDate } from '../config/certificate-expiry';
 import { type ArcliConfig, type ArcliEnvironment, formatEnvironmentLabel } from '../config/config.schemas';
 
-import {
-  type CertificateFiles,
-  ensureCertificateFolder,
-  moveIfExists,
-  readIfExists,
-  readUnlessMissing,
-  resolveCertificateFiles,
-  writePrivateFile,
-} from './certificate-store';
+import { type CertificateFiles, type CertificateStore, resolveCertificateFiles } from './certificate-store';
 
 /** Lo que el servicio necesita de la config: leerla y guardar las rutas como `arcli config establecer`. */
 export interface CertificateConfigPort {
@@ -36,6 +26,8 @@ export interface CertificateServiceOptions {
   /** Para el vencimiento, al importar. */
   readonly clock: Clock;
   readonly config: CertificateConfigPort;
+  /** Los archivos de los certificados: la app pasa el adaptador sobre el disco. */
+  readonly store: CertificateStore;
 }
 
 export interface GenerateCertificateOptions {
@@ -96,11 +88,13 @@ export class CertificateService {
   private readonly certificatesRoot: string;
   private readonly clock: Clock;
   private readonly config: CertificateConfigPort;
+  private readonly store: CertificateStore;
 
   public constructor(options: CertificateServiceOptions) {
     this.certificatesRoot = options.certificatesRoot;
     this.clock = options.clock;
     this.config = options.config;
+    this.store = options.store;
   }
 
   /** Arma la clave y el CSR del entorno. Quedan pendientes: la clave activa sigue andando hasta importar. */
@@ -110,7 +104,9 @@ export class CertificateService {
     const files = this.files(cuit, options.environment);
 
     // Sin `--reemplazar`, un pedido que no se puede leer no se pisa: la clave podria ser la del CSR que ya se subio.
-    const pendingKey = options.replace ? readIfExists(files.pendingKey) : readUnlessMissing(files.pendingKey);
+    const pendingKey = options.replace
+      ? this.store.readIfExists(files.pendingKey)
+      : this.store.readUnlessMissing(files.pendingKey);
 
     if (pendingKey && !options.replace) {
       throw certificateError(
@@ -123,9 +119,9 @@ export class CertificateService {
     const alias = options.alias?.trim() || DEFAULT_CERTIFICATE_ALIAS;
     const request = createCertificateRequest({ alias, cuit, organization: config.emisor.razonSocial });
 
-    ensureCertificateFolder(files);
-    writePrivateFile(files.pendingKey, request.privateKeyPem);
-    writeFileSync(files.pendingRequest, request.csrPem, 'utf8');
+    this.store.ensureFolder(files);
+    this.store.writePrivate(files.pendingKey, request.privateKeyPem);
+    this.store.write(files.pendingRequest, request.csrPem);
 
     return {
       alias,
@@ -142,11 +138,11 @@ export class CertificateService {
     const config = this.config.getConfig();
     const certificatePath = config.cert[environment];
     const files = config.cuit ? this.files(config.cuit, environment) : undefined;
-    const pending = files && readIfExists(files.pendingKey) !== undefined ? files.pendingRequest : undefined;
+    const pending = files && this.store.readIfExists(files.pendingKey) !== undefined ? files.pendingRequest : undefined;
     let info: ArcaCertificateInfo | undefined;
 
     try {
-      info = certificatePath ? readArcaCertificate(readFileSync(certificatePath, 'utf8')) : undefined;
+      info = certificatePath ? readArcaCertificate(this.store.read(certificatePath)) : undefined;
     } catch {
       info = undefined;
     }
@@ -166,7 +162,7 @@ export class CertificateService {
   public readPendingRequest(environment: ArcliEnvironment): string | undefined {
     const cuit = this.config.getConfig().cuit;
 
-    return cuit ? readIfExists(this.files(cuit, environment).pendingRequest) : undefined;
+    return cuit ? this.store.readIfExists(this.files(cuit, environment).pendingRequest) : undefined;
   }
 
   /**
@@ -218,19 +214,19 @@ export class CertificateService {
       );
     }
 
-    ensureCertificateFolder(files);
+    this.store.ensureFolder(files);
 
     let keyPath = key.path;
 
     if (key.pending) {
-      moveIfExists(files.key, files.previousKey);
-      moveIfExists(files.pendingKey, files.key);
-      moveIfExists(files.pendingRequest, files.request);
+      this.store.moveIfExists(files.key, files.previousKey);
+      this.store.moveIfExists(files.pendingKey, files.key);
+      this.store.moveIfExists(files.pendingRequest, files.request);
       keyPath = files.key;
     }
 
-    moveIfExists(files.certificate, files.previousCertificate);
-    writeFileSync(files.certificate, pem, 'utf8');
+    this.store.moveIfExists(files.certificate, files.previousCertificate);
+    this.store.write(files.certificate, pem);
     this.config.setValue(`cert.${environment}`, files.certificate);
     this.config.setValue(`key.${environment}`, keyPath);
 
@@ -300,21 +296,21 @@ export class CertificateService {
     config: ArcliConfig,
     environment: ArcliEnvironment,
   ): { readonly path: string; readonly pending: boolean } {
-    const pendingKey = readIfExists(files.pendingKey);
+    const pendingKey = this.store.readIfExists(files.pendingKey);
 
     if (pendingKey && certificateMatchesKey(pem, pendingKey)) {
       return { path: files.pendingKey, pending: true };
     }
 
     const configuredKeyPath = config.key[environment];
-    const configuredKey = configuredKeyPath ? readKey(configuredKeyPath) : undefined;
+    const configuredKey = configuredKeyPath ? readKey(this.store, configuredKeyPath) : undefined;
 
     if (configuredKeyPath && configuredKey?.content && certificateMatchesKey(pem, configuredKey.content)) {
       return { path: configuredKeyPath, pending: false };
     }
 
     // Sin permiso en la carpeta, `readIfExists` da lo mismo que si no hubiera pedido.
-    const pendingProblem = pendingKey === undefined ? readKey(files.pendingKey).problem : undefined;
+    const pendingProblem = pendingKey === undefined ? readKey(this.store, files.pendingKey).problem : undefined;
     const problem = configuredKey?.problem ?? pendingProblem;
     const downloadLatest = 'Bajá de ARCA el certificado que creaste con el último CSR de `arcli certificado generar`.';
 
@@ -346,9 +342,9 @@ export class CertificateService {
 }
 
 /** Una clave que no se puede leer (permisos, es una carpeta) no es una que falta: `problem` dice cual y por que. */
-function readKey(path: string): { readonly content?: string; readonly problem?: string } {
+function readKey(store: CertificateStore, path: string): { readonly content?: string; readonly problem?: string } {
   try {
-    return { content: readUnlessMissing(path) };
+    return { content: store.readUnlessMissing(path) };
   } catch (error) {
     const { code } = error as NodeJS.ErrnoException;
 

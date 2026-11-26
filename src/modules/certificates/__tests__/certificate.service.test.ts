@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { normalizeCertificatePem, readArcaCertificate } from '../../../lib/security/arca-certificate';
+import { nodeCertificateStore } from '../../../services/files/certificate-store';
 import type { ArcliConfig } from '../../config/config.schemas';
 import { CertificateService } from '../certificate.service';
 import { resolveCertificateFiles } from '../certificate-store';
@@ -46,6 +47,7 @@ function setup(overrides: Partial<ArcliConfig> = {}) {
       },
     },
     clock: { now: () => new Date('2026-11-04T12:00:00Z') },
+    store: nodeCertificateStore,
   });
 
   return { config: () => config, root, service };

@@ -1,10 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 
-import { InputValidationError } from '../errors/app-error';
-import { shortenPath } from '../paths/mask-path';
-
-import { withFilePath } from './file-error';
-import { describeJsonError } from './json-error';
+import { InputValidationError } from '../../lib/errors/app-error';
+import { withFilePath } from '../../lib/files/file-error';
+import { describeJsonError } from '../../lib/files/json-error';
+import { shortenPath } from '../../lib/paths/mask-path';
 
 export function readJsonFile<T>(filePath: string): T {
   if (!existsSync(filePath)) {

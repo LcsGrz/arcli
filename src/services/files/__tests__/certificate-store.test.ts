@@ -3,12 +3,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { resolveCertificateFiles } from '../../../modules/certificates/certificate-store';
 import {
   ensureCertificateFolder,
   moveIfExists,
   readIfExists,
   readUnlessMissing,
-  resolveCertificateFiles,
   writePrivateFile,
 } from '../certificate-store';
 

@@ -5,18 +5,18 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ZodError } from 'zod';
 
 import { AppError } from '../../../lib/errors/app-error';
-import { readJsonFile } from '../../../lib/files/read-json-file';
 import { hasAtMostDecimals } from '../../../lib/numbers/argentine-amount';
 import { prepareBatch } from '../../../modules/billing/billing.batch-run';
 import type { BillingDefaults } from '../../../modules/billing/billing.defaults';
 import { BillingService } from '../../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { getVoucherKindByShortcut, VOUCHER_KIND_MAP } from '../../../modules/billing/voucher-kind-map';
+import { readJsonFile } from '../../../services/files/read-json-file';
 import { systemClock } from '../../../services/time/system-clock';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { parseBillingCommandPlan, registerBillingOptions } from '../billing.command.parser';
 
-vi.mock('../../../lib/files/read-json-file', () => ({ readJsonFile: vi.fn() }));
+vi.mock('../../../services/files/read-json-file', () => ({ readJsonFile: vi.fn() }));
 
 const EMITTER_CUIT = 20409509763;
 

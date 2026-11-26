@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { InputValidationError } from '../../errors/app-error';
+import { InputValidationError } from '../../../lib/errors/app-error';
 import { readJsonFile } from '../read-json-file';
 
 const temporaryDirectories: string[] = [];
