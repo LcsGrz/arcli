@@ -1275,7 +1275,7 @@ Con todo contestado, mientras se instala el plugin o se genera el PDF:
 - Con `npx` en Linux, npm puede terminar por la señal (`130`) aunque `arcli` haya salido con `0`: la salida igual está completa.
 - En las preguntas del PDF, `Ctrl+C` es "No".
 
-En el asistente, emitiendo, es lo mismo con dos diferencias: sin nada enviado (el último número, el login), `Ctrl+C` no corta el proceso sino que vuelve al menú con "Cancelado. No se emitió nada.", y con una sola señal el asistente sigue hasta el menú. Mientras espera una consulta a ARCA, `Ctrl+C` corta la conexión y vuelve al menú ([Volver, cancelar y salir](modo-interactivo.md#volver-cancelar-y-salir)).
+En el asistente, emitiendo, es lo mismo con dos diferencias para `Ctrl+C`: sin nada enviado (el último número, el login) no corta el proceso sino que vuelve al menú con "Cancelado. No se emitió nada.", y con una sola el asistente sigue hasta el menú. `SIGTERM` corta como en los comandos: sin nada enviado, enseguida; con algo enviado, espera la respuesta, la escribe y después termina el proceso, sin volver al menú. Mientras espera una consulta a ARCA, `Ctrl+C` corta la conexión y vuelve al menú y `SIGTERM` corta como siempre ([Volver, cancelar y salir](modo-interactivo.md#volver-cancelar-y-salir)).
 
 ### Errores transitorios o inesperados
 
