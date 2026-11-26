@@ -25,9 +25,10 @@ import {
 import { formatSkippedVouchers, formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
+import { withCancellableQueries } from '../../services/arca/query-cancellation';
 import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalOutput } from '../../ui';
-import { withSpinner } from '../spinner';
 
+import { waitForArca } from './arca-wait';
 import { PinnedSeparator } from './list-select';
 import {
   askTextStep,
@@ -178,7 +179,7 @@ async function askVoucherByNumber<T extends { readonly number: number; readonly 
 
   const { number, pointOfSale } = typed;
   const search = await orShowQueryError(() =>
-    withSpinner('Buscando en ARCA...', async () => {
+    waitForArca('Buscando en ARCA...', async () => {
       try {
         const found = await asQuery(() => source.getVoucher(number, pointOfSale));
 
@@ -365,8 +366,8 @@ async function pickVoucher<T extends { readonly number: number; readonly unreada
       writeTerminalOutput(notice);
     }
   };
-  const lastNumber = await withSpinner('Buscando en ARCA...', () => asQuery(() => source.getLastNumber(pointOfSale)));
-  const firstBatch = await orShowQueryError(() => withSpinner('Buscando en ARCA...', () => listFrom(lastNumber)));
+  const lastNumber = await waitForArca('Buscando en ARCA...', () => source.getLastNumber(pointOfSale), { query: true });
+  const firstBatch = await orShowQueryError(() => waitForArca('Buscando en ARCA...', () => listFrom(lastNumber)));
   const invoices: T[] = firstBatch ?? [];
   // La primera tanda fallo y todavia no se pudo cargar: no se sabe si hay comprobantes.
   let firstBatchPending = !firstBatch;
@@ -403,136 +404,142 @@ async function pickVoucher<T extends { readonly number: number; readonly unreada
     warnIfEmpty();
   }
 
-  // Tanda pedida a ARCA con "cargar mas" mientras la lista sigue en pantalla.
+  // Tanda pedida a ARCA con "cargar mas" mientras la lista sigue en pantalla. Se corta al salir del selector, tambien
+  // con Ctrl+C: nadie la espera.
   let loading: Promise<T[]> | undefined;
+  const background = new AbortController();
 
-  for (;;) {
-    const choices: Array<Choice<PickerChoice<T>> | Separator> = [];
+  try {
+    for (;;) {
+      const choices: Array<Choice<PickerChoice<T>> | Separator> = [];
 
-    // El listado y "cargar mas" van entre lineas punteadas; buscar a mano queda afuera.
-    if (invoices.length > 0 || firstBatchPending || (skippedAny && nextNumber > 0)) {
-      // Las filas llegan hasta el final de la linea punteada; el cursor "❯ " ocupa dos columnas.
-      const rows = source.formatRows(pointOfSale, invoices, COLUMN_SEPARATOR, statusBarWidth() - 2);
+      // El listado y "cargar mas" van entre lineas punteadas; buscar a mano queda afuera.
+      if (invoices.length > 0 || firstBatchPending || (skippedAny && nextNumber > 0)) {
+        // Las filas llegan hasta el final de la linea punteada; el cursor "❯ " ocupa dos columnas.
+        const rows = source.formatRows(pointOfSale, invoices, COLUMN_SEPARATOR, statusBarWidth() - 2);
 
-      choices.push(
-        listRule(),
-        ...invoices.map((item, index) => ({
-          name: rows[index] ?? '',
-          // Al elegirla queda solo el numero, no la fila entera.
-          short: formatVoucherNumber(pointOfSale, item.number),
-          value: item,
-        })),
-      );
+        choices.push(
+          listRule(),
+          ...invoices.map((item, index) => ({
+            name: rows[index] ?? '',
+            // Al elegirla queda solo el numero, no la fila entera.
+            short: formatVoucherNumber(pointOfSale, item.number),
+            value: item,
+          })),
+        );
+
+        if (loading) {
+          // "Cargando…" se sigue viendo mientras se filtra.
+          choices.push(new Separator(' '), new PinnedSeparator(colorize(` Cargando${uiSymbol('ellipsis')}`, 'muted')));
+        } else if (nextNumber > 0) {
+          choices.push(new Separator(' '), {
+            name: `+ ${firstBatchPending ? 'Volver a cargar' : 'Cargar más'}${uiSymbol('ellipsis')}`,
+            value: LOAD_MORE,
+          });
+        }
+
+        choices.push(listRule(), new Separator(' '));
+      }
+
+      choices.push({
+        description: 'Uno más viejo o de otro punto de venta',
+        name: `# Ingresar el número a mano${uiSymbol('ellipsis')}`,
+        value: BY_NUMBER,
+      });
+
+      const pageSizeOnScreen = fitPageSize(choices.length);
+      let answer: Back | PickerChoice<T>;
+
+      onScreen.marked = undefined;
 
       if (loading) {
-        // "Cargando…" se sigue viendo mientras se filtra.
-        choices.push(new Separator(' '), new PinnedSeparator(colorize(` Cargando${uiSymbol('ellipsis')}`, 'muted')));
-      } else if (nextNumber > 0) {
-        choices.push(new Separator(' '), {
-          name: `+ ${firstBatchPending ? 'Volver a cargar' : 'Cargar más'}${uiSymbol('ellipsis')}`,
-          value: LOAD_MORE,
-        });
-      }
+        const batch: Promise<T[]> = loading;
+        const result: LoadingResult<PickerChoice<T>, T[]> | undefined = await orShowQueryError(() =>
+          chooseStepWhileLoading(message, choices, defaultChoice, pageSizeOnScreen, batch, listOptions()),
+        );
 
-      choices.push(listRule(), new Separator(' '));
-    }
+        loading = undefined;
 
-    choices.push({
-      description: 'Uno más viejo o de otro punto de venta',
-      name: `# Ingresar el número a mano${uiSymbol('ellipsis')}`,
-      value: BY_NUMBER,
-    });
-
-    const pageSizeOnScreen = fitPageSize(choices.length);
-    let answer: Back | PickerChoice<T>;
-
-    onScreen.marked = undefined;
-
-    if (loading) {
-      const batch: Promise<T[]> = loading;
-      const result: LoadingResult<PickerChoice<T>, T[]> | undefined = await orShowQueryError(() =>
-        chooseStepWhileLoading(message, choices, defaultChoice, pageSizeOnScreen, batch, listOptions()),
-      );
-
-      loading = undefined;
-
-      if (!result) {
-        // Como al terminar la carga, el cursor queda donde lo dejaste; si no, en el boton, para reintentar.
-        defaultChoice = markedValue() ?? LOAD_MORE;
-        continue;
-      }
-
-      if ('loaded' in result) {
-        nextNumber -= pageSize;
-        warnSkipped(result.loaded);
-
-        if (firstBatchPending) {
-          // Como si la primera tanda llegara ahora.
-          firstBatchPending = false;
-          invoices.push(...result.loaded);
-          warnIfEmpty();
-          // El boton de volver a cargar ya no esta: marcarlo no es elegir.
-          const marked = markedValue() === LOAD_MORE ? undefined : markedValue();
-
-          defaultChoice = marked ?? findPrevious() ?? (previous ? BY_NUMBER : invoices[0]);
+        if (!result) {
+          // Como al terminar la carga, el cursor queda donde lo dejaste; si no, en el boton, para reintentar.
+          defaultChoice = markedValue() ?? LOAD_MORE;
           continue;
         }
 
-        // El cursor queda donde lo dejaste; si no lo moviste, en el primero nuevo y, si no vino ninguno, en "cargar
-        // mas" o "a mano".
-        defaultChoice = markedValue() ?? result.loaded[0] ?? (nextNumber > 0 ? LOAD_MORE : BY_NUMBER);
-        invoices.push(...result.loaded);
+        if ('loaded' in result) {
+          nextNumber -= pageSize;
+          warnSkipped(result.loaded);
+
+          if (firstBatchPending) {
+            // Como si la primera tanda llegara ahora.
+            firstBatchPending = false;
+            invoices.push(...result.loaded);
+            warnIfEmpty();
+            // El boton de volver a cargar ya no esta: marcarlo no es elegir.
+            const marked = markedValue() === LOAD_MORE ? undefined : markedValue();
+
+            defaultChoice = marked ?? findPrevious() ?? (previous ? BY_NUMBER : invoices[0]);
+            continue;
+          }
+
+          // El cursor queda donde lo dejaste; si no lo moviste, en el primero nuevo y, si no vino ninguno, en "cargar
+          // mas" o "a mano".
+          defaultChoice = markedValue() ?? result.loaded[0] ?? (nextNumber > 0 ? LOAD_MORE : BY_NUMBER);
+          invoices.push(...result.loaded);
+          continue;
+        }
+
+        // Se eligio otra opcion antes de que terminara la carga: lo que llegue se descarta.
+        answer = result.answer;
+      } else {
+        answer = await chooseStep(message, choices, defaultChoice, pageSizeOnScreen, listOptions());
+      }
+
+      // Lo escrito sigue solo mientras la lista se redibuja por una carga.
+      if (answer !== LOAD_MORE) {
+        onScreen.typed = '';
+      }
+
+      if (answer === BACK) {
+        return BACK;
+      }
+
+      if (answer === LOAD_MORE) {
+        // La misma lista se vuelve a dibujar en su lugar, con "Cargando…" en vez del boton.
+        eraseLastAnswer();
+        loading = withCancellableQueries(background.signal, () => listFrom(nextNumber));
+        defaultChoice = invoices.at(-1);
         continue;
       }
 
-      // Se eligio otra opcion antes de que terminara la carga: lo que llegue se descarta.
-      answer = result.answer;
-    } else {
-      answer = await chooseStep(message, choices, defaultChoice, pageSizeOnScreen, listOptions());
-    }
+      let picked: PickedVoucher<T>;
 
-    // Lo escrito sigue solo mientras la lista se redibuja por una carga.
-    if (answer !== LOAD_MORE) {
-      onScreen.typed = '';
-    }
+      if (answer === BY_NUMBER) {
+        const byNumber = await askVoucherByNumber(source, voucherKind, pointOfSale, previous);
 
-    if (answer === BACK) {
-      return BACK;
-    }
+        if (byNumber === BACK) {
+          defaultChoice = BY_NUMBER;
+          continue;
+        }
 
-    if (answer === LOAD_MORE) {
-      // La misma lista se vuelve a dibujar en su lugar, con "Cargando…" en vez del boton.
-      eraseLastAnswer();
-      loading = listFrom(nextNumber);
-      defaultChoice = invoices.at(-1);
-      continue;
-    }
+        // Un comprobante que no existe pero igual sirve sale del selector, tambien en modo explorar.
+        if ('accepted' in byNumber) {
+          return byNumber.accepted;
+        }
 
-    let picked: PickedVoucher<T>;
-
-    if (answer === BY_NUMBER) {
-      const byNumber = await askVoucherByNumber(source, voucherKind, pointOfSale, previous);
-
-      if (byNumber === BACK) {
-        defaultChoice = BY_NUMBER;
-        continue;
+        picked = byNumber;
+      } else {
+        picked = { invoice: answer, pointOfSale };
       }
 
-      // Un comprobante que no existe pero igual sirve sale del selector, tambien en modo explorar.
-      if ('accepted' in byNumber) {
-        return byNumber.accepted;
+      if (!onPick) {
+        return picked;
       }
 
-      picked = byNumber;
-    } else {
-      picked = { invoice: answer, pointOfSale };
+      await onPick(picked);
+      defaultChoice = answer;
     }
-
-    if (!onPick) {
-      return picked;
-    }
-
-    await onPick(picked);
-    defaultChoice = answer;
+  } finally {
+    background.abort();
   }
 }

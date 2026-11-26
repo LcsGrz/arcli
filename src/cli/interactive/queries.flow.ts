@@ -27,8 +27,8 @@ import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligatio
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
 import { writeTerminalOutput } from '../../ui';
-import { queryWithSpinner } from '../spinner';
 
+import { waitForArca } from './arca-wait';
 import { runHistoryFlow } from './history.flow';
 import { runInvoiceFlow } from './invoice.flow';
 import { runMonotributoQuery } from './monotributo.flow';
@@ -71,8 +71,10 @@ async function runPadronQuery(session: InteractiveSession): Promise<QueryOutcome
 
   const cuit = normalizeDocumentNumber(answer);
   const { environment } = session.runtime;
-  const taxpayer = await queryWithSpinner('Consultando el padrón...', () =>
-    new ArcaPadronGateway(session.arca).getTaxpayer(cuit),
+  const taxpayer = await waitForArca(
+    'Consultando el padrón...',
+    () => new ArcaPadronGateway(session.arca).getTaxpayer(cuit),
+    { query: true },
   );
 
   if (!taxpayer) {
@@ -116,8 +118,10 @@ async function runFceObligationQuery(session: InteractiveSession): Promise<void>
 
   const cuit = normalizeDocumentNumber(answer);
   const issueDate = formatDateAsArcaDate(new Date());
-  const obligation = await queryWithSpinner('Consultando ARCA...', () =>
-    new ArcaFceObligationGateway(session.arca).getObligation(cuit, issueDate),
+  const obligation = await waitForArca(
+    'Consultando ARCA...',
+    () => new ArcaFceObligationGateway(session.arca).getObligation(cuit, issueDate),
+    { query: true },
   );
 
   writeTerminalOutput(
@@ -128,10 +132,13 @@ async function runFceObligationQuery(session: InteractiveSession): Promise<void>
 async function loadTable(session: InteractiveSession, table: ParameterTable): Promise<ParameterEntry[]> {
   const gateway = new ArcaParametersGateway(session.arca);
 
-  return queryWithSpinner('Consultando ARCA...', async () =>
-    table === 'puntos-venta'
-      ? (await gateway.getSalesPoints()).map(salesPointToEntry)
-      : filterCurrentEntries(await gateway.listTable(table), formatDateAsArcaDate(new Date())),
+  return waitForArca(
+    'Consultando ARCA...',
+    async () =>
+      table === 'puntos-venta'
+        ? (await gateway.getSalesPoints()).map(salesPointToEntry)
+        : filterCurrentEntries(await gateway.listTable(table), formatDateAsArcaDate(new Date())),
+    { query: true },
   );
 }
 
@@ -169,8 +176,10 @@ async function runQuotationQuery(session: InteractiveSession): Promise<void> {
 
     const quotation =
       quotations.get(currency) ??
-      (await queryWithSpinner('Consultando la cotización...', () =>
-        new ArcaParametersGateway(session.arca).getQuotation(currency),
+      (await waitForArca(
+        'Consultando la cotización...',
+        () => new ArcaParametersGateway(session.arca).getQuotation(currency),
+        { query: true },
       ));
 
     quotations.set(currency, quotation);

@@ -271,35 +271,31 @@ describe.each(WAITS)('$name', (wait) => {
     expect(askedAtCall).toBe(wait.steps.length);
   });
 
-  // Tests primero (ARQ-11 PR 5): pasa a it() al implementarlo.
-  it.fails(
-    'Ctrl+C vuelve enseguida al menú, con el spinner frenado, y lo que ARCA conteste después no se escribe',
-    async () => {
-      const listeners = signalListeners();
+  it('Ctrl+C vuelve enseguida al menú, con el spinner frenado, y lo que ARCA conteste después no se escribe', async () => {
+    const listeners = signalListeners();
 
-      prepare(wait);
+    prepare(wait);
 
-      const pending = ctrlCDuring(wait.mock(), wait.options);
-      const run = await runMenu([...wait.steps, EXIT], { pending });
-      const shown = plain(sinceMenu(run, 1));
+    const pending = ctrlCDuring(wait.mock(), wait.options);
+    const run = await runMenu([...wait.steps, EXIT], { pending });
+    const shown = plain(sinceMenu(run, 1));
 
-      expect(pending.reached(), 'nunca llegó a la consulta').toBe(true);
-      expect(run.menus[1]?.answered, 'esperó a ARCA antes de volver al menú').toBe(false);
-      expect(shown).toContain(wait.notice);
+    expect(pending.reached(), 'nunca llegó a la consulta').toBe(true);
+    expect(run.menus[1]?.answered, 'esperó a ARCA antes de volver al menú').toBe(false);
+    expect(shown).toContain(wait.notice);
 
-      if (wait.notice === QUERY_CANCELLED) {
-        expect(shown).not.toContain(EMISSION_CANCELLED);
-      }
+    if (wait.notice === QUERY_CANCELLED) {
+      expect(shown).not.toContain(EMISSION_CANCELLED);
+    }
 
-      expect(run.menus[1]?.spinning).toEqual([]);
-      expect(run.error).toBeUndefined();
-      expect(run.asked).toHaveLength(wait.steps.length + 1);
-      expect(run.late).toBe('');
-      expect(process.kill).not.toHaveBeenCalled();
-      expect([sdk.wsfe.createVoucher, sdk.wsfex.authorize].flatMap((emit) => emit.mock.calls)).toEqual([]);
-      await vi.waitFor(() => expect(signalListeners()).toEqual(listeners), { timeout: REPEATED_SIGNAL_MS * 3 });
-    },
-  );
+    expect(run.menus[1]?.spinning).toEqual([]);
+    expect(run.error).toBeUndefined();
+    expect(run.asked).toHaveLength(wait.steps.length + 1);
+    expect(run.late).toBe('');
+    expect(process.kill).not.toHaveBeenCalled();
+    expect([sdk.wsfe.createVoucher, sdk.wsfex.authorize].flatMap((emit) => emit.mock.calls)).toEqual([]);
+    await vi.waitFor(() => expect(signalListeners()).toEqual(listeners), { timeout: REPEATED_SIGNAL_MS * 3 });
+  });
 });
 
 const STATUS = WAITS[0] as Wait;
@@ -321,38 +317,33 @@ describe('las señales mientras se consulta', () => {
     expect(whileWaiting?.SIGTERM).toEqual(listeners.SIGTERM);
   });
 
-  // Tests primero (ARQ-11 PR 5): pasa a it() al implementarlo.
-  it.fails(
-    'eco de npx: dos Ctrl+C seguidos cancelan una vez, y otro en el menú dentro del eco no hace nada',
-    async () => {
-      let echoed = false;
+  it('eco de npx: dos Ctrl+C seguidos cancelan una vez, y otro en el menú dentro del eco no hace nada', async () => {
+    let echoed = false;
 
-      prepare(STATUS);
+    prepare(STATUS);
 
-      const pending = ctrlCDuring(STATUS.mock(), { gap: REPEATED_SIGNAL_MS / 5, times: 2 });
-      const run = await runMenu([...STATUS.steps, EXIT], {
-        onAsk: (message) => {
-          // La terminal tambien se la manda a npm, que la reenvia: llega con el menu ya abierto.
-          if (MENU.test(message) && pending.reached() && !echoed) {
-            echoed = true;
-            process.emit('SIGINT', 'SIGINT');
-          }
-        },
-        pending,
-      });
-      const shown = plain(sinceMenu(run, 1));
+    const pending = ctrlCDuring(STATUS.mock(), { gap: REPEATED_SIGNAL_MS / 5, times: 2 });
+    const run = await runMenu([...STATUS.steps, EXIT], {
+      onAsk: (message) => {
+        // La terminal tambien se la manda a npm, que la reenvia: llega con el menu ya abierto.
+        if (MENU.test(message) && pending.reached() && !echoed) {
+          echoed = true;
+          process.emit('SIGINT', 'SIGINT');
+        }
+      },
+      pending,
+    });
+    const shown = plain(sinceMenu(run, 1));
 
-      expect(run.menus[1]?.answered, 'esperó a ARCA antes de volver al menú').toBe(false);
-      expect(shown.split(QUERY_CANCELLED)).toHaveLength(2);
-      expect(echoed).toBe(true);
-      expect(run.error).toBeUndefined();
-      expect(run.asked).toHaveLength(STATUS.steps.length + 1);
-      expect(process.kill).not.toHaveBeenCalled();
-    },
-  );
+    expect(run.menus[1]?.answered, 'esperó a ARCA antes de volver al menú').toBe(false);
+    expect(shown.split(QUERY_CANCELLED)).toHaveLength(2);
+    expect(echoed).toBe(true);
+    expect(run.error).toBeUndefined();
+    expect(run.asked).toHaveLength(STATUS.steps.length + 1);
+    expect(process.kill).not.toHaveBeenCalled();
+  });
 
-  // Tests primero (ARQ-11 PR 5): pasa a it() al implementarlo.
-  it.fails('al arrancar, Ctrl+C mientras se espera la barra la deja sin verificar y muestra el menú', async () => {
+  it('al arrancar, Ctrl+C mientras se espera la barra la deja sin verificar y muestra el menú', async () => {
     const rows = process.stdout.rows;
 
     // Sin lugar para completarla con el menu abierto: se espera con spinner antes de dibujarlo.
@@ -381,8 +372,7 @@ describe('las señales mientras se consulta', () => {
 describe('una cancelación no se toma como una consulta que falló', () => {
   const byName = (name: string) => WAITS.find((wait) => wait.name.startsWith(name)) as Wait;
 
-  // Tests primero (ARQ-11 PR 5): pasa a it() al implementarlo.
-  it.fails('el permiso de embarque: vuelve al menú sin el aviso de que no se pudo verificar', async () => {
+  it('el permiso de embarque: vuelve al menú sin el aviso de que no se pudo verificar', async () => {
     const wait = byName('Factura E de bienes: el permiso');
 
     prepare(wait);
@@ -396,8 +386,7 @@ describe('una cancelación no se toma como una consulta que falló', () => {
     expect(run.asked).toHaveLength(wait.steps.length + 1);
   });
 
-  // Tests primero (ARQ-11 PR 5): pasa a it() al implementarlo.
-  it.fails('la cotización oficial: vuelve al menú y la próxima factura la vuelve a pedir', async () => {
+  it('la cotización oficial: vuelve al menú y la próxima factura la vuelve a pedir', async () => {
     const wait = byName('Factura C en dólares: la cotización');
 
     prepare(wait);

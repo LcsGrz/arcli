@@ -213,67 +213,58 @@ describe.each(FAMILIES)('$name', (family) => {
     expect(family.lastNumber()).toHaveBeenCalledTimes(family.numberCall ?? 1);
   });
 
-  // Tests primero (ARQ-11 PR 5): pasa a it() al implementarlo.
-  it.fails(
-    'Ctrl+C con el comprobante enviado: avisa que espera, muestra el CAE y sigue como siempre hasta el menú',
-    async () => {
-      const normal = await runMenu(script(family), { prepare: family.prepare });
-      const sent = ctrlCDuring(family.emit(), { cancellable: false });
-      const run = await runMenu(script(family), { pending: sent, prepare: family.prepare });
+  it('Ctrl+C con el comprobante enviado: avisa que espera, muestra el CAE y sigue como siempre hasta el menú', async () => {
+    const normal = await runMenu(script(family), { prepare: family.prepare });
+    const sent = ctrlCDuring(family.emit(), { cancellable: false });
+    const run = await runMenu(script(family), { pending: sent, prepare: family.prepare });
 
-      expect(sent.reached(), 'nunca llegó a emitir').toBe(true);
-      expect(plain(sent.whileWaiting())).toContain(WAITING_NOTICE);
-      expect(sent.spinningAfterSignals()).toEqual([]);
-      expect(run.error).toBeUndefined();
-      expect(family.emit()).toHaveBeenCalledOnce();
-      expect(plain(run.output)).toMatch(CAE);
-      expect(run.emitted).toHaveLength(1);
-      expect(plain(run.output)).not.toMatch(DENIED);
-      // Lo de siempre despues de emitir ("¿Guardamos…?", el menu), sin nada de mas.
-      expect(run.asked).toEqual(normal.asked);
-      expect(process.kill).not.toHaveBeenCalled();
-    },
-  );
+    expect(sent.reached(), 'nunca llegó a emitir').toBe(true);
+    expect(plain(sent.whileWaiting())).toContain(WAITING_NOTICE);
+    expect(sent.spinningAfterSignals()).toEqual([]);
+    expect(run.error).toBeUndefined();
+    expect(family.emit()).toHaveBeenCalledOnce();
+    expect(plain(run.output)).toMatch(CAE);
+    expect(run.emitted).toHaveLength(1);
+    expect(plain(run.output)).not.toMatch(DENIED);
+    // Lo de siempre despues de emitir ("¿Guardamos…?", el menu), sin nada de mas.
+    expect(run.asked).toEqual(normal.asked);
+    expect(process.kill).not.toHaveBeenCalled();
+  });
 
-  // Tests primero (ARQ-11 PR 5): pasa a it() al implementarlo.
-  it.fails(
-    'dos Ctrl+C con el comprobante enviado: no se sabe, con qué verificarlo, y recién después corta',
-    async () => {
-      let atKill: { readonly answered: boolean; readonly written: string } | undefined;
-      const sent = ctrlCDuring(family.emit(), { cancellable: false, times: 2 });
+  it('dos Ctrl+C con el comprobante enviado: no se sabe, con qué verificarlo, y recién después corta', async () => {
+    let atKill: { readonly answered: boolean; readonly written: string } | undefined;
+    const sent = ctrlCDuring(family.emit(), { cancellable: false, times: 2 });
 
-      vi.mocked(process.kill).mockImplementation(() => {
-        atKill ??= { answered: sent.answered(), written: written() };
+    vi.mocked(process.kill).mockImplementation(() => {
+      atKill ??= { answered: sent.answered(), written: written() };
 
-        return true;
-      });
+      return true;
+    });
 
-      // Cortado el proceso, ya no se pregunta nada.
-      const run = await runMenu(script(family), {
-        onAsk: () => {
-          if (atKill !== undefined) {
-            throw ctrlC();
-          }
-        },
-        pending: sent,
-        prepare: family.prepare,
-      });
-      const beforeCut = plain(atKill?.written ?? run.output);
+    // Cortado el proceso, ya no se pregunta nada.
+    const run = await runMenu(script(family), {
+      onAsk: () => {
+        if (atKill !== undefined) {
+          throw ctrlC();
+        }
+      },
+      pending: sent,
+      prepare: family.prepare,
+    });
+    const beforeCut = plain(atKill?.written ?? run.output);
 
-      expect(sent.reached(), 'nunca llegó a emitir').toBe(true);
-      expect(beforeCut).toContain('Puede haberse emitido igual');
-      expect(beforeCut).toContain(family.verify);
-      expect(beforeCut).not.toMatch(DENIED);
-      expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGINT');
-      expect(atKill?.answered, 'esperó a ARCA').toBe(false);
-      // Lo que ARCA conteste despues no se muestra: ni el CAE ni que no se emitio.
-      expect(plain(run.output + run.late)).not.toMatch(CAE);
-      expect(plain(run.output + run.late)).not.toMatch(DENIED);
-    },
-  );
+    expect(sent.reached(), 'nunca llegó a emitir').toBe(true);
+    expect(beforeCut).toContain('Puede haberse emitido igual');
+    expect(beforeCut).toContain(family.verify);
+    expect(beforeCut).not.toMatch(DENIED);
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGINT');
+    expect(atKill?.answered, 'esperó a ARCA').toBe(false);
+    // Lo que ARCA conteste despues no se muestra: ni el CAE ni que no se emitio.
+    expect(plain(run.output + run.late)).not.toMatch(CAE);
+    expect(plain(run.output + run.late)).not.toMatch(DENIED);
+  });
 
-  // Tests primero (ARQ-11 PR 5): pasa a it() al implementarlo.
-  it.fails('Ctrl+C al pedir el número, antes de enviar: no se envía nada y vuelve al menú', async () => {
+  it('Ctrl+C al pedir el número, antes de enviar: no se envía nada y vuelve al menú', async () => {
     const listeners = signalListeners();
     const number = ctrlCDuring(family.lastNumber(), { call: family.numberCall });
     const steps: Steps = [...family.steps, ...(family.numberInPreview ? [] : [EMIT]), EXIT];
@@ -297,8 +288,7 @@ const FC = FAMILIES[0] as Family;
 const FE = FAMILIES[7] as Family;
 
 describe.each([FC, FE])('$name: eco de npx', (family) => {
-  // Tests primero (ARQ-11 PR 5): pasa a it() al implementarlo.
-  it.fails('dos Ctrl+C seguidos emitiendo cuentan como uno: avisa una vez, espera y muestra el CAE', async () => {
+  it('dos Ctrl+C seguidos emitiendo cuentan como uno: avisa una vez, espera y muestra el CAE', async () => {
     const sent = ctrlCDuring(family.emit(), { cancellable: false, gap: REPEATED_SIGNAL_MS / 5, times: 2 });
     const run = await runMenu(script(family), { pending: sent, prepare: family.prepare });
 
@@ -359,8 +349,7 @@ describe('el PDF', () => {
     expect(readdirSync(folder)).toHaveLength(1);
   });
 
-  // Tests primero (ARQ-11 PR 5): pasa a it() al implementarlo.
-  it.fails.each(WITH_PDF)(
+  it.each(WITH_PDF)(
     '%s: Ctrl+C mientras se genera deja de generarlo, con el CAE a la vista, y sigue en el menú',
     async (_name, family, questions) => {
       const render = fakePdf();

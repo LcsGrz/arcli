@@ -11,9 +11,10 @@ import {
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { formatTableRows, noticePanel, writeTerminalOutput } from '../../ui';
 import { loadArcaRuntime } from '../arca-runtime';
-import { withSpinner } from '../spinner';
+import { isPromptCancellation } from '../prompt-cancellation';
 import type { GlobalCliOptions } from '../types';
 
+import { waitForArca } from './arca-wait';
 import type { FilterListRow } from './filter-list';
 import { ACTIVITY_HELP, activityRows } from './steps/export';
 
@@ -79,10 +80,15 @@ async function loadActivities(flags: ConfigListFlags): Promise<readonly ExportAc
   try {
     const runtime = loadArcaRuntime(flags);
 
-    return await withSpinner('Consultando las actividades de WSFEX...', () =>
+    return await waitForArca('Consultando las actividades de WSFEX...', () =>
       new ArcaClientFactory().createExportGateway(runtime).getActivities(),
     );
-  } catch {
+  } catch (error) {
+    // Ctrl+C mientras se consultaba vuelve al menu.
+    if (isPromptCancellation(error)) {
+      throw error;
+    }
+
     writeTerminalOutput(
       noticePanel('No se pudo consultar la tabla de actividades de WSFEX: escribí el código.', 'muted'),
     );

@@ -10,23 +10,33 @@ export type MonotributoPageFetch =
 
 export type FetchMonotributoPage = () => Promise<MonotributoPageFetch>;
 
-/** Baja la pagina de categorias de ARCA. Es publica: no usa certificado. Nunca lanza. */
+/**
+ * Baja la pagina de categorias de ARCA. Es publica: no usa certificado. Solo lanza si se corta con `signal` (quien la
+ * pidio dejo de esperarla): con la razon de la señal, porque no es una pagina que no contesto.
+ */
 export async function fetchMonotributoPage(
   fetchImpl: typeof fetch = fetch,
   timeoutMs = MONOTRIBUTO_FETCH_TIMEOUT_MS,
+  signal?: AbortSignal,
 ): Promise<MonotributoPageFetch> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetchImpl(MONOTRIBUTO_CATEGORIES_URL, { signal: controller.signal });
+    const response = await fetchImpl(MONOTRIBUTO_CATEGORIES_URL, {
+      signal: signal ? AbortSignal.any([controller.signal, signal]) : controller.signal,
+    });
 
     if (!response.ok) {
       return { ok: false, reason: 'error-http', status: response.status };
     }
 
     return { html: await response.text(), ok: true };
-  } catch {
+  } catch (error) {
+    if (signal?.aborted) {
+      throw signal.reason ?? error;
+    }
+
     return { ok: false, reason: controller.signal.aborted ? 'sin-respuesta' : 'sin-conexion' };
   } finally {
     clearTimeout(timeout);

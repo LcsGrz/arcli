@@ -1,5 +1,6 @@
 import { AppError, InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
 import type { EmissionOutcome } from '../../modules/billing/billing.batch-run';
+import type { EmissionInterruption } from '../../modules/billing/emission-interruption';
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import { isAuthorized } from '../../modules/interactive/steps/config-offer';
 import { BACK, type Back } from '../../modules/interactive/wizard';
@@ -13,8 +14,9 @@ import { VoucherQueryError } from '../../modules/vouchers/voucher-history';
 import { colorize, noticePanel, renderPanel, writeTerminalOutput } from '../../ui';
 import type { CliArcaRuntime } from '../arca-runtime';
 import { formatEmissionQuestion, NOTHING_EMITTED_NOTICE } from '../emission-texts';
-import { withSpinner } from '../spinner';
+import type { DeliveryInterruption } from '../interruption';
 
+import { emitWaitingForArca } from './arca-wait';
 import { askEmission } from './emission-prompt';
 import { assertOutputVisible } from './output-guard';
 import { showAssistantError } from './show-assistant-error';
@@ -95,13 +97,19 @@ interface ClosingResult {
 
 /** Lo propio de cada familia en el cierre de un flujo. `P` es la vista previa, con lo que se va a emitir. */
 export interface EmissionClosing<R extends ClosingResult, P extends { readonly preview: R }> {
-  /** El caso de uso de `modules`, con la entrada confirmada. Anota lo emitido apenas ARCA responde. */
-  readonly emit: (previewed: P) => Promise<EmissionOutcome<R>>;
+  /**
+   * El caso de uso de `modules`, con la entrada confirmada y lo que lo corta con Ctrl+C. Anota lo emitido apenas ARCA
+   * responde.
+   */
+  readonly emit: (previewed: P, interruption: EmissionInterruption) => Promise<EmissionOutcome<R>>;
   /** Sale de la entrada, como la escribiria quien usa el CLI. */
   readonly equivalentCommand: () => string;
   readonly format: (result: R, options: { readonly previewShown: boolean }) => string;
-  /** Con lo elegido en "¿Emitimos?": despues de emitir no se pregunta nada mas del PDF. */
-  readonly generatePdf: (result: R, previewed: P, pdf: boolean) => Promise<void>;
+  /**
+   * Con lo elegido en "¿Emitimos?": despues de emitir no se pregunta nada mas del PDF. Las preguntas van en
+   * `delivery.whileAsking`, y con Ctrl+C se deja de generar.
+   */
+  readonly generatePdf: (result: R, previewed: P, pdf: boolean, delivery: DeliveryInterruption) => Promise<void>;
   /** El PDF de la entrada, si ya viene decidido. */
   readonly pdf?: boolean;
   /** Con su spinner. Sin avisos de certificado: en el asistente van en el menu. */
@@ -113,7 +121,7 @@ export interface EmissionClosing<R extends ClosingResult, P extends { readonly p
 
 /**
  * El cierre de todos los flujos, tambien los de la E: vista previa, comando equivalente, "¿Emitimos?", emision y PDF.
- * Devuelve si ARCA lo autorizo (`isAuthorized`): lo que se ofrece guardar en la config solo se ofrece entonces. Con Esc
+ * Ctrl+C emitiendo, como en los comandos (`emitWaitingForArca`). Devuelve si ARCA lo autorizo (`isAuthorized`): lo que se ofrece guardar en la config solo se ofrece entonces. Con Esc
  * en "¿Emitimos?", o si la vista previa rechaza la entrada (`rejectedAsBack`), devuelve BACK sin emitir: el flujo lo
  * corre como `confirm` de `runWizard`, que vuelve a la ultima pregunta (TUI-15).
  */
@@ -142,21 +150,29 @@ export async function closeWithEmission<R extends ClosingResult, P extends { rea
 
   await assertOutputVisible();
 
-  const outcome = await withSpinner(`Emitiendo ${label} en ARCA...`, () => closing.emit(previewed));
+  let authorized = false;
 
-  if ('error' in outcome) {
-    throw outcome.error;
-  }
+  await emitWaitingForArca(
+    `Emitiendo ${label} en ARCA...`,
+    (interruption) => closing.emit(previewed, interruption),
+    async (outcome, delivery) => {
+      // Lo muestra el menu, como cualquier error de un flujo.
+      if ('error' in outcome) {
+        throw outcome.error;
+      }
 
-  const [result] = outcome.results;
+      const [result] = outcome.results;
 
-  // Error de quien llama: una vista previa nunca se muestra como emitida ni lleva PDF.
-  if (result.dryRun) {
-    throw new Error('El cierre del asistente recibió una entrada que no pide emitir.');
-  }
+      // Error de quien llama: una vista previa nunca se muestra como emitida ni lleva PDF.
+      if (result.dryRun) {
+        throw new Error('El cierre del asistente recibió una entrada que no pide emitir.');
+      }
 
-  writeTerminalOutput(closing.format(result, { previewShown: true }));
-  await closing.generatePdf(result, previewed, resolvePdfAfterConfirmation(pdf, choice));
+      writeTerminalOutput(closing.format(result, { previewShown: true }));
+      await closing.generatePdf(result, previewed, resolvePdfAfterConfirmation(pdf, choice), delivery);
+      authorized = isAuthorized(result.response);
+    },
+  );
 
-  return isAuthorized(result.response);
+  return authorized;
 }

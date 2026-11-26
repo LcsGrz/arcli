@@ -336,33 +336,28 @@ describe('Ctrl+C en el asistente con ARCA colgado (ARQ-11 PR 5)', () => {
   const MENU = '¿Qué querés hacer?';
   const count = (text: string, part: string) => text.split(part).length - 1;
 
-  // Tests primero (ARQ-11 PR 5): pasa a it() al implementarlo.
-  it.fails(
-    'en "Estado de ARCA" vuelve al menú con "Cancelado."; después Esc sale con 0',
-    async () => {
-      let menusAtCut: number | undefined;
-      let isLeaving = false;
-      const result = await run([], {
-        // "Estado de ARCA" es la séptima opción.
-        keys: `${'\u001B[B'.repeat(6)}\r`,
-        onOutput: ({ stderr, stdout }, child) => {
-          if (menusAtCut === undefined && stripVTControlCharacters(stderr + stdout).includes('Consultando ARCA...')) {
-            menusAtCut = count(stdout, MENU);
-            child.kill('SIGINT');
-          } else if (menusAtCut !== undefined && !isLeaving && count(stdout, MENU) > menusAtCut) {
-            isLeaving = true;
-            child.stdin.write('\u001B');
-          }
-        },
-      });
+  it('en "Estado de ARCA" vuelve al menú con "Cancelado."; después Esc sale con 0', async () => {
+    let menusAtCut: number | undefined;
+    let isLeaving = false;
+    const result = await run([], {
+      // "Estado de ARCA" es la séptima opción.
+      keys: `${'\u001B[B'.repeat(6)}\r`,
+      onOutput: ({ stderr, stdout }, child) => {
+        if (menusAtCut === undefined && stripVTControlCharacters(stderr + stdout).includes('Consultando ARCA...')) {
+          menusAtCut = count(stdout, MENU);
+          child.kill('SIGINT');
+        } else if (menusAtCut !== undefined && !isLeaving && count(stdout, MENU) > menusAtCut) {
+          isLeaving = true;
+          child.stdin.write('\u001B');
+        }
+      },
+    });
 
-      expect(menusAtCut, 'nunca se vio "Consultando ARCA..."').toBeDefined();
-      expect(result.code, 'la señal cortó el proceso').toBe(0);
-      expect(result.stdout).toContain('Cancelado.');
-      expect(result.stdout).not.toContain('No se emitió nada');
-      expect(result.stdout).toContain('¡Hasta la próxima!');
-      expect(result.elapsed).toBeLessThan(MAX_WAIT_MS);
-    },
-    70_000,
-  );
+    expect(menusAtCut, 'nunca se vio "Consultando ARCA..."').toBeDefined();
+    expect(result.code, 'la señal cortó el proceso').toBe(0);
+    expect(result.stdout).toContain('Cancelado.');
+    expect(result.stdout).not.toContain('No se emitió nada');
+    expect(result.stdout).toContain('¡Hasta la próxima!');
+    expect(result.elapsed).toBeLessThan(MAX_WAIT_MS);
+  }, 70_000);
 });

@@ -30,8 +30,8 @@ import { BACK, requireStepValue, runWizard, type WizardStep } from '../../module
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { createExportVoucherGateway } from '../export-voucher-gateway';
-import { withSpinner } from '../spinner';
 
+import { waitForArca } from './arca-wait';
 import { askPermitsStep, emitExportVoucher } from './export.flow';
 import { exportOptionalsStep } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
@@ -152,7 +152,7 @@ export function exportNoteSteps(
 
           const number = parseStrictInteger(answer) as number;
           const invoice = await orShowQueryError(() =>
-            withSpinner(`Buscando ${name} en ARCA...`, () =>
+            waitForArca(`Buscando ${name} en ARCA...`, () =>
               asQuery(() =>
                 fetchExportAssociatedVoucher(gateway, {
                   arcaType: associatedKind.arcaType,

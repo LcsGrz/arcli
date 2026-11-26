@@ -8,7 +8,10 @@ import {
   officialExchangeRateLoader,
 } from '../official-exchange-rate';
 
-vi.mock('../../spinner', () => ({ startSpinner: () => undefined }));
+vi.mock('../../spinner', () => ({
+  startSpinner: () => undefined,
+  withSpinner: (_text: unknown, run: () => unknown) => run(),
+}));
 
 const loader = (getQuotation: (currencyCode: string, arcaDate?: string) => Promise<number>) =>
   officialExchangeRateLoader({

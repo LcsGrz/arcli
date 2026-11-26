@@ -281,8 +281,7 @@ describe('runInteractiveMode', () => {
     expect(chooseOneMock).toHaveBeenCalledTimes(2);
   });
 
-  // Tests primero (ARQ-11 PR 5): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['consultas', runQueriesMenu],
     ['estado', runStatusFlow],
     ['config', runConfigMenu],

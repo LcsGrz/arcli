@@ -34,7 +34,8 @@ import {
 } from '../../../modules/interactive/validators';
 import { BACK, type WizardDependency, type WizardStep } from '../../../modules/interactive/wizard';
 import { formatTableRows, noticePanel, writeTerminalOutput } from '../../../ui';
-import { withSpinner } from '../../spinner';
+import { isPromptCancellation } from '../../prompt-cancellation';
+import { waitForArca } from '../arca-wait';
 import { validateExportPaymentDate } from '../export-options';
 import type { FilterListRow } from '../filter-list';
 import { chooseOrTypeStep, chooseStep } from '../prompts';
@@ -59,7 +60,7 @@ export function exportRuleEnv(configuredActivity: number | undefined): () => Exp
 export function loadExportTables(
   gateway: Pick<ExportGateway, 'getDestinationCountries' | 'getDestinationCountryCuits'>,
 ): Promise<ExportTables> {
-  return withSpinner('Consultando las tablas de WSFEX...', async () => ({
+  return waitForArca('Consultando las tablas de WSFEX...', async () => ({
     countries: await gateway.getDestinationCountries(),
     countryCuits: await gateway.getDestinationCountryCuits(),
   }));
@@ -73,7 +74,7 @@ export function loadExportTables(
 export function activitiesLoader(
   gateway: Pick<ExportGateway, 'getActivities'>,
 ): () => Promise<readonly ExportActivity[]> {
-  return () => withSpinner('Consultando las actividades de WSFEX...', () => gateway.getActivities());
+  return () => waitForArca('Consultando las actividades de WSFEX...', () => gateway.getActivities());
 }
 
 /**
@@ -196,6 +197,11 @@ export function exportPaymentDateStep<S extends { readonly options?: ExportOptio
 
 /** Un error de ARCA o de red al consultar una tabla; no uno de autorizacion, de la config ni de programacion. */
 function isTableQueryError(error: unknown): boolean {
+  // Ctrl+C mientras se consultaba: vuelve al menu, no es una tabla que ARCA no devolvio.
+  if (isPromptCancellation(error)) {
+    return false;
+  }
+
   if (error instanceof AppError) {
     return error.code === 'ARCA_EXPORT_ERROR';
   }
@@ -216,7 +222,7 @@ export function currenciesLoader(
 ): () => Promise<readonly ExportCurrency[]> {
   return async () => {
     try {
-      return await withSpinner('Consultando las monedas de WSFEX...', () => gateway.getCurrencies());
+      return await waitForArca('Consultando las monedas de WSFEX...', () => gateway.getCurrencies());
     } catch (error) {
       if (!isTableQueryError(error)) {
         throw error;

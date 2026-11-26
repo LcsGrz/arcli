@@ -34,11 +34,13 @@ import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { systemClock } from '../../services/time/system-clock';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { isOutputLost } from '../closed-output';
+import { interruptiblePdfSteps } from '../commands/billing.command.pdf';
 import { attachExportPdf } from '../commands/export.command.pdf';
 import { recordExportEmission, recordFailedExportPdf, recordMissingExportPdf } from '../emitted-vouchers';
 import { createExportVoucherGateway } from '../export-voucher-gateway';
-import { withSpinner } from '../spinner';
+import type { DeliveryInterruption } from '../interruption';
 
+import { waitForArca } from './arca-wait';
 import { closeWithEmission } from './emission-closing';
 import { askCountryCuit, askDestinationCountry, exportOptionalsStep, validateExportText } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
@@ -266,7 +268,7 @@ function exportSteps(
     {
       name: 'incoterm',
       run: async (_state, { previous }) => {
-        const list = await withSpinner('Consultando incoterms...', loaders.incoterms);
+        const list = await waitForArca('Consultando incoterms...', loaders.incoterms);
 
         // ARCA devolvio la tabla vacia: la lista sin filas es una pregunta de texto, y va sin validar contra la tabla,
         // como la actividad (el servicio avisa).
@@ -365,14 +367,20 @@ async function offerExportPdf(
   config: ArcliConfig,
   input: ExportVoucherInput,
   result: ExportExecutionResult,
+  delivery: DeliveryInterruption,
 ): Promise<void> {
   try {
-    const withPdf = await attachExportPdf(result, {
-      completeConfig: completeIssuer,
-      config,
-      input,
-      interactive: true,
-    });
+    const withPdf = await attachExportPdf(
+      result,
+      {
+        // Ya cortado no se pregunta: el PDF sale como cortado antes de generarse.
+        completeConfig: async (current) => (await delivery.whileAsking(() => completeIssuer(current))) ?? current,
+        config,
+        input,
+        interactive: true,
+      },
+      interruptiblePdfSteps(delivery),
+    );
 
     recordFailedExportPdf(withPdf);
 
@@ -409,8 +417,9 @@ export async function emitExportVoucher(
   const input: ExportVoucherInput = { ...rawInput, pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale };
 
   return closeWithEmission<ExportExecutionResult, ExportPreview>({
-    emit: ({ resolved, warnings }) =>
+    emit: ({ resolved, warnings }, interruption) =>
       emitExport({
+        ...interruption,
         clock: systemClock,
         gateway,
         input: { emit: true },
@@ -425,10 +434,11 @@ export async function emitExportVoucher(
       buildExportEquivalentCommand(input, { activity, environment: runtime.environment, platform: process.platform }),
     format: (result, { previewShown }) =>
       formatExportResultAsText(result, { environment: runtime.environment, previewShown, raw: false }),
-    generatePdf: (result, _previewed, pdf) => offerExportPdf(runtime.config, { ...input, pdf }, result),
+    generatePdf: (result, _previewed, pdf, delivery) =>
+      offerExportPdf(runtime.config, { ...input, pdf }, result, delivery),
     pdf: input.pdf,
     preview: () =>
-      withSpinner('Consultando WSFEX...', () =>
+      waitForArca('Consultando WSFEX...', () =>
         previewExport({ associated, clock: systemClock, gateway, input, runtime }),
       ),
     queryErrors: true,
