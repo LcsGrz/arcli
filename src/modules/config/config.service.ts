@@ -1,11 +1,10 @@
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
 import { ZodError } from 'zod';
 
 import { ConfigurationError, InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
 import { withFilePath } from '../../lib/files/file-error';
 import type { LocalFiles } from '../../lib/files/local-files';
-import { requireDataDirectory } from '../../lib/files/require-data-directory';
 import { parseCbu } from '../../lib/identity/cbu';
 import { deleteAtPath, setAtPath } from '../../lib/json/object-path';
 import { describeZodIssues, parseZodInput } from '../billing/billing.zod-errors';
@@ -31,7 +30,7 @@ import {
   type PendingConfigProblems,
   suggestConfigFix,
 } from './config-problems';
-import type { ConfigStore, StoredConfig } from './config-store';
+import { configFilePath, type ConfigStore, type StoredConfig } from './config-store';
 import { parseConfigValue } from './config-value-parser';
 
 /**
@@ -104,7 +103,7 @@ export function resolveConfigLocation({ cwd }: { readonly cwd: string }): {
   readonly configPath: string;
   readonly ticketPath: string;
 } {
-  const configPath = resolve(requireDataDirectory(cwd), 'config.json');
+  const configPath = configFilePath(cwd);
 
   return { configPath, ticketPath: defaultTicketPathFor(configPath) };
 }
@@ -136,16 +135,11 @@ interface PlannedChange {
 }
 
 /**
- * Lo guardado, completo con los defaults. El archivo se completa solo si esta sano (`completeDefaults`): con una
- * clave rota no se toca nada que la persona no haya pedido.
+ * Lo guardado (o la config recien validada, que es lo que se escribe), completo con los defaults. El archivo se
+ * completa solo si esta sano (`completeDefaults`): con una clave rota no se toca nada que la persona no haya pedido.
  */
-function withDefaults(stored: StoredConfig): StoredConfig {
+function withDefaults(stored: ArcliConfig | StoredConfig): StoredConfig {
   return { ...CONFIG_DEFAULTS, ...stored };
-}
-
-/** Lo que se escribe despues de un cambio valido: la config completa. */
-function complete(config: ArcliConfig): StoredConfig {
-  return { ...CONFIG_DEFAULTS, ...config };
 }
 
 /** Si a lo guardado le faltan defaults y, completo, queda sano. */
@@ -251,7 +245,7 @@ export class ConfigService {
     this.store.update((stored) => {
       config = this.parseSaved(stored);
 
-      return complete(config);
+      return withDefaults(config);
     });
 
     return definedAfterUpdate(config);
@@ -289,16 +283,12 @@ export class ConfigService {
 
   /** `config establecer`: como `setValue`, pero guarda aunque queden otras claves que ya estaban rotas. */
   public repairValue(rawKey: string, rawValue: string, alias?: string): ConfigChange {
-    return this.repair(this.planSet(rawKey, rawValue, alias));
+    return this.saveIfNotWorse(this.planSet(rawKey, rawValue, alias));
   }
 
   /** `config eliminar`: como `unsetValue`, pero guarda aunque queden otras claves que ya estaban rotas. */
   public repairUnset(rawKey: string): ConfigChange {
-    return this.repair(this.planUnset(rawKey));
-  }
-
-  private repair(change: PlannedChange): ConfigChange {
-    return this.saveIfNotWorse(change);
+    return this.saveIfNotWorse(this.planUnset(rawKey));
   }
 
   private planSet(rawKey: string, rawValue: string, alias?: string): PlannedChange {
@@ -390,7 +380,7 @@ export class ConfigService {
       change.apply(draft, saved);
       config = this.parseDraft(change.keys, draft, saved);
 
-      return complete(config);
+      return withDefaults(config);
     });
 
     return definedAfterUpdate(config);
@@ -420,7 +410,7 @@ export class ConfigService {
 
         result = { config, ...warnings };
 
-        return complete(config);
+        return withDefaults(config);
       }
 
       for (const issue of error.issues) {

@@ -3,6 +3,16 @@
  * adaptador. Sin bloqueo entre procesos: lo suma ARQ-26 detrás del mismo puerto.
  */
 
+import { dataFilePath } from '../../lib/files/require-data-directory';
+
+/** El nombre del archivo de la config en la carpeta de datos, sin `.json`. */
+export const CONFIG_FILE_NAME = 'config';
+
+/** La ruta del config.json, sin leerlo: la usan el adaptador y el guardarraíl de los tests. */
+export function configFilePath(directory: string): string {
+  return dataFilePath(directory, CONFIG_FILE_NAME);
+}
+
 /** Lo guardado en el archivo, sin validar. */
 export type StoredConfig = Record<string, unknown>;
 

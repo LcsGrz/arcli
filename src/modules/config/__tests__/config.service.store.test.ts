@@ -4,7 +4,7 @@ import { nodeLocalFiles } from '../../../services/files/local-files';
 import { MemoryConfigStore } from '../../../testing/memory-config-store';
 import { CONFIG_DEFAULTS } from '../config.schemas';
 import { ConfigService } from '../config.service';
-import type { StoredConfig } from '../config-store';
+import type { ConfigStore, StoredConfig } from '../config-store';
 
 /**
  * ARQ-12 PR 3: ConfigService lee y escribe por el puerto `ConfigStore`. Cada operación que escribe es un solo `update`
@@ -21,7 +21,7 @@ const OTHER_ALIAS = 'otro.alias.cbu';
 /** Una config sana y completa: abrirla no escribe. */
 const HEALTHY: StoredConfig = { ...CONFIG_DEFAULTS, cuit: CUIT, monedaPorDefecto: 'USD' };
 
-function createService(store: MemoryConfigStore): ConfigService {
+function createService(store: ConfigStore): ConfigService {
   return new ConfigService({ files: nodeLocalFiles, store });
 }
 
@@ -84,6 +84,29 @@ describe('ConfigService sobre el puerto ConfigStore (ARQ-12 PR 3)', () => {
       createService(store);
 
       expect(store.read()).toEqual({ ...CONFIG_DEFAULTS, cuit: CUIT, emisor: { razonSocial: 'Ana Ficticia' } });
+    });
+
+    it('al abrir, si otro proceso rompió una clave en el medio, no completa nada', () => {
+      const store = new MemoryConfigStore({ initial: { cuit: CUIT } });
+
+      store.beforeUpdate = (saved) => {
+        saved.cuit = '123';
+      };
+      createService(store);
+
+      expect(store.writes).toEqual([]);
+      expect(store.read()).toEqual({ cuit: '123' });
+    });
+
+    it('al abrir, si otro proceso ya completó los defaults en el medio, no escribe', () => {
+      const store = new MemoryConfigStore({ initial: { cuit: CUIT } });
+
+      store.beforeUpdate = (saved) => {
+        Object.assign(saved, CONFIG_DEFAULTS);
+      };
+      createService(store);
+
+      expect(store.writes).toEqual([]);
     });
 
     it('el valor que se pide gana sobre el que guardó el otro proceso en la misma clave', () => {
@@ -199,5 +222,13 @@ describe('ConfigService sobre el puerto ConfigStore (ARQ-12 PR 3)', () => {
       expect(store.writes).toEqual([]);
       expect(store.read()).toEqual(HEALTHY);
     });
+  });
+
+  it('si el store vuelve de update sin correr el cambio, falla en vez de devolver una config vacía', () => {
+    const store: ConfigStore = { path: '/arcli-memoria/config.json', read: () => HEALTHY, update: () => undefined };
+    const service = createService(store);
+
+    expect(() => service.setValue('moneda', 'pes')).toThrow('El almacenamiento de la config no aplicó el cambio.');
+    expect(() => service.initialize()).toThrow('El almacenamiento de la config no aplicó el cambio.');
   });
 });

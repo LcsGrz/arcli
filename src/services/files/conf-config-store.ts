@@ -1,8 +1,8 @@
 import Conf from 'conf';
-import { resolve } from 'node:path';
+import { dirname } from 'node:path';
 
-import { requireDataDirectory } from '../../lib/files/require-data-directory';
-import type { ConfigStore, StoredConfig } from '../../modules/config/config-store';
+import { dataFilePath } from '../../lib/files/require-data-directory';
+import { CONFIG_FILE_NAME, type ConfigStore, type StoredConfig } from '../../modules/config/config-store';
 
 export interface ConfConfigStoreOptions {
   /** El nombre del archivo, sin `.json`. */
@@ -20,13 +20,14 @@ export interface ConfConfigStoreOptions {
  * escribe enseguida, sin nada en el medio.
  */
 export function openConfConfigStore({ configName, cwd, invalid }: ConfConfigStoreOptions): ConfigStore {
-  const directory = requireDataDirectory(cwd);
+  const path = dataFilePath(cwd, configName);
+  const directory = dirname(path);
   let conf: Conf<StoredConfig> | undefined;
   const open = (): Conf<StoredConfig> =>
     (conf ??= new Conf<StoredConfig>({ clearInvalidConfig: invalid === 'empty', configName, cwd: directory }));
 
   return {
-    path: resolve(directory, `${configName}.json`),
+    path,
     read: () => open().store,
     update(change) {
       const store = open();
@@ -41,5 +42,5 @@ export function openConfConfigStore({ configName, cwd, invalid }: ConfConfigStor
 
 /** El config.json de la carpeta de datos. Con JSON inválido no se pisa: `read` lanza `SyntaxError`. */
 export function openConfigFileStore(cwd: string): ConfigStore {
-  return openConfConfigStore({ configName: 'config', cwd, invalid: 'throw' });
+  return openConfConfigStore({ configName: CONFIG_FILE_NAME, cwd, invalid: 'throw' });
 }
