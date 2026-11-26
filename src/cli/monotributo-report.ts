@@ -20,6 +20,8 @@ export interface LoadMonotributoReportInput {
   /** Sin spinner (por ejemplo, con `--json`). */
   readonly quiet: boolean;
   readonly refresh: boolean;
+  /** Corta la consulta de la pagina y, abortada, no sigue con el padron (Ctrl+C en el asistente). */
+  readonly signal?: AbortSignal;
   /** Solo los tests lo cambian. */
   readonly store?: MonotributoStore;
 }
@@ -42,12 +44,18 @@ export async function loadMonotributoReport(input: LoadMonotributoReportInput): 
   const now = new Date();
   const spinner = (text: string) => (input.quiet ? null : text);
   const loaded = await loadMonotributoTable({
-    fetchPage: () => withSpinner(spinner('Consultando la tabla en ARCA...'), () => fetchMonotributoPage()),
+    fetchPage: () =>
+      withSpinner(spinner('Consultando la tabla en ARCA...'), () =>
+        fetchMonotributoPage(undefined, undefined, input.signal),
+      ),
     now,
     refresh: input.refresh,
     store,
     version: CLI_VERSION,
   });
+
+  input.signal?.throwIfAborted();
+
   const ownCategory = await resolveOwnCategory({
     cuit: input.config?.cuit,
     environment: input.environment,

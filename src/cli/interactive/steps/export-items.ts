@@ -20,7 +20,7 @@ import type { Lens } from '../../../modules/interactive/steps/lens';
 import { validateItemNumber } from '../../../modules/interactive/validators';
 import { BACK, type Back, type WizardDependency, type WizardStep } from '../../../modules/interactive/wizard';
 import { noticePanel, writeTerminalOutput } from '../../../ui';
-import { withSpinner } from '../../spinner';
+import { waitForArca } from '../arca-wait';
 import { askTextStep, chooseFromFilterList, chooseStep, editRowsStep } from '../prompts';
 
 export interface ExportItemsStepDef<S> {
@@ -371,7 +371,7 @@ export function exportItemsStep<S>(def: ExportItemsStepDef<S>): WizardStep<S> {
       const question = {
         currency: def.currency(state),
         // Una vez por comprobante, porque el gateway las recuerda (`cacheExportTables`).
-        units: await withSpinner('Consultando las unidades de WSFEX...', def.units),
+        units: await waitForArca('Consultando las unidades de WSFEX...', def.units),
       };
       const answered = previous ? def.items.get(previous as S) : undefined;
       const remembered = memo.get<ItemsMemo>();

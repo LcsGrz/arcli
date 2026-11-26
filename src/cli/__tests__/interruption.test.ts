@@ -1,6 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { finishCut, guardEmission, isCutting, REPEATED_SIGNAL_MS, ResentSignalError } from '../interruption';
+import { QueryCancelledError } from '../../lib/errors/query-cancelled';
+import {
+  finishCut,
+  guardEmission,
+  interruptibleWait,
+  isCutting,
+  isWaiting,
+  REPEATED_SIGNAL_MS,
+  ResentSignalError,
+} from '../interruption';
+import { isPromptCancellation } from '../prompt-cancellation';
 
 /** ARQ-11: quién ataja las señales y cuándo. Los comandos enteros, en `interrupted-emission.test.ts`. */
 const SENT = { arcaType: 11, environment: 'testing', pointOfSale: 3, shortcut: 'fc', voucherNumber: 42 } as const;
@@ -531,5 +541,349 @@ describe('mientras se entrega', () => {
     );
 
     expect(seen).toEqual(before);
+  });
+});
+
+/** ARQ-11 PR 5: las esperas del asistente. Con el asistente entero, en `interactive/__tests__/assistant-waits.test.ts`. */
+describe('interruptibleWait', () => {
+  /** Una espera que no termina sola: contesta con `answer`. */
+  function hangingWait() {
+    let answer: (value: string) => void = () => undefined;
+    let received: AbortSignal | undefined;
+    const waiting = interruptibleWait(async (signal) => {
+      received = signal;
+
+      return new Promise<string>((resolve) => {
+        answer = resolve;
+      });
+    });
+
+    return { answer: (value: string) => answer(value), received: () => received, waiting };
+  }
+
+  const listenersBack = () =>
+    vi.waitFor(() => expect(raw()).toEqual(before), { interval: 10, timeout: REPEATED_SIGNAL_MS * 3 });
+
+  it('sin señal, devuelve lo de `run` y los listeners vuelven apenas termina', async () => {
+    const { answer, waiting } = hangingWait();
+
+    answer('ok');
+
+    await expect(waiting).resolves.toBe('ok');
+    expect(raw()).toEqual(before);
+  });
+
+  it('SIGINT rechaza enseguida como un Ctrl+C en una pregunta y corta las consultas, sin esperar a `run`', async () => {
+    const { received, waiting } = hangingWait();
+
+    send('SIGINT');
+
+    const error = await waiting.catch((thrown: unknown) => thrown);
+
+    expect(isPromptCancellation(error)).toBe(true);
+    expect(received()?.aborted).toBe(true);
+    expect(received()?.reason).toBeInstanceOf(QueryCancelledError);
+    expect(other).not.toHaveBeenCalled();
+    expect(process.kill).not.toHaveBeenCalled();
+    expect(stderr).toBe('');
+    await listenersBack();
+  });
+
+  it('SIGTERM no se ataja: sus listeners son los de siempre mientras se espera', async () => {
+    const { answer, waiting } = hangingWait();
+
+    expect(process.rawListeners('SIGTERM')).toEqual(before[1]);
+    expect(process.rawListeners('SIGINT')).not.toEqual(before[0]);
+    answer('ok');
+    await waiting;
+  });
+
+  it('el eco de npx: otra SIGINT dentro de REPEATED_SIGNAL_MS no le llega a nadie; después vuelven los listeners', async () => {
+    const { waiting } = hangingWait();
+
+    send('SIGINT');
+    await waiting.catch(() => undefined);
+    process.emit('SIGINT', 'SIGINT');
+
+    expect(other).not.toHaveBeenCalled();
+    await listenersBack();
+  });
+
+  it('cortada, repone los listeners agregados antes del corte (el de signal-exit del spinner)', async () => {
+    const added = vi.fn();
+    const waiting = interruptibleWait(async () => {
+      process.on('SIGINT', added);
+      await Promise.resolve();
+      send('SIGINT');
+
+      return new Promise<never>(() => undefined);
+    });
+
+    await waiting.catch(() => undefined);
+    await vi.waitFor(() => expect(process.rawListeners('SIGINT')).toContain(added), {
+      interval: 10,
+      timeout: REPEATED_SIGNAL_MS * 3,
+    });
+    expect(added).not.toHaveBeenCalled();
+    process.off('SIGINT', added);
+    await vi.waitFor(() => expect(raw()).toEqual(before), { interval: 10, timeout: REPEATED_SIGNAL_MS * 3 });
+  });
+
+  it('una adentro de otra usa la misma señal y no toca los listeners', async () => {
+    let inner: AbortSignal | undefined;
+    let outer: AbortSignal | undefined;
+    let atInner: ReturnType<typeof raw> | undefined;
+    let insideInner: ReturnType<typeof raw> | undefined;
+
+    await interruptibleWait(async (signal) => {
+      outer = signal;
+      atInner = raw();
+
+      return interruptibleWait(async (nested) => {
+        inner = nested;
+        insideInner = raw();
+        expect(isWaiting()).toBe(true);
+      });
+    });
+
+    expect(inner).toBe(outer);
+    expect(insideInner).toEqual(atInner);
+    expect(raw()).toEqual(before);
+    expect(isWaiting()).toBe(false);
+  });
+});
+
+describe('una espera adentro de una emisión', () => {
+  it('es parte de ella: usa su señal de consultas, no le saca los listeners y la emisión sigue atajando', async () => {
+    let queries: AbortSignal | undefined;
+    let nested: AbortSignal | undefined;
+    let duringWait: ReturnType<typeof raw> | undefined;
+    let beforeWait: ReturnType<typeof raw> | undefined;
+
+    await guardEmission({ json: false, onCut: vi.fn() }, async ({ onSending }, signal) => {
+      queries = signal;
+      beforeWait = raw();
+      await interruptibleWait(async (inner) => {
+        nested = inner;
+        duringWait = raw();
+      });
+      onSending?.(SENT);
+      // Si la espera la hubiera apagado, esta llegaria a `other`.
+      send('SIGINT');
+
+      return { results: ['CAE'] };
+    });
+
+    expect(nested).toBe(queries);
+    expect(duringWait).toEqual(beforeWait);
+    expect(other).not.toHaveBeenCalled();
+    expect(stderr).toContain('Esperamos a que ARCA conteste');
+    await finishCut();
+    await vi.waitFor(() => expect(raw()).toEqual(before), { interval: 10, timeout: REPEATED_SIGNAL_MS * 3 });
+  });
+});
+
+describe('una espera en una pregunta del PDF', () => {
+  it('no es parte de la emisión: los listeners están sueltos, así que ataja por su cuenta', async () => {
+    let waitingInQuestion: boolean | undefined;
+    let duringWait: ReturnType<typeof raw> | undefined;
+
+    await guardEmission(
+      { cancelBeforeSending: true, json: false, onCut: vi.fn() },
+      async ({ onSending }) => {
+        onSending?.(SENT);
+
+        return { results: ['CAE'] };
+      },
+      async (_outcome, { whileAsking }) => {
+        await whileAsking(async () => {
+          waitingInQuestion = isWaiting();
+          await interruptibleWait(async () => {
+            duringWait = raw();
+          });
+        });
+      },
+    );
+
+    expect(waitingInQuestion).toBe(false);
+    expect(duringWait?.[0]).not.toEqual(before[0]);
+    expect(duringWait?.[1]).toEqual(before[1]);
+    await finishCut();
+    await vi.waitFor(() => expect(raw()).toEqual(before), { interval: 10, timeout: REPEATED_SIGNAL_MS * 3 });
+  });
+});
+
+describe('SIGTERM en el asistente', () => {
+  it('sin nada enviado no vuelve al menú: se reenvía como en los comandos', async () => {
+    const error = await guardEmission({ cancelBeforeSending: true, json: false, onCut: vi.fn() }, async () => {
+      send('SIGTERM');
+
+      return { results: [] };
+    }).catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(ResentSignalError);
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
+  });
+
+  it('con algo enviado, espera y entrega, y finishCut termina el proceso', async () => {
+    const deliver = vi.fn();
+
+    await guardEmission(
+      { cancelBeforeSending: true, json: false, onCut: vi.fn() },
+      async ({ onSending }) => {
+        onSending?.(SENT);
+        send('SIGTERM');
+
+        return { results: ['CAE'] };
+      },
+      deliver,
+    );
+
+    expect(deliver).toHaveBeenCalledOnce();
+    expect(process.kill).not.toHaveBeenCalled();
+    expect(await finishCut()).toBe('SIGTERM');
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
+    expect(raw()).toEqual(before);
+  });
+
+  it('Ctrl+C y enseguida SIGTERM: no es el eco, y finishCut termina el proceso con SIGTERM', async () => {
+    await guardEmission(
+      { cancelBeforeSending: true, json: false, onCut: vi.fn() },
+      async ({ onSending }) => {
+        onSending?.(SENT);
+        send('SIGINT');
+        now += 100;
+        process.emit('SIGTERM', 'SIGTERM');
+
+        return { results: ['CAE'] };
+      },
+      vi.fn(),
+    );
+
+    expect(await finishCut()).toBe('SIGTERM');
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
+  });
+
+  it('con todo escrito, un SIGTERM dentro del eco de la Ctrl+C igual termina el proceso', async () => {
+    await guardEmission(
+      { cancelBeforeSending: true, json: false, onCut: vi.fn() },
+      async ({ onSending }) => {
+        onSending?.(SENT);
+        send('SIGINT');
+
+        return { results: ['CAE'] };
+      },
+      vi.fn(),
+    );
+
+    expect(await finishCut()).toBeUndefined();
+    now += 100;
+    process.emit('SIGTERM', 'SIGTERM');
+
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
+    expect(other).not.toHaveBeenCalled();
+  });
+
+  it('con algo enviado y SIGTERM, si la emisión falla, finishCut corta igual', async () => {
+    const error = await guardEmission(
+      { cancelBeforeSending: true, json: false, onCut: vi.fn() },
+      async ({ onSending }) => {
+        onSending?.(SENT);
+        send('SIGTERM');
+
+        throw new Error('se cayó la conexión');
+      },
+      vi.fn(),
+    ).catch((thrown: unknown) => thrown);
+
+    expect(error).toMatchObject({ message: 'se cayó la conexión' });
+    expect(await finishCut()).toBe('SIGTERM');
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
+  });
+
+  it('con una sola Ctrl+C, finishCut no corta', async () => {
+    await guardEmission(
+      { cancelBeforeSending: true, json: false, onCut: vi.fn() },
+      async ({ onSending }) => {
+        onSending?.(SENT);
+        send('SIGINT');
+
+        return { results: ['CAE'] };
+      },
+      vi.fn(),
+    );
+
+    expect(await finishCut()).toBeUndefined();
+    expect(process.kill).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(raw()).toEqual(before), { interval: 10, timeout: REPEATED_SIGNAL_MS * 3 });
+  });
+});
+
+describe('cancelBeforeSending (el asistente)', () => {
+  it('sin nada enviado, la primera corta las consultas, no envía nada y rechaza como Ctrl+C, sin reenviarla', async () => {
+    const onCut = vi.fn();
+    let queries: AbortSignal | undefined;
+    let shouldStop: boolean | undefined;
+
+    const error = await guardEmission(
+      { cancelBeforeSending: true, json: false, onCut },
+      async (interruption, signal) => {
+        queries = signal;
+        send('SIGINT');
+        // El eco.
+        process.emit('SIGINT', 'SIGINT');
+        await interruption.abandoned;
+        shouldStop = interruption.shouldStop?.();
+
+        return { error: new Error('se cortó antes de enviarlo'), results: [] };
+      },
+      vi.fn(),
+    ).catch((thrown: unknown) => thrown);
+
+    expect(isPromptCancellation(error)).toBe(true);
+    expect(queries?.reason).toBeInstanceOf(QueryCancelledError);
+    expect(shouldStop).toBe(true);
+    expect(onCut).toHaveBeenCalledOnce();
+    expect(process.kill).not.toHaveBeenCalled();
+    expect(other).not.toHaveBeenCalled();
+    expect(stderr).toBe('');
+    await vi.waitFor(() => expect(raw()).toEqual(before), { interval: 10, timeout: REPEATED_SIGNAL_MS * 3 });
+  });
+
+  it('si la consulta cortada llega como error, igual rechaza como Ctrl+C', async () => {
+    const error = await guardEmission(
+      { cancelBeforeSending: true, json: false, onCut: vi.fn() },
+      async (_interruption, signal) => {
+        send('SIGINT');
+
+        throw signal.reason;
+      },
+    ).catch((thrown: unknown) => thrown);
+
+    expect(isPromptCancellation(error)).toBe(true);
+    await vi.waitFor(() => expect(raw()).toEqual(before), { interval: 10, timeout: REPEATED_SIGNAL_MS * 3 });
+  });
+
+  it('con algo enviado, el spinner se frena antes del aviso de que se espera', async () => {
+    const order: string[] = [];
+
+    vi.mocked(process.stderr.write).mockImplementation(() => {
+      order.push('aviso');
+
+      return true;
+    });
+
+    await guardEmission(
+      { beforeNotice: () => order.push('spinner'), cancelBeforeSending: true, json: false, onCut: vi.fn() },
+      async ({ onSending }) => {
+        onSending?.(SENT);
+        send('SIGINT');
+
+        return { results: ['CAE'] };
+      },
+    );
+
+    expect(order[0]).toBe('spinner');
+    expect(order).toContain('aviso');
   });
 });

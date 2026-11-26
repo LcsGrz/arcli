@@ -10,6 +10,7 @@ import { outputState } from '../../closed-output';
 import { writePdfOutcomes } from '../../commands/billing.command.output';
 import { attachPdfs } from '../../commands/billing.command.pdf';
 import { describeEmittedInThisRun, resetEmittedInThisRun } from '../../emitted-vouchers';
+import type { DeliveryInterruption } from '../../interruption';
 import { offerPdf } from '../pdf.flow';
 import { askText, confirm } from '../prompts';
 
@@ -37,7 +38,10 @@ vi.mock('../../../ui', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../ui')>()),
   writeTerminalOutput: vi.fn(),
 }));
-vi.mock('../../commands/billing.command.pdf', () => ({ attachPdfs: vi.fn(async ({ results }) => results) }));
+vi.mock('../../commands/billing.command.pdf', () => ({
+  attachPdfs: vi.fn(async ({ results }) => results),
+  interruptiblePdfSteps: vi.fn(() => ({})),
+}));
 vi.mock('../../commands/billing.command.output', () => ({ writePdfOutcomes: vi.fn() }));
 
 const setValue = vi.fn();
@@ -77,13 +81,16 @@ const result = {
   voucherKind: getVoucherKindByShortcut('fc'),
 } as unknown as BillingExecutionResult;
 
+/** Sin señales: las preguntas se hacen como siempre. */
+const DELIVERY: DeliveryInterruption = { signal: new AbortController().signal, whileAsking: (ask) => ask() };
+
 afterEach(() => {
   vi.clearAllMocks();
 });
 
 describe('offerPdf', () => {
   it('does not ask anything when the config says nunca', async () => {
-    await offerPdf({ ...CONFIG, pdf: 'nunca' }, input, result);
+    await offerPdf({ ...CONFIG, pdf: 'nunca' }, input, result, DELIVERY);
 
     expect(confirmMock).not.toHaveBeenCalled();
     expect(attachPdfsMock).not.toHaveBeenCalled();
@@ -92,11 +99,12 @@ describe('offerPdf', () => {
   it('with nunca, "Emitir y generar el PDF" generates it without asking whether to', async () => {
     askTextMock.mockResolvedValue('');
 
-    await offerPdf({ ...CONFIG, pdf: 'nunca' }, { ...input, pdf: true }, result);
+    await offerPdf({ ...CONFIG, pdf: 'nunca' }, { ...input, pdf: true }, result, DELIVERY);
 
     expect(confirmMock).not.toHaveBeenCalled();
     expect(attachPdfsMock).toHaveBeenCalledWith(
       expect.objectContaining({ inputs: [expect.objectContaining({ pdf: true })] }),
+      expect.anything(),
     );
     askTextMock.mockReset();
   });
@@ -107,7 +115,7 @@ describe('offerPdf', () => {
     confirmMock.mockResolvedValueOnce(true);
     askTextMock.mockRejectedValueOnce(cancellation);
 
-    await expect(offerPdf(CONFIG, input, result)).resolves.toBeUndefined();
+    await expect(offerPdf(CONFIG, input, result, DELIVERY)).resolves.toBeUndefined();
     expect(attachPdfsMock).not.toHaveBeenCalled();
     expect(vi.mocked(writeTerminalOutput)).toHaveBeenCalledWith(expect.stringContaining('ya quedó emitido'));
   });
@@ -124,7 +132,7 @@ describe('offerPdf', () => {
     }
 
     try {
-      await offerPdf(CONFIG, input, { ...result, voucherNumber: 42 });
+      await offerPdf(CONFIG, input, { ...result, voucherNumber: 42 }, DELIVERY);
       expect(describeEmittedInThisRun()).toEqual(expected.map((text) => expect.stringContaining(text)));
     } finally {
       outputState.failures.clear();
@@ -141,7 +149,7 @@ describe('offerPdf', () => {
     attachPdfsMock.mockResolvedValueOnce([{ ...result, pdf, voucherNumber: 42 }] as never);
 
     try {
-      await offerPdf(CONFIG, input, { ...result, voucherNumber: 42 });
+      await offerPdf(CONFIG, input, { ...result, voucherNumber: 42 }, DELIVERY);
       expect(describeEmittedInThisRun()).toHaveLength(missing);
     } finally {
       resetEmittedInThisRun();
@@ -151,7 +159,7 @@ describe('offerPdf', () => {
   it('stops when the user does not want the PDF', async () => {
     confirmMock.mockResolvedValueOnce(false);
 
-    await offerPdf(CONFIG, input, result);
+    await offerPdf(CONFIG, input, result, DELIVERY);
 
     expect(askTextMock).not.toHaveBeenCalled();
     expect(attachPdfsMock).not.toHaveBeenCalled();
@@ -162,12 +170,18 @@ describe('offerPdf', () => {
     // Enter en un prompt con valor por defecto devuelve ese valor.
     askTextMock.mockImplementation(async (_message, options) => options?.defaultValue ?? '');
 
-    await offerPdf(CONFIG, { ...input, receiverAddress: 'Av. Siempreviva 742', receiverName: 'DARIO SA' }, result);
+    await offerPdf(
+      CONFIG,
+      { ...input, receiverAddress: 'Av. Siempreviva 742', receiverName: 'DARIO SA' },
+      result,
+      DELIVERY,
+    );
 
     expect(attachPdfsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         inputs: [expect.objectContaining({ receiverAddress: 'Av. Siempreviva 742', receiverName: 'DARIO SA' })],
       }),
+      expect.anything(),
     );
     askTextMock.mockReset();
   });
@@ -180,22 +194,25 @@ describe('offerPdf', () => {
       .mockResolvedValueOnce('Cliente SA')
       .mockResolvedValueOnce('');
 
-    await offerPdf(CONFIG, input, result);
+    await offerPdf(CONFIG, input, result, DELIVERY);
 
-    expect(attachPdfsMock).toHaveBeenCalledWith({
-      config: CONFIG,
-      inputs: [
-        expect.objectContaining({
-          pdf: true,
-          pdfDescription: 'Servicios de octubre',
-          receiverAddress: undefined,
-          receiverName: 'Cliente SA',
-          saleCondition: 'otros-medios-electronicos',
-        }),
-      ],
-      interactive: true,
-      results: [result],
-    });
+    expect(attachPdfsMock).toHaveBeenCalledWith(
+      {
+        config: CONFIG,
+        inputs: [
+          expect.objectContaining({
+            pdf: true,
+            pdfDescription: 'Servicios de octubre',
+            receiverAddress: undefined,
+            receiverName: 'Cliente SA',
+            saleCondition: 'otros-medios-electronicos',
+          }),
+        ],
+        interactive: true,
+        results: [result],
+      },
+      expect.anything(),
+    );
     expect(writePdfOutcomes).toHaveBeenCalled();
     expect(script.chooseOrTypeStep).toHaveBeenCalledWith(
       'Condición de venta:',
@@ -211,13 +228,14 @@ describe('offerPdf', () => {
     confirmMock.mockResolvedValueOnce(true);
     askTextMock.mockResolvedValue('');
 
-    await offerPdf({ ...CONFIG, condicionVenta: 'cuenta-corriente' }, input, result);
+    await offerPdf({ ...CONFIG, condicionVenta: 'cuenta-corriente' }, input, result, DELIVERY);
 
     expect(attachPdfsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         config: expect.objectContaining({ condicionVenta: 'cuenta-corriente' }),
         inputs: [expect.objectContaining({ saleCondition: 'cuenta-corriente' })],
       }),
+      expect.anything(),
     );
     askTextMock.mockReset();
   });
@@ -227,10 +245,11 @@ describe('offerPdf', () => {
     askTextMock.mockResolvedValue('');
     script = createScript([[/^Condición de venta/, 'Otra']]);
 
-    await offerPdf(CONFIG, input, result);
+    await offerPdf(CONFIG, input, result, DELIVERY);
 
     expect(attachPdfsMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ inputs: [expect.objectContaining({ saleCondition: 'otra' })] }),
+      expect.anything(),
     );
     expect(askTextMock.mock.calls.map(([message]) => message)).not.toContain('Condición de venta:');
     askTextMock.mockReset();
@@ -241,7 +260,7 @@ describe('offerPdf', () => {
     askTextMock.mockResolvedValue('');
     script = createScript([[/^Condición de venta/, BACK]]);
 
-    await offerPdf(CONFIG, input, result);
+    await offerPdf(CONFIG, input, result, DELIVERY);
 
     expect(attachPdfsMock).not.toHaveBeenCalled();
     expect(vi.mocked(writeTerminalOutput)).toHaveBeenCalledWith(expect.stringContaining('no se generó el PDF'));
@@ -260,7 +279,7 @@ describe('offerPdf', () => {
       .mockResolvedValueOnce('Calle 9')
       .mockResolvedValueOnce('1/03/2020');
 
-    await offerPdf({ ...CONFIG, emisor: { razonSocial: 'Ana Gomez' }, pdf: 'siempre' }, input, result);
+    await offerPdf({ ...CONFIG, emisor: { razonSocial: 'Ana Gomez' }, pdf: 'siempre' }, input, result, DELIVERY);
 
     expect(setValue).toHaveBeenCalledWith('emisor.domicilio', 'Calle 9');
     expect(setValue).toHaveBeenCalledWith('emisor.inicioActividades', '1/03/2020');
@@ -270,11 +289,12 @@ describe('offerPdf', () => {
           emisor: { domicilio: 'Calle 9', inicioActividades: '20200301', razonSocial: 'Ana Gomez' },
         }),
       }),
+      expect.anything(),
     );
   });
 
   it('skips vouchers without CAE', async () => {
-    await offerPdf(CONFIG, input, { ...result, response: { ...result.response, cae: null } });
+    await offerPdf(CONFIG, input, { ...result, response: { ...result.response, cae: null } }, DELIVERY);
 
     expect(confirmMock).not.toHaveBeenCalled();
   });
@@ -300,11 +320,12 @@ describe('offerPdf: datos que faltan y errores despues de emitir', () => {
       return '';
     });
 
-    await offerPdf({ ...CONFIG, cuit: undefined, pdf: 'siempre' } as never, input, result);
+    await offerPdf({ ...CONFIG, cuit: undefined, pdf: 'siempre' } as never, input, result, DELIVERY);
 
     expect(setValue).not.toHaveBeenCalled();
     expect(attachPdfsMock).toHaveBeenCalledWith(
       expect.objectContaining({ config: expect.objectContaining({ cuit: '20123456786' }) }),
+      expect.anything(),
     );
   });
 
@@ -314,11 +335,12 @@ describe('offerPdf: datos que faltan y errores despues de emitir', () => {
 
     script = createScript([[/^Condición de venta/, '']]);
 
-    await offerPdf({ ...CONFIG, condicionVenta: 'contado' }, { ...input, saleCondition: null }, result);
+    await offerPdf({ ...CONFIG, condicionVenta: 'contado' }, { ...input, saleCondition: null }, result, DELIVERY);
 
     expect(script.chooseOrTypeStep.mock.calls[0]?.[2].previous).toBeUndefined();
     expect(attachPdfsMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ inputs: [expect.objectContaining({ saleCondition: null })] }),
+      expect.anything(),
     );
   });
 
@@ -327,7 +349,7 @@ describe('offerPdf: datos que faltan y errores despues de emitir', () => {
     askTextMock.mockResolvedValue('');
     attachPdfsMock.mockRejectedValueOnce(new Error('disco lleno'));
 
-    await expect(offerPdf(CONFIG, input, result)).rejects.toThrow('disco lleno');
+    await expect(offerPdf(CONFIG, input, result, DELIVERY)).rejects.toThrow('disco lleno');
   });
 
   it('descripción, receptor y domicilio con acentos, emoji y textos largos llegan tal cual', async () => {
@@ -339,7 +361,7 @@ describe('offerPdf: datos que faltan y errores despues de emitir', () => {
       .mockResolvedValueOnce("O'Brien & Peña S.R.L. 🏢")
       .mockResolvedValueOnce('Av. Córdoba 1234, 5º "B"');
 
-    await offerPdf(CONFIG, input, result);
+    await offerPdf(CONFIG, input, result, DELIVERY);
 
     expect(attachPdfsMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -351,6 +373,7 @@ describe('offerPdf: datos que faltan y errores despues de emitir', () => {
           }),
         ],
       }),
+      expect.anything(),
     );
   });
 });
@@ -366,7 +389,7 @@ describe('offerPdf: la condición de venta de una lista donde también se escrib
     confirmMock.mockResolvedValueOnce(true);
     askTextMock.mockResolvedValue('');
 
-    await offerPdf(config, input, result);
+    await offerPdf(config, input, result, DELIVERY);
 
     expect(script.asked).toEqual(['Condición de venta:']);
     // "Otra" ya no abre una segunda pregunta de texto.

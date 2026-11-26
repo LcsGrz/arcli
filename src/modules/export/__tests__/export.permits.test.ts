@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { InputValidationError } from '../../../lib/errors/app-error';
+import { QueryCancelledError } from '../../../lib/errors/query-cancelled';
 import { checkExportPermits } from '../export.permits';
 import type { ExportVoucherPayload } from '../export.types';
 
@@ -11,6 +12,16 @@ function payloadWith(permits: readonly string[]): ExportVoucherPayload {
 }
 
 describe('checkExportPermits', () => {
+  it('una consulta cancelada (Ctrl+C en el asistente) no es un permiso sin verificar: sigue de largo, sin aviso', async () => {
+    const cancelled = new QueryCancelledError();
+    const checkPermit = vi.fn(async () => {
+      throw cancelled;
+    });
+
+    await expect(checkExportPermits(payloadWith(['P1', 'P2']), { checkPermit })).rejects.toBe(cancelled);
+    expect(checkPermit).toHaveBeenCalledOnce();
+  });
+
   it('sin permisos no consulta ARCA', async () => {
     const checkPermit = vi.fn();
 

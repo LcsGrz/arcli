@@ -16,17 +16,25 @@ import {
 import { writeTerminalOutput } from '../../ui';
 import { loadMonotributoReport } from '../monotributo-report';
 
+import { waitForArca } from './arca-wait';
 import { browseBlocks, chooseStep } from './prompts';
 import type { InteractiveSession } from './session';
 
+/** La pagina y el padron, en una sola espera: sin nada que consultar (la tabla guardada), sin spinner. */
 function load(session: InteractiveSession, refresh: boolean): Promise<MonotributoReport> {
-  return loadMonotributoReport({
-    config: session.runtime.config,
-    createArca: () => session.arca,
-    environment: session.runtime.environment,
-    quiet: false,
-    refresh,
-  });
+  return waitForArca(
+    'Consultando el monotributo en ARCA...',
+    (signal) =>
+      loadMonotributoReport({
+        config: session.runtime.config,
+        createArca: () => session.arca,
+        environment: session.runtime.environment,
+        quiet: true,
+        refresh,
+        signal,
+      }),
+    { pending: true },
+  );
 }
 
 /** Los avisos y la tabla, como `arcli monotributo` pero sin las sugerencias de comandos: abajo va el menu. */

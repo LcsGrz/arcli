@@ -25,8 +25,8 @@ import { ruleValidator, scopedRuleValidator } from '../../modules/interactive/ru
 import { validateExportVoucherDate, validateOptionalDate } from '../../modules/interactive/validators';
 import { BACK, type Back, requireStepValue, type WizardStep } from '../../modules/interactive/wizard';
 import { formatTableRows } from '../../ui';
-import { withSpinner } from '../spinner';
 
+import { waitForArca } from './arca-wait';
 import { optionalsStep } from './optionals-step';
 import { askTextStep, chooseOrTypeStep, chooseStep } from './prompts';
 import { dateStep } from './steps/date';
@@ -227,7 +227,7 @@ function exportQuestions(languageNames: Map<number, string>): ExportOptionalQues
       {
         name: 'idioma',
         run: async (current, { previous }) => {
-          const languages = await withSpinner('Consultando los idiomas de WSFEX...', context.languages);
+          const languages = await waitForArca('Consultando los idiomas de WSFEX...', context.languages);
 
           for (const language of languages) languageNames.set(language.id, language.name);
 

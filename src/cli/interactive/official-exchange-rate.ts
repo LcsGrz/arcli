@@ -6,8 +6,9 @@ import { resolveExportVoucherDate } from '../../modules/export/export.dates';
 import type { ExportGateway } from '../../modules/export/export.gateway';
 import type { ExportType } from '../../modules/export/export.types';
 import { configExchangeRateFor, type ExchangeRateSuggestion } from '../../modules/interactive/billing-optionals';
-import { startSpinner } from '../spinner';
+import { isPromptCancellation } from '../prompt-cancellation';
 
+import { waitForArca } from './arca-wait';
 import type { InteractiveSession } from './session';
 
 /** De que moneda y, con `--misma-moneda`, de que fecha (la 10038 pide la del dia habil anterior a una pasada). */
@@ -25,7 +26,8 @@ export interface OfficialExchangeRate {
 
 /**
  * Una consulta de cotizacion por clave en el flujo, con su spinner: la segunda vez sale de lo ya consultado. Si falla
- * (sin red, ARCA caido), `undefined` y no se reintenta.
+ * (sin red, ARCA caido), `undefined` y no se reintenta. Cortada con Ctrl+C no cuenta como fallida: vuelve al menu y la
+ * proxima vez se consulta de nuevo.
  */
 function cachedRateLoader<Q>(
   keyOf: (query: Q) => string,
@@ -33,18 +35,11 @@ function cachedRateLoader<Q>(
 ): ((query: Q) => Promise<number | undefined>) & { readonly known: (query: Q) => number | undefined } {
   const loaded = new Map<string, Promise<number | undefined>>();
   const resolved = new Map<string, number | undefined>();
+  /** Las consultas que ya terminaron: salen sin esperar. Las que siguen se esperan con su spinner. */
+  const settled = new WeakSet<Promise<number | undefined>>();
 
-  const load = (query: Q) => {
-    const key = keyOf(query);
-    const cached = loaded.get(key);
-
-    if (cached) {
-      return cached;
-    }
-
+  const start = (key: string, query: Q): Promise<number | undefined> => {
     const rate = (async () => {
-      const spinner = startSpinner('Consultando la cotización oficial...');
-
       try {
         const quoted = await quote(query);
 
@@ -53,14 +48,33 @@ function cachedRateLoader<Q>(
         return quoted;
       } catch {
         return undefined;
-      } finally {
-        spinner?.stop();
       }
     })();
 
     loaded.set(key, rate);
+    void rate.then(() => settled.add(rate));
 
     return rate;
+  };
+
+  const load = async (query: Q): Promise<number | undefined> => {
+    const key = keyOf(query);
+    const cached = loaded.get(key);
+
+    // Lo ya consultado, aunque haya fallado, sale sin esperar.
+    if (cached && settled.has(cached)) {
+      return cached;
+    }
+
+    try {
+      return await waitForArca('Consultando la cotización oficial...', () => cached ?? start(key, query));
+    } catch (error) {
+      if (isPromptCancellation(error)) {
+        loaded.delete(key);
+      }
+
+      throw error;
+    }
   };
 
   return Object.assign(load, { known: (query: Q) => resolved.get(keyOf(query)) });

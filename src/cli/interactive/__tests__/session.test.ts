@@ -243,6 +243,7 @@ describe('previewAndEmit', () => {
       expect.objectContaining({ pdf: 'nunca' }),
       expect.objectContaining({ pdf: true }),
       expect.anything(),
+      expect.anything(),
     );
   });
 
@@ -255,6 +256,7 @@ describe('previewAndEmit', () => {
     expect(offerPdf).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ pdf: false }),
+      expect.anything(),
       expect.anything(),
     );
   });
@@ -277,7 +279,12 @@ describe('previewAndEmit', () => {
     ]);
     expect(confirmMock).not.toHaveBeenCalled();
     expect(accepted.createVoucher).toHaveBeenCalledTimes(1);
-    expect(offerPdf).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ pdf: true }), expect.anything());
+    expect(offerPdf).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ pdf: true }),
+      expect.anything(),
+      expect.anything(),
+    );
   });
 
   it('el comando equivalente lleva nombre y domicilio del padrón, porque con --ir el CLI no lo consulta', async () => {
