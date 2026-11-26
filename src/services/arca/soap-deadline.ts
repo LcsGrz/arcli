@@ -16,7 +16,8 @@ interface SoapOperation {
 /**
  * Las operaciones que no son una consulta. La emision y el login no se cortan con ninguna señal de afuera, solo con su
  * plazo: una emision cortada quedaria sin saber si se autorizo, y el login va adentro de la emision cuando el ticket
- * vencio recien.
+ * vencio recien. Toda operacion nueva que escriba en ARCA entra aca con `cancellable: false`: lo que no esta en la
+ * tabla es una consulta y se cancela.
  *
  * @internal Exportada para los tests, que fijan por tipo que esas tres no se cancelan.
  */

@@ -1,4 +1,5 @@
 import { MemoryTicketStorage, SoapClient } from '@arcasdk/core';
+import { getEventListeners } from 'node:events';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
@@ -680,12 +681,21 @@ describe.each(EMISSIONS)('no cancelable, $service: $operation', (call) => {
 });
 
 describe.each(LOGINS)('no cancelable, $service: $operation', ({ run }) => {
-  it('dentro del contexto, con la señal ya cortada, el ticket se pide igual', async () => {
-    await arca.settle(withCancellableQueries(aborted(), run));
+  /** Lo que se pidió después del login: la consulta, cortada, no tiene que llegar. */
+  const afterLogin = () => arca.server.requests.filter(({ operation }) => operation !== 'loginCms');
+
+  it('dentro del contexto, con la señal ya cortada, el ticket se pide igual y la consulta no', async () => {
+    const signal = aborted();
+
+    expect(await arca.settle(withCancellableQueries(signal, run))).toEqual({
+      end: 'se cortó',
+      error: signal.reason,
+    });
     expect(await finishedRequests('loginCms')).toEqual([expect.objectContaining({ dropped: false })]);
+    expect(afterLogin()).toEqual([]);
   });
 
-  it('dentro del contexto, cortada la señal durante el login, se espera el ticket', async () => {
+  it('dentro del contexto, cortada la señal durante el login, se espera el ticket y la consulta no se pide', async () => {
     const controller = new AbortController();
 
     arca.server.respond((name) => (name === 'loginCms' ? SLOW_MS : undefined));
@@ -694,8 +704,9 @@ describe.each(LOGINS)('no cancelable, $service: $operation', ({ run }) => {
 
     await vi.waitFor(() => expect(arca.server.count('loginCms')).toBe(1), WAIT);
     controller.abort();
-    await settled;
+    expect(await settled).toEqual({ end: 'se cortó', error: controller.signal.reason });
     expect(await finishedRequests('loginCms')).toEqual([expect.objectContaining({ dropped: false })]);
+    expect(afterLogin()).toEqual([]);
   });
 });
 
@@ -776,6 +787,19 @@ describe('contextos', () => {
     outer.abort(reason);
     arca.releaseDeadlines();
     expect(await call).toEqual({ end: 'se cortó', error: reason });
+  });
+
+  it('cada consulta que termina saca su listener de la señal: no se acumulan', async () => {
+    const { signal } = new AbortController();
+
+    await withCancellableQueries(signal, async () => {
+      await getLastNumber();
+      await new ArcaVoucherHistoryGateway(client()).getVoucher(1, 3, 11);
+      await getLastNumber();
+    });
+
+    expect(arca.server.count('FECompUltimoAutorizado')).toBe(2);
+    expect(getEventListeners(signal, 'abort')).toEqual([]);
   });
 
   it('terminado el contexto, cortar su señal no corta lo que se pide después', async () => {
