@@ -633,6 +633,87 @@ describe('interruptibleWait', () => {
   });
 });
 
+describe('una espera adentro de una emisión', () => {
+  it('es parte de ella: usa su señal de consultas, no le saca los listeners y la emisión sigue atajando', async () => {
+    let queries: AbortSignal | undefined;
+    let nested: AbortSignal | undefined;
+    let duringWait: ReturnType<typeof raw> | undefined;
+    let beforeWait: ReturnType<typeof raw> | undefined;
+
+    await guardEmission({ json: false, onCut: vi.fn() }, async ({ onSending }, signal) => {
+      queries = signal;
+      beforeWait = raw();
+      await interruptibleWait(async (inner) => {
+        nested = inner;
+        duringWait = raw();
+      });
+      onSending?.(SENT);
+      // Si la espera la hubiera apagado, esta llegaria a `other`.
+      send('SIGINT');
+
+      return { results: ['CAE'] };
+    });
+
+    expect(nested).toBe(queries);
+    expect(duringWait).toEqual(beforeWait);
+    expect(other).not.toHaveBeenCalled();
+    expect(stderr).toContain('Esperamos a que ARCA conteste');
+    await finishCut();
+    await vi.waitFor(() => expect(raw()).toEqual(before), { interval: 10, timeout: REPEATED_SIGNAL_MS * 3 });
+  });
+});
+
+describe('SIGTERM en el asistente', () => {
+  it('sin nada enviado no vuelve al menú: se reenvía como en los comandos', async () => {
+    const error = await guardEmission({ cancelBeforeSending: true, json: false, onCut: vi.fn() }, async () => {
+      send('SIGTERM');
+
+      return { results: [] };
+    }).catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(ResentSignalError);
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
+  });
+
+  it('con algo enviado, espera y entrega, y finishCut termina el proceso', async () => {
+    const deliver = vi.fn();
+
+    await guardEmission(
+      { cancelBeforeSending: true, json: false, onCut: vi.fn() },
+      async ({ onSending }) => {
+        onSending?.(SENT);
+        send('SIGTERM');
+
+        return { results: ['CAE'] };
+      },
+      deliver,
+    );
+
+    expect(deliver).toHaveBeenCalledOnce();
+    expect(process.kill).not.toHaveBeenCalled();
+    expect(await finishCut()).toBe('SIGTERM');
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
+    expect(raw()).toEqual(before);
+  });
+
+  it('con una sola Ctrl+C, finishCut no corta', async () => {
+    await guardEmission(
+      { cancelBeforeSending: true, json: false, onCut: vi.fn() },
+      async ({ onSending }) => {
+        onSending?.(SENT);
+        send('SIGINT');
+
+        return { results: ['CAE'] };
+      },
+      vi.fn(),
+    );
+
+    expect(await finishCut()).toBeUndefined();
+    expect(process.kill).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(raw()).toEqual(before), { interval: 10, timeout: REPEATED_SIGNAL_MS * 3 });
+  });
+});
+
 describe('cancelBeforeSending (el asistente)', () => {
   it('sin nada enviado, la primera corta las consultas, no envía nada y rechaza como Ctrl+C, sin reenviarla', async () => {
     const onCut = vi.fn();

@@ -44,6 +44,12 @@ let cut: { readonly signal: NodeJS.Signals; readonly stopListening: () => void }
 /** Llego una señal, o falta el error: se siguen atajando hasta que se escriba todo. */
 let unfinished: { readonly abandonedPdf: () => boolean; readonly finish: (exit?: () => void) => void } | undefined;
 
+/**
+ * La señal de las consultas de la emision en curso (`guardEmission`), mientras emite y entrega: una espera adentro es
+ * parte de ella y no toca sus listeners.
+ */
+let emitting: AbortSignal | undefined;
+
 /** Deja de escuchar lo de una emision anterior del mismo proceso: cada una se atiende sola. */
 let stopPrevious: () => void = () => undefined;
 
@@ -59,11 +65,20 @@ export function isCutting(): boolean {
  *
  * Los que se agregan despues tambien se apartan: el de Puppeteer, con SIGINT, sale del proceso antes de que se escriba
  * nada. Se reponen solo si `keepsAdded`: si su dueño ya termino (un `off` de un apartado no hace nada), taparian la señal.
+ * Sin `stealsAdded`, ya no se apartan: solo queda atajar el eco, y lo que se agrega es de la pregunta que sigue (el de
+ * signal-exit de @inquirer), que no corta mientras haya otro listener.
  */
 function takeOverSignals(
   listener: NodeJS.SignalsListener,
-  keepsAdded: () => boolean,
-  signals: ReadonlyArray<NodeJS.Signals> = SIGNALS,
+  {
+    keepsAdded,
+    signals = SIGNALS,
+    stealsAdded = () => true,
+  }: {
+    readonly keepsAdded: () => boolean;
+    readonly signals?: ReadonlyArray<NodeJS.Signals>;
+    readonly stealsAdded?: () => boolean;
+  },
 ): () => void {
   const others = signals.map((signal) => ({
     added: new Set<NodeJS.SignalsListener>(),
@@ -81,7 +96,7 @@ function takeOverSignals(
 
     // Todavia no se agrego. Ninguna señal llega antes que un microtask.
     queueMicrotask(() => {
-      if (!isActive) {
+      if (!isActive || !stealsAdded()) {
         return;
       }
 
@@ -120,9 +135,10 @@ export interface GuardedEmissionOptions {
   /** Antes del aviso de que se espera la respuesta: el spinner, para que el aviso no quede debajo de el. */
   readonly beforeNotice?: () => void;
   /**
-   * Sin nada enviado, la primera señal no corta el proceso: deja de esperar las consultas (se cortan con la señal que
+   * Sin nada enviado, la primera Ctrl+C no corta el proceso: deja de esperar las consultas (se cortan con la señal que
    * recibe `emit`), no envia nada y `guardEmission` rechaza como un Ctrl+C en una pregunta. Es la del asistente, que
-   * vuelve al menu.
+   * vuelve al menu. SIGTERM corta como en los comandos y, con algo enviado, `finishCut` termina el proceso despues de
+   * entregarlo.
    */
   readonly cancelBeforeSending?: boolean;
   /** Con `--json` no hay aviso intermedio. */
@@ -177,18 +193,22 @@ export async function guardEmission<R>(
   /** Se dejo sin enviar nada (`cancelBeforeSending`): se sigue atajando el eco mientras ya se pregunta otra cosa. */
   let isCancelled = false;
 
-  const keepsAdded = (): boolean => pdf.signal.aborted || isCancelled;
+  const keepsAdded = (): boolean => pdf.signal.aborted;
+  // Con todo escrito, o vuelto al menu, solo se ataja el eco: lo que se agrega es de la pregunta que sigue.
+  const stealsAdded = (): boolean => !isWritten && !isCancelled;
   stopPrevious();
 
-  let restore = takeOverSignals(onSignal, keepsAdded);
+  let restore = takeOverSignals(onSignal, { keepsAdded, stealsAdded });
   const stopListening = (): void => restore();
 
   stopPrevious = stopListening;
+  emitting = queries.signal;
 
   function onSignal(signal: NodeJS.Signals): void {
     const now = performance.now();
 
-    if (!hasSent && options.cancelBeforeSending) {
+    // Solo Ctrl+C vuelve al menu: SIGTERM corta como en los comandos.
+    if (!hasSent && options.cancelBeforeSending && signal === 'SIGINT') {
       if (first === undefined) {
         first = signal;
         countedAt = now;
@@ -254,7 +274,7 @@ export async function guardEmission<R>(
     try {
       return await ask();
     } finally {
-      restore = takeOverSignals(onSignal, keepsAdded);
+      restore = takeOverSignals(onSignal, { keepsAdded, stealsAdded });
     }
   }
 
@@ -321,6 +341,10 @@ export async function guardEmission<R>(
 
     return outcome;
   } finally {
+    if (emitting === queries.signal) {
+      emitting = undefined;
+    }
+
     if (!hasOutcome) {
       cut = undefined;
     }
@@ -345,6 +369,11 @@ export async function guardEmission<R>(
       };
     } else if (!cut && !isCancelled) {
       stopListening();
+    }
+
+    // En el asistente, otra señal que Ctrl+C termina el proceso igual, recien con lo emitido escrito (`finishCut`).
+    if (options.cancelBeforeSending && hasSent && hasOutcome && first !== undefined && first !== 'SIGINT') {
+      cut ??= { signal: first, stopListening };
     }
   }
 }
@@ -371,7 +400,10 @@ const ABANDONED_PDF_MS = 200;
  * si se abandono un PDF, con `exit`, para que el plugin cierre su navegador. Sin señales ni error no hace nada.
  * Devuelve la señal que reenvio, si corto: el proceso esta por terminar y no se escribe nada mas.
  */
-export async function finishCut(beforeCut?: () => void, exit?: () => void): Promise<NodeJS.Signals | undefined> {
+export async function finishCut(
+  beforeCut?: () => Promise<void> | void,
+  exit?: () => void,
+): Promise<NodeJS.Signals | undefined> {
   if (!cut && !unfinished) {
     return undefined;
   }
@@ -395,7 +427,7 @@ export async function finishCut(beforeCut?: () => void, exit?: () => void): Prom
 
   const { signal, stopListening } = cut;
 
-  beforeCut?.();
+  await beforeCut?.();
   await settleOutput('stdout');
   await settleOutput('stderr');
 
@@ -412,18 +444,22 @@ let waiting: AbortSignal | undefined;
 
 /** Hay una espera de `interruptibleWait` en curso: otra adentro es la misma, sin un spinner mas. */
 export function isWaiting(): boolean {
-  return waiting !== undefined;
+  return waiting !== undefined || emitting !== undefined;
 }
 
 /**
  * Corre `run`, una espera a ARCA del asistente, atajando Ctrl+C (solo SIGINT: SIGTERM corta como siempre). Con la
  * señal, aborta `signal` y rechaza enseguida como un Ctrl+C en una pregunta (`promptCancellation`), sin esperar a
  * `run`: lo que devuelva despues se descarta. Despues de cortar sigue atajando SIGINT `REPEATED_SIGNAL_MS`, por el eco de
- * `npx`, y repone los listeners que agregue en ese medio segundo una pregunta abierta (la del menu).
+ * `npx`, sin apartar los listeners que agregue en ese medio segundo una pregunta abierta (la del menu). Adentro de otra
+ * espera o de una emision (`guardEmission`) es parte de ella.
  */
 export async function interruptibleWait<T>(run: (signal: AbortSignal) => Promise<T>): Promise<T> {
-  if (waiting) {
-    return run(waiting);
+  // Adentro de otra espera, o de una emision, es parte de ella: la señal es la suya y sus listeners no se tocan.
+  const outer = waiting ?? emitting;
+
+  if (outer) {
+    return run(outer);
   }
 
   const controller = new AbortController();
@@ -435,7 +471,11 @@ export async function interruptibleWait<T>(run: (signal: AbortSignal) => Promise
 
   stopPrevious();
 
-  const stopListening = takeOverSignals(onSignal, () => isCut, ['SIGINT']);
+  const stopListening = takeOverSignals(onSignal, {
+    keepsAdded: () => false,
+    signals: ['SIGINT'],
+    stealsAdded: () => !isCut,
+  });
 
   stopPrevious = stopListening;
   waiting = controller.signal;

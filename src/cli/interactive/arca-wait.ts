@@ -2,8 +2,6 @@ import { asQuery } from '../../lib/errors/query-error';
 import type { EmissionOutcome } from '../../modules/billing/billing.batch-run';
 import type { EmissionInterruption } from '../../modules/billing/emission-interruption';
 import { withCancellableQueries } from '../../services/arca/query-cancellation';
-import { writeTerminalError } from '../../ui';
-import { formatCliError } from '../error-output';
 import {
   type DeliveryInterruption,
   finishCut,
@@ -15,6 +13,8 @@ import {
 import { withPendingSpinner } from '../pending-spinner';
 import { isPromptCancellation } from '../prompt-cancellation';
 import { startSpinner, withSpinner } from '../spinner';
+
+import { showAssistantError } from './show-assistant-error';
 
 /**
  * Las esperas a ARCA del asistente (ARQ-11). Es el unico archivo del asistente que importa el spinner (lo controla
@@ -87,9 +87,9 @@ export async function emitWaitingForArca<R>(
 
   // Con todo escrito: con una sola señal se dejan de atajar, con dos se corta el proceso. Antes de cortar se escribe el
   // error, que ya no llega al menu.
-  const resent = await finishCut(() => {
+  const resent = await finishCut(async () => {
     if (failure && !isPromptCancellation(failure.error)) {
-      writeTerminalError(() => formatCliError(failure?.error));
+      await showAssistantError(failure.error);
     }
   });
 

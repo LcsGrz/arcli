@@ -6,7 +6,10 @@ export function isPromptCancellation(error: unknown): boolean {
   return error instanceof Error && error.name === 'ExitPromptError';
 }
 
-/** Lo que tira una espera del asistente cortada con Ctrl+C: se atiende como un Ctrl+C en una pregunta. */
-export function promptCancellation(): Error {
-  return Object.assign(new Error('Cancelado.'), { name: 'ExitPromptError' });
+/**
+ * Un Ctrl+C simulado, que se atiende como uno en una pregunta: una espera del asistente cortada, o una pregunta que no
+ * se puede abrir porque nadie ve la salida.
+ */
+export function promptCancellation(message = 'Cancelado.'): Error {
+  return Object.assign(new Error(message), { name: 'ExitPromptError' });
 }
