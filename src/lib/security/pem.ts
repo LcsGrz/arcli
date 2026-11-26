@@ -1,7 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
-
 import { ConfigurationError } from '../errors/app-error';
-import { withFilePath } from '../files/file-error';
+import type { LocalFiles } from '../files/local-files';
 import { maskPath } from '../paths/mask-path';
 
 type PemKind = 'certificado' | 'clave privada';
@@ -18,8 +16,8 @@ function acceptedPemHeaders(kind: PemKind): string[] {
   return ['BEGIN PRIVATE KEY', 'BEGIN RSA PRIVATE KEY', 'BEGIN EC PRIVATE KEY'];
 }
 
-export function ensurePathExists(filePath: string, label: PemKind): void {
-  if (!existsSync(filePath)) {
+export function ensurePathExists(files: Pick<LocalFiles, 'exists'>, filePath: string, label: PemKind): void {
+  if (!files.exists(filePath)) {
     throw new ConfigurationError(
       `La ruta ${label === 'certificado' ? 'del certificado' : 'de la clave privada'} no existe: ${maskPath(filePath)}`,
       {
@@ -54,10 +52,11 @@ function ensurePemFormat(content: string, filePath: string, label: PemKind): voi
   }
 }
 
-export function readPemFile(filePath: string, label: PemKind): string {
-  ensurePathExists(filePath, label);
+/** Lee el PEM con `files` y valida que exista y su formato; los errores dicen la ruta enmascarada. */
+export function readPemFile(files: LocalFiles, filePath: string, label: PemKind): string {
+  ensurePathExists(files, filePath, label);
 
-  const content = withFilePath(filePath, () => readFileSync(filePath, 'utf8'));
+  const content = files.readText(filePath);
 
   ensurePemFormat(content, filePath, label);
 

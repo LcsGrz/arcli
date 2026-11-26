@@ -1,6 +1,5 @@
 import { dirname } from 'node:path';
 
-import { restrictFolderToOwner } from '../lib/files/restrict-to-owner';
 import { CERTIFICATE_GUIDE_URL, EXPORT_CERTIFICATE_GUIDE_URL } from '../lib/links';
 import { type ArcaProfile, credentialPaths, resolveCuit, resolveEnvironment } from '../modules/config/arca-profile';
 import {
@@ -11,6 +10,7 @@ import {
 import type { ArcliConfig, ArcliEnvironment } from '../modules/config/config.schemas';
 import type { ConfigService } from '../modules/config/config.service';
 import { checkArcaProfile, loadArcaProfile } from '../services/arca/arca-profile.loader';
+import { restrictFolderToOwner } from '../services/files/restrict-to-owner';
 import { certificateBanner, writeTerminalNotice } from '../ui';
 
 import { withConfigService } from './config-service';

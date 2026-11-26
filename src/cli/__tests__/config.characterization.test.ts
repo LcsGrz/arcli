@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { validateConfigValue } from '../../modules/config/config.service';
 import { type ConfigPublicKey, configPublicKeySchema } from '../../modules/config/config-key-table';
+import { nodeLocalFiles } from '../../services/files/local-files';
 import { reportCliError } from '../error-output';
 
 import {
@@ -316,7 +317,7 @@ it('lo que guarda o responde config establecer con cada valor', async () => {
 
     try {
       if (publicKey.success) {
-        validateConfigValue(publicKey.data, withFiles(value));
+        validateConfigValue(publicKey.data, withFiles(value), nodeLocalFiles);
       }
 
       return [];

@@ -1,8 +1,5 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { withFilePath } from '../../lib/files/file-error';
-import { restrictFolderToOwner } from '../../lib/files/restrict-to-owner';
 import type { ArcliEnvironment } from '../config/config.schemas';
 
 /**
@@ -40,42 +37,22 @@ export function resolveCertificateFiles(
   };
 }
 
-export function ensureCertificateFolder(files: CertificateFiles): void {
-  mkdirSync(files.folder, { mode: 0o700, recursive: true });
-  restrictFolderToOwner(files.folder);
-}
-
-/** `0600` en macOS y Linux. En Windows no aplica: la carpeta del usuario ya es solo suya. */
-export function writePrivateFile(path: string, content: string): void {
-  writeFileSync(path, content, { encoding: 'utf8', mode: 0o600 });
-
-  if (process.platform !== 'win32') {
-    chmodSync(path, 0o600);
-  }
-}
-
-export function readIfExists(path: string): string | undefined {
-  return existsSync(path) ? withFilePath(path, () => readFileSync(path, 'utf8')) : undefined;
-}
-
-/** Como `readIfExists`, pero sin permiso (en el archivo o su carpeta) falla: no es lo mismo que si no existiera. */
-export function readUnlessMissing(path: string): string | undefined {
-  try {
-    return withFilePath(path, () => readFileSync(path, 'utf8'));
-  } catch (error) {
-    const { code } = error as NodeJS.ErrnoException;
-
-    if (code === 'ENOENT' || code === 'ENOTDIR') {
-      return undefined;
-    }
-
-    throw error;
-  }
-}
-
-/** Mueve `from` a `to` pisando `to`; si `from` no existe, no hace nada. */
-export function moveIfExists(from: string, to: string): void {
-  if (existsSync(from)) {
-    renameSync(from, to);
-  }
+/**
+ * Los archivos de los certificados, para `CertificateService`. Lo implementa `src/services/files` sobre el disco: los
+ * permisos (carpeta `0700`, clave `0600`, fuera de Windows) son del adaptador. Las lecturas tiran el error del sistema
+ * con la ruta del archivo.
+ */
+export interface CertificateStore {
+  /** Crea la carpeta del CUIT solo para el dueño, también si ya existía abierta. */
+  ensureFolder(files: Pick<CertificateFiles, 'folder'>): void;
+  /** El CSR y el certificado: no son secretos. */
+  write(path: string, content: string): void;
+  /** La clave privada: solo para el dueño desde que nace. */
+  writePrivate(path: string, content: string): void;
+  read(path: string): string;
+  readIfExists(path: string): string | undefined;
+  /** Como `readIfExists`, pero sin permiso (en el archivo o su carpeta) falla: no es lo mismo que si no existiera. */
+  readUnlessMissing(path: string): string | undefined;
+  /** Mueve `from` a `to` pisando `to`; si `from` no existe, no hace nada. */
+  moveIfExists(from: string, to: string): void;
 }

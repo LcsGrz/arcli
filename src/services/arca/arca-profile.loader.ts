@@ -2,6 +2,7 @@ import { ensurePathExists, readPemFile } from '../../lib/security/pem';
 import { type ArcaProfile, credentialPaths, resolveCuit } from '../../modules/config/arca-profile';
 import { inspectConfiguredCertificates } from '../../modules/config/certificate-expiry';
 import type { ArcliConfig, ArcliEnvironment } from '../../modules/config/config.schemas';
+import { nodeLocalFiles } from '../files/local-files';
 
 export interface CheckArcaProfileOptions {
   readonly environment: ArcliEnvironment;
@@ -28,8 +29,8 @@ export function checkArcaProfile(config: ArcliConfig, options: CheckArcaProfileO
   const cuit = resolveCuit(config);
   const { certPath, keyPath } = credentialPaths(config, options.environment);
 
-  ensurePathExists(certPath, 'certificado');
-  ensurePathExists(keyPath, 'clave privada');
+  ensurePathExists(nodeLocalFiles, certPath, 'certificado');
+  ensurePathExists(nodeLocalFiles, keyPath, 'clave privada');
 
   return { certPath, cuit, keyPath };
 }
@@ -41,10 +42,11 @@ export function checkArcaProfile(config: ArcliConfig, options: CheckArcaProfileO
 export function loadArcaProfile(config: ArcliConfig, options: LoadArcaProfileOptions): ArcaProfile {
   const { environment } = options;
   const { certPath, cuit, keyPath } = checkArcaProfile(config, { environment });
-  const cert = readPemFile(certPath, 'certificado');
+  const cert = readPemFile(nodeLocalFiles, certPath, 'certificado');
   const certificateNotices = inspectConfiguredCertificates(config, {
     activeEnvironment: environment,
     activePem: cert,
+    files: nodeLocalFiles,
     now: options.now,
   });
 
@@ -55,7 +57,7 @@ export function loadArcaProfile(config: ArcliConfig, options: LoadArcaProfileOpt
     context: {
       cert,
       cuit,
-      key: readPemFile(keyPath, 'clave privada'),
+      key: readPemFile(nodeLocalFiles, keyPath, 'clave privada'),
       production: environment === 'produccion',
       ticketPath: options.ticketPath,
     },

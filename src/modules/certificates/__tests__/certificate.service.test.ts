@@ -1,9 +1,10 @@
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { readArcaCertificate } from '../../../lib/security/arca-certificate';
+import { normalizeCertificatePem, readArcaCertificate } from '../../../lib/security/arca-certificate';
+import { nodeCertificateStore } from '../../../services/files/certificate-store';
 import type { ArcliConfig } from '../../config/config.schemas';
 import { CertificateService } from '../certificate.service';
 import { resolveCertificateFiles } from '../certificate-store';
@@ -46,6 +47,7 @@ function setup(overrides: Partial<ArcliConfig> = {}) {
       },
     },
     clock: { now: () => new Date('2026-11-04T12:00:00Z') },
+    store: nodeCertificateStore,
   });
 
   return { config: () => config, root, service };
@@ -291,6 +293,147 @@ describe('CertificateService', () => {
     expect(readFileSync(files.key, 'utf8')).toBe(key);
     expect(existsSync(files.previousKey)).toBe(false);
     expect(config().key.testing).toBe(files.key);
+  });
+
+  /** Caracterización antes de ARQ-12: los archivos pasan a un `CertificateStore` y esto tiene que quedar igual. */
+  describe('los archivos del certificado (ARQ-12)', () => {
+    function permissions(path: string): number {
+      return statSync(path).mode & 0o777;
+    }
+
+    it.skipIf(process.platform === 'win32')(
+      'generar deja la carpeta en 0700 y la clave en 0600, aunque la umask sea abierta',
+      () => {
+        const previousUmask = process.umask(0o022);
+
+        try {
+          const { root, service } = setup();
+          const files = resolveCertificateFiles(root, CUIT, 'testing');
+
+          service.generate({ environment: 'testing' });
+
+          expect(permissions(files.folder)).toBe(0o700);
+          expect(permissions(files.pendingKey)).toBe(0o600);
+        } finally {
+          process.umask(previousUmask);
+        }
+      },
+    );
+
+    it('generar deja el pedido como .nueva y no toca la clave ni el pedido activos', () => {
+      const { root, service } = setup();
+      const files = resolveCertificateFiles(root, CUIT, 'testing');
+
+      service.import({ content: signRequestLikeArca(service.generate({ environment: 'testing' }).csrPem) });
+
+      const [key, request] = [readFileSync(files.key, 'utf8'), readFileSync(files.request, 'utf8')];
+      const renewal = service.generate({ environment: 'testing' });
+
+      expect(readFileSync(files.pendingKey, 'utf8')).toContain('PRIVATE KEY');
+      expect(readFileSync(files.pendingRequest, 'utf8')).toBe(renewal.csrPem);
+      expect(readFileSync(files.key, 'utf8')).toBe(key);
+      expect(readFileSync(files.request, 'utf8')).toBe(request);
+    });
+
+    it('importar rota el certificado y la clave activos a .anterior y deja el nuevo con su pedido', () => {
+      const { root, service } = setup();
+      const files = resolveCertificateFiles(root, CUIT, 'testing');
+
+      service.import({ content: signRequestLikeArca(service.generate({ environment: 'testing' }).csrPem) });
+
+      const [oldCertificate, oldKey] = [readFileSync(files.certificate, 'utf8'), readFileSync(files.key, 'utf8')];
+      const renewal = service.generate({ environment: 'testing' });
+      const pendingKey = readFileSync(files.pendingKey, 'utf8');
+      const certificate = signRequestLikeArca(renewal.csrPem);
+
+      service.import({ content: certificate });
+
+      expect(readFileSync(files.previousCertificate, 'utf8')).toBe(oldCertificate);
+      expect(readFileSync(files.previousKey, 'utf8')).toBe(oldKey);
+      expect(readFileSync(files.certificate, 'utf8')).toBe(normalizeCertificatePem(certificate));
+      expect(readFileSync(files.key, 'utf8')).toBe(pendingKey);
+      expect(readFileSync(files.request, 'utf8')).toBe(renewal.csrPem);
+      expect([existsSync(files.pendingKey), existsSync(files.pendingRequest)]).toEqual([false, false]);
+    });
+
+    it.runIf(process.platform !== 'win32' && process.getuid?.() !== 0)(
+      'generar con un pedido que no se puede leer falla, no lo trata como ausente ni lo pisa',
+      () => {
+        const { root, service } = setup();
+        const files = resolveCertificateFiles(root, CUIT, 'testing');
+
+        service.generate({ environment: 'testing' });
+
+        const [pendingKey, pendingRequest] = [
+          readFileSync(files.pendingKey, 'utf8'),
+          readFileSync(files.pendingRequest, 'utf8'),
+        ];
+
+        // Solo escritura: si la lectura se tomara como "no hay pedido", la clave se podría pisar sin error.
+        chmodSync(files.pendingKey, 0o200);
+
+        try {
+          expect(() => service.generate({ environment: 'testing' })).toThrow(
+            expect.objectContaining({ code: 'EACCES', path: files.pendingKey }),
+          );
+        } finally {
+          chmodSync(files.pendingKey, 0o600);
+        }
+
+        expect(readFileSync(files.pendingKey, 'utf8')).toBe(pendingKey);
+        expect(readFileSync(files.pendingRequest, 'utf8')).toBe(pendingRequest);
+      },
+    );
+
+    it('estado: lee el certificado configurado y el pedido pendiente', () => {
+      const { root, service } = setup();
+      const files = resolveCertificateFiles(root, CUIT, 'testing');
+
+      expect(service.status('testing')).toEqual({
+        alias: undefined,
+        certificatePath: undefined,
+        environment: 'testing',
+        expiresAt: undefined,
+        keyPath: undefined,
+        pendingRequestPath: undefined,
+        unreadable: false,
+      });
+
+      const imported = service.import({
+        content: signRequestLikeArca(service.generate({ alias: 'mi-pc', environment: 'testing' }).csrPem),
+      });
+      const renewal = service.generate({ environment: 'testing' });
+
+      expect(service.status('testing')).toEqual({
+        alias: 'mi-pc',
+        certificatePath: files.certificate,
+        environment: 'testing',
+        expiresAt: imported.expiresAt,
+        keyPath: files.key,
+        pendingRequestPath: files.pendingRequest,
+        unreadable: false,
+      });
+      expect(service.readPendingRequest('testing')).toBe(renewal.csrPem);
+      expect(service.readPendingRequest('produccion')).toBeUndefined();
+    });
+
+    it('estado: un certificado configurado que no está o no es X.509 queda ilegible, sin fallar', () => {
+      const { root, service } = setup({ cert: { testing: join(tmpdir(), 'arcli-no-existe', 'testing.crt') } });
+
+      expect(service.status('testing')).toMatchObject({ expiresAt: undefined, unreadable: true });
+
+      const notCertificate = join(root, 'texto.crt');
+
+      writeFileSync(notCertificate, 'hola');
+
+      expect(setup({ cert: { testing: notCertificate } }).service.status('testing')).toMatchObject({
+        unreadable: true,
+      });
+    });
+
+    it('sin CUIT no hay pedido que leer', () => {
+      expect(setup({ cuit: undefined }).service.readPendingRequest('testing')).toBeUndefined();
+    });
   });
 
   it('accepts an unknown issuer with an explicit environment, and rejects a contradicting one', () => {

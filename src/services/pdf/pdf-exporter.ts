@@ -2,7 +2,6 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 
 import { withFilePath } from '../../lib/files/file-error';
-import { writeNewFile } from '../../lib/files/write-new-file';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import type { ExportExecutionResult } from '../../modules/export/export.types';
@@ -10,6 +9,7 @@ import type { InvoicePdfOptions, PdfVoucherExtras } from '../../modules/pdf/pdf.
 import { mapBillingResultToPdfData, mapExportResultToPdfData } from '../../modules/pdf/pdf-data.mapper';
 import { buildPdfFileName } from '../../modules/pdf/pdf-file-name';
 import { resolvePdfIssuer } from '../../modules/pdf/pdf-issuer';
+import { writeNewFile } from '../files/write-new-file';
 
 import { escapeHtmlStrings } from './escape-html';
 import type { PdfRenderer } from './pdf-plugin';

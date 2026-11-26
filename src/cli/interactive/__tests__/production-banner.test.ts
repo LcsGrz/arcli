@@ -10,6 +10,7 @@ import {
 } from '../../../lib/security/__tests__/self-signed-certificate';
 import { type ArcliConfig, CONFIG_DEFAULTS } from '../../../modules/config/config.schemas';
 import { inspectProductionCredentials } from '../../../modules/interactive/production-credentials';
+import { nodeLocalFiles } from '../../../services/files/local-files';
 import { productionBanner, stripAnsi } from '../../../ui';
 
 const DAY_MS = 86_400_000;
@@ -28,7 +29,7 @@ afterEach(() => {
 function notice(config: Partial<ArcliConfig>, inDays = 0, sessionInTesting = false) {
   const now = new Date(Date.now() + inDays * DAY_MS);
   const text = productionBanner({
-    ...inspectProductionCredentials({ ...CONFIG_DEFAULTS, ...config }, now),
+    ...inspectProductionCredentials({ ...CONFIG_DEFAULTS, ...config }, now, nodeLocalFiles),
     sessionInTesting,
   });
 

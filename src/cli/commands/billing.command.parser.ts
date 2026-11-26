@@ -1,10 +1,10 @@
 import type { Command } from 'commander';
 
-import { readJsonFile } from '../../lib/files/read-json-file';
 import type { Clock } from '../../lib/time/clock';
 import type { BillingDefaults } from '../../modules/billing/billing.defaults';
 import { type BillingInputPlan, resolveBillingInputPlan } from '../../modules/billing/billing.input-plan';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
+import { readJsonFile } from '../../services/files/read-json-file';
 import { systemClock } from '../../services/time/system-clock';
 
 import { readBillingFlags } from './billing.command.flags';

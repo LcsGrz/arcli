@@ -7,6 +7,7 @@ import {
 import { type ArcliEnvironment, formatEnvironmentLabel } from '../../modules/config/config.schemas';
 import { type ArcaHealth, checkArcaHealth } from '../../modules/parameters/health';
 import { fetchWsfeServerStatus } from '../../services/arca/wsfe-status';
+import { nodeLocalFiles } from '../../services/files/local-files';
 import {
   noticePanel,
   sanitizeTerminalText,
@@ -84,6 +85,7 @@ function noticesWithExpired(expired: CertificateExpiryNotice): CertificateExpiry
     try {
       const others = inspectConfiguredCertificates(service.getConfig(), {
         activeEnvironment: expired.environment,
+        files: nodeLocalFiles,
         now: new Date(),
       }).filter((notice) => notice.environment !== expired.environment || notice.use !== expired.use);
 

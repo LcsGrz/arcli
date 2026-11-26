@@ -16,6 +16,7 @@ import {
   ownExportCertificate,
 } from '../../modules/config/certificate-expiry';
 import { resolveExportCredentials } from '../../modules/config/config.export-credentials';
+import { nodeLocalFiles } from '../files/local-files';
 import { systemClock } from '../time/system-clock';
 
 import { ArcaExportGateway, type WsfexAuthenticator } from './arca-export.gateway';
@@ -144,7 +145,7 @@ export class ArcaClientFactory {
       return this.withTicketStorage(runtime.context);
     }
 
-    const cert = readPemFile(credentials.cert, 'certificado');
+    const cert = readPemFile(nodeLocalFiles, credentials.cert, 'certificado');
     const notice = inspectCertificateExpiry(
       cert,
       runtime.environment,
@@ -156,7 +157,11 @@ export class ArcaClientFactory {
       throw new CertificateExpiredError(notice);
     }
 
-    return this.withTicketStorage({ ...runtime.context, cert, key: readPemFile(credentials.key, 'clave privada') });
+    return this.withTicketStorage({
+      ...runtime.context,
+      cert,
+      key: readPemFile(nodeLocalFiles, credentials.key, 'clave privada'),
+    });
   }
 
   private withTicketStorage(context: Context): Context {

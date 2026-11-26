@@ -7,6 +7,7 @@ import { billingCommandSchema } from '../../modules/billing/billing.schemas';
 import { parseZodInput } from '../../modules/billing/billing.zod-errors';
 import type { CanonicalConfigKey } from '../../modules/config/config-key-table';
 import { parseConfigValue } from '../../modules/config/config-value-parser';
+import { nodeLocalFiles } from '../../services/files/local-files';
 import { stripAnsi } from '../../ui';
 import { EmissionCancelledError } from '../emission-cancelled';
 import {
@@ -210,7 +211,7 @@ describe('traducción de los errores de uso de commander', () => {
 describe('formatCliError: errores de config establecer', () => {
   function jsonError(key: CanonicalConfigKey, value: string, displayKey: string): Record<string, unknown> {
     try {
-      parseConfigValue(key, value, displayKey);
+      parseConfigValue(key, value, nodeLocalFiles, displayKey);
     } catch (error) {
       return serializeCliError(error) as Record<string, unknown>;
     }

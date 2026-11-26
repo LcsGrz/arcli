@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
+import { nodeLocalFiles } from '../../../services/files/local-files';
 import { buildConfigDoctorReport } from '../config-doctor';
 
 const temporaryDirectories: string[] = [];
@@ -75,6 +76,7 @@ describe('config-doctor', () => {
         puntoVentaPorDefecto: 3,
       },
       new Date(),
+      nodeLocalFiles,
       [{ environment: 'testing' }, { environment: 'produccion' }],
     );
 
@@ -101,6 +103,7 @@ describe('config-doctor', () => {
         },
       },
       new Date(),
+      nodeLocalFiles,
     );
 
     expect(report.ok).toBe(false);
@@ -126,6 +129,7 @@ describe('config-doctor', () => {
         },
       },
       new Date(),
+      nodeLocalFiles,
     );
 
     const check = report.checks.find((item) => item.label === 'Vencimiento cert. testing');
@@ -148,6 +152,7 @@ describe('config-doctor', () => {
         },
       },
       new Date(),
+      nodeLocalFiles,
     );
 
     const check = report.checks.find((item) => item.label === 'Vencimiento cert. testing');
@@ -165,9 +170,13 @@ describe('config-doctor', () => {
       output: { brutoPorDefecto: false, emitirPorDefecto: false, jsonPorDefecto: false },
     };
 
-    expect(buildConfigDoctorReport(base, new Date()).checks.find((check) => check.label === 'PDF')).toBeUndefined();
     expect(
-      buildConfigDoctorReport({ ...base, pdf: 'siempre' }, new Date()).checks.find((check) => check.label === 'PDF'),
+      buildConfigDoctorReport(base, new Date(), nodeLocalFiles).checks.find((check) => check.label === 'PDF'),
+    ).toBeUndefined();
+    expect(
+      buildConfigDoctorReport({ ...base, pdf: 'siempre' }, new Date(), nodeLocalFiles).checks.find(
+        (check) => check.label === 'PDF',
+      ),
     ).toMatchObject({
       category: 'warning',
     });
@@ -175,7 +184,7 @@ describe('config-doctor', () => {
 });
 
 describe('config revisar: plugin de PDF', () => {
-  const pluginCheck = (pdf: 'nunca' | 'preguntar' | 'siempre', plugin: Parameters<typeof buildConfigDoctorReport>[3]) =>
+  const pluginCheck = (pdf: 'nunca' | 'preguntar' | 'siempre', plugin: Parameters<typeof buildConfigDoctorReport>[4]) =>
     buildConfigDoctorReport(
       {
         cert: {},
@@ -186,6 +195,7 @@ describe('config revisar: plugin de PDF', () => {
         pdf,
       },
       new Date(),
+      nodeLocalFiles,
       [],
       plugin,
     ).checks.find((check) => check.label === 'Plugin de PDF');
@@ -240,7 +250,7 @@ describe('config revisar: huecos de Stryker (TEST-21)', () => {
     // El certificado dura 10 días: 30 días después ya venció.
     vi.useFakeTimers({ now: Date.now() + 30 * 24 * 60 * 60 * 1000, toFake: ['Date'] });
 
-    const report = buildConfigDoctorReport({ ...base, cert: { testing: testingCert } }, new Date());
+    const report = buildConfigDoctorReport({ ...base, cert: { testing: testingCert } }, new Date(), nodeLocalFiles);
     const [check] = find(report, 'Vencimiento cert. testing');
 
     expect(report.ok).toBe(false);
@@ -252,7 +262,7 @@ describe('config revisar: huecos de Stryker (TEST-21)', () => {
     ['solo el certificado', { produccion: '/c.crt' }, {}],
     ['solo la clave', {}, { produccion: '/c.key' }],
   ])('credenciales de producción con %s: aviso', (_case, cert, key) => {
-    const report = buildConfigDoctorReport({ ...base, cert, key }, new Date());
+    const report = buildConfigDoctorReport({ ...base, cert, key }, new Date(), nodeLocalFiles);
 
     expect(find(report, 'Credenciales producción')).toEqual([expect.objectContaining({ category: 'warning' })]);
   });
@@ -261,7 +271,7 @@ describe('config revisar: huecos de Stryker (TEST-21)', () => {
     ['solo el certificado', { testing: '/c.crt' }, {}],
     ['solo la clave', {}, { testing: '/c.key' }],
   ])('credenciales de testing con %s: aviso', (_case, cert, key) => {
-    const report = buildConfigDoctorReport({ ...base, cert, key }, new Date());
+    const report = buildConfigDoctorReport({ ...base, cert, key }, new Date(), nodeLocalFiles);
 
     expect(find(report, 'Credenciales testing')).toEqual([expect.objectContaining({ category: 'warning' })]);
   });
@@ -274,6 +284,7 @@ describe('config revisar: huecos de Stryker (TEST-21)', () => {
         exportacion: { cert: { testing: exportCert }, key: { produccion: '/e.key', testing: '/e.key' } },
       },
       new Date(),
+      nodeLocalFiles,
     );
 
     expect(find(report, 'Credenciales WSFEX')).toEqual([
@@ -286,13 +297,14 @@ describe('config revisar: huecos de Stryker (TEST-21)', () => {
     expect(find(report, 'Vencimiento cert. exportación testing')).toEqual([
       expect.objectContaining({ category: 'ok' }),
     ]);
-    expect(find(buildConfigDoctorReport(base, new Date()), 'Credenciales WSFEX')).toEqual([]);
+    expect(find(buildConfigDoctorReport(base, new Date(), nodeLocalFiles), 'Credenciales WSFEX')).toEqual([]);
   }, 10_000);
 
   it('el certificado de exportación por vencer no manda a renovar el general (ARQ-22)', () => {
     const report = buildConfigDoctorReport(
       { ...base, exportacion: { cert: { testing: createCertificateFile(10) }, key: { testing: '/e.key' } } },
       new Date(),
+      nodeLocalFiles,
     );
     const [check] = find(report, 'Vencimiento cert. exportación testing');
 
@@ -308,6 +320,7 @@ describe('config revisar: huecos de Stryker (TEST-21)', () => {
         emisor: { domicilio: 'Calle 123', inicioActividades: '2020-03-01', razonSocial: 'Ana' },
       },
       new Date(),
+      nodeLocalFiles,
     );
 
     expect(find(report, 'PDF')).toEqual([expect.objectContaining({ category: 'ok' })]);

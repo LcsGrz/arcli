@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -412,5 +412,181 @@ describe('--cargar con un JSON ilegible (H11)', () => {
       expect(text).not.toContain('Detalles');
       expect(text.split('datos.json')).toHaveLength(2);
     }
+  });
+});
+
+/**
+ * Caracterización antes de ARQ-12: la lectura de archivos sale del núcleo (services/files y puertos) y estos errores
+ * tienen que quedar iguales, con su código, texto, detalles y sugerencia.
+ */
+describe('leer archivos del usuario: mismos errores (ARQ-12)', () => {
+  const ENCRYPTED_KEY = '-----BEGIN ENCRYPTED PRIVATE KEY-----\nX\n-----END ENCRYPTED PRIVATE KEY-----';
+  const PERMISSION_SUGGESTION =
+    'Revisá que tu usuario tenga permiso ahí y que otro programa no lo esté usando, o elegí otra ruta.';
+
+  /** Un archivo de la carpeta temporal; sin contenido, no se crea. */
+  function userFile(name: string, content?: string): string {
+    const path = join(directory, name);
+
+    if (content !== undefined) {
+      writeFileSync(path, content);
+    }
+
+    return path;
+  }
+
+  /** El config.json, si el comando lo llegó a crear. */
+  function savedConfig(): string {
+    const path = join(directory, 'config.json');
+
+    return existsSync(path) ? readFileSync(path, 'utf8') : '';
+  }
+
+  it.each([
+    ['cert.testing', 'no-esta.crt', undefined, 'La ruta del certificado no existe: .../dos/no-esta.crt'],
+    ['key.produccion', 'no-esta.key', undefined, 'La ruta de la clave privada no existe: .../dos/no-esta.key'],
+    [
+      'cert.testing',
+      'malo.pem',
+      'NO-ES-PEM',
+      'La ruta del certificado apunta a un archivo con formato PEM inválido: .../dos/malo.pem. Debe contener un bloque como -----BEGIN CERTIFICATE-----.',
+    ],
+    [
+      'key.testing',
+      'malo.pem',
+      'NO-ES-PEM',
+      'La ruta de la clave privada apunta a un archivo con formato PEM inválido: .../dos/malo.pem. Debe contener un bloque como -----BEGIN PRIVATE KEY-----.',
+    ],
+    [
+      'key.testing',
+      'cifrada.key',
+      ENCRYPTED_KEY,
+      'La clave privada está cifrada con contraseña y ARCLI no puede usarla: .../dos/cifrada.key. Generala sin contraseña o descifrala con `openssl pkey -in clave.key -out clave-sin-pass.key`.',
+    ],
+  ])('config establecer %s con %s', async (key, name, content, error) => {
+    const { json } = await fail('config', 'establecer', key, userFile(name, content));
+
+    expect(json).toEqual({
+      codigo: 'CONFIGURATION_ERROR',
+      detalles: { ruta: `.../dos/${name}` },
+      error,
+      sugerencia: null,
+    });
+    expect(savedConfig()).not.toContain(name);
+  });
+
+  it.runIf(withPermissions).each(['cert.testing', 'key.testing'])(
+    'config establecer %s con un PEM sin permiso de lectura falla, no lo da por inexistente',
+    async (key) => {
+      const path = userFile('bloqueado.pem', '-----BEGIN PRIVATE KEY-----\nX\n-----END PRIVATE KEY-----');
+
+      chmodSync(path, 0o000);
+
+      expect((await fail('config', 'establecer', key, path)).json).toEqual({
+        codigo: 'UNEXPECTED_ERROR',
+        detalles: null,
+        error: 'No se pudo abrir .../dos/bloqueado.pem: no tenés permiso.',
+        sugerencia: PERMISSION_SUGGESTION,
+      });
+      expect(savedConfig()).not.toContain('bloqueado.pem');
+    },
+  );
+
+  it.each([
+    ['emisor.logo', 'no-esta.png', 'el logo'],
+    ['pdfNavegador', 'no-esta-chrome', 'el navegador'],
+  ])('config establecer %s con una ruta que no existe', async (key, name, label) => {
+    const path = userFile(name);
+
+    expect((await fail('config', 'establecer', key, path)).json).toEqual({
+      codigo: 'INPUT_VALIDATION_ERROR',
+      detalles: null,
+      error: `No se encontró ${label} en "${path}".`,
+      sugerencia:
+        'Mirá cada clave con sus valores válidos en `arcli config establecer --ayuda`, y la config actual con `arcli config`.',
+    });
+    expect(savedConfig()).not.toContain(name);
+  });
+
+  it('--cargar con un JSON que no existe, en A/B/C y en la E', async () => {
+    const path = userFile('no-esta.json');
+
+    saveProfile();
+
+    for (const command of ['fc', 'fe']) {
+      expect((await fail(command, '--cargar', path)).json).toEqual({
+        codigo: 'INPUT_VALIDATION_ERROR',
+        detalles: { ruta: path },
+        error: `La ruta del archivo JSON no existe: ${path}`,
+        sugerencia: null,
+      });
+    }
+  });
+
+  it.runIf(withPermissions)('--cargar con un JSON sin permiso de lectura, en A/B/C y en la E', async () => {
+    const path = userFile('bloqueado.json', '{}');
+
+    saveProfile();
+    chmodSync(path, 0o000);
+
+    for (const command of ['fc', 'fe']) {
+      expect((await fail(command, '--cargar', path)).json).toEqual({
+        codigo: 'UNEXPECTED_ERROR',
+        detalles: null,
+        error: 'No se pudo abrir .../dos/bloqueado.json: no tenés permiso.',
+        sugerencia: PERMISSION_SUGGESTION,
+      });
+    }
+  });
+
+  describe('config revisar con el certificado configurado', () => {
+    async function expiryCheck(certPath: string): Promise<unknown> {
+      let stdout = '';
+
+      saveConfig({ cert: { testing: certPath }, cuit: '20123456786', key: { testing: certificate.keyPath } });
+      vi.mocked(process.stdout.write).mockImplementation((chunk) => {
+        stdout += String(chunk);
+
+        return true;
+      });
+      await createProgram().parseAsync(['node', 'arcli', 'config', 'revisar', '--json']);
+
+      const report = JSON.parse(stdout) as { chequeos: Array<{ etiqueta: string }> };
+
+      return report.chequeos.find((check) => check.etiqueta === 'Vencimiento cert. testing');
+    }
+
+    const unverified = (reason: string) => ({
+      categoria: 'warning',
+      detalle: `No se pudo verificar el vencimiento del certificado de testing: ${reason}`,
+      etiqueta: 'Vencimiento cert. testing',
+    });
+
+    it('legible: lee el vencimiento', async () => {
+      expect(await expiryCheck(certificate.certPath)).toEqual({
+        categoria: 'ok',
+        detalle: expect.stringMatching(/^El certificado de testing vence el \d{1,2}\/\d{2}\/\d{4}\.$/),
+        etiqueta: 'Vencimiento cert. testing',
+      });
+    });
+
+    it.each([
+      ['no existe', undefined, 'La ruta del certificado no existe: .../dos/cert.crt'],
+      [
+        'no es PEM',
+        'NO-ES-PEM',
+        'La ruta del certificado apunta a un archivo con formato PEM inválido: .../dos/cert.crt. Debe contener un bloque como -----BEGIN CERTIFICATE-----.',
+      ],
+    ])('%s: avisa con el error de lectura', async (_name, content, reason) => {
+      expect(await expiryCheck(userFile('cert.crt', content))).toEqual(unverified(reason));
+    });
+
+    it.runIf(withPermissions)('sin permiso de lectura: avisa que no pudo abrirlo', async () => {
+      const path = userFile('cert.crt', certificate.pem);
+
+      chmodSync(path, 0o000);
+
+      expect(await expiryCheck(path)).toEqual(unverified('No se pudo abrir .../dos/cert.crt: no tenés permiso.'));
+    });
   });
 });

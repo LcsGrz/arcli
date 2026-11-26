@@ -43,9 +43,9 @@ const UI_BARREL = {
 
 // =========================
 // Fronteras del núcleo (docs/architecture.md, "Núcleo y adaptadores"): `modules` y `lib` no saben quién los llama.
-// Lo que ya se cumple es error: `no-restricted-imports`, `no-restricted-syntax` (el reloj) y `no-restricted-globals`
-// (`process`). El reloj y `process` siguen en warn en los módulos de la app (ARQ-7), y el global `process`, también en
-// `PROCESS_DEBT_FILES` (ARQ-12). Lo que hoy falla es deuda en warn, con el ticket que la cierra
+// Lo que ya se cumple es error: `no-restricted-imports` (también `node:fs`), `no-restricted-syntax` (el reloj) y
+// `no-restricted-globals` (`process`). El reloj, `process` y `node:fs` siguen en warn en los módulos de la app (ARQ-7).
+// Lo que hoy falla es deuda en warn, con el ticket que la cierra
 // (`@typescript-eslint/no-restricted-imports`): no es un patrón para copiar. Cuando el ticket se cierra, la frontera
 // pasa al bloque de error.
 // =========================
@@ -83,6 +83,11 @@ const CORE_ON_PROMPTS = {
   regex: '^@inquirer/',
   message: 'Las preguntas son de la app CLI (src/cli/interactive): el núcleo recibe las respuestas como datos.',
 };
+const CORE_ON_FS = ['node:fs', 'node:fs/promises', 'fs', 'fs/promises'].map((name) => ({
+  name,
+  message:
+    'El núcleo no lee ni escribe archivos: recibí el contenido, o un puerto (LocalFiles, CertificateStore, TicketStore) como dependencia; el adaptador va en src/services/files.',
+}));
 const CORE_ON_APP_LIBS = [
   { name: 'commander', message: 'El parseo de flags es de la app CLI: el núcleo recibe la entrada ya parseada.' },
   {
@@ -125,15 +130,6 @@ const CORE_ON_CONF = {
   message:
     'El almacenamiento de la config es un adaptador: recibí la config resuelta o un repositorio como dependencia. Lo cierra ARQ-12.',
 };
-const CORE_ON_FS = ['node:fs', 'node:fs/promises', 'fs', 'fs/promises'].map((name) => ({
-  name,
-  message:
-    'El núcleo no lee ni escribe archivos: recibí el contenido, o un puerto (TicketStore, un repositorio) como dependencia. Lo cierra ARQ-12.',
-}));
-/** Leen el proceso junto con los archivos: se mudan con ellos. Ningún otro del núcleo. */
-const PROCESS_DEBT_FILES = ['src/lib/files/restrict-to-owner.ts', 'src/modules/certificates/certificate-store.ts'];
-const PROCESS_DEBT_MESSAGE =
-  'La plataforma se lee acá junto con los archivos: pasa al adaptador con ellos. Lo cierra ARQ-12. No copies el patrón.';
 
 /** Las reglas de deuda del núcleo; en los módulos de la app, todas con el mensaje de ARQ-7. */
 const coreDebtRules = ({ message, extraPaths = [] } = {}) => {
@@ -142,7 +138,7 @@ const coreDebtRules = ({ message, extraPaths = [] } = {}) => {
     '@typescript-eslint/no-restricted-imports': [
       'warn',
       {
-        paths: [...withMessage([CORE_ON_CONF, ...CORE_ON_FS]), ...extraPaths],
+        paths: [...withMessage([CORE_ON_CONF]), ...extraPaths],
         patterns: withMessage([CORE_ON_UI]),
       },
     ],
@@ -283,16 +279,11 @@ export default defineConfig([
     files: CORE_FILES,
     ignores: TEST_FILES,
     rules: {
-      ...coreImportRules(processModule(PROCESS_MESSAGE)),
+      ...coreImportRules([...CORE_ON_FS, ...processModule(PROCESS_MESSAGE)]),
       ...noProcessGlobal('error', PROCESS_MESSAGE),
       'no-restricted-syntax': noClockReads('error', NOW_MESSAGE),
       ...coreDebtRules(),
     },
-  },
-  {
-    files: PROCESS_DEBT_FILES,
-    // Solo el global: importar `node:process` sigue en error, como en el resto del núcleo.
-    rules: noProcessGlobal('warn', PROCESS_DEBT_MESSAGE),
   },
   {
     files: APP_MODULES,
@@ -301,7 +292,13 @@ export default defineConfig([
       'no-restricted-syntax': noClockReads('warn', APP_MODULE_MESSAGE),
       ...coreImportRules(),
       ...noProcessGlobal('warn', APP_MODULE_MESSAGE),
-      ...coreDebtRules({ message: APP_MODULE_MESSAGE, extraPaths: processModule(APP_MODULE_MESSAGE) }),
+      ...coreDebtRules({
+        message: APP_MODULE_MESSAGE,
+        extraPaths: [
+          ...CORE_ON_FS.map((entry) => ({ ...entry, message: APP_MODULE_MESSAGE })),
+          ...processModule(APP_MODULE_MESSAGE),
+        ],
+      }),
     },
   },
   {

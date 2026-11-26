@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import { OWNER_ONLY_UMASK } from '../lib/files/restrict-to-owner';
 import { COMPLETE_COMMAND } from '../modules/completion/shell-scripts';
 import { renderUpdateNoticePanel } from '../modules/update-check/update-check.presenter';
+import { OWNER_ONLY_UMASK } from '../services/files/restrict-to-owner';
 import { writeTerminalError } from '../ui';
 
 import { exitWhenWritten, settleOutput, watchOutputs } from './closed-output';
