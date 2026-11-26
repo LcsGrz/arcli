@@ -1,7 +1,7 @@
 import { MemoryTicketStorage, SoapClient } from '@arcasdk/core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import { isConnectionError } from '../../../lib/errors/connection-error';
 import { ArcaDeadlineError } from '../../../lib/errors/deadline-error';
@@ -13,7 +13,7 @@ import { ArcaFceObligationGateway } from '../arca-fce-obligation.gateway';
 import { ArcaPadronGateway } from '../arca-padron.gateway';
 import { ArcaVoucherHistoryGateway } from '../arca-voucher-history.gateway';
 import { withCancellableQueries } from '../query-cancellation';
-import { installSoapDeadlines } from '../soap-deadline';
+import { installSoapDeadlines, SOAP_OPERATIONS } from '../soap-deadline';
 import { fetchWsfeServerStatus } from '../wsfe-status';
 import { fetchWsfexServerStatus } from '../wsfex-status';
 
@@ -603,23 +603,18 @@ async function abortWhileHung(operation: string, run: () => Promise<unknown>, re
 }
 
 describe.each(CANCELLABLE)('cancelable, $service: $operation', ({ operation, run }) => {
-  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
-  it.fails(
-    'cortada la señal mientras ARCA no contesta: corta enseguida, con su razón, y cierra la conexión',
-    async () => {
-      const reason = new Error('Lo cortó quien llama.');
-      const { settled } = await abortWhileHung(operation, run, reason);
+  it('cortada la señal mientras ARCA no contesta: corta enseguida, con su razón, y cierra la conexión', async () => {
+    const reason = new Error('Lo cortó quien llama.');
+    const { settled } = await abortWhileHung(operation, run, reason);
 
-      expect(settled).toMatchObject({ end: 'se cortó' });
-      expect((settled as { error: unknown }).error).toBe(reason);
-      // Cortó la señal y no el plazo: ninguno vence ni queda corriendo.
-      expect(arca.deadlines.filter(({ state }) => state !== 'cancelado')).toEqual([]);
-      await vi.waitFor(() => expect(requestsOf(operation)[0]?.dropped).toBe(true), WAIT);
-    },
-  );
+    expect(settled).toMatchObject({ end: 'se cortó' });
+    expect((settled as { error: unknown }).error).toBe(reason);
+    // Cortó la señal y no el plazo: ninguno vence ni queda corriendo.
+    expect(arca.deadlines.filter(({ state }) => state !== 'cancelado')).toEqual([]);
+    await vi.waitFor(() => expect(requestsOf(operation)[0]?.dropped).toBe(true), WAIT);
+  });
 
-  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
-  it.fails('con la señal ya cortada, no le pide nada a ARCA', async () => {
+  it('con la señal ya cortada, no le pide nada a ARCA', async () => {
     const reason = new Error('Lo cortó quien llama.');
     const settled = await arca.settle(withCancellableQueries(aborted(reason), run));
 
@@ -630,8 +625,7 @@ describe.each(CANCELLABLE)('cancelable, $service: $operation', ({ operation, run
 });
 
 describe('cancelable, lo que no está en la tabla', () => {
-  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     'FEParamGetTiposPaises',
     // Parecida a la que emite, pero no es.
     'FECAEASolicitar',
@@ -646,8 +640,7 @@ describe('cancelable, lo que no está en la tabla', () => {
 });
 
 describe('la razón de una cancelación', () => {
-  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['una consulta', 'FECompUltimoAutorizado', getLastNumber],
     ['una tabla de la E', 'FEXGetPARAM_DST_pais', () => exportGateway().getDestinationCountries()],
     ['el estado del servidor', 'FEDummy', () => fetchWsfeServerStatus('testing', never())],
@@ -722,14 +715,12 @@ async function callWithSignal(operation: keyof typeof WSDLS, signal: AbortSignal
 }
 
 describe.each(Object.keys(WSDLS) as Array<keyof typeof WSDLS>)('%s con `options.signal`', (operation) => {
-  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
-  it.fails('ya cortada, se pide igual', async () => {
+  it('ya cortada, se pide igual', async () => {
     expect(await arca.settle(callWithSignal(operation, aborted()))).toMatchObject({ end: 'contestó' });
     expect(await finishedRequests(operation)).toEqual([expect.objectContaining({ dropped: false })]);
   });
 
-  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
-  it.fails('cortada durante el pedido, se espera la respuesta', async () => {
+  it('cortada durante el pedido, se espera la respuesta', async () => {
     const controller = new AbortController();
 
     arca.server.respond((name) => (name === operation ? SLOW_MS : undefined));
@@ -744,8 +735,7 @@ describe.each(Object.keys(WSDLS) as Array<keyof typeof WSDLS>)('%s con `options.
 });
 
 describe('contextos', () => {
-  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
-  it.fails('dos a la vez no se mezclan: cortar uno no corta la consulta del otro', async () => {
+  it('dos a la vez no se mezclan: cortar uno no corta la consulta del otro', async () => {
     const first = new AbortController();
     const second = new AbortController();
 
@@ -769,6 +759,25 @@ describe('contextos', () => {
     expect(requestsOf('FECompUltimoAutorizado').filter(({ dropped }) => !dropped)).toHaveLength(1);
   });
 
+  it('uno adentro de otro: cortar el de afuera también corta las consultas del de adentro', async () => {
+    const outer = new AbortController();
+    const reason = new Error('Lo cortó el de afuera.');
+
+    arca.server.respond((name) => (name === 'FECompUltimoAutorizado' ? 'cuelga' : undefined));
+    arca.holdDeadlines();
+
+    const call = arca.settle(
+      withCancellableQueries(outer.signal, async () =>
+        withCancellableQueries(new AbortController().signal, getLastNumber),
+      ),
+    );
+
+    await vi.waitFor(() => expect(arca.server.count('FECompUltimoAutorizado')).toBe(1), WAIT);
+    outer.abort(reason);
+    arca.releaseDeadlines();
+    expect(await call).toEqual({ end: 'se cortó', error: reason });
+  });
+
   it('terminado el contexto, cortar su señal no corta lo que se pide después', async () => {
     const controller = new AbortController();
 
@@ -779,20 +788,20 @@ describe('contextos', () => {
 });
 
 describe('contrato de la cancelación', () => {
-  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
-  it.fails('cada operación de la tabla tiene su caso arriba, cancelable o no, como dice la tabla', async () => {
-    // TODO(ARQ-11 PR 6): con la tabla exportada, importarla arriba y fijar el tipo de las que no se cancelan:
-    // expectTypeOf(SOAP_OPERATIONS.FECAESolicitar.cancellable).toEqualTypeOf<false>(), y lo mismo en FEXAuthorize y
-    // loginCms. Hoy no compila: la tabla no existe.
-    const { SOAP_OPERATIONS: table } = (await import('../soap-deadline')) as unknown as {
-      readonly SOAP_OPERATIONS?: Readonly<Record<string, { readonly cancellable: boolean; readonly ms: number }>>;
-    };
+  it('la emisión y el login no se cancelan, por tipo', () => {
+    expectTypeOf(SOAP_OPERATIONS.FECAESolicitar.cancellable).toEqualTypeOf<false>();
+    expectTypeOf(SOAP_OPERATIONS.FEXAuthorize.cancellable).toEqualTypeOf<false>();
+    expectTypeOf(SOAP_OPERATIONS.loginCms.cancellable).toEqualTypeOf<false>();
+  });
+
+  it('cada operación de la tabla tiene su caso arriba, cancelable o no, como dice la tabla', () => {
+    const table: Readonly<Record<string, { readonly cancellable: boolean; readonly ms: number }>> = SOAP_OPERATIONS;
 
     expect(table, 'soap-deadline.ts exporta la tabla de operaciones').toBeDefined();
 
-    const inTable = (operation: string) => Object.hasOwn(table ?? {}, operation);
+    const inTable = (operation: string) => Object.hasOwn(table, operation);
     const fromTable = Object.fromEntries(
-      Object.entries(table ?? {}).map(([operation, { cancellable, ms }]) => [operation, { cancellable, ms }]),
+      Object.entries(table).map(([operation, { cancellable, ms }]) => [operation, { cancellable, ms }]),
     );
     const fromCases = Object.fromEntries(
       CALLS.filter(({ operation }) => inTable(operation)).map(({ cancellable, ms, operation }) => [
