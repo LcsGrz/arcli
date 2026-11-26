@@ -952,6 +952,16 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
 
   // REV-65 y TUI-22: la fecha de pago va antes de los opcionales y no depende de ellos.
   describe('la fecha de pago recordada', () => {
+    // El 20/11/2026 tiene que poder ser fecha de pago: con el reloj de verdad dejaba de serlo pasado el 26/11.
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-14T12:00:00-03:00'));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     /** Los pasos con uno mas al final, que vuelve una vez: asi se llega de nuevo a la fecha de pago ya respondida. */
     async function repeatWithStepAfter() {
       const original = { ...INVOICE, exportType: 2 as const, incoterm: undefined };
