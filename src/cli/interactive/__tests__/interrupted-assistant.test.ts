@@ -323,12 +323,20 @@ describe.each([FC, FE])('$name: eco de npx', (family) => {
   it('ARCA contesta dentro del eco: la pregunta que sigue conserva sus listeners (signal-exit de @inquirer)', async () => {
     const listeners = signalListeners();
     const promptListener = vi.fn();
-    const sent = ctrlCDuring(family.emit(), { cancellable: false });
+    let signalAt = 0;
+    let menuAt = 0;
+    const sent = ctrlCDuring(family.emit(), {
+      cancellable: false,
+      onReach: () => {
+        signalAt = performance.now();
+      },
+    });
     let atMenu: ReturnType<typeof signalListeners> | undefined;
     const running = runMenu(script(family), {
       onAsk: (message) => {
         // La pregunta que se abre despues de emitir agrega el suyo, como el prompt real.
         if (MENU.test(message) && sent.answered() && !atMenu) {
+          menuAt = performance.now();
           process.on('SIGINT', promptListener);
           atMenu = signalListeners();
         }
@@ -345,6 +353,12 @@ describe.each([FC, FE])('$name: eco de npx', (family) => {
 
     expect(run.error).toBeUndefined();
     expect(atMenu, 'nunca volvió al menú').toBeDefined();
+    // El menu se abrio dentro del eco, con el listener propio todavia puesto: es el caso que hay que probar.
+    expect(menuAt - signalAt, 'el menú se abrió después del eco').toBeLessThan(REPEATED_SIGNAL_MS);
+    expect(
+      atMenu?.SIGINT.some((listener) => !listeners.SIGINT.includes(listener) && listener !== promptListener),
+      'el listener propio ya no estaba',
+    ).toBe(true);
     // Pasado el eco, el de la pregunta sigue: nadie lo aparto.
     await new Promise((resolve) => setTimeout(resolve, REPEATED_SIGNAL_MS + 50));
     expect(process.rawListeners('SIGINT')).toContain(promptListener);

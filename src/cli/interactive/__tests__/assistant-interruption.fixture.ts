@@ -180,12 +180,13 @@ export function ctrlCDuring(
         wasCut = query?.aborted === true;
 
         try {
-          await Promise.race([released, pause(ANSWER_MS), cut]);
+          // El corte primero: si ya llego, gana aunque ARCA tambien este por contestar.
+          await Promise.race([cut, released, pause(ANSWER_MS)]);
         } finally {
           after = written();
         }
 
-        isAnswered = true;
+        isAnswered = !wasCut;
       }
     }
 

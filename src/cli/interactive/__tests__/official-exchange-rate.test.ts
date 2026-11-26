@@ -28,6 +28,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  // El `process.kill` falso del test de Ctrl+C, aunque falle.
+  vi.restoreAllMocks();
 });
 
 describe('officialExchangeRateLoader', () => {
@@ -62,7 +64,6 @@ describe('officialExchangeRateLoader', () => {
     expect(load.known({ currencyCode: 'USD' })).toBeUndefined();
     expect(await load({ currencyCode: 'USD' })).toBe(1450);
     expect(getQuotation).toHaveBeenCalledTimes(2);
-    vi.mocked(process.kill).mockRestore();
   });
 
   it('consulta la oficial de ARCA como el CLI sin --cm, una vez por moneda', async () => {
