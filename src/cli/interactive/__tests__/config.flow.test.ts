@@ -11,6 +11,7 @@ import {
 } from '../../../lib/security/__tests__/self-signed-certificate';
 import { parseConfigValue } from '../../../modules/config/config-value-parser';
 import { BACK } from '../../../modules/interactive/wizard';
+import { nodeLocalFiles } from '../../../services/files/local-files';
 import { stripAnsi } from '../../../ui';
 import { runCertificateMenu, runGenerateCertificate } from '../certificate.flow';
 import { runConfigMenu, runGuidedSetup } from '../config.flow';
@@ -87,7 +88,7 @@ vi.mock('../../../modules/config/config.service', () => ({
     }
 
     if (key === 'moneda' || key === 'exportacion.actividad') {
-      parseConfigValue(key === 'moneda' ? 'monedaPorDefecto' : key, value);
+      parseConfigValue(key === 'moneda' ? 'monedaPorDefecto' : key, value, nodeLocalFiles);
     }
   },
 }));

@@ -1,8 +1,8 @@
-import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { formatArcaDateAsArgentineDate, formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
+import type { LocalFiles } from '../../lib/files/local-files';
 import { certificateRenewalGuideUrl, EXPORT_CERTIFICATE_GUIDE_URL } from '../../lib/links';
 import {
   type CertificateExpiry,
@@ -109,6 +109,8 @@ export interface ConfiguredCertificatesOptions {
   readonly activeEnvironment: ArcliEnvironment;
   /** El PEM del entorno activo, si ya se leyo para el contexto: no se vuelve a leer el archivo. */
   readonly activePem?: string;
+  /** Con que se leen los certificados de los otros entornos y los de exportacion. */
+  readonly files: Pick<LocalFiles, 'readText'>;
   readonly now: Date;
 }
 
@@ -129,8 +131,11 @@ export function inspectConfiguredCertificates(
   return [options.activeEnvironment, ...environments].flatMap((environment) => {
     const pem = environment === options.activeEnvironment ? options.activePem : undefined;
     const certificates = [
-      { content: pem ?? readCertificateQuietly(config.cert?.[environment]), use: undefined },
-      { content: readCertificateQuietly(ownExportCertificate(config, environment)), use: 'exportacion' },
+      { content: pem ?? readCertificateQuietly(options.files, config.cert?.[environment]), use: undefined },
+      {
+        content: readCertificateQuietly(options.files, ownExportCertificate(config, environment)),
+        use: 'exportacion',
+      },
     ] as const;
 
     return certificates.flatMap(({ content, use }) => {
@@ -189,13 +194,13 @@ export function exportCertificateView(
   };
 }
 
-function readCertificateQuietly(filePath: string | undefined): string | undefined {
+function readCertificateQuietly(files: Pick<LocalFiles, 'readText'>, filePath: string | undefined): string | undefined {
   if (!filePath) {
     return undefined;
   }
 
   try {
-    return readFileSync(filePath, 'utf8');
+    return files.readText(filePath);
   } catch {
     return undefined;
   }

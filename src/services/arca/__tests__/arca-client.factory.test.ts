@@ -10,7 +10,7 @@ vi.mock('@arcasdk/core', async (original) => ({
   ...(await original<typeof import('@arcasdk/core')>()),
   Arca: vi.fn(),
 }));
-vi.mock('../../../lib/security/pem', () => ({ readPemFile: (path: string) => `pem:${path}` }));
+vi.mock('../../../lib/security/pem', () => ({ readPemFile: (_files: unknown, path: string) => `pem:${path}` }));
 
 const productionContext = {
   cert: 'cert',

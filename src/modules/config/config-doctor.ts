@@ -1,4 +1,5 @@
 import { errorText } from '../../lib/files/file-error';
+import type { LocalFiles } from '../../lib/files/local-files';
 import { isCertificateExpiringSoon, readCertificateExpiry } from '../../lib/security/certificate';
 import { readPemFile } from '../../lib/security/pem';
 import { listMissingIssuerKeys } from '../pdf/pdf-issuer';
@@ -58,6 +59,7 @@ function buildCertificateExpiryCheck(
   label: string,
   name: string,
   certPath: string | undefined,
+  files: LocalFiles,
   now: Date,
   renewal: string,
 ): ConfigDoctorReport['checks'][number] | null {
@@ -66,7 +68,7 @@ function buildCertificateExpiryCheck(
   }
 
   try {
-    const pemContent = readPemFile(certPath, 'certificado');
+    const pemContent = readPemFile(files, certPath, 'certificado');
     const expiry = readCertificateExpiry(pemContent, now);
     const formattedDate = formatCertificateExpiryDate(expiry.expiresAt);
 
@@ -136,9 +138,11 @@ function buildPdfPluginCheck(plugin: ConfigDoctorPdfPlugin): ConfigDoctorReport[
   };
 }
 
+/** `files` lee los certificados configurados, para el vencimiento. */
 export function buildConfigDoctorReport(
   config: ArcliConfig,
   now: Date,
+  files: LocalFiles,
   runtimeChecks: readonly ConfigDoctorRuntimeCheck[] = [],
   pdfPlugin?: ConfigDoctorPdfPlugin,
 ): ConfigDoctorReport {
@@ -232,6 +236,7 @@ export function buildConfigDoctorReport(
       label,
       name,
       certPath,
+      files,
       now,
       exportKey
         ? `Sacá uno nuevo en ARCA y cargalo con \`arcli config establecer ${exportKey} <ruta>\`.`

@@ -39,6 +39,7 @@ import { inspectProductionCredentials } from '../../modules/interactive/producti
 import { validateCbu, validateOptionalCbuAlias } from '../../modules/interactive/validators';
 import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
+import { nodeLocalFiles } from '../../services/files/local-files';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import { bold, noticePanel, productionBanner, uiSymbol, writeTerminalOutput } from '../../ui';
 import { buildRuntimeChecks } from '../commands/config.command';
@@ -92,7 +93,7 @@ function readConfig(): ArcliConfig {
 
 function validate(key: ConfigPublicKey, value: string): string | true {
   try {
-    validateConfigValue(key, value);
+    validateConfigValue(key, value, nodeLocalFiles);
 
     return true;
   } catch (error) {
@@ -480,7 +481,7 @@ async function runChangeField(flags: EnvironmentFlags): Promise<void> {
     if (field.key === 'entorno' && result === 'guardado' && saved.entornoPorDefecto === 'produccion') {
       writeTerminalOutput(
         productionBanner({
-          ...inspectProductionCredentials(saved, new Date()),
+          ...inspectProductionCredentials(saved, new Date(), nodeLocalFiles),
           sessionInTesting: resolveActiveEnvironment(saved, flags) === 'testing',
         }),
       );
@@ -662,7 +663,9 @@ export async function runConfigMenu(flags: EnvironmentFlags = {}): Promise<void>
       const config = readConfig();
 
       writeTerminalOutput(
-        formatConfigDoctorAsText(buildConfigDoctorReport(config, new Date(), buildRuntimeChecks(config))),
+        formatConfigDoctorAsText(
+          buildConfigDoctorReport(config, new Date(), nodeLocalFiles, buildRuntimeChecks(config)),
+        ),
       );
     }
 

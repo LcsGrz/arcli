@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { ConfigurationError } from '../../../lib/errors/app-error';
+import { nodeLocalFiles } from '../../../services/files/local-files';
 import { serializeConfig } from '../config.presenter';
 import { resolveRowsPerList, ROWS_PER_LIST_DEPRECATION_WARNING } from '../config.schemas';
 import { ConfigService, deprecatedConfigKeyWarning } from '../config.service';
@@ -15,7 +16,7 @@ function createService(): ConfigService {
 
   temporaryDirectories.push(cwd);
 
-  return new ConfigService({ cwd });
+  return new ConfigService({ cwd, files: nodeLocalFiles });
 }
 
 function writePemFile(directory: string, filename: string, content: string): string {
@@ -334,7 +335,7 @@ describe('config.service', () => {
     let thrown: unknown;
 
     try {
-      new ConfigService({ cwd }).close();
+      new ConfigService({ cwd, files: nodeLocalFiles }).close();
     } catch (error) {
       thrown = error;
     }

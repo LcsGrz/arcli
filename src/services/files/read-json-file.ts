@@ -1,10 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 
-import { InputValidationError } from '../errors/app-error';
-import { shortenPath } from '../paths/mask-path';
+import { InputValidationError } from '../../lib/errors/app-error';
+import { describeJsonError } from '../../lib/files/json-error';
+import { shortenPath } from '../../lib/paths/mask-path';
 
-import { withFilePath } from './file-error';
-import { describeJsonError } from './json-error';
+import { readTextFile } from './local-files';
 
 export function readJsonFile<T>(filePath: string): T {
   if (!existsSync(filePath)) {
@@ -13,7 +13,7 @@ export function readJsonFile<T>(filePath: string): T {
     });
   }
 
-  const rawContent = withFilePath(filePath, () => readFileSync(filePath, 'utf8'));
+  const rawContent = readTextFile(filePath);
 
   try {
     return JSON.parse(rawContent) as T;

@@ -16,6 +16,7 @@ import type { ExportGateway } from '../../modules/export/export.gateway';
 import { EXPORT_VOUCHER_KIND, EXPORT_VOUCHER_KINDS, type ExportVoucherKind } from '../../modules/export/export.kinds';
 import { ExportService } from '../../modules/export/export.service';
 import type { PadronGateway } from '../../modules/padron/padron';
+import { nodeLocalFiles } from '../../services/files/local-files';
 import { systemClock } from '../../services/time/system-clock';
 import { stripAnsi } from '../../ui';
 import { parseBillingCommandPlan } from '../commands/billing.command.parser';
@@ -392,7 +393,7 @@ function createConfig(settings: readonly Setting[]) {
 
   if (cached) return cached;
 
-  const service = new ConfigService({ cwd: mkdtempSync(join(tmpdir(), 'arcli-ejemplos-')) });
+  const service = new ConfigService({ cwd: mkdtempSync(join(tmpdir(), 'arcli-ejemplos-')), files: nodeLocalFiles });
 
   try {
     for (const [key, value, alias] of [...BASE_CONFIG, ...settings] as Setting[]) service.setValue(key, value, alias);

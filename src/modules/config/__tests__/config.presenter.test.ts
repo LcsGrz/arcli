@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { nodeLocalFiles } from '../../../services/files/local-files';
 import { renderJson, stripAnsi } from '../../../ui/primitives';
 import {
   formatConfigAsText,
@@ -163,6 +164,7 @@ describe('config.presenter', () => {
         },
       },
       new Date(),
+      nodeLocalFiles,
       [{ environment: 'testing', error: 'Falta el punto de venta.' }],
     );
 
@@ -185,6 +187,7 @@ describe('config.presenter', () => {
         },
       },
       new Date(),
+      nodeLocalFiles,
       [
         { environment: 'testing', error: MISSING_CUIT_MESSAGE },
         { environment: 'produccion', error: MISSING_CUIT_MESSAGE },

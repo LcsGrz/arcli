@@ -9,12 +9,11 @@ import {
   serializeGeneratedRequest,
   serializeImportedCertificate,
 } from '../../modules/certificates/certificate.presenter';
-import { CertificateService, type ImportedCertificate } from '../../modules/certificates/certificate.service';
+import type { CertificateService, ImportedCertificate } from '../../modules/certificates/certificate.service';
 import { explicitEnvironment } from '../../modules/config/arca-profile';
 import type { ArcliEnvironment } from '../../modules/config/config.schemas';
-import { systemClock } from '../../services/time/system-clock';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
-import { withCertificateService } from '../certificate-service';
+import { createCertificateService, withCertificateService } from '../certificate-service';
 import { openConfigService } from '../config-service';
 import { getGlobalOptions, registerEnvironmentOptions, registerJsonOption, resolveOutputJson } from '../global-options';
 import { configureSpanishHelp } from '../help';
@@ -117,11 +116,7 @@ export function registerCertificateCommand(program: Command): void {
 
       try {
         const json = resolveOutputJson(command, config.getConfig());
-        const service = new CertificateService({
-          certificatesRoot: config.getCertificatesPath(),
-          clock: systemClock,
-          config,
-        });
+        const service = createCertificateService(config);
         const imported = await importWithConfirmation(
           service,
           { content, environment: requestedEnvironment(command), replace: options.reemplazar === true },

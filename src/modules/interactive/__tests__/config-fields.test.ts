@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { nodeLocalFiles } from '../../../services/files/local-files';
 import type { ArcliConfig } from '../../config/config.schemas';
 import { validateConfigValue } from '../../config/config.service';
 import {
@@ -90,7 +91,7 @@ describe('config-fields', () => {
   it('only offers choices that config accepts', () => {
     for (const field of CONFIG_FIELDS) {
       for (const choice of field.choices ?? []) {
-        expect(() => validateConfigValue(field.key, choice)).not.toThrow();
+        expect(() => validateConfigValue(field.key, choice, nodeLocalFiles)).not.toThrow();
       }
     }
   });

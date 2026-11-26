@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { nodeLocalFiles } from '../../../services/files/local-files';
 import { type BillingCommandInput, billingCommandSchema } from '../../billing/billing.schemas';
 import { validateDocumentIdentity } from '../../billing/billing.validation';
 import { getVoucherKindByShortcut } from '../../billing/voucher-kind-map';
@@ -42,7 +43,7 @@ function aliasThroughConfigSchema(value: string): Outcome {
 
 function aliasThroughConfigValue(value: string): Outcome {
   try {
-    parseConfigValue('aliasCbu', value);
+    parseConfigValue('aliasCbu', value, nodeLocalFiles);
 
     return true;
   } catch (error) {

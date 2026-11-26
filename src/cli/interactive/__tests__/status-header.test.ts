@@ -7,6 +7,7 @@ import {
 } from '../../../modules/config/certificate-expiry';
 import { type ArcaHealth, checkArcaHealth } from '../../../modules/parameters/health';
 import { fetchWsfeServerStatus } from '../../../services/arca/wsfe-status';
+import { nodeLocalFiles } from '../../../services/files/local-files';
 import { colorize, stripAnsi } from '../../../ui';
 import { createInteractiveSession } from '../session';
 import { openStatusHeader } from '../status-header';
@@ -169,7 +170,7 @@ describe('openStatusHeader: certificado activo vencido', () => {
     expect(text).not.toContain('Otra lectura del mismo.');
     expect(inspectConfiguredCertificates).toHaveBeenCalledWith(
       { cuit: '20333333334' },
-      { activeEnvironment: 'testing', now: expect.any(Date) as Date },
+      { activeEnvironment: 'testing', files: nodeLocalFiles, now: expect.any(Date) as Date },
     );
     expect(closeConfig).toHaveBeenCalledTimes(1);
   });
