@@ -214,9 +214,7 @@ export async function confirm(
 }
 
 /** Ctrl+C dentro de un prompt de @inquirer. */
-export function isPromptCancellation(error: unknown): boolean {
-  return error instanceof Error && error.name === 'ExitPromptError';
-}
+export { isPromptCancellation } from '../prompt-cancellation';
 
 // Lineas que ocupa el prompt fuera de la lista: linea en blanco, pregunta, descripcion y ayuda de teclas.
 const PROMPT_CHROME_LINES = 6;
