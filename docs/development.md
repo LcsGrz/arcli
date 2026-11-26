@@ -70,7 +70,7 @@ yarn lint
 yarn test
 ```
 
-Lo que los tests abren por `dataDirectory()` no toca la config real: `src/__tests__/setup.ts` fija carpetas temporales y falla si la de datos queda afuera, y sin `ARCLI_CONFIG_DIR` (un test que la vacía) `dataDirectory()` falla en vez de resolver la de siempre. Un test que abre la config o un caché dice la carpeta (`new ConfigService({ cwd, files: nodeLocalFiles })`, con el adaptador de `src/services/files`) o usa la de la app (`openConfigService`, que toma `ARCLI_CONFIG_DIR`); sin carpeta no compila y, si se saltean los tipos, falla. En `src` (sin los tests) y en los `.ts` y `.mts` de `scripts`, lo controla la regla `arcli/data-directory` (`scripts/lint`), que no ve un alias local ni un `createRequire`.
+Lo que los tests abren por `dataDirectory()` no toca la config real: `src/__tests__/setup.ts` fija carpetas temporales y falla si la de datos queda afuera, y sin `ARCLI_CONFIG_DIR` (un test que la vacía) `dataDirectory()` falla en vez de resolver la de siempre. Un test que abre la config o un caché dice la carpeta (`new ConfigService({ files: nodeLocalFiles, store: openConfigFileStore(cwd) })`, con los adaptadores de `src/services/files`; sin disco, `MemoryConfigStore` de `src/testing`) o usa la de la app (`openConfigService`, que toma `ARCLI_CONFIG_DIR`); sin carpeta no compila y, si se saltean los tipos, falla. En `src` (sin los tests) y en los `.ts` y `.mts` de `scripts`, lo controla la regla `arcli/data-directory` (`scripts/lint`), que no ve un alias local ni un `createRequire`.
 
 Para cambios de empaquetado o publicación, `yarn open-source:check`.
 

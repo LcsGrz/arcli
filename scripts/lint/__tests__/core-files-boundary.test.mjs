@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * ARQ-12: el núcleo (src/lib y src/modules) no toca archivos ni lee el proceso. Los módulos de la app (ARQ-7) y los
- * tests quedan afuera, y `conf` sigue en warn hasta el ConfigStore. Mira la config real de ESLint que le toca a cada
+ * tests quedan afuera. `conf` va detrás del puerto ConfigStore: en el núcleo es error. Mira la config real de ESLint que le toca a cada
  * archivo (`calculateConfigForFile`), como data-directory-rule.test.mjs: lintear texto inventado sobre la ruta de un
  * archivo real, con lint tipado, depende de qué programa de TypeScript armó antes el mismo worker.
  */
@@ -89,8 +89,7 @@ describe('el núcleo no toca archivos ni lee el proceso (ARQ-12)', () => {
     expect(globals).toEqual([expect.objectContaining({ message: expect.stringContaining('ARQ-7'), name: 'process' })]);
   });
 
-  // Tests primero (ARQ-12 PR 3): pasa a it() al implementarlo.
-  it.fails.each(['src/lib/paths/mask-path.ts', 'src/modules/config/config.service.ts'])(
+  it.each(['src/lib/paths/mask-path.ts', 'src/modules/config/config.service.ts'])(
     'importar conf en %s es error, sin deuda en warn',
     async (file) => {
       const error = await restrictedImports(file, 'no-restricted-imports');
@@ -115,8 +114,7 @@ describe('el núcleo no toca archivos ni lee el proceso (ARQ-12)', () => {
     ]);
   });
 
-  // Tests primero (ARQ-12 PR 3): pasa a it() al implementarlo.
-  it.fails('ninguna regla del núcleo queda en warn con el mensaje de ARQ-12', async () => {
+  it('ninguna regla del núcleo queda en warn con el mensaje de ARQ-12', async () => {
     const pending = [];
 
     for (const file of coreFiles()) {
