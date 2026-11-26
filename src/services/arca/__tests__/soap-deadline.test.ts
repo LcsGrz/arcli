@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import { isConnectionError } from '../../../lib/errors/connection-error';
+import { ArcaDeadlineError } from '../../../lib/errors/deadline-error';
 import { isTolerableTableError } from '../../../modules/export/export.tables';
 import { useArcaDeadlines } from '../../../testing/arca-deadlines';
 import { ArcaBillingGateway } from '../arca-billing.gateway';
@@ -11,6 +12,7 @@ import { ArcaClientFactory } from '../arca-client.factory';
 import { ArcaFceObligationGateway } from '../arca-fce-obligation.gateway';
 import { ArcaPadronGateway } from '../arca-padron.gateway';
 import { ArcaVoucherHistoryGateway } from '../arca-voucher-history.gateway';
+import { withCancellableQueries } from '../query-cancellation';
 import { installSoapDeadlines } from '../soap-deadline';
 import { fetchWsfeServerStatus } from '../wsfe-status';
 import { fetchWsfexServerStatus } from '../wsfex-status';
@@ -84,6 +86,8 @@ const getLastNumber = () => new ArcaVoucherHistoryGateway(client()).getLastNumbe
 const never = () => new AbortController().signal;
 
 interface Call {
+  /** Se corta al abortar la señal de `withCancellableQueries`. La emisión y el login, nunca. */
+  readonly cancellable: boolean;
   readonly ms: number;
   /** El plazo de lo que se pide después del login. */
   readonly next?: number;
@@ -97,6 +101,7 @@ interface Call {
 
 const CALLS: readonly Call[] = [
   {
+    cancellable: true,
     ms: QUERY_MS,
     operation: 'FECompUltimoAutorizado',
     run: getLastNumber,
@@ -104,6 +109,7 @@ const CALLS: readonly Call[] = [
     withLogin: true,
   },
   {
+    cancellable: false,
     ms: EMISSION_MS,
     operation: 'FECAESolicitar',
     run: () => new ArcaBillingGateway(client()).createVoucher(VOUCHER),
@@ -111,6 +117,7 @@ const CALLS: readonly Call[] = [
     withLogin: true,
   },
   {
+    cancellable: true,
     ms: QUERY_MS,
     operation: 'FECompConsultar',
     run: () => new ArcaVoucherHistoryGateway(client()).getVoucher(1, 3, 11),
@@ -118,6 +125,7 @@ const CALLS: readonly Call[] = [
     withLogin: true,
   },
   {
+    cancellable: true,
     ms: QUERY_MS,
     operation: 'FEXGetPARAM_DST_pais',
     run: () => exportGateway().getDestinationCountries(),
@@ -125,6 +133,7 @@ const CALLS: readonly Call[] = [
     withLogin: true,
   },
   {
+    cancellable: true,
     ms: QUERY_MS,
     operation: 'FEXGetLast_CMP',
     run: () => exportGateway().getLastVoucherNumber(19, 3),
@@ -132,6 +141,7 @@ const CALLS: readonly Call[] = [
     withLogin: true,
   },
   {
+    cancellable: false,
     ms: EMISSION_MS,
     operation: 'FEXAuthorize',
     run: () => exportGateway().authorize({ Cbte_nro: 8, Id: 42 } as never),
@@ -139,6 +149,7 @@ const CALLS: readonly Call[] = [
     withLogin: true,
   },
   {
+    cancellable: true,
     ms: QUERY_MS,
     operation: 'consultarMontoObligadoRecepcion',
     run: () => new ArcaFceObligationGateway(client()).getObligation(CLIENT_CUIT, '20261101'),
@@ -146,14 +157,23 @@ const CALLS: readonly Call[] = [
     withLogin: true,
   },
   {
+    cancellable: true,
     ms: QUERY_MS,
     operation: 'getPersona_v2',
     run: () => new ArcaPadronGateway(client()).getTaxpayer(CLIENT_CUIT),
     service: 'registerInscriptionProofService',
     withLogin: true,
   },
-  { ms: WSAA_MS, next: QUERY_MS, operation: 'loginCms', run: getLastNumber, service: 'WSAA, desde el cliente' },
   {
+    cancellable: false,
+    ms: WSAA_MS,
+    next: QUERY_MS,
+    operation: 'loginCms',
+    run: getLastNumber,
+    service: 'WSAA, desde el cliente',
+  },
+  {
+    cancellable: false,
     ms: WSAA_MS,
     next: QUERY_MS,
     operation: 'loginCms',
@@ -161,12 +181,14 @@ const CALLS: readonly Call[] = [
     service: 'WSAA, desde AuthRepository',
   },
   {
+    cancellable: true,
     ms: QUERY_MS,
     operation: 'FEDummy',
     run: () => fetchWsfeServerStatus('testing', never()),
     service: 'SoapClient',
   },
   {
+    cancellable: true,
     ms: QUERY_MS,
     operation: 'FEXDummy',
     run: () => fetchWsfexServerStatus('testing', never()),
@@ -532,5 +554,260 @@ describe('un cliente con httpClient inyectado', () => {
   it('con un httpClient inyectado, el plazo tampoco queda pendiente', async () => {
     await fetchWsfeServerStatus('testing', never(), injected() as never);
     expect(arca.deadlines).toEqual([{ ms: QUERY_MS, state: 'cancelado' }]);
+  });
+});
+
+/**
+ * ARQ-11 PR 6: dentro de `withCancellableQueries`, abortar la señal corta las consultas a ARCA y la conexión. La emisión
+ * y el login nunca se cortan: ni con la señal del contexto ni con la que se pase al pedido.
+ */
+const CANCELLABLE = CALLS.filter(({ cancellable }) => cancellable);
+const EMISSIONS = CALLS.filter(({ cancellable, next }) => !cancellable && next === undefined);
+const LOGINS = CALLS.filter(({ cancellable, next }) => !cancellable && next !== undefined);
+
+/** Un pedido que tarda esto en contestarse sigue en curso cuando se corta la señal; no es un ARCA colgado. */
+const SLOW_MS = 500;
+
+const aborted = (reason?: unknown): AbortSignal => {
+  const controller = new AbortController();
+
+  controller.abort(reason);
+
+  return controller.signal;
+};
+
+const requestsOf = (operation: string) => arca.server.requests.filter((request) => request.operation === operation);
+
+/** Los pedidos de `operation`, ya terminados: antes, `dropped` todavía no dice si se cortaron. */
+async function finishedRequests(operation: string) {
+  await vi.waitFor(() => expect(requestsOf(operation).every(({ closed }) => closed)).toBe(true), WAIT);
+
+  return requestsOf(operation);
+}
+
+/** Corre `run` en un contexto y aborta la señal cuando ARCA ya recibió `operation` y no la contesta. */
+async function abortWhileHung(operation: string, run: () => Promise<unknown>, reason?: unknown) {
+  const controller = new AbortController();
+
+  arca.server.respond((name) => (name === operation ? 'cuelga' : undefined));
+  arca.holdDeadlines();
+
+  const call = arca.settle(withCancellableQueries(controller.signal, run));
+
+  await vi.waitFor(() => expect(arca.server.count(operation)).toBe(1), WAIT);
+  controller.abort(reason);
+  // Lo que no se cortó con la señal termina por el plazo, con otro error.
+  arca.releaseDeadlines();
+
+  return { reason: controller.signal.reason as unknown, settled: await call };
+}
+
+describe.each(CANCELLABLE)('cancelable, $service: $operation', ({ operation, run }) => {
+  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
+  it.fails(
+    'cortada la señal mientras ARCA no contesta: corta enseguida, con su razón, y cierra la conexión',
+    async () => {
+      const reason = new Error('Lo cortó quien llama.');
+      const { settled } = await abortWhileHung(operation, run, reason);
+
+      expect(settled).toMatchObject({ end: 'se cortó' });
+      expect((settled as { error: unknown }).error).toBe(reason);
+      // Cortó la señal y no el plazo: ninguno vence ni queda corriendo.
+      expect(arca.deadlines.filter(({ state }) => state !== 'cancelado')).toEqual([]);
+      await vi.waitFor(() => expect(requestsOf(operation)[0]?.dropped).toBe(true), WAIT);
+    },
+  );
+
+  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
+  it.fails('con la señal ya cortada, no le pide nada a ARCA', async () => {
+    const reason = new Error('Lo cortó quien llama.');
+    const settled = await arca.settle(withCancellableQueries(aborted(reason), run));
+
+    expect(settled).toMatchObject({ end: 'se cortó' });
+    expect((settled as { error: unknown }).error).toBe(reason);
+    expect(arca.server.count(operation)).toBe(0);
+  });
+});
+
+describe('cancelable, lo que no está en la tabla', () => {
+  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
+  it.fails.each([
+    'FEParamGetTiposPaises',
+    // Parecida a la que emite, pero no es.
+    'FECAEASolicitar',
+  ])('%s: con la señal ya cortada, no se pide', async (operation) => {
+    const settled = await arca.settle(
+      withCancellableQueries(aborted(), async () => client().genericService.call('wsfe', operation, {})),
+    );
+
+    expect(settled).toMatchObject({ end: 'se cortó' });
+    expect(arca.server.count(operation)).toBe(0);
+  });
+});
+
+describe('la razón de una cancelación', () => {
+  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
+  it.fails.each([
+    ['una consulta', 'FECompUltimoAutorizado', getLastNumber],
+    ['una tabla de la E', 'FEXGetPARAM_DST_pais', () => exportGateway().getDestinationCountries()],
+    ['el estado del servidor', 'FEDummy', () => fetchWsfeServerStatus('testing', never())],
+  ] as const)('%s: es la de la señal, no un error de conexión ni un plazo vencido', async (_name, operation, run) => {
+    const { reason, settled } = await abortWhileHung(operation, run);
+    const { error } = settled as { error: unknown };
+
+    expect(error).toBe(reason);
+    expect(error).not.toBeInstanceOf(ArcaDeadlineError);
+    expect(isConnectionError(error)).toBe(false);
+    // Una tabla de la E cortada no se toma como una que falló y se puede saltear.
+    expect(isTolerableTableError(error)).toBe(false);
+  });
+});
+
+describe.each(EMISSIONS)('no cancelable, $service: $operation', (call) => {
+  const { operation, run } = call;
+
+  it('dentro del contexto, con la señal ya cortada, se emite igual, con su plazo', async () => {
+    expect(await arca.settle(withCancellableQueries(aborted(), run))).toMatchObject({ end: 'contestó' });
+    expect(await finishedRequests(operation)).toEqual([expect.objectContaining({ dropped: false })]);
+    expect(arca.deadlines.map(({ ms }) => ms)).toEqual(plannedMs(call));
+  });
+
+  it('dentro del contexto, cortada la señal durante el pedido, se espera la respuesta', async () => {
+    const controller = new AbortController();
+
+    arca.server.respond((name) => (name === operation ? SLOW_MS : undefined));
+
+    const settled = arca.settle(withCancellableQueries(controller.signal, run));
+
+    await vi.waitFor(() => expect(arca.server.count(operation)).toBe(1), WAIT);
+    controller.abort();
+    expect(await settled).toMatchObject({ end: 'contestó' });
+    expect(await finishedRequests(operation)).toEqual([expect.objectContaining({ dropped: false })]);
+  });
+});
+
+describe.each(LOGINS)('no cancelable, $service: $operation', ({ run }) => {
+  it('dentro del contexto, con la señal ya cortada, el ticket se pide igual', async () => {
+    await arca.settle(withCancellableQueries(aborted(), run));
+    expect(await finishedRequests('loginCms')).toEqual([expect.objectContaining({ dropped: false })]);
+  });
+
+  it('dentro del contexto, cortada la señal durante el login, se espera el ticket', async () => {
+    const controller = new AbortController();
+
+    arca.server.respond((name) => (name === 'loginCms' ? SLOW_MS : undefined));
+
+    const settled = arca.settle(withCancellableQueries(controller.signal, run));
+
+    await vi.waitFor(() => expect(arca.server.count('loginCms')).toBe(1), WAIT);
+    controller.abort();
+    await settled;
+    expect(await finishedRequests('loginCms')).toEqual([expect.objectContaining({ dropped: false })]);
+  });
+});
+
+/** Los WSDL del SDK en testing: un pedido directo, sin los servicios del SDK, para pasarle `options.signal`. */
+const WSDLS = { FECAESolicitar: 'wsfe.wsdl', FEXAuthorize: 'wsfex.wsdl', loginCms: 'wsaa.wsdl' } as const;
+
+type SoapMethod = (args: object, options: { readonly signal: AbortSignal }) => Promise<unknown>;
+
+async function callWithSignal(operation: keyof typeof WSDLS, signal: AbortSignal): Promise<unknown> {
+  installSoapDeadlines();
+
+  const soap = (await new SoapClient().createClient(WSDLS[operation], {
+    forceSoap12Headers: operation !== 'loginCms',
+  })) as unknown as Record<string, SoapMethod>;
+
+  return soap[`${operation}Async`]({}, { signal });
+}
+
+describe.each(Object.keys(WSDLS) as Array<keyof typeof WSDLS>)('%s con `options.signal`', (operation) => {
+  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
+  it.fails('ya cortada, se pide igual', async () => {
+    expect(await arca.settle(callWithSignal(operation, aborted()))).toMatchObject({ end: 'contestó' });
+    expect(await finishedRequests(operation)).toEqual([expect.objectContaining({ dropped: false })]);
+  });
+
+  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
+  it.fails('cortada durante el pedido, se espera la respuesta', async () => {
+    const controller = new AbortController();
+
+    arca.server.respond((name) => (name === operation ? SLOW_MS : undefined));
+
+    const settled = arca.settle(callWithSignal(operation, controller.signal));
+
+    await vi.waitFor(() => expect(arca.server.count(operation)).toBe(1), WAIT);
+    controller.abort();
+    expect(await settled).toMatchObject({ end: 'contestó' });
+    expect(await finishedRequests(operation)).toEqual([expect.objectContaining({ dropped: false })]);
+  });
+});
+
+describe('contextos', () => {
+  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
+  it.fails('dos a la vez no se mezclan: cortar uno no corta la consulta del otro', async () => {
+    const first = new AbortController();
+    const second = new AbortController();
+
+    arca.server.respond((name) => (name === 'FECompUltimoAutorizado' ? SLOW_MS : undefined));
+
+    const cut = arca.settle(withCancellableQueries(first.signal, getLastNumber));
+    const kept = arca.settle(withCancellableQueries(second.signal, getLastNumber));
+
+    await vi.waitFor(() => expect(arca.server.count('FECompUltimoAutorizado')).toBe(2), WAIT);
+    first.abort();
+
+    const settled = await cut;
+
+    expect(settled).toMatchObject({ end: 'se cortó' });
+    expect((settled as { error: unknown }).error).toBe(first.signal.reason);
+    expect(await kept).toEqual({ end: 'contestó', value: 41 });
+    await vi.waitFor(
+      () => expect(requestsOf('FECompUltimoAutorizado').map(({ dropped }) => dropped)).toContain(true),
+      WAIT,
+    );
+    expect(requestsOf('FECompUltimoAutorizado').filter(({ dropped }) => !dropped)).toHaveLength(1);
+  });
+
+  it('terminado el contexto, cortar su señal no corta lo que se pide después', async () => {
+    const controller = new AbortController();
+
+    await withCancellableQueries(controller.signal, async () => undefined);
+    controller.abort();
+    expect(await arca.settle(getLastNumber())).toEqual({ end: 'contestó', value: 41 });
+  });
+});
+
+describe('contrato de la cancelación', () => {
+  // Tests primero (ARQ-11 PR 6): pasa a it() al implementarlo.
+  it.fails('cada operación de la tabla tiene su caso arriba, cancelable o no, como dice la tabla', async () => {
+    // TODO(ARQ-11 PR 6): con la tabla exportada, importarla arriba y fijar el tipo de las que no se cancelan:
+    // expectTypeOf(SOAP_OPERATIONS.FECAESolicitar.cancellable).toEqualTypeOf<false>(), y lo mismo en FEXAuthorize y
+    // loginCms. Hoy no compila: la tabla no existe.
+    const { SOAP_OPERATIONS: table } = (await import('../soap-deadline')) as unknown as {
+      readonly SOAP_OPERATIONS?: Readonly<Record<string, { readonly cancellable: boolean; readonly ms: number }>>;
+    };
+
+    expect(table, 'soap-deadline.ts exporta la tabla de operaciones').toBeDefined();
+
+    const inTable = (operation: string) => Object.hasOwn(table ?? {}, operation);
+    const fromTable = Object.fromEntries(
+      Object.entries(table ?? {}).map(([operation, { cancellable, ms }]) => [operation, { cancellable, ms }]),
+    );
+    const fromCases = Object.fromEntries(
+      CALLS.filter(({ operation }) => inTable(operation)).map(({ cancellable, ms, operation }) => [
+        operation,
+        { cancellable, ms },
+      ]),
+    );
+
+    expect(fromCases).toEqual(fromTable);
+    expect(Object.values(fromTable).filter(({ cancellable }) => !cancellable)).toHaveLength(3);
+    // Lo que no está en la tabla es una consulta: 30 segundos y cancelable.
+    expect(
+      CALLS.filter(({ operation }) => !inTable(operation)).filter(
+        ({ cancellable, ms }) => !cancellable || ms !== QUERY_MS,
+      ),
+    ).toEqual([]);
   });
 });
