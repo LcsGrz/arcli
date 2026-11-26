@@ -15,6 +15,7 @@ import {
 
 import { describeOutputFailure, type OutputFailures } from './closed-output';
 import { EmissionCancelledError } from './emission-cancelled';
+import { CANCELLED } from './emission-texts';
 import { describeEmittedInThisRun } from './emitted-vouchers';
 import { readJsonDefault } from './global-options';
 import { isPromptCancellation } from './interactive/prompts';
@@ -147,7 +148,7 @@ function formatErrorPanel(error: unknown): string {
   }
 
   // Ctrl+C en una pregunta que el comando no atrapo: aca no se sabe si ya se emitio algo, asi que no se dice.
-  return isPromptCancellation(error) ? noticePanel('Cancelado.', 'muted') : formatCliError(error);
+  return isPromptCancellation(error) ? noticePanel(CANCELLED, 'muted') : formatCliError(error);
 }
 
 /**

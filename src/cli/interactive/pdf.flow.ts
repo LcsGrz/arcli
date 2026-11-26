@@ -15,9 +15,10 @@ import { nodeLocalFiles } from '../../services/files/local-files';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { isOutputLost } from '../closed-output';
 import { writePdfOutcomes } from '../commands/billing.command.output';
-import { attachPdfs } from '../commands/billing.command.pdf';
+import { attachPdfs, interruptiblePdfSteps } from '../commands/billing.command.pdf';
 import { withConfigService } from '../config-service';
 import { recordFailedPdfs, recordMissingPdf } from '../emitted-vouchers';
+import type { DeliveryInterruption } from '../interruption';
 
 import { askText, chooseOrTypeStep, confirm, isPromptCancellation } from './prompts';
 import { SKIP_HINT } from './text-hints';
@@ -113,14 +114,66 @@ export async function completeIssuer(config: ArcliConfig): Promise<ArcliConfig> 
 
 const PDF_NOT_GENERATED = 'El comprobante ya quedó emitido; no se generó el PDF.';
 
+/** Lo que va en el PDF ademas del comprobante: los datos que solo van ahi y los del emisor que faltaban. */
+interface PdfAnswers {
+  readonly config: ArcliConfig;
+  readonly input: BillingCommandInput;
+}
+
+/**
+ * Las preguntas del PDF: `false` si no se genera ("No"), BACK si se volvio desde la condicion de venta (Esc: no hay
+ * pregunta anterior).
+ */
+async function askPdfAnswers(
+  config: ArcliConfig,
+  input: BillingCommandInput,
+  asks: boolean,
+): Promise<Back | false | PdfAnswers> {
+  if (asks && !(await confirm('¿Generamos el PDF del comprobante?', 'Sí, generar el PDF', 'No'))) {
+    return false;
+  }
+
+  const description = await askText('Descripción del comprobante (Enter para "Según detalle")');
+  // Lo que trajo el padron se propone: Enter lo deja, en lugar de borrarlo.
+  const receiverName = await askText('Nombre o razón social del receptor:', {
+    defaultValue: input.receiverName,
+    hint: input.receiverName ? undefined : SKIP_HINT,
+  });
+  const receiverAddress = await askText('Domicilio del receptor:', {
+    defaultValue: input.receiverAddress,
+    hint: input.receiverAddress ? undefined : SKIP_HINT,
+  });
+  const currentSaleCondition =
+    input.saleCondition === null ? undefined : (input.saleCondition ?? config.condicionVenta);
+  const saleCondition = await askSaleCondition(currentSaleCondition);
+
+  if (saleCondition === BACK) {
+    return BACK;
+  }
+
+  return {
+    config: await completeIssuer(config),
+    input: {
+      ...input,
+      pdf: true,
+      pdfDescription: description || undefined,
+      receiverAddress: receiverAddress || undefined,
+      receiverName: receiverName || undefined,
+      saleCondition,
+    },
+  };
+}
+
 /**
  * Despues de emitir: genera el PDF si `input.pdf` es `true` ("Sí, emitir y generar el PDF") y pide los datos que solo
- * van en el PDF. El asistente siempre lo decide en la confirmacion; sin `input.pdf`, decide la config.
+ * van en el PDF. El asistente siempre lo decide en la confirmacion; sin `input.pdf`, decide la config. Las preguntas van
+ * en `delivery.whileAsking` y Ctrl+C mientras se genera deja de generarlo, como en los comandos.
  */
 export async function offerPdf(
   config: ArcliConfig,
   input: BillingCommandInput,
   result: BillingExecutionResult,
+  delivery: DeliveryInterruption,
 ): Promise<void> {
   const [decision] = decidePdfs({ interactive: true, mode: config.pdf, vouchers: [{ flag: input.pdf, result }] });
 
@@ -130,49 +183,24 @@ export async function offerPdf(
 
   // Ya se emitio: un Ctrl+C aca no puede terminar en "No se emitio nada".
   try {
-    if (
-      decision === 'preguntar' &&
-      !(await confirm('¿Generamos el PDF del comprobante?', 'Sí, generar el PDF', 'No'))
-    ) {
+    const answers = await delivery.whileAsking(() => askPdfAnswers(config, input, decision === 'preguntar'));
+
+    if (answers === false) {
       return;
     }
 
-    const description = await askText('Descripción del comprobante (Enter para "Según detalle")');
-    // Lo que trajo el padron se propone: Enter lo deja, en lugar de borrarlo.
-    const receiverName = await askText('Nombre o razón social del receptor:', {
-      defaultValue: input.receiverName,
-      hint: input.receiverName ? undefined : SKIP_HINT,
-    });
-    const receiverAddress = await askText('Domicilio del receptor:', {
-      defaultValue: input.receiverAddress,
-      hint: input.receiverAddress ? undefined : SKIP_HINT,
-    });
-    const currentSaleCondition =
-      input.saleCondition === null ? undefined : (input.saleCondition ?? config.condicionVenta);
-    const saleCondition = await askSaleCondition(currentSaleCondition);
-
-    if (saleCondition === BACK) {
+    if (answers === BACK) {
       writeTerminalOutput(noticePanel(PDF_NOT_GENERATED, 'muted'));
 
       return;
     }
 
-    const completedConfig = await completeIssuer(config);
-    const withPdf = await attachPdfs({
-      config: completedConfig,
-      inputs: [
-        {
-          ...input,
-          pdf: true,
-          pdfDescription: description || undefined,
-          receiverAddress: receiverAddress || undefined,
-          receiverName: receiverName || undefined,
-          saleCondition,
-        },
-      ],
-      interactive: true,
-      results: [result],
-    });
+    // Sin respuestas ya se corto: el PDF sale como cortado antes de generarse.
+    const pdf = answers ?? { config, input: { ...input, pdf: true } };
+    const withPdf = await attachPdfs(
+      { config: pdf.config, inputs: [pdf.input], interactive: true, results: [result] },
+      interruptiblePdfSteps(delivery),
+    );
 
     recordFailedPdfs(withPdf);
     writePdfOutcomes([result], withPdf);

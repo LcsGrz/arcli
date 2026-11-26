@@ -7,8 +7,9 @@ import type { ReceiverFromPadron } from '../../modules/interactive/receiver-docu
 import { validateCuil, validateCuit, validateDni } from '../../modules/interactive/validators';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
-import { startSpinner } from '../spinner';
+import { isPromptCancellation } from '../prompt-cancellation';
 
+import { waitForArca } from './arca-wait';
 import { askTextStep, chooseStep } from './prompts';
 import type { InteractiveSession } from './session';
 
@@ -42,7 +43,10 @@ interface ReceiverState {
   readonly receiver?: ReceiverFromPadron;
 }
 
-/** Consulta el padron si hay un CUIT y la config lo permite. Si falla, sigue sin datos: el usuario elige igual. */
+/**
+ * Consulta el padron si hay un CUIT y la config lo permite. Si falla, sigue sin datos: el usuario elige igual. Con
+ * Ctrl+C no sigue: vuelve al menu.
+ */
 async function lookupReceiver(
   session: InteractiveSession,
   state: ReceiverState,
@@ -57,10 +61,10 @@ async function lookupReceiver(
     return state.receiver;
   }
 
-  const spinner = startSpinner('Consultando el padrón...');
-
   try {
-    const taxpayer = await new ArcaPadronGateway(session.arca).getTaxpayer(cuit);
+    const taxpayer = await waitForArca('Consultando el padrón...', () =>
+      new ArcaPadronGateway(session.arca).getTaxpayer(cuit),
+    );
 
     return {
       address: taxpayer?.address ?? undefined,
@@ -68,10 +72,12 @@ async function lookupReceiver(
       ivaCondition: taxpayer?.ivaCondition ?? undefined,
       name: taxpayer?.name ?? undefined,
     };
-  } catch {
+  } catch (error) {
+    if (isPromptCancellation(error)) {
+      throw error;
+    }
+
     return { cuit };
-  } finally {
-    spinner?.stop();
   }
 }
 

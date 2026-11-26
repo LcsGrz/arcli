@@ -6,12 +6,13 @@ import { CONFIG_MENU_NEW_OPTIONS } from '../../modules/interactive/new-options';
 import type { UpdateCheckResult } from '../../modules/update-check/update-check.service';
 import { colorize, noticePanel, renderLogo, writeTerminalOutput, writeTerminalRaw } from '../../ui';
 import { withConfigService } from '../config-service';
-import { CANCELLED_NOTICE } from '../emission-texts';
-import { startSpinner } from '../spinner';
+import { CANCELLED, CANCELLED_NOTICE } from '../emission-texts';
+import { ResentSignalError } from '../interruption';
 import type { GlobalCliOptions } from '../types';
 import { checkCliUpdate } from '../update-check';
 import { CLI_VERSION } from '../version';
 
+import { waitForArca } from './arca-wait';
 import { type BackgroundQuery, startBackgroundQuery } from './background-query';
 import { runConfigMenu, runGuidedSetup } from './config.flow';
 import { runInvoiceFlow } from './invoice.flow';
@@ -39,6 +40,15 @@ type MenuOption =
   | 'recibo'
   | 'repetir'
   | 'salir';
+
+/** Las opciones que pueden emitir: cancelar ahi dice que no se emitio nada. En las demas, solo "Cancelado.". */
+const EMITTING_OPTIONS: ReadonlySet<MenuOption> = new Set([
+  'factura',
+  'nota-credito',
+  'nota-debito',
+  'recibo',
+  'repetir',
+]);
 
 /** Lo que falta para emitir en el entorno activo: el de la config o el de `--produccion`/`--testing`. */
 function listMissingSetup(options: GlobalCliOptions): string[] {
@@ -155,7 +165,8 @@ function liveHeader(header: StatusHeader): Omit<LiveChoices<never>, 'firstChoice
 
 /**
  * Antes de una pregunta: si lo que falta no puede aparecer con la pregunta abierta, espera a ARCA (la primera vez que
- * se ve la barra) y escribe lo que hay. Devuelve si la pregunta tiene que seguir actualizandose.
+ * se ve la barra) y escribe lo que hay. Con Ctrl+C deja de esperar y la barra queda sin verificar. Devuelve si la
+ * pregunta tiene que seguir actualizandose.
  */
 async function prepareHeader(header: StatusHeader, choices: ReadonlyArray<Choice<MenuOption> | Separator>) {
   const query = header.query;
@@ -166,10 +177,15 @@ async function prepareHeader(header: StatusHeader, choices: ReadonlyArray<Choice
   }
 
   if (pending && !header.settled()) {
-    const spinner = startSpinner('Consultando el estado de ARCA...');
+    try {
+      await waitForArca('Consultando el estado de ARCA...', () => query.settled);
+    } catch (error) {
+      if (!isPromptCancellation(error)) {
+        throw error;
+      }
 
-    await query.settled;
-    spinner?.stop();
+      header.cancel();
+    }
   }
 
   writeTerminalRaw(topBlock(header.settle()));
@@ -309,8 +325,13 @@ async function runAssistant(
         }
       }
     } catch (error) {
+      // El proceso esta por terminar por la segunda señal: no se escribe nada mas.
+      if (error instanceof ResentSignalError) {
+        throw error;
+      }
+
       if (isPromptCancellation(error)) {
-        writeTerminalOutput(colorize(CANCELLED_NOTICE, 'muted'));
+        writeTerminalOutput(colorize(EMITTING_OPTIONS.has(option) ? CANCELLED_NOTICE : CANCELLED, 'muted'));
       } else {
         await showAssistantError(error);
       }

@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { type AddressInfo, createServer, type Server, type Socket } from 'node:net';
@@ -68,9 +68,20 @@ function preload(registry: string): string {
   return pathToFileURL(path).href;
 }
 
+/** Lo leido hasta ahora, sin colores en stdout, y el proceso, para reaccionar a lo que se ve. */
+type OnOutput = (
+  read: { readonly stderr: string; readonly stdout: string },
+  child: ChildProcessWithoutNullStreams,
+) => void;
+
 async function run(
   args: readonly string[],
-  options: { readonly keys?: string; readonly registry?: string; readonly skipUpdates?: boolean } = {},
+  options: {
+    readonly keys?: string;
+    readonly onOutput?: OnOutput;
+    readonly registry?: string;
+    readonly skipUpdates?: boolean;
+  } = {},
 ) {
   const start = Date.now();
   const child = spawn(process.execPath, ['--import', preload(options.registry ?? ''), CLI, ...args], {
@@ -108,8 +119,13 @@ async function run(
 
       send();
     }
+
+    options.onOutput?.({ stderr: read.stderr, stdout: stripVTControlCharacters(read.stdout) }, child);
   });
-  child.stderr.setEncoding('utf8').on('data', (chunk: string) => (read.stderr += chunk));
+  child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+    read.stderr += chunk;
+    options.onOutput?.({ stderr: read.stderr, stdout: stripVTControlCharacters(read.stdout) }, child);
+  });
 
   const [code] = (await once(child, 'close')) as [number | null];
 
@@ -314,4 +330,35 @@ describe('el asistente con ARCA y npm colgados', () => {
     },
     70_000,
   );
+});
+
+// En Windows `child.kill('SIGINT')` termina el proceso sin dar la señal, como en interrupted-emission.e2e.ts.
+describe.skipIf(process.platform === 'win32')('Ctrl+C en el asistente con ARCA colgado (ARQ-11 PR 5)', () => {
+  const MENU = '¿Qué querés hacer?';
+  const count = (text: string, part: string) => text.split(part).length - 1;
+
+  it('en "Estado de ARCA" vuelve al menú con "Cancelado."; después Esc sale con 0', async () => {
+    let menusAtCut: number | undefined;
+    let isLeaving = false;
+    const result = await run([], {
+      // "Estado de ARCA" es la séptima opción.
+      keys: `${'\u001B[B'.repeat(6)}\r`,
+      onOutput: ({ stderr, stdout }, child) => {
+        if (menusAtCut === undefined && stripVTControlCharacters(stderr + stdout).includes('Consultando ARCA...')) {
+          menusAtCut = count(stdout, MENU);
+          child.kill('SIGINT');
+        } else if (menusAtCut !== undefined && !isLeaving && count(stdout, MENU) > menusAtCut) {
+          isLeaving = true;
+          child.stdin.write('\u001B');
+        }
+      },
+    });
+
+    expect(menusAtCut, 'nunca se vio "Consultando ARCA..."').toBeDefined();
+    expect(result.code, 'la señal cortó el proceso').toBe(0);
+    expect(result.stdout).toContain('Cancelado.');
+    expect(result.stdout).not.toContain('No se emitió nada');
+    expect(result.stdout).toContain('¡Hasta la próxima!');
+    expect(result.elapsed).toBeLessThan(MAX_WAIT_MS);
+  }, 70_000);
 });

@@ -265,6 +265,37 @@ describe('runInteractiveMode', () => {
     expect(output).toContain('Cancelado. No se emitió nada.');
   });
 
+  // ARQ-11 PR 5, decision 2 del 26/11: en los flujos que emiten sigue el aviso de siempre.
+  it.each([
+    ['recibo', runInvoiceFlow],
+    ['repetir', runRepeatFlow],
+    ['nota-credito', runNoteFlow],
+    ['nota-debito', runNoteFlow],
+  ] as const)('Ctrl+C dentro de %s: "Cancelado. No se emitió nada."', async (option, flow) => {
+    vi.mocked(flow).mockRejectedValueOnce(cancellation());
+    chooseOneMock.mockResolvedValueOnce(option).mockResolvedValueOnce('salir');
+
+    await runInteractiveMode();
+
+    expect(stripAnsi(output)).toContain('Cancelado. No se emitió nada.');
+    expect(chooseOneMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['consultas', runQueriesMenu],
+    ['estado', runStatusFlow],
+    ['config', runConfigMenu],
+  ] as const)('Ctrl+C dentro de %s, que no emite: "Cancelado.", sin hablar de emitir', async (option, flow) => {
+    vi.mocked(flow).mockRejectedValueOnce(cancellation());
+    chooseOneMock.mockResolvedValueOnce(option).mockResolvedValueOnce('salir');
+
+    await runInteractiveMode();
+
+    expect(stripAnsi(output)).toContain('Cancelado.');
+    expect(stripAnsi(output)).not.toContain('No se emitió nada');
+    expect(chooseOneMock).toHaveBeenCalledTimes(2);
+  });
+
   it('un error en un flujo se muestra y el menu sigue', async () => {
     vi.mocked(runInvoiceFlow).mockRejectedValueOnce(new Error('ARCA no responde'));
     chooseOneMock.mockResolvedValueOnce('factura').mockResolvedValueOnce('salir');

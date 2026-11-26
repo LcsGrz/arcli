@@ -28,7 +28,14 @@ export const CLOCK_CONFIG = {
 export const sdk = {
   generic: { call: vi.fn() },
   padron: { getTaxpayerDetails: vi.fn() },
-  wsfe: { createVoucher: vi.fn(), getLastVoucher: vi.fn(), getQuotation: vi.fn(), getSalesPoints: vi.fn() },
+  wsfe: {
+    createVoucher: vi.fn(),
+    getCurrencyTypes: vi.fn(),
+    getLastVoucher: vi.fn(),
+    getQuotation: vi.fn(),
+    getSalesPoints: vi.fn(),
+    getServerStatus: vi.fn(),
+  },
   wsfecred: { consultarMontoObligadoRecepcion: vi.fn() },
   wsfex: {
     authorize: vi.fn(),

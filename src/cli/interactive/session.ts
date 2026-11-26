@@ -17,9 +17,9 @@ import { type CliArcaRuntime, loadArcaRuntime } from '../arca-runtime';
 import { createBillingGateways } from '../billing-gateways';
 import { formatBillingOutputs } from '../commands/billing.command.output';
 import { recordEmission } from '../emitted-vouchers';
-import { withPendingSpinner } from '../pending-spinner';
 import type { GlobalCliOptions } from '../types';
 
+import { waitForArca } from './arca-wait';
 import { closeWithEmission } from './emission-closing';
 import { offerPdf } from './pdf.flow';
 import { askTextStep } from './prompts';
@@ -138,8 +138,9 @@ export async function previewAndEmit(
   };
 
   return closeWithEmission<BillingExecutionResult, BillingPreviewItem>({
-    emit: (item) =>
+    emit: (item, interruption) =>
       emitBilling({
+        ...interruption,
         clock: systemClock,
         gateway: session.billingGateway,
         items: planBillingEmission([{ ...item, confirmed: true, input: { ...item.input, dryRun: false, emit: true } }]),
@@ -160,21 +161,24 @@ export async function previewAndEmit(
       }),
     format: (result, { previewShown }) =>
       formatBillingOutputs([result], { environment: runtime.environment, previewShown, raw: false }),
-    generatePdf: (result, { input }, pdf) => offerPdf(runtime.config, { ...input, pdf }, result),
+    generatePdf: (result, { input }, pdf, delivery) => offerPdf(runtime.config, { ...input, pdf }, result, delivery),
     pdf: entry.pdf,
     preview: async () => {
-      const [item] = await withPendingSpinner('Consultando ARCA...', () =>
-        previewBilling({
-          associated,
-          clock: systemClock,
-          gateways: {
-            ...createBillingGateways(session.arca),
-            billing: session.billingGateway,
-            history: session.historyGateway,
-          },
-          plan: { ...SINGLE, inputs: [entry] },
-          runtime,
-        }),
+      const [item] = await waitForArca(
+        'Consultando ARCA...',
+        () =>
+          previewBilling({
+            associated,
+            clock: systemClock,
+            gateways: {
+              ...createBillingGateways(session.arca),
+              billing: session.billingGateway,
+              history: session.historyGateway,
+            },
+            plan: { ...SINGLE, inputs: [entry] },
+            runtime,
+          }),
+        { pending: true },
       );
 
       return item;

@@ -1,4 +1,5 @@
 import { isOutputLost, outputState, settleOutput } from '../closed-output';
+import { promptCancellation } from '../prompt-cancellation';
 
 /**
  * El asistente sigue despues de un error y pregunta: con una salida rota, lo primero se perderia y lo segundo seria a
@@ -49,7 +50,7 @@ function throwIfOutputLost(): void {
     outputState.failures.set('stdout', closed);
   }
 
-  throw Object.assign(new Error('No se puede escribir la salida.'), { name: 'ExitPromptError' });
+  throw promptCancellation('No se puede escribir la salida.');
 }
 
 /**

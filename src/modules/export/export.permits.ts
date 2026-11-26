@@ -1,4 +1,5 @@
 import { InputValidationError } from '../../lib/errors/app-error';
+import { isQueryCancelled } from '../../lib/errors/query-cancelled';
 
 import type { ExportGateway } from './export.gateway';
 import { describeQueryFailure } from './export.tables';
@@ -39,6 +40,7 @@ function invalidPermitsError(invalid: readonly string[], countryLabel: string): 
  * Consulta cada permiso de embarque del `Cmp` con `FEXCheck_Permiso` antes de emitir. Si ARCA contesta `NO` corta
  * con un error de validacion: con ese permiso `FEXAuthorize` rechazaria el comprobante. Si la consulta falla o la
  * respuesta no es `OK` ni `NO`, no se sabe: se avisa y se sigue, para que una caida del servicio no frene la emision.
+ * Una consulta cancelada (`QueryCancelledError`) no se avisa: se dejo de esperar, y sigue de largo.
  */
 export async function checkExportPermits(
   payload: ExportVoucherPayload,
@@ -67,6 +69,10 @@ export async function checkExportPermits(
         );
       }
     } catch (error) {
+      if (isQueryCancelled(error)) {
+        throw error;
+      }
+
       checks.push({ permit: permit.Id_permiso, status: 'sin-verificar' });
       warnings.push(
         `No se pudo verificar el permiso de embarque ${permit.Id_permiso} en ARCA (${describeQueryFailure(error)}): revisalo antes de emitir.`,
