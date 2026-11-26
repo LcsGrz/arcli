@@ -240,23 +240,14 @@ function parseLogoPath(value: string, files: LocalFiles): string {
 /**
  * Valida y normaliza el valor de una clave. `displayKey` es la clave como la escribio la persona (\`entorno\`, no
  * \`entornoPorDefecto\`): con ella, los mensajes de los valores que no se explican solos la nombran. `files` lee las
- * rutas (certificado, clave, logo, navegador): esas claves lo necesitan.
+ * rutas (certificado, clave, logo, navegador) para validarlas.
  */
 export function parseConfigValue(
   key: CanonicalConfigKey,
   value: string,
+  files: LocalFiles,
   displayKey?: string,
-  files?: LocalFiles,
 ): boolean | number | string {
-  /** Las claves que son rutas se validan contra el archivo: sin `files`, es un error de quien llama, no del valor. */
-  const withFiles = (): LocalFiles => {
-    if (!files) {
-      throw new Error(`parseConfigValue necesita los archivos (LocalFiles) para validar \`${key}\`.`);
-    }
-
-    return files;
-  };
-
   switch (key) {
     case 'alicuotaPorDefecto':
       return parseIvaRate(value);
@@ -283,7 +274,7 @@ export function parseConfigValue(
     case 'emisor.inicioActividades':
       return parseFullDate(value);
     case 'emisor.logo':
-      return parseLogoPath(value, withFiles());
+      return parseLogoPath(value, files);
     case 'entornoPorDefecto':
       return parseChoice(arcliEnvironmentSchema, value, displayKey);
     case 'ivaReceptorPorDefecto':
@@ -303,7 +294,7 @@ export function parseConfigValue(
     case 'pdfCarpeta':
       return resolve(parseNonEmptyString(value, displayKey));
     case 'pdfNavegador':
-      return parseExistingFile(value, 'el navegador', withFiles());
+      return parseExistingFile(value, 'el navegador', files);
     case 'puntoVentaPorDefecto':
     case 'exportacion.actividad':
       return parsePositiveInteger(value, displayKey);
@@ -313,12 +304,12 @@ export function parseConfigValue(
     case 'cert.testing':
     case 'exportacion.cert.produccion':
     case 'exportacion.cert.testing':
-      return parsePemPath(value, 'certificado', withFiles());
+      return parsePemPath(value, 'certificado', files);
     case 'key.produccion':
     case 'key.testing':
     case 'exportacion.key.produccion':
     case 'exportacion.key.testing':
-      return parsePemPath(value, 'clave privada', withFiles());
+      return parsePemPath(value, 'clave privada', files);
     default:
       return parseNonEmptyString(value, displayKey);
   }

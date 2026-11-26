@@ -11,6 +11,7 @@ import { parseConfigValue } from '../../modules/config/config-value-parser';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { decidePdfs } from '../../modules/pdf/pdf-decision';
 import { listMissingIssuerKeys } from '../../modules/pdf/pdf-issuer';
+import { nodeLocalFiles } from '../../services/files/local-files';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { isOutputLost } from '../closed-output';
 import { writePdfOutcomes } from '../commands/billing.command.output';
@@ -61,7 +62,7 @@ async function askSaleCondition(current: string | undefined): Promise<Back | str
 
 function validateConfigValue(key: IssuerKey | 'condicionVenta', value: string): string | true {
   try {
-    parseConfigValue(key, value);
+    parseConfigValue(key, value, nodeLocalFiles);
 
     return true;
   } catch (error) {
@@ -70,7 +71,7 @@ function validateConfigValue(key: IssuerKey | 'condicionVenta', value: string): 
 }
 
 function applyIssuerValue(config: ArcliConfig, key: IssuerKey, value: string): ArcliConfig {
-  const parsed = String(parseConfigValue(key, value));
+  const parsed = String(parseConfigValue(key, value, nodeLocalFiles));
 
   if (key === 'cuit') {
     return { ...config, cuit: parsed };

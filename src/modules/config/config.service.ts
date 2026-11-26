@@ -80,7 +80,7 @@ function withConfigHelp<T>(parse: () => T): T {
 
 /** Valida un valor como lo haria `arcli config establecer`, sin guardarlo. Lanza un Error con el motivo. */
 export function validateConfigValue(publicKey: ConfigPublicKey, rawValue: string, files: LocalFiles): void {
-  parseConfigValue(storedKeyOf(publicKey), rawValue, undefined, files);
+  parseConfigValue(storedKeyOf(publicKey), rawValue, files);
 }
 
 export interface ConfigServiceOptions {
@@ -287,7 +287,7 @@ export class ConfigService {
     }
 
     const canonicalKey = storedKeyOf(key);
-    const parsedValue = withConfigHelp(() => parseConfigValue(canonicalKey, rawValue, key, this.files));
+    const parsedValue = withConfigHelp(() => parseConfigValue(canonicalKey, rawValue, this.files, key));
     const aliasChange = key === 'cbu' ? cbuAliasChange(this.readSaved(), rawValue) : undefined;
 
     return {
@@ -306,9 +306,11 @@ export class ConfigService {
 
   /** El CBU y su alias en un solo cambio. Sin alias, el guardado se borra: podria ser de otra cuenta. */
   private planAccount(rawCbu: string, rawAlias: string | undefined): PlannedChange {
-    const cbu = withConfigHelp(() => parseConfigValue('cbu', rawCbu, 'cuenta'));
+    const cbu = withConfigHelp(() => parseConfigValue('cbu', rawCbu, this.files, 'cuenta'));
     const alias =
-      rawAlias === undefined ? undefined : withConfigHelp(() => parseConfigValue('aliasCbu', rawAlias, 'cuenta'));
+      rawAlias === undefined
+        ? undefined
+        : withConfigHelp(() => parseConfigValue('aliasCbu', rawAlias, this.files, 'cuenta'));
 
     return {
       apply: (draft) => {

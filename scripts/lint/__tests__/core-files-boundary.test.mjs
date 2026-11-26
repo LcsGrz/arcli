@@ -30,7 +30,10 @@ function coreFiles() {
   );
 }
 
-describe('el núcleo no toca archivos ni lee el proceso (ARQ-12)', () => {
+/** `lintText` con lint tipado arma el programa de TypeScript entero: unos segundos acá, más en el CI de Windows. */
+const LINT_TIMEOUT_MS = 60_000;
+
+describe('el núcleo no toca archivos ni lee el proceso (ARQ-12)', { timeout: LINT_TIMEOUT_MS }, () => {
   it.each([
     ['src/lib/paths/mask-path.ts', "import { readFileSync } from 'node:fs';\nexport const leer = readFileSync;\n"],
     ['src/lib/paths/mask-path.ts', "import { readFile } from 'fs/promises';\nexport const leer = readFile;\n"],
