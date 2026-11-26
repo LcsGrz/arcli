@@ -26,7 +26,9 @@ import {
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
-import { writeTerminalOutput } from '../../ui';
+import { colorize, writeTerminalOutput } from '../../ui';
+import { CANCELLED_NOTICE } from '../emission-texts';
+import { ResentSignalError } from '../interruption';
 
 import { waitForArca } from './arca-wait';
 import { runHistoryFlow } from './history.flow';
@@ -102,9 +104,30 @@ async function runPadronQuery(session: InteractiveSession): Promise<QueryOutcome
     }
 
     // Volver desde el primer paso de la factura vuelve a esta pregunta.
-    if ((await runInvoiceFlow(session, undefined, receiver)) !== BACK) {
+    if ((await runInvoiceFlowFromQuery(session, receiver)) !== BACK) {
       return 'menu';
     }
+  }
+}
+
+/**
+ * La factura que se ofrece despues de consultar un CUIT. Es un flujo que emite: cancelarlo dice que no se emitio nada,
+ * como desde el menu, y vuelve al menu.
+ */
+async function runInvoiceFlowFromQuery(
+  session: InteractiveSession,
+  receiver: Parameters<typeof runInvoiceFlow>[2],
+): ReturnType<typeof runInvoiceFlow> {
+  try {
+    return await runInvoiceFlow(session, undefined, receiver);
+  } catch (error) {
+    if (!isPromptCancellation(error)) {
+      throw error;
+    }
+
+    writeTerminalOutput(colorize(CANCELLED_NOTICE, 'muted'));
+
+    return undefined;
   }
 }
 
@@ -327,7 +350,8 @@ export async function runQueriesMenu(session: InteractiveSession): Promise<void>
         return;
       }
     } catch (error) {
-      if (isPromptCancellation(error)) {
+      // Con la segunda señal emitiendo, el proceso esta por terminar: no se escribe nada mas.
+      if (isPromptCancellation(error) || error instanceof ResentSignalError) {
         throw error;
       }
 

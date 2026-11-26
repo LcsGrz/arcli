@@ -121,8 +121,8 @@ export interface EmissionClosing<R extends ClosingResult, P extends { readonly p
 
 /**
  * El cierre de todos los flujos, tambien los de la E: vista previa, comando equivalente, "¿Emitimos?", emision y PDF.
- * Ctrl+C emitiendo, como en los comandos (`emitWaitingForArca`). Devuelve si ARCA lo autorizo (`isAuthorized`): lo que se ofrece guardar en la config solo se ofrece entonces. Con Esc
- * en "¿Emitimos?", o si la vista previa rechaza la entrada (`rejectedAsBack`), devuelve BACK sin emitir: el flujo lo
+ * Ctrl+C emitiendo, como en los comandos (`emitWaitingForArca`). Devuelve si ARCA lo autorizo (`isAuthorized`): lo
+ * que se ofrece guardar en la config solo se ofrece entonces. Con Esc en "¿Emitimos?", o si la vista previa rechaza la entrada (`rejectedAsBack`), devuelve BACK sin emitir: el flujo lo
  * corre como `confirm` de `runWizard`, que vuelve a la ultima pregunta (TUI-15).
  */
 export async function closeWithEmission<R extends ClosingResult, P extends { readonly preview: R }>(
