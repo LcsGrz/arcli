@@ -273,6 +273,29 @@ export default defineConfig([
     paths: UI_STYLE_IMPORTS,
     patterns: [SDK_OUTSIDE_SERVICES, SDK_TYPES_OUTSIDE_ARCA],
   }),
+  // En el asistente, toda espera a ARCA va por `waitForArca` (arca-wait.ts), que ataja Ctrl+C (ARQ-11): el spinner no
+  // se importa directo, asi una espera nueva no queda sin Ctrl+C. Las excepciones esperan a npm, no a ARCA, y Ctrl+C
+  // ahi corta como siempre: config.flow.ts (instalar el plugin de PDF) y update.flow.ts (las novedades de la version).
+  ...layerImports({
+    files: ['src/cli/interactive/**/*.ts'],
+    ignores: [
+      'src/ui/**',
+      'src/services/**',
+      'src/cli/interactive/arca-wait.ts',
+      'src/cli/interactive/config.flow.ts',
+      'src/cli/interactive/update.flow.ts',
+      ...TEST_FILES,
+    ],
+    paths: UI_STYLE_IMPORTS,
+    patterns: [
+      SDK_OUTSIDE_SERVICES,
+      SDK_TYPES_OUTSIDE_ARCA,
+      {
+        regex: '(^|/)(pending-)?spinner$',
+        message: 'En el asistente, las esperas a ARCA van con `waitForArca` (arca-wait.ts), que ataja Ctrl+C (ARQ-11).',
+      },
+    ],
+  }),
   ...layerImports({
     files: CORE_FILES,
     paths: UI_STYLE_IMPORTS,

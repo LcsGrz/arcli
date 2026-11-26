@@ -32,8 +32,7 @@ async function restrictedImports(file, code) {
 }
 
 describe('el spinner en el asistente', () => {
-  // Tests primero (ARQ-11 PR 5): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['src/cli/interactive/queries.flow.ts', "import { withSpinner } from '../spinner';"],
     ['src/cli/interactive/status.flow.ts', "import { queryWithSpinner } from '../spinner';"],
     ['src/cli/interactive/session.ts', "import { withPendingSpinner } from '../pending-spinner';"],
