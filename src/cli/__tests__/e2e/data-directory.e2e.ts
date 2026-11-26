@@ -166,6 +166,11 @@ describe('la carpeta de datos', () => {
     expect(JSON.parse(readFileSync(join(usualDirectory(), 'update-cache.json'), 'utf8'))).toHaveProperty(
       'lastCheckedAt',
     );
+
+    if (process.platform !== 'win32') {
+      // Como config.json: solo del usuario (ARQ-12 PR 3 lo pasa a otro adaptador).
+      expect(statSync(join(usualDirectory(), 'monotributo.json')).mode & 0o777).toBe(0o600);
+    }
   });
 
   it.skipIf(process.platform === 'win32')('la carpeta y el archivo que crea son solo del usuario', () => {

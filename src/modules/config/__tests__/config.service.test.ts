@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ConfigurationError } from '../../../lib/errors/app-error';
 import { nodeLocalFiles } from '../../../services/files/local-files';
 import { serializeConfig } from '../config.presenter';
-import { resolveRowsPerList, ROWS_PER_LIST_DEPRECATION_WARNING } from '../config.schemas';
+import { CONFIG_DEFAULTS, resolveRowsPerList, ROWS_PER_LIST_DEPRECATION_WARNING } from '../config.schemas';
 import { ConfigService, deprecatedConfigKeyWarning } from '../config.service';
 
 const temporaryDirectories: string[] = [];
@@ -345,6 +345,78 @@ describe('config.service', () => {
     expect((thrown as ConfigurationError).details).toEqual({ path: configPath });
     expect((thrown as ConfigurationError).suggestion).toMatch(/arcli config/);
     expect(readFileSync(configPath, 'utf8')).toBe(corruptContent);
+  });
+
+  /** Caracterización antes de ARQ-12 PR 3: el adaptador del `ConfigStore` tiene que leer y escribir igual que conf. */
+  describe('el archivo, como lo lee y escribe hoy', () => {
+    function serviceOver(content: string): { readonly path: string; readonly service: ConfigService } {
+      const cwd = mkdtempSync(join(tmpdir(), 'arcli-config-test-'));
+      const path = join(cwd, 'config.json');
+
+      temporaryDirectories.push(cwd);
+      writeFileSync(path, content, 'utf8');
+
+      return { path, service: new ConfigService({ cwd, files: nodeLocalFiles }) };
+    }
+
+    it('lee un config.json con BOM y lo reescribe sin BOM, con tabs', () => {
+      const { path, service } = serviceOver('﻿{"cuit": "20123456786"}');
+
+      try {
+        expect(service.getConfig().cuit).toBe('20123456786');
+
+        service.setValue('puntoVenta', '3');
+
+        const written = readFileSync(path, 'utf8');
+
+        // Los bytes exactos de cada clave los fijan los dorados de `configuracion/archivo-*`.
+        expect(written.startsWith('{\n\t"')).toBe(true);
+        expect(written).toBe(JSON.stringify(JSON.parse(written), undefined, '\t'));
+        expect(JSON.parse(written)).toMatchObject({ cuit: '20123456786', puntoVentaPorDefecto: 3 });
+      } finally {
+        service.close();
+      }
+    });
+
+    it.each(['[]', 'null', '42', '"20123456786"'])('un JSON que no es un objeto (%s) se lee como vacío', (content) => {
+      const { path, service } = serviceOver(content);
+
+      try {
+        expect(service.getConfig().cuit).toBeUndefined();
+        // Sano: se completa con los defaults, como una config nueva.
+        expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual(CONFIG_DEFAULTS);
+      } finally {
+        service.close();
+      }
+    });
+
+    it('sin config.json, crea la carpeta y el archivo con los defaults', () => {
+      const cwd = join(mkdtempSync(join(tmpdir(), 'arcli-config-test-')), 'nueva');
+
+      temporaryDirectories.push(dirname(cwd));
+
+      const service = new ConfigService({ cwd, files: nodeLocalFiles });
+
+      try {
+        expect(readFileSync(join(cwd, 'config.json'), 'utf8')).toBe(JSON.stringify(CONFIG_DEFAULTS, undefined, '\t'));
+      } finally {
+        service.close();
+      }
+    });
+
+    it('un valor rechazado no toca los bytes del archivo', () => {
+      const content = '{"cuit":"20123456786","cert":{},"key":{},"emisor":{}}';
+      const { path, service } = serviceOver(content);
+
+      try {
+        const before = readFileSync(path, 'utf8');
+
+        expect(() => service.setValue('cuit', 'abc')).toThrow(/El CUIT "abc" no es válido/);
+        expect(readFileSync(path, 'utf8')).toBe(before);
+      } finally {
+        service.close();
+      }
+    });
   });
 });
 

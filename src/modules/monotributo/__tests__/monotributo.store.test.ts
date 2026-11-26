@@ -53,6 +53,56 @@ describe('FileMonotributoStore', () => {
     expect(store.readOwnCategory()).toBeUndefined();
     expect(store.readFirstAttempt()).toBeUndefined();
   });
+
+  /** Caracterización antes de ARQ-12 PR 3: el store pasa a services/files sobre el adaptador y esto queda igual. */
+  describe('el archivo, como lo lee y escribe hoy', () => {
+    const path = () => join(dir, 'monotributo.json');
+
+    it('escribe JSON con tabs y deja lo que ya estaba', () => {
+      writeFileSync(path(), '{"otraClave": 1}');
+      new FileMonotributoStore(dir).saveFirstAttempt('20261118');
+
+      expect(readFileSync(path(), 'utf8')).toBe('{\n\t"otraClave": 1,\n\t"primeraConsulta": "20261118"\n}');
+    });
+
+    it('cada guardado conserva lo que guardó el anterior, aunque sea de otra instancia', () => {
+      const first = new FileMonotributoStore(dir);
+      const second = new FileMonotributoStore(dir);
+
+      first.saveFirstAttempt('20261118');
+      second.saveOwnCategory({ consultedOn: '20261118', cuit: '20333333334', environment: 'testing', letter: 'E' });
+
+      const reopened = new FileMonotributoStore(dir);
+
+      expect(reopened.readFirstAttempt()).toBe('20261118');
+      expect(reopened.readOwnCategory()?.letter).toBe('E');
+    });
+
+    it('lee un archivo con BOM', () => {
+      writeFileSync(path(), '﻿{"primeraConsulta": "20261118"}');
+
+      expect(new FileMonotributoStore(dir).readFirstAttempt()).toBe('20261118');
+    });
+
+    it.each(['[]', 'null', '42'])('un JSON que no es un objeto (%s) se toma como vacío', (content) => {
+      writeFileSync(path(), content);
+
+      const store = new FileMonotributoStore(dir);
+
+      expect(store.readFirstAttempt()).toBeUndefined();
+
+      store.saveFirstAttempt('20261118');
+
+      expect(JSON.parse(readFileSync(path(), 'utf8'))).toEqual({ primeraConsulta: '20261118' });
+    });
+
+    it('guardar sobre un archivo roto lo reemplaza', () => {
+      writeFileSync(path(), '{ esto no es JSON');
+      new FileMonotributoStore(dir).saveFirstAttempt('20261118');
+
+      expect(JSON.parse(readFileSync(path(), 'utf8'))).toEqual({ primeraConsulta: '20261118' });
+    });
+  });
 });
 
 describe('fetchMonotributoPage', () => {
