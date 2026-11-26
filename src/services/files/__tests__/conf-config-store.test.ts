@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -41,7 +41,8 @@ describe('openConfConfigStore', () => {
     const store = openConfConfigStore({ configName: 'prueba', cwd: dir, invalid: 'throw' });
 
     store.update(() => undefined);
-    expect(existsSync(store.path)).toBe(false);
+    // La carpeta y no `existsSync` de la ruta que se escribe después: CodeQL lo toma como carrera.
+    expect(readdirSync(dir)).not.toContain('prueba.json');
 
     writeFileSync(store.path, '{"otra": 1}');
     store.update((saved) => ({ ...saved, nueva: 2 }));
