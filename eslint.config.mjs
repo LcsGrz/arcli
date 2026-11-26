@@ -43,8 +43,9 @@ const UI_BARREL = {
 
 // =========================
 // Fronteras del núcleo (docs/architecture.md, "Núcleo y adaptadores"): `modules` y `lib` no saben quién los llama.
-// Lo que ya se cumple es error: `no-restricted-imports` (también `node:fs`), `no-restricted-syntax` (el reloj) y
-// `no-restricted-globals` (`process`). El reloj, `process` y `node:fs` siguen en warn en los módulos de la app (ARQ-7).
+// Lo que ya se cumple es error: `no-restricted-imports` (también `node:fs` y `conf`), `no-restricted-syntax` (el reloj)
+// y `no-restricted-globals` (`process`). El reloj, `process`, `node:fs` y `conf` siguen en warn en los módulos de la app
+// (ARQ-7).
 // Lo que hoy falla es deuda en warn, con el ticket que la cierra
 // (`@typescript-eslint/no-restricted-imports`): no es un patrón para copiar. Cuando el ticket se cierra, la frontera
 // pasa al bloque de error.
@@ -88,6 +89,11 @@ const CORE_ON_FS = ['node:fs', 'node:fs/promises', 'fs', 'fs/promises'].map((nam
   message:
     'El núcleo no lee ni escribe archivos: recibí el contenido, o un puerto (LocalFiles, CertificateStore, TicketStore) como dependencia; el adaptador va en src/services/files.',
 }));
+const CORE_ON_CONF = {
+  name: 'conf',
+  message:
+    'El núcleo no abre archivos de la carpeta de datos: usá el puerto ConfigStore (src/modules/config/config-store.ts); el adaptador sobre `conf` va en src/services/files.',
+};
 const CORE_ON_APP_LIBS = [
   { name: 'commander', message: 'El parseo de flags es de la app CLI: el núcleo recibe la entrada ya parseada.' },
   {
@@ -125,12 +131,6 @@ const CORE_ON_UI = {
   message:
     'El núcleo devuelve datos, no texto de pantalla: el presenter va en la app CLI y el módulo le pasa los datos. Lo cierra ARQ-7.',
 };
-const CORE_ON_CONF = {
-  name: 'conf',
-  message:
-    'El almacenamiento de la config es un adaptador: recibí la config resuelta o un repositorio como dependencia. Lo cierra ARQ-12.',
-};
-
 /** Las reglas de deuda del núcleo; en los módulos de la app, todas con el mensaje de ARQ-7. */
 const coreDebtRules = ({ message, extraPaths = [] } = {}) => {
   const withMessage = (entries) => entries.map((entry) => ({ ...entry, message: message ?? entry.message }));
@@ -138,7 +138,7 @@ const coreDebtRules = ({ message, extraPaths = [] } = {}) => {
     '@typescript-eslint/no-restricted-imports': [
       'warn',
       {
-        paths: [...withMessage([CORE_ON_CONF]), ...extraPaths],
+        paths: extraPaths,
         patterns: withMessage([CORE_ON_UI]),
       },
     ],
@@ -302,7 +302,7 @@ export default defineConfig([
     files: CORE_FILES,
     ignores: TEST_FILES,
     rules: {
-      ...coreImportRules([...CORE_ON_FS, ...processModule(PROCESS_MESSAGE)]),
+      ...coreImportRules([...CORE_ON_FS, CORE_ON_CONF, ...processModule(PROCESS_MESSAGE)]),
       ...noProcessGlobal('error', PROCESS_MESSAGE),
       'no-restricted-syntax': noClockReads('error', NOW_MESSAGE),
       ...coreDebtRules(),
@@ -318,7 +318,7 @@ export default defineConfig([
       ...coreDebtRules({
         message: APP_MODULE_MESSAGE,
         extraPaths: [
-          ...CORE_ON_FS.map((entry) => ({ ...entry, message: APP_MODULE_MESSAGE })),
+          ...[CORE_ON_CONF, ...CORE_ON_FS].map((entry) => ({ ...entry, message: APP_MODULE_MESSAGE })),
           ...processModule(APP_MODULE_MESSAGE),
         ],
       }),

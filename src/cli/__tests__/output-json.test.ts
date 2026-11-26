@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfigService } from '../../modules/config/config.service';
+import { openConfigFileStore } from '../../services/files/conf-config-store';
 import { nodeLocalFiles } from '../../services/files/local-files';
 import { reportCliError } from '../error-output';
 import { createProgram } from '../program';
@@ -13,7 +14,7 @@ import { createProgram } from '../program';
 let configDir = '';
 
 function setJsonDefault(value: boolean): void {
-  const service = new ConfigService({ cwd: configDir, files: nodeLocalFiles });
+  const service = new ConfigService({ files: nodeLocalFiles, store: openConfigFileStore(configDir) });
 
   try {
     service.setValue('json', String(value));

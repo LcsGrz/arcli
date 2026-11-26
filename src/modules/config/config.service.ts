@@ -1,12 +1,10 @@
-import Conf from 'conf';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
 import { ZodError } from 'zod';
 
 import { ConfigurationError, InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
 import { withFilePath } from '../../lib/files/file-error';
 import type { LocalFiles } from '../../lib/files/local-files';
-import { requireDataDirectory } from '../../lib/files/require-data-directory';
 import { parseCbu } from '../../lib/identity/cbu';
 import { deleteAtPath, setAtPath } from '../../lib/json/object-path';
 import { describeZodIssues, parseZodInput } from '../billing/billing.zod-errors';
@@ -32,6 +30,7 @@ import {
   type PendingConfigProblems,
   suggestConfigFix,
 } from './config-problems';
+import { configFilePath, type ConfigStore, type StoredConfig } from './config-store';
 import { parseConfigValue } from './config-value-parser';
 
 /**
@@ -84,15 +83,10 @@ export function validateConfigValue(publicKey: ConfigPublicKey, rawValue: string
 }
 
 export interface ConfigServiceOptions {
-  /** La carpeta de datos, donde va el config.json: la decide quien abre la config. */
-  readonly cwd: string;
   /** Para validar las rutas que se guardan (certificado, clave, logo, navegador). */
   readonly files: LocalFiles;
-}
-
-/** Ruta del config.json, sin leerlo. */
-function resolveStorePath({ cwd }: Pick<ConfigServiceOptions, 'cwd'>): string {
-  return resolve(requireDataDirectory(cwd), 'config.json');
+  /** El config.json: la app pasa el adaptador sobre la carpeta de datos (src/services/files). */
+  readonly store: ConfigStore;
 }
 
 function defaultTicketPathFor(configPath: string): string {
@@ -105,11 +99,11 @@ function defaultTicketPathFor(configPath: string): string {
  *
  * @internal Solo para el setup de los tests: guardarraíl de aislamiento de la config.
  */
-export function resolveConfigLocation(options: Pick<ConfigServiceOptions, 'cwd'>): {
+export function resolveConfigLocation({ cwd }: { readonly cwd: string }): {
   readonly configPath: string;
   readonly ticketPath: string;
 } {
-  const configPath = resolveStorePath(options);
+  const configPath = configFilePath(cwd);
 
   return { configPath, ticketPath: defaultTicketPathFor(configPath) };
 }
@@ -130,45 +124,68 @@ export interface ConfigChange {
   readonly warnings?: readonly string[];
 }
 
+/**
+ * Un cambio ya validado, para aplicarlo sobre lo que se relee al escribir. `saved` es lo releído con los defaults: lo
+ * que depende de lo guardado (el alias del CBU) se decide ahí y no al planear, por si otro proceso escribió en el medio.
+ */
 interface PlannedChange {
-  readonly apply: (draft: Record<string, unknown>) => void;
+  readonly apply: (draft: StoredConfig, saved: StoredConfig) => void;
   readonly keys: readonly CanonicalConfigKey[];
-  readonly warning?: string;
+  readonly warning?: (saved: StoredConfig) => string | undefined;
 }
 
+/**
+ * Lo guardado (o la config recien validada, que es lo que se escribe), completo con los defaults. El archivo se
+ * completa solo si esta sano (`completeDefaults`): con una clave rota no se toca nada que la persona no haya pedido.
+ */
+function withDefaults(stored: ArcliConfig | StoredConfig): StoredConfig {
+  return { ...CONFIG_DEFAULTS, ...stored };
+}
+
+/** Si a lo guardado le faltan defaults y, completo, queda sano. */
+function lacksDefaults(stored: StoredConfig): boolean {
+  return (
+    Object.keys(CONFIG_DEFAULTS).some((key) => stored[key] === undefined) &&
+    arcliConfigSchema.safeParse(withDefaults(stored)).success
+  );
+}
+
+/**
+ * La config de arcli sobre el puerto `ConfigStore`. Cada operacion publica que escribe es un solo `update` y decide
+ * sobre lo que relee ahi: lo que otro proceso guardo en el medio se conserva. Sin bloqueo entre procesos (ARQ-26).
+ */
 export class ConfigService {
   private readonly files: LocalFiles;
-  private readonly store: Conf<Record<string, unknown>>;
+  private readonly store: ConfigStore;
 
   public constructor(options: ConfigServiceOptions) {
-    const path = resolveStorePath(options);
-
     this.files = options.files;
+    this.store = options.store;
 
     try {
-      this.store = withFilePath(
-        path,
-        () => new Conf<Record<string, unknown>>({ clearInvalidConfig: false, configName: 'config', cwd: options.cwd }),
-      );
-      withFilePath(path, () => this.completeDefaults());
+      withFilePath(this.store.path, () => this.completeDefaults());
     } catch (error) {
       if (error instanceof SyntaxError) {
-        throw invalidConfigFileError(path);
+        throw invalidConfigFileError(this.store.path);
       }
 
       throw error;
     }
   }
 
-  public close(): void {
-    this.store._closeWatcher();
-  }
+  /** No queda nada abierto entre operaciones: se mantiene para quien abre y cierra la config. */
+  public close(): void {}
 
   public getConfig(): ArcliConfig {
+    return this.parseSaved(this.store.read());
+  }
+
+  /** La config guardada, validada; con una clave rota, el error dice cual y como arreglarla. */
+  private parseSaved(stored: StoredConfig): ArcliConfig {
     try {
-      return parseZodInput(arcliConfigSchema, this.readSaved());
+      return parseZodInput(arcliConfigSchema, withDefaults(stored));
     } catch (error) {
-      const savedCbu = this.store.store.cbu;
+      const savedCbu = stored.cbu;
       const cbuResult = typeof savedCbu === 'string' ? parseCbu(savedCbu) : undefined;
 
       if (cbuResult && !cbuResult.ok) {
@@ -223,10 +240,15 @@ export class ConfigService {
   }
 
   public initialize(): ArcliConfig {
-    const config = this.getConfig();
-    this.writeComplete(config);
+    let config: ArcliConfig | undefined;
 
-    return config;
+    this.store.update((stored) => {
+      config = this.parseSaved(stored);
+
+      return withDefaults(config);
+    });
+
+    return definedAfterUpdate(config);
   }
 
   public ensureInitialized(): ArcliConfig {
@@ -253,7 +275,7 @@ export class ConfigService {
     ];
 
     return this.saveIfValid({
-      apply: (draft) => plans.forEach((plan) => plan.apply(draft)),
+      apply: (draft, saved) => plans.forEach((plan) => plan.apply(draft, saved)),
       // Los valores ya se validaron al planearlos: lo que falle al guardar es de otra clave.
       keys: plans[plans.length - 1].keys,
     });
@@ -261,18 +283,12 @@ export class ConfigService {
 
   /** `config establecer`: como `setValue`, pero guarda aunque queden otras claves que ya estaban rotas. */
   public repairValue(rawKey: string, rawValue: string, alias?: string): ConfigChange {
-    return this.repair(this.planSet(rawKey, rawValue, alias));
+    return this.saveIfNotWorse(this.planSet(rawKey, rawValue, alias));
   }
 
   /** `config eliminar`: como `unsetValue`, pero guarda aunque queden otras claves que ya estaban rotas. */
   public repairUnset(rawKey: string): ConfigChange {
-    return this.repair(this.planUnset(rawKey));
-  }
-
-  private repair(change: PlannedChange): ConfigChange {
-    const result = this.saveIfNotWorse(change);
-
-    return change.warning === undefined ? result : { ...result, warnings: [change.warning] };
+    return this.saveIfNotWorse(this.planUnset(rawKey));
   }
 
   private planSet(rawKey: string, rawValue: string, alias?: string): PlannedChange {
@@ -288,19 +304,19 @@ export class ConfigService {
 
     const canonicalKey = storedKeyOf(key);
     const parsedValue = withConfigHelp(() => parseConfigValue(canonicalKey, rawValue, this.files, key));
-    const aliasChange = key === 'cbu' ? cbuAliasChange(this.readSaved(), rawValue) : undefined;
+    const aliasChange = (saved: StoredConfig) => (key === 'cbu' ? cbuAliasChange(saved, rawValue) : undefined);
 
     return {
-      apply: (draft) => {
+      apply: (draft, saved) => {
         deleteLegacyKeys(draft, key);
         setAtPath(draft, canonicalKey, parsedValue);
 
-        if (aliasChange?.removesAlias) {
+        if (aliasChange(saved)?.removesAlias) {
           deleteAtPath(draft, 'aliasCbu');
         }
       },
       keys: [canonicalKey],
-      warning: aliasChange?.warning,
+      warning: (saved) => aliasChange(saved)?.warning,
     };
   }
 
@@ -323,7 +339,7 @@ export class ConfigService {
         }
       },
       keys: ['cbu', 'aliasCbu'],
-      warning: alias === undefined ? accountAliasRemovedWarning(this.readSaved()) : undefined,
+      warning: (saved) => (alias === undefined ? accountAliasRemovedWarning(saved) : undefined),
     };
   }
 
@@ -339,30 +355,14 @@ export class ConfigService {
         keys.forEach((canonicalKey) => deleteAtPath(draft, canonicalKey));
       },
       keys,
-      warning: keys.length > 1 ? cbuRemovalWarning(this.readSaved()) : undefined,
+      warning: (saved) => (keys.length > 1 ? cbuRemovalWarning(saved) : undefined),
     };
   }
 
-  /**
-   * Lo guardado, completo con los defaults. El archivo se completa solo si esta sano (`completeDefaults`): con una
-   * clave rota no se toca nada que la persona no haya pedido.
-   */
-  private readSaved(): Record<string, unknown> {
-    return { ...CONFIG_DEFAULTS, ...this.store.store };
-  }
-
-  private writeComplete(config: ArcliConfig): void {
-    this.store.store = { ...CONFIG_DEFAULTS, ...config };
-  }
-
+  /** Completa los defaults que falten, solo si lo guardado esta sano. Si no falta nada, no escribe. */
   private completeDefaults(): void {
-    const stored = this.store.store;
-
-    if (
-      Object.keys(CONFIG_DEFAULTS).some((key) => stored[key] === undefined) &&
-      arcliConfigSchema.safeParse(this.readSaved()).success
-    ) {
-      this.store.store = this.readSaved();
+    if (lacksDefaults(this.store.read())) {
+      this.store.update((stored) => (lacksDefaults(stored) ? withDefaults(stored) : undefined));
     }
   }
 
@@ -371,51 +371,73 @@ export class ConfigService {
    * inutilizable. Una config que ya estaba rota se puede arreglar cambiando o borrando la clave que falla.
    */
   private saveIfValid(change: PlannedChange): ArcliConfig {
-    const draft = structuredClone(this.readSaved());
+    let config: ArcliConfig | undefined;
 
-    change.apply(draft);
+    this.store.update((stored) => {
+      const saved = withDefaults(stored);
+      const draft = structuredClone(saved);
 
-    const config = this.parseDraft(change.keys, draft);
-    this.writeComplete(config);
+      change.apply(draft, saved);
+      config = this.parseDraft(change.keys, draft, saved);
 
-    return config;
+      return withDefaults(config);
+    });
+
+    return definedAfterUpdate(config);
   }
 
   /**
    * Si el cambio deja la config sana, guarda como `saveIfValid`. Si no, guarda solo esa clave sobre lo que hay en el
-   * archivo, sin normalizar ni completar el resto, y nada mas que si no hay problemas nuevos.
+   * archivo, sin normalizar ni completar el resto, y nada mas que si no hay problemas nuevos. Los avisos salen de lo
+   * releido, en el mismo `update`.
    */
   private saveIfNotWorse(change: PlannedChange): ConfigChange {
-    const saved = this.readSaved();
-    const draft = structuredClone(saved);
+    let result: ConfigChange | undefined;
 
-    change.apply(draft);
+    this.store.update((stored) => {
+      const saved = withDefaults(stored);
+      const draft = structuredClone(saved);
+      const warning = change.warning?.(saved);
+      const warnings = warning === undefined ? {} : { warnings: [warning] };
 
-    const error = parseConfigProblems(draft);
+      change.apply(draft, saved);
 
-    const old = parseConfigProblems(saved);
+      const error = parseConfigProblems(draft);
+      const old = parseConfigProblems(saved);
 
-    if (!error || !change.keys.every((key) => onlyOldProblems(error, old, key))) {
-      return { config: this.saveIfValid(change) };
-    }
+      if (!error || !change.keys.every((key) => onlyOldProblems(error, old, key))) {
+        const config = this.parseDraft(change.keys, draft, saved);
 
-    for (const issue of error.issues) {
-      deleteAtPath(draft, issuePath(issue));
-    }
+        result = { config, ...warnings };
 
-    const result: ConfigChange = {
-      config: parseZodInput(arcliConfigSchema, draft),
-      pending: describePending(error, this.store.path),
-    };
-    const stored = structuredClone({ ...this.store.store });
+        return withDefaults(config);
+      }
 
-    change.apply(stored);
-    this.store.store = stored;
+      for (const issue of error.issues) {
+        deleteAtPath(draft, issuePath(issue));
+      }
 
-    return result;
+      result = {
+        config: parseZodInput(arcliConfigSchema, draft),
+        pending: describePending(error, this.store.path),
+        ...warnings,
+      };
+
+      const next = structuredClone(stored);
+
+      change.apply(next, saved);
+
+      return next;
+    });
+
+    return definedAfterUpdate(result);
   }
 
-  private parseDraft(changedKeys: readonly CanonicalConfigKey[], draft: Record<string, unknown>): ArcliConfig {
+  private parseDraft(
+    changedKeys: readonly CanonicalConfigKey[],
+    draft: StoredConfig,
+    saved: StoredConfig,
+  ): ArcliConfig {
     try {
       return parseZodInput(arcliConfigSchema, draft);
     } catch (error) {
@@ -427,7 +449,7 @@ export class ConfigService {
         throw error;
       }
 
-      throw invalidSavedConfigError(error, parseConfigProblems(this.readSaved()) ?? error, this.store.path);
+      throw invalidSavedConfigError(error, parseConfigProblems(saved) ?? error, this.store.path);
     }
   }
 
@@ -452,6 +474,15 @@ export class ConfigService {
 
     return result.data;
   }
+}
+
+/** Lo que la funcion de `update` dejo listo: si `update` volvio sin correrla, el adaptador no cumple el puerto. */
+function definedAfterUpdate<T>(value: T | undefined): T {
+  if (value === undefined) {
+    throw new Error('El almacenamiento de la config no aplicó el cambio.');
+  }
+
+  return value;
 }
 
 function deleteLegacyKeys(draft: Record<string, unknown>, key: AccountStoredKey | ConfigPublicKey): void {

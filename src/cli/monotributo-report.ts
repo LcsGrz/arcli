@@ -2,13 +2,10 @@ import type { ArcliConfig, ArcliEnvironment } from '../modules/config/config.sch
 import type { MonotributoReport } from '../modules/monotributo/monotributo.presenter';
 import { loadMonotributoTable, resolveOwnCategory } from '../modules/monotributo/monotributo.service';
 import { fetchMonotributoPage } from '../modules/monotributo/monotributo.source';
-import {
-  FileMonotributoStore,
-  MemoryMonotributoStore,
-  type MonotributoStore,
-} from '../modules/monotributo/monotributo.store';
+import { MemoryMonotributoStore, type MonotributoStore } from '../modules/monotributo/monotributo.store';
 import type { ArcaClient } from '../services/arca/arca-client.factory';
 import { ArcaPadronGateway } from '../services/arca/arca-padron.gateway';
+import { FileMonotributoStore } from '../services/files/monotributo-file-store';
 
 import { dataDirectory } from './data-directory';
 import { withSpinner } from './spinner';

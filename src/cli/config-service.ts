@@ -1,11 +1,12 @@
 import { ConfigService } from '../modules/config/config.service';
+import { openConfigFileStore } from '../services/files/conf-config-store';
 import { nodeLocalFiles } from '../services/files/local-files';
 
 import { dataDirectory } from './data-directory';
 
 /** La config de la carpeta de datos. Quien la abre la cierra; para una sola operacion, `withConfigService`. */
 export function openConfigService(): ConfigService {
-  return new ConfigService({ cwd: dataDirectory(), files: nodeLocalFiles });
+  return new ConfigService({ files: nodeLocalFiles, store: openConfigFileStore(dataDirectory()) });
 }
 
 /** Lo que no hay que esperar: con una promesa, la config se cerraria antes de que termine. */

@@ -1,3 +1,5 @@
+import { resolve } from 'node:path';
+
 /**
  * La carpeta de datos la dice quien los abre: sin ella es un error de programacion y falla, nunca una por defecto. `conf`
  * toma la vacia como "elegi vos" y asi se termina escribiendo en la carpeta real.
@@ -9,4 +11,9 @@ export function requireDataDirectory(directory: string): string {
   }
 
   return directory;
+}
+
+/** La ruta de un JSON de la carpeta de datos (`config`, `monotributo`), sin leerlo. Falla sin carpeta. */
+export function dataFilePath(directory: string, name: string): string {
+  return resolve(requireDataDirectory(directory), `${name}.json`);
 }

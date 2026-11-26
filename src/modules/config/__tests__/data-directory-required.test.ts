@@ -1,8 +1,9 @@
 import { readdirSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { openConfigFileStore } from '../../../services/files/conf-config-store';
 import { nodeLocalFiles } from '../../../services/files/local-files';
-import { FileMonotributoStore } from '../../monotributo/monotributo.store';
+import { FileMonotributoStore } from '../../../services/files/monotributo-file-store';
 import { checkForUpdate } from '../../update-check/update-check.service';
 import { ConfigService } from '../config.service';
 
@@ -33,9 +34,9 @@ describe.each([
   it('ConfigService falla sin escribir nada', () => {
     const before = homeEntries();
 
-    expect(() => new ConfigService({ cwd: skippingTypes(value), files: nodeLocalFiles }).close()).toThrow(
-      /carpeta de datos/,
-    );
+    expect(() =>
+      new ConfigService({ files: nodeLocalFiles, store: openConfigFileStore(skippingTypes(value)) }).close(),
+    ).toThrow(/carpeta de datos/);
     expect(homeEntries()).toEqual(before);
   });
 

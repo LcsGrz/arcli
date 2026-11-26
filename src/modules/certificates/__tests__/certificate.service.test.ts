@@ -36,21 +36,35 @@ function setup(overrides: Partial<ArcliConfig> = {}) {
     output: { brutoPorDefecto: false, emitirPorDefecto: false, jsonPorDefecto: false },
     ...overrides,
   };
+  /** Cada escritura en la config, con las claves que guardó: `certificado importar` tiene que ser una sola. */
+  const writes: Array<ReadonlyArray<readonly [key: string, value: string]>> = [];
+  const save = (changes: ReadonlyArray<readonly [key: string, value: string]>) => {
+    writes.push(changes);
+
+    for (const [key, value] of changes) {
+      const [group, environment] = key.split('.') as ['cert' | 'key', 'produccion' | 'testing'];
+
+      config = { ...config, [group]: { ...config[group], [environment]: value } };
+    }
+  };
+  // Con `changeValues`, como ConfigService (ARQ-12 PR 3).
+  const configPort = {
+    changeValues: ({
+      set,
+    }: {
+      readonly remove: readonly string[];
+      readonly set: ReadonlyArray<readonly [string, string]>;
+    }) => save(set),
+    getConfig: () => config,
+  };
   const service = new CertificateService({
     certificatesRoot: root,
-    config: {
-      getConfig: () => config,
-      setValue: (key, value) => {
-        const [group, environment] = key.split('.') as ['cert' | 'key', 'produccion' | 'testing'];
-
-        config = { ...config, [group]: { ...config[group], [environment]: value } };
-      },
-    },
+    config: configPort,
     clock: { now: () => new Date('2026-11-04T12:00:00Z') },
     store: nodeCertificateStore,
   });
 
-  return { config: () => config, root, service };
+  return { config: () => config, root, service, writes };
 }
 
 afterEach(() => {
@@ -293,6 +307,21 @@ describe('CertificateService', () => {
     expect(readFileSync(files.key, 'utf8')).toBe(key);
     expect(existsSync(files.previousKey)).toBe(false);
     expect(config().key.testing).toBe(files.key);
+  });
+
+  it('importar guarda el certificado y la clave en la config en un solo cambio (ARQ-12)', () => {
+    const { root, service, writes } = setup();
+    const request = service.generate({ environment: 'produccion' });
+    const files = resolveCertificateFiles(root, CUIT, 'produccion');
+
+    service.import({ content: signRequestLikeArca(request.csrPem, { issuer: 'Computadores' }) });
+
+    expect(writes).toEqual([
+      expect.arrayContaining([
+        ['cert.produccion', files.certificate],
+        ['key.produccion', files.key],
+      ]),
+    ]);
   });
 
   /** Caracterización antes de ARQ-12: los archivos pasan a un `CertificateStore` y esto tiene que quedar igual. */

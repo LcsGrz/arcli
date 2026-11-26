@@ -136,6 +136,8 @@ function strykerConfig(mutate, { concurrency, statics }) {
     $schema: './node_modules/@stryker-mutator/core/schema/stryker-schema.json',
     concurrency,
     disableTypeChecks: 'src/**/*.ts',
+    // La corrida inicial mide la cobertura por test de toda la suite: con ~8900 tests ya no entra en los 5 min de siempre.
+    dryRunTimeoutMinutes: 20,
     ignoreStatic: !statics,
     // Lo que no hace falta copiar al sandbox (los worktrees y el sitio traen miles de archivos).
     ignorePatterns: ['.claude/worktrees', 'site', 'dist', 'coverage', 'reports'],

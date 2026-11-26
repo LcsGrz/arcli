@@ -17,8 +17,12 @@ import { type CertificateFiles, type CertificateStore, resolveCertificateFiles }
 
 /** Lo que el servicio necesita de la config: leerla y guardar las rutas como `arcli config establecer`. */
 export interface CertificateConfigPort {
+  /** Varios cambios en una sola escritura, como `ConfigService.changeValues`: se guardan todos o ninguno. */
+  changeValues(changes: {
+    readonly remove: readonly string[];
+    readonly set: ReadonlyArray<readonly [key: string, value: string]>;
+  }): void;
   getConfig(): ArcliConfig;
-  setValue(key: string, value: string): void;
 }
 
 export interface CertificateServiceOptions {
@@ -227,8 +231,14 @@ export class CertificateService {
 
     this.store.moveIfExists(files.certificate, files.previousCertificate);
     this.store.write(files.certificate, pem);
-    this.config.setValue(`cert.${environment}`, files.certificate);
-    this.config.setValue(`key.${environment}`, keyPath);
+    // El certificado y su clave en una sola escritura: no puede quedar uno nuevo con la clave vieja.
+    this.config.changeValues({
+      remove: [],
+      set: [
+        [`cert.${environment}`, files.certificate],
+        [`key.${environment}`, keyPath],
+      ],
+    });
 
     return {
       alias: info.alias,

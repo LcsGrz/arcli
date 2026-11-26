@@ -5,9 +5,9 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * ARQ-12: el núcleo (src/lib y src/modules) no toca archivos ni lee el proceso. Los módulos de la app (ARQ-7) y los
- * tests quedan afuera, y `conf` sigue en warn hasta el ConfigStore. Mira la config real de ESLint que le toca a cada
- * archivo (`calculateConfigForFile`), como data-directory-rule.test.mjs: lintear texto inventado sobre la ruta de un
- * archivo real, con lint tipado, depende de qué programa de TypeScript armó antes el mismo worker.
+ * tests quedan afuera. `conf` va detrás del puerto ConfigStore: en el núcleo es error. Mira la config real de ESLint
+ * que le toca a cada archivo (`calculateConfigForFile`), como data-directory-rule.test.mjs: lintear texto inventado
+ * sobre la ruta de un archivo real, con lint tipado, depende de qué programa de TypeScript armó antes el mismo worker.
  */
 const ERROR = 2;
 const WARN = 1;
@@ -89,16 +89,43 @@ describe('el núcleo no toca archivos ni lee el proceso (ARQ-12)', () => {
     expect(globals).toEqual([expect.objectContaining({ message: expect.stringContaining('ARQ-7'), name: 'process' })]);
   });
 
-  it('conf sigue en warn en el núcleo hasta el ConfigStore', async () => {
-    const debt = await restrictedImports(
-      'src/modules/config/config-doctor.ts',
-      '@typescript-eslint/no-restricted-imports',
-    );
+  it.each(['src/lib/paths/mask-path.ts', 'src/modules/config/config.service.ts'])(
+    'importar conf en %s es error, sin deuda en warn',
+    async (file) => {
+      const error = await restrictedImports(file, 'no-restricted-imports');
+      const debt = await restrictedImports(file, '@typescript-eslint/no-restricted-imports');
 
+      expect(error.severity).toBe(ERROR);
+      expect(error.paths).toContainEqual(expect.objectContaining({ name: 'conf' }));
+      // Solo error: ninguna regla de deuda lo marca además en warn, ni queda un mensaje que diga que lo cierra ARQ-12.
+      expect(debt.paths.filter(({ name }) => name === 'conf')).toEqual([]);
+    },
+  );
+
+  it('en los módulos de la app, conf sigue en warn con el mensaje de ARQ-7', async () => {
+    const file = 'src/modules/update-check/update-check.service.ts';
+    const error = await restrictedImports(file, 'no-restricted-imports');
+    const debt = await restrictedImports(file, '@typescript-eslint/no-restricted-imports');
+
+    expect(error.paths.filter(({ name }) => name === 'conf')).toEqual([]);
     expect(debt.severity).toBe(WARN);
-    expect(debt.paths).toContainEqual(
-      expect.objectContaining({ message: expect.stringContaining('ARQ-12'), name: 'conf' }),
-    );
+    expect(debt.paths.filter(({ name }) => name === 'conf')).toEqual([
+      expect.objectContaining({ message: expect.stringContaining('ARQ-7') }),
+    ]);
+  });
+
+  it('ninguna regla del núcleo queda en warn con el mensaje de ARQ-12', async () => {
+    const pending = [];
+
+    for (const file of coreFiles()) {
+      const debt = await restrictedImports(file, '@typescript-eslint/no-restricted-imports');
+
+      if (debt.paths.some(({ message }) => message?.includes('ARQ-12'))) {
+        pending.push(file);
+      }
+    }
+
+    expect(pending).toEqual([]);
   });
 
   it('los tests del núcleo pueden usar fs y process', async () => {
