@@ -1,11 +1,10 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { BUNDLED_MONOTRIBUTO_TABLE } from '../monotributo.bundled';
-import { fetchMonotributoPage } from '../monotributo.source';
-import { FileMonotributoStore } from '../monotributo.store';
+import { BUNDLED_MONOTRIBUTO_TABLE } from '../../../modules/monotributo/monotributo.bundled';
+import { FileMonotributoStore } from '../monotributo-file-store';
 
 let dir = '';
 
@@ -101,46 +100,6 @@ describe('FileMonotributoStore', () => {
       new FileMonotributoStore(dir).saveFirstAttempt('20261118');
 
       expect(JSON.parse(readFileSync(path(), 'utf8'))).toEqual({ primeraConsulta: '20261118' });
-    });
-  });
-});
-
-describe('fetchMonotributoPage', () => {
-  it('devuelve el HTML', async () => {
-    const fetchImpl = vi.fn(async () => new Response('<html></html>'));
-
-    await expect(fetchMonotributoPage(fetchImpl)).resolves.toEqual({ html: '<html></html>', ok: true });
-    expect(fetchImpl).toHaveBeenCalledWith(
-      'https://www.afip.gob.ar/monotributo/categorias.asp',
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
-    );
-  });
-
-  it('sin conexión', async () => {
-    const fetchImpl = vi.fn(async () => {
-      throw new TypeError('fetch failed');
-    });
-
-    await expect(fetchMonotributoPage(fetchImpl)).resolves.toEqual({ ok: false, reason: 'sin-conexion' });
-  });
-
-  it('un error HTTP', async () => {
-    const fetchImpl = vi.fn(async () => new Response('', { status: 503 }));
-
-    await expect(fetchMonotributoPage(fetchImpl)).resolves.toEqual({ ok: false, reason: 'error-http', status: 503 });
-  });
-
-  it('corta si ARCA no responde a tiempo', async () => {
-    const fetchImpl = vi.fn(
-      (_url: string | URL | Request, init?: RequestInit) =>
-        new Promise<Response>((_resolve, reject) => {
-          init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
-        }),
-    );
-
-    await expect(fetchMonotributoPage(fetchImpl as typeof fetch, 10)).resolves.toEqual({
-      ok: false,
-      reason: 'sin-respuesta',
     });
   });
 });

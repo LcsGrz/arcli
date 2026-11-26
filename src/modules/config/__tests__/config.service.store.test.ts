@@ -22,7 +22,6 @@ const OTHER_ALIAS = 'otro.alias.cbu';
 const HEALTHY: StoredConfig = { ...CONFIG_DEFAULTS, cuit: CUIT, monedaPorDefecto: 'USD' };
 
 function createService(store: MemoryConfigStore): ConfigService {
-  // @ts-expect-error Tests primero (ARQ-12 PR 3): hoy ConfigService pide `cwd` y abre conf; con el puerto recibe `store`.
   return new ConfigService({ files: nodeLocalFiles, store });
 }
 
@@ -70,8 +69,7 @@ const WRITES: ReadonlyArray<
 
 describe('ConfigService sobre el puerto ConfigStore (ARQ-12 PR 3)', () => {
   describe('relee al escribir: conserva lo que otro proceso guardó en el medio', () => {
-    // Tests primero (ARQ-12 PR 3): pasa a it() al implementarlo.
-    it.fails.each(WRITES)('%s', (_name, initial, write) => {
+    it.each(WRITES)('%s', (_name, initial, write) => {
       const { service, store } = openWithConcurrentWriter(initial, savesBusinessName);
 
       write(service);
@@ -79,8 +77,7 @@ describe('ConfigService sobre el puerto ConfigStore (ARQ-12 PR 3)', () => {
       expect(store.read()).toMatchObject({ emisor: { razonSocial: 'Ana Ficticia' } });
     });
 
-    // Tests primero (ARQ-12 PR 3): pasa a it() al implementarlo.
-    it.fails('al completar los defaults al abrir', () => {
+    it('al completar los defaults al abrir', () => {
       const store = new MemoryConfigStore({ initial: { cuit: CUIT } });
 
       store.beforeUpdate = savesBusinessName;
@@ -89,9 +86,7 @@ describe('ConfigService sobre el puerto ConfigStore (ARQ-12 PR 3)', () => {
       expect(store.read()).toEqual({ ...CONFIG_DEFAULTS, cuit: CUIT, emisor: { razonSocial: 'Ana Ficticia' } });
     });
 
-    // Tests primero (ARQ-12 PR 3): pasa a it() al implementarlo.
-
-    it.fails('el valor que se pide gana sobre el que guardó el otro proceso en la misma clave', () => {
+    it('el valor que se pide gana sobre el que guardó el otro proceso en la misma clave', () => {
       const { service, store } = openWithConcurrentWriter(HEALTHY, (saved) => {
         saved.monedaPorDefecto = 'EUR';
       });
@@ -109,9 +104,7 @@ describe('ConfigService sobre el puerto ConfigStore (ARQ-12 PR 3)', () => {
       saved.aliasCbu = OTHER_ALIAS;
     };
 
-    // Tests primero (ARQ-12 PR 3): pasa a it() al implementarlo.
-
-    it.fails('cambiar el CBU borra el alias que otro proceso guardó con el CBU anterior, y lo avisa', () => {
+    it('cambiar el CBU borra el alias que otro proceso guardó con el CBU anterior, y lo avisa', () => {
       const { service, store } = openWithConcurrentWriter({ ...HEALTHY, cbu: CBU }, savesAccount);
       const change = service.repairValue('cbu', OTHER_CBU);
 
@@ -120,9 +113,7 @@ describe('ConfigService sobre el puerto ConfigStore (ARQ-12 PR 3)', () => {
       expect(store.read()).not.toHaveProperty('aliasCbu');
     });
 
-    // Tests primero (ARQ-12 PR 3): pasa a it() al implementarlo.
-
-    it.fails('guardar la cuenta sin alias avisa que borró el alias que otro proceso guardó', () => {
+    it('guardar la cuenta sin alias avisa que borró el alias que otro proceso guardó', () => {
       const { service, store } = openWithConcurrentWriter({ ...HEALTHY, cbu: CBU }, savesAccount);
       const change = service.repairValue('cuenta', OTHER_CBU);
 
@@ -130,9 +121,7 @@ describe('ConfigService sobre el puerto ConfigStore (ARQ-12 PR 3)', () => {
       expect(store.read()).not.toHaveProperty('aliasCbu');
     });
 
-    // Tests primero (ARQ-12 PR 3): pasa a it() al implementarlo.
-
-    it.fails('borrar la cuenta avisa que borró también el alias que otro proceso guardó', () => {
+    it('borrar la cuenta avisa que borró también el alias que otro proceso guardó', () => {
       const { service, store } = openWithConcurrentWriter({ ...HEALTHY, cbu: CBU }, savesAccount);
       const change = service.repairUnset('cuenta');
 
@@ -141,9 +130,7 @@ describe('ConfigService sobre el puerto ConfigStore (ARQ-12 PR 3)', () => {
       expect(store.read()).not.toHaveProperty('aliasCbu');
     });
 
-    // Tests primero (ARQ-12 PR 3): pasa a it() al implementarlo.
-
-    it.fails('si otro proceso ya borró el alias, no avisa de un alias que no estaba', () => {
+    it('si otro proceso ya borró el alias, no avisa de un alias que no estaba', () => {
       const { service, store } = openWithConcurrentWriter({ ...HEALTHY, aliasCbu: ALIAS, cbu: CBU }, (saved) => {
         delete saved.aliasCbu;
       });
@@ -155,8 +142,7 @@ describe('ConfigService sobre el puerto ConfigStore (ARQ-12 PR 3)', () => {
   });
 
   describe('cada operación que escribe es un solo update', () => {
-    // Tests primero (ARQ-12 PR 3): pasa a it() al implementarlo.
-    it.fails.each(WRITES)('%s', (_name, initial, write) => {
+    it.each(WRITES)('%s', (_name, initial, write) => {
       const store = new MemoryConfigStore({ initial });
       const service = createService(store);
 
@@ -166,9 +152,7 @@ describe('ConfigService sobre el puerto ConfigStore (ARQ-12 PR 3)', () => {
       expect(store.updates).toBe(1);
     });
 
-    // Tests primero (ARQ-12 PR 3): pasa a it() al implementarlo.
-
-    it.fails('abrir una config completa no escribe; una a la que le faltan defaults, una vez', () => {
+    it('abrir una config completa no escribe; una a la que le faltan defaults, una vez', () => {
       const complete = new MemoryConfigStore({ initial: HEALTHY });
       const incomplete = new MemoryConfigStore({ initial: { cuit: CUIT } });
 
@@ -178,9 +162,7 @@ describe('ConfigService sobre el puerto ConfigStore (ARQ-12 PR 3)', () => {
       expect({ complete: complete.updates, incomplete: incomplete.updates }).toEqual({ complete: 0, incomplete: 1 });
     });
 
-    // Tests primero (ARQ-12 PR 3): pasa a it() al implementarlo.
-
-    it.fails('abrir una config con una clave rota no la completa ni escribe', () => {
+    it('abrir una config con una clave rota no la completa ni escribe', () => {
       const store = new MemoryConfigStore({ initial: { cuit: '123' } });
 
       createService(store);
@@ -189,9 +171,7 @@ describe('ConfigService sobre el puerto ConfigStore (ARQ-12 PR 3)', () => {
       expect(store.read()).toEqual({ cuit: '123' });
     });
 
-    // Tests primero (ARQ-12 PR 3): pasa a it() al implementarlo.
-
-    it.fails('leer la config no escribe', () => {
+    it('leer la config no escribe', () => {
       const store = new MemoryConfigStore({ initial: HEALTHY });
       const service = createService(store);
 
@@ -202,9 +182,7 @@ describe('ConfigService sobre el puerto ConfigStore (ARQ-12 PR 3)', () => {
       expect(service.getPath()).toBe(store.path);
     });
 
-    // Tests primero (ARQ-12 PR 3): pasa a it() al implementarlo.
-
-    it.fails('un valor inválido no escribe nada', () => {
+    it('un valor inválido no escribe nada', () => {
       const store = new MemoryConfigStore({ initial: HEALTHY });
       const service = createService(store);
 

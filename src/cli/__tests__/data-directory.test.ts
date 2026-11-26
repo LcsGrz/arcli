@@ -4,8 +4,8 @@ import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { loadMonotributoTable } from '../../modules/monotributo/monotributo.service';
-import { FileMonotributoStore } from '../../modules/monotributo/monotributo.store';
 import { checkForUpdate } from '../../modules/update-check/update-check.service';
+import { FileMonotributoStore } from '../../services/files/monotributo-file-store';
 import { openConfigService, withConfigService } from '../config-service';
 import { dataDirectory } from '../data-directory';
 import { loadMonotributoReport } from '../monotributo-report';

@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { ConfigurationError } from '../../../lib/errors/app-error';
+import { openConfigFileStore } from '../../../services/files/conf-config-store';
 import { nodeLocalFiles } from '../../../services/files/local-files';
 import { serializeConfig } from '../config.presenter';
 import { CONFIG_DEFAULTS, resolveRowsPerList, ROWS_PER_LIST_DEPRECATION_WARNING } from '../config.schemas';
@@ -16,7 +17,7 @@ function createService(): ConfigService {
 
   temporaryDirectories.push(cwd);
 
-  return new ConfigService({ cwd, files: nodeLocalFiles });
+  return new ConfigService({ files: nodeLocalFiles, store: openConfigFileStore(cwd) });
 }
 
 function writePemFile(directory: string, filename: string, content: string): string {
@@ -335,7 +336,7 @@ describe('config.service', () => {
     let thrown: unknown;
 
     try {
-      new ConfigService({ cwd, files: nodeLocalFiles }).close();
+      new ConfigService({ files: nodeLocalFiles, store: openConfigFileStore(cwd) }).close();
     } catch (error) {
       thrown = error;
     }
@@ -356,7 +357,7 @@ describe('config.service', () => {
       temporaryDirectories.push(cwd);
       writeFileSync(path, content, 'utf8');
 
-      return { path, service: new ConfigService({ cwd, files: nodeLocalFiles }) };
+      return { path, service: new ConfigService({ files: nodeLocalFiles, store: openConfigFileStore(cwd) }) };
     }
 
     it('lee un config.json con BOM y lo reescribe sin BOM, con tabs', () => {
@@ -395,7 +396,7 @@ describe('config.service', () => {
 
       temporaryDirectories.push(dirname(cwd));
 
-      const service = new ConfigService({ cwd, files: nodeLocalFiles });
+      const service = new ConfigService({ files: nodeLocalFiles, store: openConfigFileStore(cwd) });
 
       try {
         expect(readFileSync(join(cwd, 'config.json'), 'utf8')).toBe(JSON.stringify(CONFIG_DEFAULTS, undefined, '\t'));
