@@ -16,12 +16,7 @@ Eso evita repetir siempre el mismo `cuit`, `puntoVenta`, concepto, IVA receptor 
 
 ## Ubicación del archivo
 
-ARCLI usa `conf` con:
-
-- `projectName: arcli`
-- `configName: config`
-
-La ubicación depende del sistema operativo: en macOS, `~/Library/Preferences/arcli/`; en Linux, `~/.config/arcli/`; en Windows, `%APPDATA%\arcli\Config\`. Para ver la exacta:
+La config es un `config.json` en la carpeta de datos de ARCLI. La carpeta depende del sistema operativo: en macOS, `~/Library/Preferences/arcli/`; en Linux, `~/.config/arcli/`; en Windows, `%APPDATA%\arcli\Config\`; con [`ARCLI_CONFIG_DIR`](#variables-de-entorno), la que digas. Para ver la exacta:
 
 ```bash
 arcli config ruta

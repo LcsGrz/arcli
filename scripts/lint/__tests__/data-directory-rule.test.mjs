@@ -85,7 +85,8 @@ describe('dónde aplica', () => {
 
   it.each([
     'src/modules/config/config.service.ts',
-    'src/modules/monotributo/monotributo.store.ts',
+    'src/services/files/conf-config-store.ts',
+    'src/services/files/monotributo-file-store.ts',
     'src/modules/update-check/update-check.service.ts',
     'src/services/pdf/pdf-plugin.ts',
     'src/lib/links.ts',

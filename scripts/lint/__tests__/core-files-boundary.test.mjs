@@ -5,9 +5,9 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * ARQ-12: el núcleo (src/lib y src/modules) no toca archivos ni lee el proceso. Los módulos de la app (ARQ-7) y los
- * tests quedan afuera. `conf` va detrás del puerto ConfigStore: en el núcleo es error. Mira la config real de ESLint que le toca a cada
- * archivo (`calculateConfigForFile`), como data-directory-rule.test.mjs: lintear texto inventado sobre la ruta de un
- * archivo real, con lint tipado, depende de qué programa de TypeScript armó antes el mismo worker.
+ * tests quedan afuera. `conf` va detrás del puerto ConfigStore: en el núcleo es error. Mira la config real de ESLint
+ * que le toca a cada archivo (`calculateConfigForFile`), como data-directory-rule.test.mjs: lintear texto inventado
+ * sobre la ruta de un archivo real, con lint tipado, depende de qué programa de TypeScript armó antes el mismo worker.
  */
 const ERROR = 2;
 const WARN = 1;
