@@ -33,6 +33,8 @@ export type ArcaBehavior = 'cuelga' | 'gotea' | number;
 
 interface ArcaRequest {
   readonly body: string;
+  /** La conexion del pedido ya termino: se contesto o se corto. Hasta entonces, `dropped` no dice nada. */
+  closed: boolean;
   /** El cliente corto antes de que se terminara de contestarle. */
   dropped: boolean;
   /** Es uno de los que no se contestan. */
@@ -232,6 +234,7 @@ export async function startArcaServer({ redirect }: { readonly redirect: boolean
     const behavior = behave(operation, count(operation) + 1);
     const entry: ArcaRequest = {
       body,
+      closed: false,
       dropped: false,
       hangs: behavior === 'cuelga' || behavior === 'gotea',
       headers: request.headers,
@@ -242,6 +245,7 @@ export async function startArcaServer({ redirect }: { readonly redirect: boolean
 
     requests.push(entry);
     response.on('close', () => {
+      entry.closed = true;
       entry.dropped = !response.writableFinished;
     });
 
