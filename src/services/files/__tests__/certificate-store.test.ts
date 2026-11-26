@@ -4,13 +4,15 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resolveCertificateFiles } from '../../../modules/certificates/certificate-store';
-import {
-  ensureCertificateFolder,
+import { nodeCertificateStore } from '../certificate-store';
+
+const {
+  ensureFolder: ensureCertificateFolder,
   moveIfExists,
   readIfExists,
   readUnlessMissing,
-  writePrivateFile,
-} from '../certificate-store';
+  writePrivate: writePrivateFile,
+} = nodeCertificateStore;
 
 // `chmodSync` pasa al real salvo cuando un test lo apaga, para ver que el archivo ya nace en 0600.
 vi.mock('node:fs', async (importOriginal) => {

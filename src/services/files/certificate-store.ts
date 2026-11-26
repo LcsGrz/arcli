@@ -5,13 +5,13 @@ import type { CertificateFiles, CertificateStore } from '../../modules/certifica
 import { readTextFile } from './local-files';
 import { restrictFolderToOwner } from './restrict-to-owner';
 
-export function ensureCertificateFolder(files: Pick<CertificateFiles, 'folder'>): void {
+function ensureCertificateFolder(files: Pick<CertificateFiles, 'folder'>): void {
   mkdirSync(files.folder, { mode: 0o700, recursive: true });
   restrictFolderToOwner(files.folder);
 }
 
 /** `0600` en macOS y Linux. En Windows no aplica: la carpeta del usuario ya es solo suya. */
-export function writePrivateFile(path: string, content: string): void {
+function writePrivateFile(path: string, content: string): void {
   writeFileSync(path, content, { encoding: 'utf8', mode: 0o600 });
 
   if (process.platform !== 'win32') {
@@ -19,12 +19,12 @@ export function writePrivateFile(path: string, content: string): void {
   }
 }
 
-export function readIfExists(path: string): string | undefined {
+function readIfExists(path: string): string | undefined {
   return existsSync(path) ? readTextFile(path) : undefined;
 }
 
 /** Como `readIfExists`, pero sin permiso (en el archivo o su carpeta) falla: no es lo mismo que si no existiera. */
-export function readUnlessMissing(path: string): string | undefined {
+function readUnlessMissing(path: string): string | undefined {
   try {
     return readTextFile(path);
   } catch (error) {
@@ -39,7 +39,7 @@ export function readUnlessMissing(path: string): string | undefined {
 }
 
 /** Mueve `from` a `to` pisando `to`; si `from` no existe, no hace nada. */
-export function moveIfExists(from: string, to: string): void {
+function moveIfExists(from: string, to: string): void {
   if (existsSync(from)) {
     renameSync(from, to);
   }
