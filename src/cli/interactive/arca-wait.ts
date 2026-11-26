@@ -9,6 +9,7 @@ import {
   finishCut,
   guardEmission,
   interruptibleWait,
+  isWaiting,
   ResentSignalError,
 } from '../interruption';
 import { withPendingSpinner } from '../pending-spinner';
@@ -37,7 +38,12 @@ export function waitForArca<T>(
   run: (signal: AbortSignal) => Promise<T>,
   { pending = false, query = false }: ArcaWaitOptions = {},
 ): Promise<T> {
-  const spin = pending ? withPendingSpinner : withSpinner;
+  // Adentro de otra espera ya gira su spinner: dos a la vez se pisan.
+  const spin = isWaiting()
+    ? (_text: string | null, wait: () => Promise<T>) => wait()
+    : pending
+      ? withPendingSpinner
+      : withSpinner;
 
   return spin(text, () =>
     interruptibleWait((signal) =>

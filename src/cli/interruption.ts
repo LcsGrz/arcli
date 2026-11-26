@@ -410,6 +410,11 @@ export async function finishCut(beforeCut?: () => void, exit?: () => void): Prom
 /** La espera en curso de `interruptibleWait`: una adentro de otra es la misma. */
 let waiting: AbortSignal | undefined;
 
+/** Hay una espera de `interruptibleWait` en curso: otra adentro es la misma, sin un spinner mas. */
+export function isWaiting(): boolean {
+  return waiting !== undefined;
+}
+
 /**
  * Corre `run`, una espera a ARCA del asistente, atajando Ctrl+C (solo SIGINT: SIGTERM corta como siempre). Con la
  * señal, aborta `signal` y rechaza enseguida como un Ctrl+C en una pregunta (`promptCancellation`), sin esperar a

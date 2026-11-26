@@ -6,6 +6,7 @@ import {
   guardEmission,
   interruptibleWait,
   isCutting,
+  isWaiting,
   REPEATED_SIGNAL_MS,
   ResentSignalError,
 } from '../interruption';
@@ -621,12 +622,14 @@ describe('interruptibleWait', () => {
       return interruptibleWait(async (nested) => {
         inner = nested;
         insideInner = raw();
+        expect(isWaiting()).toBe(true);
       });
     });
 
     expect(inner).toBe(outer);
     expect(insideInner).toEqual(atInner);
     expect(raw()).toEqual(before);
+    expect(isWaiting()).toBe(false);
   });
 });
 
