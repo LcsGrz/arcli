@@ -5,20 +5,25 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * ARQ-12: el núcleo (src/lib y src/modules) no toca archivos ni lee el proceso. Los módulos de la app (ARQ-7) y los
- * tests quedan afuera, y `conf` sigue en warn hasta el ConfigStore. Pasa por la config real de ESLint.
+ * tests quedan afuera, y `conf` sigue en warn hasta el ConfigStore. Mira la config real de ESLint que le toca a cada
+ * archivo (`calculateConfigForFile`), como data-directory-rule.test.mjs: lintear texto inventado sobre la ruta de un
+ * archivo real, con lint tipado, depende de qué programa de TypeScript armó antes el mismo worker.
  */
 const ERROR = 2;
 const WARN = 1;
 const APP_MODULES = ['completion', 'desktop-shortcut', 'examples', 'storybook', 'update-check'];
+const FS_MODULES = ['node:fs', 'node:fs/promises', 'fs', 'fs/promises'];
 
 const eslint = new ESLint();
 
-/** La severidad con que la config real marca cada regla en `code`, como si estuviera en `filePath`. */
-async function severities(code, filePath) {
-  const [result] = await eslint.lintText(code, { filePath });
+/** La severidad y las rutas prohibidas de una regla de imports, en la config que le toca a `file`. */
+async function restrictedImports(file, rule) {
+  const [severity, options] = (await eslint.calculateConfigForFile(file)).rules[rule] ?? [];
 
-  return result.messages.map(({ message, ruleId, severity }) => ({ message, ruleId, severity }));
+  return { paths: options?.paths ?? [], severity };
 }
+
+const fsPaths = (paths) => paths.filter(({ name }) => FS_MODULES.includes(name));
 
 /** Los .ts del núcleo, sin tests ni módulos de la app. */
 function coreFiles() {
@@ -30,29 +35,19 @@ function coreFiles() {
   );
 }
 
-/** `lintText` con lint tipado arma el programa de TypeScript entero: unos segundos acá, más en el CI de Windows. */
-const LINT_TIMEOUT_MS = 60_000;
+describe('el núcleo no toca archivos ni lee el proceso (ARQ-12)', () => {
+  it.each(['src/lib/paths/mask-path.ts', 'src/modules/config/config-doctor.ts'])(
+    'importar fs en %s es error',
+    async (file) => {
+      const error = await restrictedImports(file, 'no-restricted-imports');
+      const debt = await restrictedImports(file, '@typescript-eslint/no-restricted-imports');
 
-describe('el núcleo no toca archivos ni lee el proceso (ARQ-12)', { timeout: LINT_TIMEOUT_MS }, () => {
-  it.each([
-    ['src/lib/paths/mask-path.ts', "import { readFileSync } from 'node:fs';\nexport const leer = readFileSync;\n"],
-    ['src/lib/paths/mask-path.ts', "import { readFile } from 'fs/promises';\nexport const leer = readFile;\n"],
-    [
-      'src/modules/config/config-doctor.ts',
-      "import { existsSync } from 'node:fs';\nexport const existe = existsSync;\n",
-    ],
-    [
-      'src/modules/config/config-doctor.ts',
-      "import { writeFile } from 'fs/promises';\nexport const escribir = writeFile;\n",
-    ],
-  ])('importar fs en %s es error', async (filePath, code) => {
-    const fsMessages = (await severities(code, filePath)).filter(({ message }) =>
-      /'(node:)?fs(\/promises)?'/.test(message),
-    );
-
-    expect(fsMessages.length).toBeGreaterThan(0);
-    expect(fsMessages.map(({ severity }) => severity)).toEqual(fsMessages.map(() => ERROR));
-  });
+      expect(error.severity).toBe(ERROR);
+      expect(fsPaths(error.paths).map(({ name }) => name)).toEqual(FS_MODULES);
+      // Solo error: ninguna regla de deuda lo marca además en warn.
+      expect(fsPaths(debt.paths)).toEqual([]);
+    },
+  );
 
   it('usar process es error en todo el núcleo, sin archivos de deuda', async () => {
     const files = coreFiles();
@@ -72,31 +67,37 @@ describe('el núcleo no toca archivos ni lee el proceso (ARQ-12)', { timeout: LI
   });
 
   it('process.platform ya es error en un archivo común del núcleo', async () => {
-    const messages = await severities('export const plataforma = process.platform;\n', 'src/lib/paths/mask-path.ts');
+    const [severity, ...globals] =
+      (await eslint.calculateConfigForFile('src/lib/paths/mask-path.ts')).rules['no-restricted-globals'] ?? [];
 
-    expect(messages).toContainEqual(expect.objectContaining({ ruleId: 'no-restricted-globals', severity: ERROR }));
+    expect(severity).toBe(ERROR);
+    expect(globals).toContainEqual(expect.objectContaining({ name: 'process' }));
   });
 
   it('en los módulos de la app sigue en warn, con el mensaje de ARQ-7', async () => {
-    const messages = await severities(
-      "import { readFileSync } from 'node:fs';\nexport const leer = readFileSync;\nexport const plataforma = process.platform;\n",
-      'src/modules/update-check/update-check.service.ts',
-    );
+    const file = 'src/modules/update-check/update-check.service.ts';
+    const error = await restrictedImports(file, 'no-restricted-imports');
+    const debt = await restrictedImports(file, '@typescript-eslint/no-restricted-imports');
+    const [globalsSeverity, ...globals] = (await eslint.calculateConfigForFile(file)).rules['no-restricted-globals'];
+    const arq7 = expect.objectContaining({ message: expect.stringContaining('ARQ-7') });
 
-    expect(messages.length).toBeGreaterThanOrEqual(2);
-    expect(messages).toEqual(
-      messages.map(() => expect.objectContaining({ message: expect.stringContaining('ARQ-7'), severity: WARN })),
-    );
+    expect(fsPaths(error.paths)).toEqual([]);
+    expect(debt.severity).toBe(WARN);
+    expect(fsPaths(debt.paths).map(({ name }) => name)).toEqual(FS_MODULES);
+    expect(fsPaths(debt.paths)).toEqual(FS_MODULES.map(() => arq7));
+    expect(globalsSeverity).toBe(WARN);
+    expect(globals).toEqual([expect.objectContaining({ message: expect.stringContaining('ARQ-7'), name: 'process' })]);
   });
 
   it('conf sigue en warn en el núcleo hasta el ConfigStore', async () => {
-    const messages = await severities(
-      "import Conf from 'conf';\nexport const Almacen = Conf;\n",
+    const debt = await restrictedImports(
       'src/modules/config/config-doctor.ts',
+      '@typescript-eslint/no-restricted-imports',
     );
 
-    expect(messages).toContainEqual(
-      expect.objectContaining({ message: expect.stringContaining('ARQ-12'), severity: WARN }),
+    expect(debt.severity).toBe(WARN);
+    expect(debt.paths).toContainEqual(
+      expect.objectContaining({ message: expect.stringContaining('ARQ-12'), name: 'conf' }),
     );
   });
 
