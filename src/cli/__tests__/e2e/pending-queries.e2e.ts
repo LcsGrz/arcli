@@ -332,7 +332,8 @@ describe('el asistente con ARCA y npm colgados', () => {
   );
 });
 
-describe('Ctrl+C en el asistente con ARCA colgado (ARQ-11 PR 5)', () => {
+// En Windows `child.kill('SIGINT')` termina el proceso sin dar la señal, como en interrupted-emission.e2e.ts.
+describe.skipIf(process.platform === 'win32')('Ctrl+C en el asistente con ARCA colgado (ARQ-11 PR 5)', () => {
   const MENU = '¿Qué querés hacer?';
   const count = (text: string, part: string) => text.split(part).length - 1;
 
