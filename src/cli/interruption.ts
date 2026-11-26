@@ -179,6 +179,10 @@ export async function guardEmission<R>(
   let first: NodeJS.Signals | undefined;
   /** Cuando llego la ultima que conto: hasta `REPEATED_SIGNAL_MS` despues, otra es la misma. */
   let countedAt = -Infinity;
+  /** Ya termino la sección atajada: falta `finishCut`. */
+  let isSettled = false;
+  /** En el asistente, una señal que no es Ctrl+C con algo enviado: termina el proceso despues de entregar. */
+  let ending: NodeJS.Signals | undefined;
   let resent: NodeJS.Signals | undefined;
   let hasSent = false;
   let isDelivering = false;
@@ -231,6 +235,25 @@ export async function guardEmission<R>(
       return;
     }
 
+    // En el asistente, otra señal que Ctrl+C se anota aparte, aunque llegue dentro del eco de otra: con lo emitido
+    // escrito termina el proceso.
+    if (options.cancelBeforeSending && signal !== 'SIGINT' && ending === undefined) {
+      ending = signal;
+
+      if (isWritten) {
+        stopListening();
+        void resend(signal);
+
+        return;
+      }
+
+      if (isSettled) {
+        cut ??= { signal, stopListening };
+
+        return;
+      }
+    }
+
     if (cut || now - countedAt < REPEATED_SIGNAL_MS) {
       return;
     }
@@ -271,10 +294,22 @@ export async function guardEmission<R>(
 
     stopListening();
 
+    // Sin los listeners propios, una espera adentro de la pregunta no es parte de la emision: ataja por su cuenta.
+    const wasEmitting = emitting === queries.signal;
+
+    if (wasEmitting) {
+      emitting = undefined;
+    }
+
     try {
       return await ask();
     } finally {
+      if (wasEmitting) {
+        emitting = queries.signal;
+      }
+
       restore = takeOverSignals(onSignal, { keepsAdded, stealsAdded });
+      stopPrevious = stopListening;
     }
   }
 
@@ -349,6 +384,12 @@ export async function guardEmission<R>(
       cut = undefined;
     }
 
+    // En el asistente, otra señal que Ctrl+C con algo enviado termina el proceso igual, recien con lo emitido o el error
+    // escritos (`finishCut`), tambien si `emit` fallo.
+    if (options.cancelBeforeSending && hasSent && ending) {
+      cut ??= { signal: ending, stopListening };
+    }
+
     if (deliver && hasSent && hasOutcome && (first || hasFailed)) {
       unfinished = {
         abandonedPdf: () => pdf.signal.aborted,
@@ -371,10 +412,7 @@ export async function guardEmission<R>(
       stopListening();
     }
 
-    // En el asistente, otra señal que Ctrl+C termina el proceso igual, recien con lo emitido escrito (`finishCut`).
-    if (options.cancelBeforeSending && hasSent && hasOutcome && first !== undefined && first !== 'SIGINT') {
-      cut ??= { signal: first, stopListening };
-    }
+    isSettled = true;
   }
 }
 
@@ -471,8 +509,10 @@ export async function interruptibleWait<T>(run: (signal: AbortSignal) => Promise
 
   stopPrevious();
 
+  // Lo que se agrego mientras se esperaba (el de signal-exit que trae el spinner diferido) vuelve; lo de despues del
+  // corte ya no se aparta.
   const stopListening = takeOverSignals(onSignal, {
-    keepsAdded: () => false,
+    keepsAdded: () => true,
     signals: ['SIGINT'],
     stealsAdded: () => !isCut,
   });

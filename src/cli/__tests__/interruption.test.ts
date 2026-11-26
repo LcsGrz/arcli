@@ -609,6 +609,26 @@ describe('interruptibleWait', () => {
     await listenersBack();
   });
 
+  it('cortada, repone los listeners agregados antes del corte (el de signal-exit del spinner)', async () => {
+    const added = vi.fn();
+    const waiting = interruptibleWait(async () => {
+      process.on('SIGINT', added);
+      await Promise.resolve();
+      send('SIGINT');
+
+      return new Promise<never>(() => undefined);
+    });
+
+    await waiting.catch(() => undefined);
+    await vi.waitFor(() => expect(process.rawListeners('SIGINT')).toContain(added), {
+      interval: 10,
+      timeout: REPEATED_SIGNAL_MS * 3,
+    });
+    expect(added).not.toHaveBeenCalled();
+    process.off('SIGINT', added);
+    await vi.waitFor(() => expect(raw()).toEqual(before), { interval: 10, timeout: REPEATED_SIGNAL_MS * 3 });
+  });
+
   it('una adentro de otra usa la misma señal y no toca los listeners', async () => {
     let inner: AbortSignal | undefined;
     let outer: AbortSignal | undefined;
@@ -663,6 +683,36 @@ describe('una espera adentro de una emisión', () => {
   });
 });
 
+describe('una espera en una pregunta del PDF', () => {
+  it('no es parte de la emisión: los listeners están sueltos, así que ataja por su cuenta', async () => {
+    let waitingInQuestion: boolean | undefined;
+    let duringWait: ReturnType<typeof raw> | undefined;
+
+    await guardEmission(
+      { cancelBeforeSending: true, json: false, onCut: vi.fn() },
+      async ({ onSending }) => {
+        onSending?.(SENT);
+
+        return { results: ['CAE'] };
+      },
+      async (_outcome, { whileAsking }) => {
+        await whileAsking(async () => {
+          waitingInQuestion = isWaiting();
+          await interruptibleWait(async () => {
+            duringWait = raw();
+          });
+        });
+      },
+    );
+
+    expect(waitingInQuestion).toBe(false);
+    expect(duringWait?.[0]).not.toEqual(before[0]);
+    expect(duringWait?.[1]).toEqual(before[1]);
+    await finishCut();
+    await vi.waitFor(() => expect(raw()).toEqual(before), { interval: 10, timeout: REPEATED_SIGNAL_MS * 3 });
+  });
+});
+
 describe('SIGTERM en el asistente', () => {
   it('sin nada enviado no vuelve al menú: se reenvía como en los comandos', async () => {
     const error = await guardEmission({ cancelBeforeSending: true, json: false, onCut: vi.fn() }, async () => {
@@ -694,6 +744,61 @@ describe('SIGTERM en el asistente', () => {
     expect(await finishCut()).toBe('SIGTERM');
     expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
     expect(raw()).toEqual(before);
+  });
+
+  it('Ctrl+C y enseguida SIGTERM: no es el eco, y finishCut termina el proceso con SIGTERM', async () => {
+    await guardEmission(
+      { cancelBeforeSending: true, json: false, onCut: vi.fn() },
+      async ({ onSending }) => {
+        onSending?.(SENT);
+        send('SIGINT');
+        now += 100;
+        process.emit('SIGTERM', 'SIGTERM');
+
+        return { results: ['CAE'] };
+      },
+      vi.fn(),
+    );
+
+    expect(await finishCut()).toBe('SIGTERM');
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
+  });
+
+  it('con todo escrito, un SIGTERM dentro del eco de la Ctrl+C igual termina el proceso', async () => {
+    await guardEmission(
+      { cancelBeforeSending: true, json: false, onCut: vi.fn() },
+      async ({ onSending }) => {
+        onSending?.(SENT);
+        send('SIGINT');
+
+        return { results: ['CAE'] };
+      },
+      vi.fn(),
+    );
+
+    expect(await finishCut()).toBeUndefined();
+    now += 100;
+    process.emit('SIGTERM', 'SIGTERM');
+
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
+    expect(other).not.toHaveBeenCalled();
+  });
+
+  it('con algo enviado y SIGTERM, si la emisión falla, finishCut corta igual', async () => {
+    const error = await guardEmission(
+      { cancelBeforeSending: true, json: false, onCut: vi.fn() },
+      async ({ onSending }) => {
+        onSending?.(SENT);
+        send('SIGTERM');
+
+        throw new Error('se cayó la conexión');
+      },
+      vi.fn(),
+    ).catch((thrown: unknown) => thrown);
+
+    expect(error).toMatchObject({ message: 'se cayó la conexión' });
+    expect(await finishCut()).toBe('SIGTERM');
+    expect(process.kill).toHaveBeenCalledExactlyOnceWith(process.pid, 'SIGTERM');
   });
 
   it('con una sola Ctrl+C, finishCut no corta', async () => {
