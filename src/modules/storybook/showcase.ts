@@ -1,4 +1,5 @@
 import { ConfigurationError, InputValidationError } from '../../lib/errors/app-error';
+import type { LocalFiles } from '../../lib/files/local-files';
 import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
 import {
   attentionPanel,
@@ -361,9 +362,17 @@ function buildBillingScene(): string {
 /** Una fecha fija, para que las escenas no cambien con los dias. */
 const SAMPLE_NOW = new Date('2026-03-26T12:00:00-03:00');
 
+/** Los certificados de la config de muestra no existen: la escena no depende del disco de quien la mira. */
+const SAMPLE_FILES: LocalFiles = {
+  exists: () => false,
+  readText: (path) => {
+    throw new Error(`La muestra no lee archivos: ${path}`);
+  },
+};
+
 function buildConfigScene(): string {
   const config = createSampleConfig();
-  const doctor = buildConfigDoctorReport(config, SAMPLE_NOW, [{ environment: 'testing' }]);
+  const doctor = buildConfigDoctorReport(config, SAMPLE_NOW, SAMPLE_FILES, [{ environment: 'testing' }]);
 
   return [
     sceneTitle('Configuración', 'Vista actual, revisión y paso a producción'),
@@ -601,7 +610,9 @@ function buildJsonScene(): string {
   );
   const doctorJson = highlightJsonValues(
     renderJson(
-      serializeConfigDoctor(buildConfigDoctorReport(createSampleConfig(), SAMPLE_NOW, [{ environment: 'testing' }])),
+      serializeConfigDoctor(
+        buildConfigDoctorReport(createSampleConfig(), SAMPLE_NOW, SAMPLE_FILES, [{ environment: 'testing' }]),
+      ),
     ),
   );
 

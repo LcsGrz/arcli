@@ -5,6 +5,7 @@ import { ZodError } from 'zod';
 
 import { ConfigurationError, InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
 import { withFilePath } from '../../lib/files/file-error';
+import type { LocalFiles } from '../../lib/files/local-files';
 import { requireDataDirectory } from '../../lib/files/require-data-directory';
 import { parseCbu } from '../../lib/identity/cbu';
 import { deleteAtPath, setAtPath } from '../../lib/json/object-path';
@@ -78,17 +79,19 @@ function withConfigHelp<T>(parse: () => T): T {
 }
 
 /** Valida un valor como lo haria `arcli config establecer`, sin guardarlo. Lanza un Error con el motivo. */
-export function validateConfigValue(publicKey: ConfigPublicKey, rawValue: string): void {
-  parseConfigValue(storedKeyOf(publicKey), rawValue);
+export function validateConfigValue(publicKey: ConfigPublicKey, rawValue: string, files: LocalFiles): void {
+  parseConfigValue(storedKeyOf(publicKey), rawValue, undefined, files);
 }
 
 export interface ConfigServiceOptions {
   /** La carpeta de datos, donde va el config.json: la decide quien abre la config. */
   readonly cwd: string;
+  /** Para validar las rutas que se guardan (certificado, clave, logo, navegador). */
+  readonly files: LocalFiles;
 }
 
 /** Ruta del config.json, sin leerlo. */
-function resolveStorePath({ cwd }: ConfigServiceOptions): string {
+function resolveStorePath({ cwd }: Pick<ConfigServiceOptions, 'cwd'>): string {
   return resolve(requireDataDirectory(cwd), 'config.json');
 }
 
@@ -102,7 +105,7 @@ function defaultTicketPathFor(configPath: string): string {
  *
  * @internal Solo para el setup de los tests: guardarraíl de aislamiento de la config.
  */
-export function resolveConfigLocation(options: ConfigServiceOptions): {
+export function resolveConfigLocation(options: Pick<ConfigServiceOptions, 'cwd'>): {
   readonly configPath: string;
   readonly ticketPath: string;
 } {
@@ -134,10 +137,13 @@ interface PlannedChange {
 }
 
 export class ConfigService {
+  private readonly files: LocalFiles;
   private readonly store: Conf<Record<string, unknown>>;
 
   public constructor(options: ConfigServiceOptions) {
     const path = resolveStorePath(options);
+
+    this.files = options.files;
 
     try {
       this.store = withFilePath(
@@ -281,7 +287,7 @@ export class ConfigService {
     }
 
     const canonicalKey = storedKeyOf(key);
-    const parsedValue = withConfigHelp(() => parseConfigValue(canonicalKey, rawValue, key));
+    const parsedValue = withConfigHelp(() => parseConfigValue(canonicalKey, rawValue, key, this.files));
     const aliasChange = key === 'cbu' ? cbuAliasChange(this.readSaved(), rawValue) : undefined;
 
     return {

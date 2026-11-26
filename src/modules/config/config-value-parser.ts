@@ -1,9 +1,9 @@
-import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { z } from 'zod';
 
 import { parseFullArgentineDateAsArcaDate } from '../../lib/dates/arca-date';
 import { InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
+import type { LocalFiles } from '../../lib/files/local-files';
 import { describeInvalidCbu, parseCbu } from '../../lib/identity/cbu';
 import { describeInvalidCbuAlias, parseCbuAlias } from '../../lib/identity/cbu-alias';
 import { parseCuit } from '../../lib/identity/cuit';
@@ -198,10 +198,10 @@ function parseExchangeRate(value: string): number {
 }
 
 // Ruta absoluta, como pdfCarpeta: una relativa dependeria de la carpeta desde donde se corre arcli.
-function parsePemPath(value: string, label: 'certificado' | 'clave privada'): string {
+function parsePemPath(value: string, label: 'certificado' | 'clave privada', files: LocalFiles): string {
   const path = resolve(parseNonEmptyString(value));
 
-  readPemFile(path, label);
+  readPemFile(files, path, label);
 
   return path;
 }
@@ -217,18 +217,18 @@ function parseFullDate(value: string): string {
   return date;
 }
 
-function parseExistingFile(value: string, label: string): string {
+function parseExistingFile(value: string, label: string, files: LocalFiles): string {
   const path = resolve(parseNonEmptyString(value));
 
-  if (!existsSync(path)) {
+  if (!files.exists(path)) {
     throw new InputValidationError(`No se encontró ${label} en "${path}".`);
   }
 
   return path;
 }
 
-function parseLogoPath(value: string): string {
-  const path = parseExistingFile(value, 'el logo');
+function parseLogoPath(value: string, files: LocalFiles): string {
+  const path = parseExistingFile(value, 'el logo', files);
 
   if (!/\.(png|jpe?g)$/i.test(path)) {
     throw new InputValidationError('El logo debe ser un archivo PNG o JPG.');
@@ -239,13 +239,24 @@ function parseLogoPath(value: string): string {
 
 /**
  * Valida y normaliza el valor de una clave. `displayKey` es la clave como la escribio la persona (\`entorno\`, no
- * \`entornoPorDefecto\`): con ella, los mensajes de los valores que no se explican solos la nombran.
+ * \`entornoPorDefecto\`): con ella, los mensajes de los valores que no se explican solos la nombran. `files` lee las
+ * rutas (certificado, clave, logo, navegador): esas claves lo necesitan.
  */
 export function parseConfigValue(
   key: CanonicalConfigKey,
   value: string,
   displayKey?: string,
+  files?: LocalFiles,
 ): boolean | number | string {
+  /** Las claves que son rutas se validan contra el archivo: sin `files`, es un error de quien llama, no del valor. */
+  const withFiles = (): LocalFiles => {
+    if (!files) {
+      throw new Error(`parseConfigValue necesita los archivos (LocalFiles) para validar \`${key}\`.`);
+    }
+
+    return files;
+  };
+
   switch (key) {
     case 'alicuotaPorDefecto':
       return parseIvaRate(value);
@@ -272,7 +283,7 @@ export function parseConfigValue(
     case 'emisor.inicioActividades':
       return parseFullDate(value);
     case 'emisor.logo':
-      return parseLogoPath(value);
+      return parseLogoPath(value, withFiles());
     case 'entornoPorDefecto':
       return parseChoice(arcliEnvironmentSchema, value, displayKey);
     case 'ivaReceptorPorDefecto':
@@ -292,7 +303,7 @@ export function parseConfigValue(
     case 'pdfCarpeta':
       return resolve(parseNonEmptyString(value, displayKey));
     case 'pdfNavegador':
-      return parseExistingFile(value, 'el navegador');
+      return parseExistingFile(value, 'el navegador', withFiles());
     case 'puntoVentaPorDefecto':
     case 'exportacion.actividad':
       return parsePositiveInteger(value, displayKey);
@@ -302,12 +313,12 @@ export function parseConfigValue(
     case 'cert.testing':
     case 'exportacion.cert.produccion':
     case 'exportacion.cert.testing':
-      return parsePemPath(value, 'certificado');
+      return parsePemPath(value, 'certificado', withFiles());
     case 'key.produccion':
     case 'key.testing':
     case 'exportacion.key.produccion':
     case 'exportacion.key.testing':
-      return parsePemPath(value, 'clave privada');
+      return parsePemPath(value, 'clave privada', withFiles());
     default:
       return parseNonEmptyString(value, displayKey);
   }

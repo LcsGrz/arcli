@@ -18,6 +18,7 @@ import {
 import { type ConfigChange, type ConfigService, deprecatedConfigKeyWarning } from '../../modules/config/config.service';
 import { buildConfigDoctorReport, type ConfigDoctorRuntimeCheck } from '../../modules/config/config-doctor';
 import { acceptsAlias } from '../../modules/config/config-keys';
+import { nodeLocalFiles } from '../../services/files/local-files';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import { writeTerminalJson, writeTerminalNotice, writeTerminalOutput } from '../../ui';
 import { checkProfileFromConfig } from '../arca-runtime';
@@ -156,7 +157,13 @@ export function registerConfigCommand(program: Command): void {
           configuredBrowser: config.pdfNavegador,
           path: join(service.getPluginsPath(), 'pdf'),
         }).getStatus();
-        const report = buildConfigDoctorReport(config, new Date(), buildRuntimeChecks(config), pdfPlugin);
+        const report = buildConfigDoctorReport(
+          config,
+          new Date(),
+          nodeLocalFiles,
+          buildRuntimeChecks(config),
+          pdfPlugin,
+        );
         spinner?.stop();
         printConfigResult(formatConfigDoctorAsText(report), serializeConfigDoctor(report), useJson);
       } catch (error) {

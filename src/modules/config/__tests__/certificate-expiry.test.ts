@@ -8,6 +8,7 @@ import {
   removeSelfSignedCertificates,
 } from '../../../lib/security/__tests__/self-signed-certificate';
 import { computeCertificateExpiry } from '../../../lib/security/certificate';
+import { nodeLocalFiles } from '../../../services/files/local-files';
 import {
   CERTIFICATE_EXPIRY_WARNING_DAYS,
   CertificateExpiredError,
@@ -75,7 +76,7 @@ describe('inspectConfiguredCertificates', () => {
 
     const notices = inspectConfiguredCertificates(
       { cert: { produccion: production.certPath, testing: testing.certPath } },
-      { activeEnvironment: 'testing', now: new Date() },
+      { activeEnvironment: 'testing', files: nodeLocalFiles, now: new Date() },
     );
 
     expect(notices.map((notice) => notice.environment)).toEqual(['testing', 'produccion']);
@@ -88,7 +89,7 @@ describe('inspectConfiguredCertificates', () => {
 
     const notices = inspectConfiguredCertificates(
       { cert: { produccion: production.certPath, testing: testing.certPath } },
-      { activeEnvironment: 'testing', now: new Date() },
+      { activeEnvironment: 'testing', files: nodeLocalFiles, now: new Date() },
     );
 
     expect(notices).toHaveLength(1);
@@ -101,7 +102,7 @@ describe('inspectConfiguredCertificates', () => {
 
     const notices = inspectConfiguredCertificates(
       { cert: { produccion: '/no/existe/cert.pem' } },
-      { activeEnvironment: 'produccion', activePem: production.pem, now: new Date() },
+      { activeEnvironment: 'produccion', activePem: production.pem, files: nodeLocalFiles, now: new Date() },
     );
 
     expect(notices).toHaveLength(1);
@@ -109,11 +110,13 @@ describe('inspectConfiguredCertificates', () => {
   }, 10_000);
 
   it('skips certificates that are not configured or cannot be read', () => {
-    expect(inspectConfiguredCertificates({}, { activeEnvironment: 'testing', now: new Date() })).toEqual([]);
+    expect(
+      inspectConfiguredCertificates({}, { activeEnvironment: 'testing', files: nodeLocalFiles, now: new Date() }),
+    ).toEqual([]);
     expect(
       inspectConfiguredCertificates(
         { cert: { produccion: '/no/existe/cert.pem' } },
-        { activeEnvironment: 'testing', now: new Date() },
+        { activeEnvironment: 'testing', files: nodeLocalFiles, now: new Date() },
       ),
     ).toEqual([]);
   });
@@ -127,7 +130,7 @@ describe('el certificado propio de exportacion (ARQ-22)', () => {
     const { certPath } = createSelfSignedCertificate(10);
     const [notice, ...rest] = inspectConfiguredCertificates(
       { cert: { testing: general.certPath }, ...own(certPath) },
-      { activeEnvironment: 'testing', now: new Date() },
+      { activeEnvironment: 'testing', files: nodeLocalFiles, now: new Date() },
     );
 
     expect(rest).toEqual([]);
@@ -139,7 +142,7 @@ describe('el certificado propio de exportacion (ARQ-22)', () => {
   it('sin la clave, o si es el mismo archivo que el general, no suma un aviso', () => {
     const { certPath } = createSelfSignedCertificate(10);
     const inspect = (config: Parameters<typeof inspectConfiguredCertificates>[0]) =>
-      inspectConfiguredCertificates(config, { activeEnvironment: 'testing', now: new Date() });
+      inspectConfiguredCertificates(config, { activeEnvironment: 'testing', files: nodeLocalFiles, now: new Date() });
 
     expect(inspect(own(certPath, ''))).toEqual([]);
     expect(

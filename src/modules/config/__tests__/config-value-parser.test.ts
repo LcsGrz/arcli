@@ -4,6 +4,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { InputValidationError } from '../../../lib/errors/app-error';
+import { nodeLocalFiles } from '../../../services/files/local-files';
 import { arcliConfigSchema } from '../config.schemas';
 import { parseConfigValue } from '../config-value-parser';
 
@@ -160,8 +161,8 @@ describe('config-value-parser', () => {
     const certPath = writePemFile('cert.pem', '-----BEGIN CERTIFICATE-----\nCERT\n-----END CERTIFICATE-----');
     const keyPath = writePemFile('key.pem', '-----BEGIN PRIVATE KEY-----\nKEY\n-----END PRIVATE KEY-----');
 
-    expect(parseConfigValue('cert.testing', certPath)).toBe(certPath);
-    expect(parseConfigValue('key.produccion', keyPath)).toBe(keyPath);
+    expect(parseConfigValue('cert.testing', certPath, undefined, nodeLocalFiles)).toBe(certPath);
+    expect(parseConfigValue('key.produccion', keyPath, undefined, nodeLocalFiles)).toBe(keyPath);
   });
 
   it('stores cert, key and ticket paths as absolute, so they do not depend on the current folder', () => {
@@ -171,7 +172,9 @@ describe('config-value-parser', () => {
     try {
       process.chdir(dirname(keyPath));
 
-      expect(parseConfigValue('key.testing', basename(keyPath))).toBe(join(process.cwd(), basename(keyPath)));
+      expect(parseConfigValue('key.testing', basename(keyPath), undefined, nodeLocalFiles)).toBe(
+        join(process.cwd(), basename(keyPath)),
+      );
       expect(parseConfigValue('ticketPath', 'tickets')).toBe(join(process.cwd(), 'tickets'));
     } finally {
       process.chdir(previous);
@@ -184,14 +187,18 @@ describe('config-value-parser', () => {
       '-----BEGIN ENCRYPTED PRIVATE KEY-----\nKEY\n-----END ENCRYPTED PRIVATE KEY-----',
     );
 
-    expect(() => parseConfigValue('key.testing', keyPath)).toThrow(/cifrada con contraseña/);
+    expect(() => parseConfigValue('key.testing', keyPath, undefined, nodeLocalFiles)).toThrow(/cifrada con contraseña/);
   });
 
   it('rejects cert and key paths with invalid PEM content', () => {
     const invalidPath = writePemFile('invalid.pem', 'NOT-A-PEM');
 
-    expect(() => parseConfigValue('cert.testing', invalidPath)).toThrow(/formato PEM inválido/);
-    expect(() => parseConfigValue('key.testing', invalidPath)).toThrow(/formato PEM inválido/);
+    expect(() => parseConfigValue('cert.testing', invalidPath, undefined, nodeLocalFiles)).toThrow(
+      /formato PEM inválido/,
+    );
+    expect(() => parseConfigValue('key.testing', invalidPath, undefined, nodeLocalFiles)).toThrow(
+      /formato PEM inválido/,
+    );
   });
 
   it('parses the PDF mode and folder', () => {
@@ -211,12 +218,24 @@ describe('config-value-parser', () => {
     const logoPath = writePemFile('logo.png', 'png');
     const textPath = writePemFile('logo.txt', 'txt');
 
-    expect(parseConfigValue('emisor.logo', logoPath)).toBe(logoPath);
-    expect(() => parseConfigValue('emisor.logo', textPath)).toThrow(/PNG o JPG/);
-    expect(() => parseConfigValue('emisor.logo', '/no/existe.png')).toThrow(/No se encontró el logo/);
+    expect(parseConfigValue('emisor.logo', logoPath, undefined, nodeLocalFiles)).toBe(logoPath);
+    expect(() => parseConfigValue('emisor.logo', textPath, undefined, nodeLocalFiles)).toThrow(/PNG o JPG/);
+    expect(() => parseConfigValue('emisor.logo', '/no/existe.png', undefined, nodeLocalFiles)).toThrow(
+      /No se encontró el logo/,
+    );
+  });
+
+  it('las rutas no se validan sin con qué leerlas: es un error de quien llama, no del valor', () => {
+    const certPath = writePemFile('cert.pem', '-----BEGIN CERTIFICATE-----\nCERT\n-----END CERTIFICATE-----');
+
+    expect(() => parseConfigValue('cert.testing', certPath)).toThrow(/necesita los archivos/);
+    expect(() => parseConfigValue('emisor.logo', certPath)).toThrow(/necesita los archivos/);
+    expect(() => parseConfigValue('pdfNavegador', certPath)).toThrow(/necesita los archivos/);
   });
 
   it('rejects a browser path that does not exist', () => {
-    expect(() => parseConfigValue('pdfNavegador', '/no/existe/chrome')).toThrow(/No se encontró el navegador/);
+    expect(() => parseConfigValue('pdfNavegador', '/no/existe/chrome', undefined, nodeLocalFiles)).toThrow(
+      /No se encontró el navegador/,
+    );
   });
 });

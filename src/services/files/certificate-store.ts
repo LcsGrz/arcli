@@ -1,8 +1,8 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 
-import { withFilePath } from '../../lib/files/file-error';
 import type { CertificateFiles, CertificateStore } from '../../modules/certificates/certificate-store';
 
+import { readTextFile } from './local-files';
 import { restrictFolderToOwner } from './restrict-to-owner';
 
 export function ensureCertificateFolder(files: Pick<CertificateFiles, 'folder'>): void {
@@ -19,18 +19,14 @@ export function writePrivateFile(path: string, content: string): void {
   }
 }
 
-function readText(path: string): string {
-  return withFilePath(path, () => readFileSync(path, 'utf8'));
-}
-
 export function readIfExists(path: string): string | undefined {
-  return existsSync(path) ? readText(path) : undefined;
+  return existsSync(path) ? readTextFile(path) : undefined;
 }
 
 /** Como `readIfExists`, pero sin permiso (en el archivo o su carpeta) falla: no es lo mismo que si no existiera. */
 export function readUnlessMissing(path: string): string | undefined {
   try {
-    return readText(path);
+    return readTextFile(path);
   } catch (error) {
     const { code } = error as NodeJS.ErrnoException;
 
@@ -53,7 +49,7 @@ export function moveIfExists(from: string, to: string): void {
 export const nodeCertificateStore: CertificateStore = {
   ensureFolder: ensureCertificateFolder,
   moveIfExists,
-  read: readText,
+  read: readTextFile,
   readIfExists,
   readUnlessMissing,
   write: (path, content) => writeFileSync(path, content, 'utf8'),
