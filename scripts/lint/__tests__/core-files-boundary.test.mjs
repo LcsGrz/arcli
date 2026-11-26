@@ -31,8 +31,7 @@ function coreFiles() {
 }
 
 describe('el núcleo no toca archivos ni lee el proceso (ARQ-12)', () => {
-  // Tests primero (ARQ-12): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['src/lib/paths/mask-path.ts', "import { readFileSync } from 'node:fs';\nexport const leer = readFileSync;\n"],
     ['src/lib/paths/mask-path.ts', "import { readFile } from 'fs/promises';\nexport const leer = readFile;\n"],
     [
@@ -52,8 +51,7 @@ describe('el núcleo no toca archivos ni lee el proceso (ARQ-12)', () => {
     expect(fsMessages.map(({ severity }) => severity)).toEqual(fsMessages.map(() => ERROR));
   });
 
-  // Tests primero (ARQ-12): pasa a it() al implementarlo.
-  it.fails('usar process es error en todo el núcleo, sin archivos de deuda', async () => {
+  it('usar process es error en todo el núcleo, sin archivos de deuda', async () => {
     const files = coreFiles();
     const warned = [];
 
