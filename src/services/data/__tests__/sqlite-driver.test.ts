@@ -12,8 +12,7 @@ async function openTemporary() {
 }
 
 describe('sqlite-driver (ARQ-12)', () => {
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('abre, escribe y lee con parámetros con nombre', async () => {
+  it('abre, escribe y lee con parámetros con nombre', async () => {
     const connection = await openTemporary();
 
     try {
@@ -32,8 +31,8 @@ describe('sqlite-driver (ARQ-12)', () => {
   });
 
   // En Node 26 un `undefined` se guarda como NULL sin avisar (medido en el CI del 25/11): el driver lo frena antes,
-  // en todas las versiones. Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails.each(['run', 'get', 'all'] as const)('%s con un parámetro undefined lanza y no escribe', async (method) => {
+  // en todas las versiones.
+  it.each(['run', 'get', 'all'] as const)('%s con un parámetro undefined lanza y no escribe', async (method) => {
     const connection = await openTemporary();
 
     try {
@@ -52,8 +51,8 @@ describe('sqlite-driver (ARQ-12)', () => {
   });
 
   // `defensive` no hace nada en Node 22 (medido): ahí no se puede probar. En 24 y 26, escribir sqlite_master falla
-  // aunque se prenda `writable_schema`. Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.runIf(NODE_MAJOR >= 24).fails('con defensive, escribir sqlite_master falla', async () => {
+  // aunque se prenda `writable_schema`.
+  it.runIf(NODE_MAJOR >= 24)('con defensive, escribir sqlite_master falla', async () => {
     const connection = await openTemporary();
 
     try {

@@ -10,8 +10,7 @@ function sqliteError(errcode: number, errstr = 'error de prueba'): Error {
 describe('classifySqliteError (ARQ-12): por el código base, no el extendido', () => {
   // Los extendidos salen de lo medido en el CI del 25/11: 526 es CANTOPEN_CONVPATH (14), 1032 READONLY_DBMOVED y 1544
   // READONLY_DIRECTORY (8), 261 BUSY_RECOVERY (5), 2067 CONSTRAINT_UNIQUE y 1555 CONSTRAINT_PRIMARYKEY (19).
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     [526, 'unavailable'],
     [14, 'unavailable'],
     [1032, 'read-only'],
@@ -30,16 +29,14 @@ describe('classifySqliteError (ARQ-12): por el código base, no el extendido', (
     expect(classifySqliteError(sqliteError(errcode))).toBe(kind);
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('un error que no es de SQLite no se clasifica', () => {
+  it('un error que no es de SQLite no se clasifica', () => {
     expect(classifySqliteError(new Error('otro'))).toBeUndefined();
     expect(classifySqliteError(Object.assign(new Error('fs'), { code: 'EACCES', errno: -13 }))).toBeUndefined();
     expect(classifySqliteError('texto')).toBeUndefined();
     expect(classifySqliteError(undefined)).toBeUndefined();
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('un código de SQLite fuera de la lista no se clasifica', () => {
+  it('un código de SQLite fuera de la lista no se clasifica', () => {
     // 1 SQLITE_ERROR (un SQL mal escrito) y 21 SQLITE_MISUSE: errores de programación, no de la base.
     expect(classifySqliteError(sqliteError(1))).toBeUndefined();
     expect(classifySqliteError(sqliteError(21))).toBeUndefined();

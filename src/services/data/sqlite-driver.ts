@@ -26,10 +26,121 @@ export interface SqliteConnectionOptions {
   readonly timeoutMs: number;
 }
 
-/** @internal Stub de Tests primero (ARQ-12 PR 4a): lo implementa nucleo. */
-export async function openSqliteConnection(
-  _path: string,
-  _options: SqliteConnectionOptions,
-): Promise<SqliteConnection> {
-  throw new Error('no implementado: stub de Tests primero (ARQ-12 PR 4a), lo implementa nucleo');
+/** Abre conexiones sin esperar: el módulo ya está cargado. */
+export interface SqliteDriver {
+  open(path: string, options: SqliteConnectionOptions): SqliteConnection;
+}
+
+// Lo que se usa de node:sqlite, con tipos propios: `defensive` y `Database` no están en el @types/node del proyecto
+// (22), y no se sube por esto.
+interface NativeStatement {
+  run(parameters: SqliteParameters): { readonly changes: bigint | number };
+  get(parameters: SqliteParameters): unknown;
+  all(parameters: SqliteParameters): unknown[];
+}
+
+interface NativeDatabase {
+  exec(sql: string): void;
+  prepare(sql: string): NativeStatement;
+  close(): void;
+}
+
+type NativeDatabaseConstructor = new (
+  path: string,
+  options: { readonly defensive: boolean; readonly timeout: number },
+) => NativeDatabase;
+
+interface NativeSqliteModule {
+  /** El nombre nuevo (Node 26 en adelante); `DatabaseSync` queda como alias. */
+  readonly Database?: NativeDatabaseConstructor;
+  readonly DatabaseSync: NativeDatabaseConstructor;
+}
+
+/**
+ * El aviso de Node 22 al cargar `node:sqlite` ("SQLite is an experimental feature…"), en las dos formas de
+ * `emitWarning`: con el tipo como texto o en las opciones. Cualquier otro aviso sale.
+ */
+export function isSqliteExperimentalWarning(warning: unknown, typeOrOptions: unknown): boolean {
+  const type =
+    typeof typeOrOptions === 'string'
+      ? typeOrOptions
+      : ((typeOrOptions as { type?: unknown } | undefined)?.type ??
+        (warning instanceof Error ? warning.name : undefined));
+  const text = warning instanceof Error ? warning.message : String(warning);
+
+  return type === 'ExperimentalWarning' && text.startsWith('SQLite ');
+}
+
+async function importQuietly(): Promise<NativeSqliteModule> {
+  const original = process.emitWarning;
+
+  process.emitWarning = function (this: unknown, warning: unknown, ...rest: unknown[]) {
+    if (!isSqliteExperimentalWarning(warning, rest[0])) {
+      Reflect.apply(original, process, [warning, ...rest]);
+    }
+  } as typeof process.emitWarning;
+
+  try {
+    return (await import('node:sqlite')) as unknown as NativeSqliteModule;
+  } finally {
+    process.emitWarning = original;
+  }
+}
+
+function checkedParameters(parameters: SqliteParameters = {}): SqliteParameters {
+  for (const [name, value] of Object.entries(parameters)) {
+    if (value === undefined) {
+      throw new TypeError(`El parámetro :${name} es undefined: pasá null si el dato no se sabe.`);
+    }
+  }
+
+  return parameters;
+}
+
+function connectionOver(database: NativeDatabase): SqliteConnection {
+  return {
+    all: (sql, parameters) =>
+      database
+        .prepare(sql)
+        .all(checkedParameters(parameters))
+        .map((row) => ({ ...(row as SqliteRow) })),
+    close: () => database.close(),
+    exec: (sql) => database.exec(sql),
+    get(sql, parameters) {
+      const row = database.prepare(sql).get(checkedParameters(parameters));
+
+      return row === undefined ? undefined : { ...(row as SqliteRow) };
+    },
+    run(sql, parameters) {
+      const { changes } = database.prepare(sql).run(checkedParameters(parameters));
+
+      return { changes: Number(changes) };
+    },
+  };
+}
+
+let loading: Promise<SqliteDriver> | undefined;
+
+/** Carga `node:sqlite` una vez por proceso. Si falla, el siguiente intento vuelve a probar. */
+export function loadSqliteDriver(): Promise<SqliteDriver> {
+  loading ??= importQuietly().then(
+    (sqlite): SqliteDriver => {
+      const Database = sqlite.Database ?? sqlite.DatabaseSync;
+
+      return {
+        open: (path, { timeoutMs }) => connectionOver(new Database(path, { defensive: true, timeout: timeoutMs })),
+      };
+    },
+    (error: unknown) => {
+      loading = undefined;
+      throw error;
+    },
+  );
+
+  return loading;
+}
+
+/** @internal Lo usan los tests del driver; el adaptador abre con `loadSqliteDriver`. */
+export async function openSqliteConnection(path: string, options: SqliteConnectionOptions): Promise<SqliteConnection> {
+  return (await loadSqliteDriver()).open(path, options);
 }
