@@ -221,7 +221,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Factura E:** sin autorización de WSFEX, o si ARCA no tiene el asociado, qué hacer va en `sugerencia`, como A, B y C (#290).
 - **Factura E:** un error de ARCA al pedir el ID de solicitud dice que no se emitió nada (#290).
 - **Errores:** `--testing` con `--produccion` da `INPUT_VALIDATION_ERROR` en todos los comandos (#290).
-- **Errores:** un valor que empieza con `-V`, como `--descripcion -Varios`, ya no muestra la versión: llega al flag o es una opción desconocida.
+- **Errores:** un valor que empieza con `-V`, como `--descripcion -Varios`, ya no muestra la versión: llega al flag o es una opción desconocida (#313).
 
 <details><summary>Detalle</summary>
 
