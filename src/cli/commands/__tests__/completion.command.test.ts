@@ -148,8 +148,7 @@ describe('arcli __completar sin candidatos', () => {
     expect(await complete('config', 'establecer', key, '')).toEqual(['si', 'no']);
   });
 
-  // Tests primero (REV-78): pasa a it() al implementarlo.
-  it.fails.each([['emitir'], ['json'], ['bruto']])('la clave de sí o no %s también ofrece si y no', async (key) => {
+  it.each([['emitir'], ['json'], ['bruto']])('la clave de sí o no %s también ofrece si y no', async (key) => {
     expect(await complete('config', 'establecer', key, '')).toEqual(['si', 'no']);
   });
 
