@@ -208,3 +208,55 @@ describe('SqliteVoucherRecordStore: reglas de save (ARQ-12)', () => {
     await expect(store.findByCae(FIRST_CAE)).resolves.toBeUndefined();
   });
 });
+
+describe('SqliteVoucherRecordStore: revisión del 27/11 (ARQ-12)', () => {
+  // El reemplazado es historial: si vuelve con su número no vale de nuevo, y se dice cuál es el vigente.
+  it('un CAE reemplazado que vuelve con su número: already-saved con el vigente', async () => {
+    const store = openStore(temporaryDataDirectory());
+
+    await store.save(voucherRecord());
+    await store.save(voucherRecord({ cae: SECOND_CAE }));
+    await store.save(voucherRecord({ cae: '76555555555555' }));
+
+    await expect(store.save(voucherRecord())).resolves.toEqual({
+      kind: 'already-saved',
+      replacedBy: '76555555555555',
+    });
+    await expect(store.findByNumber({ numero: 1, puntoVenta: 2, tipo: 11 })).resolves.toMatchObject({
+      cae: '76555555555555',
+    });
+  });
+
+  it('el mismo conflicto de número dos veces deja un solo evento; otro número, otro', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const store = openStore(dataDirectory);
+
+    await store.save(voucherRecord());
+    await store.save(voucherRecord({ numero: 7 }));
+    await store.save(voucherRecord({ numero: 7 }));
+    expect(events(dataDirectory, 'conflicto-numero')).toBe(1);
+
+    await store.save(voucherRecord({ numero: 8 }));
+    expect(events(dataDirectory, 'conflicto-numero')).toBe(2);
+  });
+
+  // Validado en el borde del adaptador: un error con el campo, no un CHECK crudo de SQLite.
+  it.each([
+    ['cae', { cae: '76ABC' }],
+    ['cae', { cae: '' }],
+    ['fecha', { fecha: '26/11/2026' }],
+    ['numero', { numero: 0 }],
+    ['numero', { numero: 1.5 }],
+    ['puntoVenta', { puntoVenta: 100_000 }],
+    ['tipo', { tipo: 1000 }],
+    ['totalCentavos', { totalCentavos: 2 ** 53 }],
+  ] as const)('un registro con %s inválido lanza un error con el campo y no crea nada', async (field, overrides) => {
+    const dataDirectory = temporaryDataDirectory();
+
+    await expect(openStore(dataDirectory).save(voucherRecord(overrides))).rejects.toMatchObject({
+      code: 'INPUT_VALIDATION_ERROR',
+      message: expect.stringContaining(field),
+    });
+    expect(readdirSync(dataDirectory)).toEqual([]);
+  });
+});

@@ -20,6 +20,11 @@ describe('classifySqliteError (ARQ-12): por el código base, no el extendido', (
     [5, 'locked'],
     [6, 'locked'],
     [262, 'locked'],
+    // SQLITE_IOERR y sus extendidos de lectura, escritura y fsync (revisión del 27/11).
+    [10, 'unavailable'],
+    [266, 'unavailable'],
+    [778, 'unavailable'],
+    [1034, 'unavailable'],
     [11, 'damaged'],
     [26, 'damaged'],
     [13, 'disk-full'],

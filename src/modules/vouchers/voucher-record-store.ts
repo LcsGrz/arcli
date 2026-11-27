@@ -35,12 +35,14 @@ export interface StoredVoucherRecord extends VoucherRecord {
  * Qué pasó al guardar:
  *
  * - `saved`: era nuevo.
- * - `already-saved`: ya estaba con el mismo CAE y número; no cambia nada.
- * - `cae-on-other-number`: el CAE ya estaba con otro número; no se pisa (queda un evento `conflicto-numero`).
+ * - `already-saved`: ya estaba con el mismo CAE y número; no cambia nada. Si ese CAE fue reemplazado, `replacedBy`
+ *   es el CAE vigente de ese número: el reemplazado no vuelve a valer.
+ * - `cae-on-other-number`: el CAE ya estaba con otro número; no se pisa (queda un evento `conflicto-numero`, uno por
+ *   CAE y número aunque llegue varias veces).
  * - `replaced`: el número tenía otro CAE; el anterior queda marcado como reemplazado (evento `reemplazo`).
  */
 export type SaveOutcome =
-  | { readonly kind: 'already-saved' }
+  | { readonly kind: 'already-saved'; readonly replacedBy?: string }
   | { readonly kind: 'cae-on-other-number'; readonly saved: VoucherNumber }
   | { readonly kind: 'replaced'; readonly previousCae: string }
   | { readonly kind: 'saved' };

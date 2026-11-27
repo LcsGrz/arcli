@@ -9,6 +9,10 @@ const KIND_BY_PRIMARY_CODE: ReadonlyMap<number, SqliteErrorKind> = new Map([
   [5, 'locked'], // SQLITE_BUSY (261 BUSY_RECOVERY, 517 BUSY_SNAPSHOT)
   [6, 'locked'], // SQLITE_LOCKED (262 LOCKED_SHAREDCACHE)
   [8, 'read-only'], // SQLITE_READONLY (1032 READONLY_DBMOVED, 1544 READONLY_DIRECTORY)
+  // SQLITE_IOERR, con todos sus extendidos (778 IOERR_WRITE, 1034 IOERR_FSYNC...): el disco o la red fallaron. No es
+  // `disk-full` ni con los de escritura: sin lugar, SQLite da SQLITE_FULL (13), y un IOERR_WRITE también es un disco
+  // que se desconectó o una carpeta de red que se cayó.
+  [10, 'unavailable'],
   [11, 'damaged'], // SQLITE_CORRUPT
   [13, 'disk-full'], // SQLITE_FULL
   [14, 'unavailable'], // SQLITE_CANTOPEN (526 CANTOPEN_CONVPATH)
@@ -17,7 +21,7 @@ const KIND_BY_PRIMARY_CODE: ReadonlyMap<number, SqliteErrorKind> = new Map([
 ]);
 
 /**
- * Por código base: 5 y 6 → `locked`; 11 y 26 → `damaged`; 14 → `unavailable`; 8 → `read-only`; 13 → `disk-full`;
+ * Por código base: 5 y 6 → `locked`; 11 y 26 → `damaged`; 10 y 14 → `unavailable`; 8 → `read-only`; 13 → `disk-full`;
  * 19 → `unique`. `undefined` si no es un error de SQLite o el código no está en la lista. El driver de Node los lanza con
  * `code: 'ERR_SQLITE_ERROR'` y el código extendido en `errcode`.
  */

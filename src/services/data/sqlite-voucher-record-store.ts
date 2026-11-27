@@ -1,6 +1,7 @@
 import { basename, dirname, join } from 'node:path';
 import { z } from 'zod';
 
+import { InputValidationError } from '../../lib/errors/app-error';
 import type { Clock } from '../../lib/time/clock';
 import type { ArcliEnvironment } from '../../modules/config/config.schemas';
 import { LocalDataError } from '../../modules/local-data/local-data-error';
@@ -89,6 +90,33 @@ function decodeRecord(row: unknown): StoredVoucherRecord {
   };
 }
 
+/**
+ * Lo que entra a la base, validado en el borde del adaptador con los mismos límites que los CHECK del esquema: uno
+ * inválido lanza un error claro con el campo, y no un CHECK crudo de SQLite.
+ */
+const recordSchema = z.object({
+  cae: z.string().regex(/^\d+$/, 'tiene que tener solo dígitos'),
+  fecha: z.iso.date(),
+  fuente: z.string().min(1),
+  numero: z.number().int().min(1).max(99_999_999),
+  puntoVenta: z.number().int().min(1).max(99_999),
+  servicio: z.string().min(1),
+  tipo: z.number().int().min(1).max(999),
+  totalCentavos: z.number().int().refine(Number.isSafeInteger, 'tiene que ser un entero exacto'),
+});
+
+function validateRecord(record: VoucherRecord): void {
+  const parsed = recordSchema.safeParse(record);
+
+  if (!parsed.success) {
+    const fields = parsed.error.issues.map(({ message, path }) => `${path.join('.')} (${message})`).join(', ');
+
+    throw new InputValidationError(`El comprobante a guardar no es válido: ${fields}.`, {
+      campos: parsed.error.issues.map(({ path }) => path.join('.')),
+    });
+  }
+}
+
 const sameNumber = (number: VoucherNumber, row: Readonly<Record<string, unknown>>) =>
   row.tipo_arca === number.tipo && row.punto_venta === number.puntoVenta && row.numero === number.numero;
 
@@ -103,9 +131,20 @@ function addEvent(
   tipo: string,
   datos: Record<string, unknown>,
 ): void {
+  const event = { cae, datos: JSON.stringify(datos), tipo };
+
+  // El mismo CAE con el mismo número equivocado puede llegar muchas veces (un reintento, un lote repetido): con un
+  // evento alcanza. `datos` sale siempre con las claves en el mismo orden, así que se compara como texto.
+  if (
+    tipo === 'conflicto-numero' &&
+    connection.get('SELECT id FROM eventos WHERE cae = :cae AND tipo = :tipo AND datos = :datos', event)
+  ) {
+    return;
+  }
+
   connection.run(
     'INSERT INTO eventos (cae, tipo, ocurrido_el, version_arcli, datos) VALUES (:cae, :tipo, :ocurrido_el, :version_arcli, :datos)',
-    { cae, datos: JSON.stringify(datos), ocurrido_el: context.now, tipo, version_arcli: context.version },
+    { ...event, ocurrido_el: context.now, version_arcli: context.version },
   );
 }
 
@@ -115,13 +154,23 @@ function addEvent(
  * INSERT OR REPLACE ni borrar filas.
  */
 function saveInTransaction(connection: SqliteConnection, record: VoucherRecord, context: SaveContext): SaveOutcome {
-  const byCae = connection.get('SELECT tipo_arca, punto_venta, numero FROM comprobantes WHERE cae = :cae', {
-    cae: record.cae,
-  });
+  const byCae = connection.get(
+    'SELECT tipo_arca, punto_venta, numero, reemplazado_por FROM comprobantes WHERE cae = :cae',
+    { cae: record.cae },
+  );
+  const number = { numero: record.numero, punto_venta: record.puntoVenta, tipo_arca: record.tipo };
+  const currentCae = () =>
+    connection.get(
+      'SELECT cae FROM comprobantes WHERE tipo_arca = :tipo_arca AND punto_venta = :punto_venta AND numero = :numero AND reemplazado_por IS NULL',
+      number,
+    )?.cae;
 
   if (byCae) {
     if (sameNumber(record, byCae)) {
-      return { kind: 'already-saved' };
+      // Un CAE reemplazado que vuelve no vuelve a valer: se dice cuál es el vigente.
+      return byCae.reemplazado_por === null
+        ? { kind: 'already-saved' }
+        : { kind: 'already-saved', replacedBy: String(currentCae() ?? byCae.reemplazado_por) };
     }
 
     addEvent(connection, context, record.cae, 'conflicto-numero', {
@@ -136,11 +185,8 @@ function saveInTransaction(connection: SqliteConnection, record: VoucherRecord, 
     };
   }
 
-  const current = connection.get(
-    'SELECT cae FROM comprobantes WHERE tipo_arca = :tipo_arca AND punto_venta = :punto_venta AND numero = :numero AND reemplazado_por IS NULL',
-    { numero: record.numero, punto_venta: record.puntoVenta, tipo_arca: record.tipo },
-  );
-  const previousCae = current === undefined ? undefined : String(current.cae);
+  const current = currentCae();
+  const previousCae = current === undefined ? undefined : String(current);
 
   if (previousCae !== undefined) {
     connection.run(
@@ -257,6 +303,8 @@ export function openSqliteVoucherRecordStore(options: SqliteVoucherRecordStoreOp
     },
 
     async save(record) {
+      validateRecord(record);
+
       const databaseSpec = spec();
       const driver = await loadSqliteDriver();
 
