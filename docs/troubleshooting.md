@@ -387,6 +387,14 @@ arcli fc ayuda
 - **Solución:** si era una consulta o el login previo, sin ese texto, probá de nuevo en unos minutos; con `arcli estado` ves si ARCA responde. Si estabas verificando una emisión, repetí la consulta y no la emisión. Si dice `No se pudo confirmar la emisión`, **no reintentes**: ARCLI dejó de esperar, pero ARCA pudo autorizarlo igual. Seguí los pasos de [No se pudo confirmar la emisión](#no-se-pudo-confirmar-la-emisión-emission_uncertain). Si solo avisa (régimen FCE, permiso de embarque, rango de la cotización, o una tabla de la `E` que no hace falta para emitir), el comprobante sigue sin ese control. Si la tabla es obligatoria, o vencen dos consultas de la `E`, corta antes de emitir.
 - **Documentación relacionada:** [Códigos de error](input-output.md#códigos-de-error)
 
+### ARCA contestó sin el último número
+
+- **Severidad:** ocasional
+- **Síntoma:** `ARCA contestó sin el último número de factura C del punto de venta 3 (sin errores).` al facturar, con `ultimos` o en el asistente, con el código `ARCA_LAST_VOUCHER_ERROR` (en la `E`, `ARCA_EXPORT_ERROR`), `detalles.errores` vacío y exit 1. Al facturar una `E` también puede decir `ARCA contestó sin el último ID de solicitud de WSFEX (sin errores).`
+- **Causa:** ARCA contestó el pedido del último número (o, en la `E`, del último ID de solicitud) sin errores, pero sin el número o con algo que no es un entero de 0 en adelante. El 0 sí vale: es un punto de venta sin comprobantes de ese tipo. No hay un mensaje de ARCA para revisar: suele ser un problema pasajero de ARCA. Hasta la 2.6.0 se tomaba como 0: al facturar se pedía el 1 y ARCA lo rechazaba, y `ultimos` decía que no había comprobantes.
+- **Solución:** al facturar no se emitió nada: reintentá en unos minutos (en un lote, los anteriores quedaron emitidos, con su CAE: no los repitas). Con `ultimos` o en el asistente, volvé a consultar en unos minutos; si estabas verificando una emisión, **no la reintentes** hasta saber si el comprobante existe. Si se repite, no insistas. En una nota, si el aviso dice `no se pudo consultar si el punto de venta … es de web service`, es por esto: la nota sigue con ese aviso, como cuando no se puede consultar el asociado.
+- **Documentación relacionada:** [Códigos de error](input-output.md#códigos-de-error)
+
 ### No se pudo consultar un comprobante (`ARCA_VOUCHER_QUERY_ERROR`)
 
 - **Severidad:** ocasional

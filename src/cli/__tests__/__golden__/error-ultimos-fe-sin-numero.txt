@@ -1,0 +1,15 @@
+$ arcli ultimos fe --pv 4 --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "ARCA_EXPORT_ERROR",
+  "detalles": {
+    "errores": []
+  },
+  "error": "ARCA contestó sin el último número de factura de exportación E del punto de venta 4 (sin errores).",
+  "sugerencia": "ARCA no informó el último número: puede ser un problema pasajero de ARCA; volvé a consultar en unos minutos. Si se repite, no insistas. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe."
+}
+

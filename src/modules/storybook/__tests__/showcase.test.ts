@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { inverseColumns, legendLines, listingPanels, offCenter } from '../../../testing/terminal-layout';
 import { renderStorybookShowcase } from '../showcase';
 
 // Lo que no es ASCII ni una letra del español: ARCLI_ASCII cambia bordes y simbolos, no el idioma.
@@ -43,6 +44,46 @@ describe('storybook.showcase', () => {
     expect(output).toContain('CONSULTAS');
     expect(output).toContain('Empresa de Ejemplo SRL');
     expect(output).toContain('00003-00001234');
+  });
+
+  it('shows the monotributo table with the own category explained once per table, below it', () => {
+    const output = stripAnsi(renderStorybookShowcase('consultas'));
+    const lines = output.split('\n');
+
+    // Dos resumenes: el de 92 columnas y el de 40, con la K.
+    expect(lines.filter((line) => line.includes('tu categoría')).map((line) => line.trim())).toEqual([
+      '❯ tu categoría',
+      '❯ tu categoría',
+    ]);
+  });
+
+  it('la escena de 40 columnas mide 40 de punta a punta: panel, fondo de la K y leyenda', () => {
+    vi.stubEnv('FORCE_COLOR', '1');
+
+    const panel = listingPanels(renderStorybookShowcase('consultas')).find((item) =>
+      item.inside.some((line) => /❯ K/.test(stripAnsi(line))),
+    );
+    const own = inverseColumns(panel?.inside.find((line) => /❯ K/.test(stripAnsi(line))) ?? '');
+
+    expect(panel?.width).toBe(40);
+    // Contenido: de la columna 3 a la 36 (40 menos bordes y margen).
+    expect(own[0]).toBe(3);
+    expect(own.at(-1)).toBe(36);
+
+    // La leyenda, hasta la ficha que sigue (`┌ CATEGORÍA E`), centrada en 40.
+    const after = legendLines(panel ?? { after: [], inside: [], width: 0 }).map(stripAnsi);
+    const legend = after
+      .slice(
+        0,
+        after.findIndex((line) => line.startsWith('┌')),
+      )
+      .filter((line) => line.trim());
+
+    expect(legend.map((line) => line.trim())).toContain('❯ tu categoría');
+
+    for (const line of legend) {
+      expect(offCenter(line, 40)).toBeLessThanOrEqual(0.5);
+    }
   });
 
   it('renders the certificates scene', () => {

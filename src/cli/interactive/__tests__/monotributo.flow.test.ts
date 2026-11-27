@@ -3,6 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BACK } from '../../../modules/interactive/wizard';
 import { BUNDLED_MONOTRIBUTO_TABLE } from '../../../modules/monotributo/monotributo.bundled';
 import type { MonotributoReport } from '../../../modules/monotributo/monotributo.presenter';
+import {
+  legendLines,
+  listingPanels,
+  plainText,
+  separators,
+  tableColumns,
+  useTerminal,
+} from '../../../testing/terminal-layout';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { loadMonotributoReport } from '../../monotributo-report';
@@ -56,6 +64,8 @@ function createSession(): InteractiveSession {
 }
 
 let output = '';
+
+const terminal = useTerminal();
 
 describe('Categorías del monotributo', () => {
   beforeEach(() => {
@@ -133,6 +143,24 @@ describe('Categorías del monotributo', () => {
     expect(fee).toContain('← límites anuales  2/2');
     expect(fee).toContain('CUOTA MENSUAL EN PESOS');
     expect(help).toBe('←→ cambiar de bloque · ⏎ volver al menú');
+  });
+
+  it('en el asistente la tabla va a todo el ancho de la terminal y "tu categoría" se explica abajo', async () => {
+    terminal.set({ columns: 72 });
+    script = createScript([[/Y ahora/, BACK]]);
+
+    await runMonotributoQuery(createSession());
+
+    const [panel] = listingPanels(output);
+    const inside = (panel?.inside ?? []).map(plainText);
+    const header = inside.findIndex((line) => line.includes('CAT.'));
+    const cells = tableColumns(inside.slice(header, header + 12), (inside[header] ?? '').indexOf('CAT.'));
+
+    expect(Math.min(...separators(cells.slice(0, 4)))).toBeGreaterThanOrEqual(3);
+    expect(inside.join('\n')).not.toContain('tu categoría');
+    expect(legendLines(panel ?? { after: [], inside: [], width: 0 }).map((line) => plainText(line).trim())).toContain(
+      '❯ tu categoría',
+    );
   });
 
   it('"Actualizar desde ARCA" vuelve a leer la tabla y la muestra', async () => {

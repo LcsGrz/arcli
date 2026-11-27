@@ -24,9 +24,10 @@ import {
 
 import type { Arca, IFEXAuthorizeInput, IFEXGetLast_CMPInput } from './arca-sdk.types';
 import { readExportAnswer } from './authorization-answer';
+import { missingLastNumberError, missingLastRequestIdError } from './last-voucher';
 import { AUTHORIZE_SERVICE_SUGGESTION, isNotAuthorized, notAuthorizedTitle } from './not-authorized';
 import type { SdkRequest } from './sdk-request';
-import { readNumber, readOptionalText, readText } from './soap-values';
+import { readLastNumber, readNumber, readOptionalText, readText } from './soap-values';
 import { unreadableVoucherError, voucherQueryError } from './voucher-query-error';
 
 const NOT_AUTHORIZED_MESSAGE = notAuthorizedTitle('wsfex', 'factura de exportación');
@@ -417,7 +418,13 @@ export class ArcaExportGateway implements ExportGateway {
 
     assertNoError(data, 'el último número', lastNumberErrorSuggestion(purpose));
 
-    return Number(data?.FEXResult_LastCMP?.Cbte_nro) || 0;
+    const last = readLastNumber(data?.FEXResult_LastCMP?.Cbte_nro);
+
+    if (last === undefined) {
+      throw missingLastNumberError({ arcaType, code: 'ARCA_EXPORT_ERROR', pointOfSale, purpose });
+    }
+
+    return last;
   }
 
   public async getLastRequestId(): Promise<number> {
@@ -426,7 +433,15 @@ export class ArcaExportGateway implements ExportGateway {
     // Solo se pide al facturar.
     assertNoError(data, 'el último ID de solicitud', lastNumberErrorSuggestion('emitir'));
 
-    return Number(data?.FEXResultGet?.Id) || 0;
+    // El WSDL hace obligatorio `Id` (`ClsFEXResponse_LastID`, minOccurs="1"), como `Cbte_nro`: sin el, o ilegible, no se
+    // inventa el 1 (ARQ-24). El 0 vale: un CUIT que todavia no pidio ninguno.
+    const last = readLastNumber(data?.FEXResultGet?.Id);
+
+    if (last === undefined) {
+      throw missingLastRequestIdError();
+    }
+
+    return last;
   }
 
   /**

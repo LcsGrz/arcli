@@ -1,6 +1,13 @@
 import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
 import { uiSymbol } from '../../ui/primitives';
 import type { MonotributoCategoryLetter, MonotributoTable } from '../monotributo/monotributo';
+import {
+  enterMonotributoColumnWindow,
+  type MonotributoBlock,
+  type MonotributoColumnWindow,
+  type MonotributoReport,
+  moveMonotributoColumnWindow,
+} from '../monotributo/monotributo.presenter';
 
 /** Lo que se puede hacer despues de ver la tabla en "Categorías del monotributo". */
 export type MonotributoAction = 'actualizar' | 'categoria' | 'columnas';
@@ -47,10 +54,38 @@ export function monotributoCategoryChoices(
   }));
 }
 
-/** La ayuda de teclas de "Ver todas las columnas": `[tecla, accion]`. */
-export function monotributoBlockKeys(): ReadonlyArray<readonly [string, string]> {
+/**
+ * La ayuda de teclas de "Ver todas las columnas": `[tecla, accion]`. Con `columns` (un bloque no entra y va por
+ * ventana), ←/→ corren las columnas y, pasada la ultima (o antes de la primera), cambian de bloque.
+ */
+export function monotributoBlockKeys({ columns = false } = {}): ReadonlyArray<readonly [string, string]> {
   return [
-    [`${uiSymbol('moreLeft')}${uiSymbol('moreRight')}`, 'cambiar de bloque'],
+    [
+      `${uiSymbol('moreLeft')}${uiSymbol('moreRight')}`,
+      columns ? 'mover columnas; después de la última, cambiar de bloque' : 'cambiar de bloque',
+    ],
     [uiSymbol('keyEnter'), 'volver al menú'],
   ];
+}
+
+/** Lo que ←/→ hacen adentro de un bloque de "Ver todas las columnas" (ver `browseBlocks`). */
+export interface MonotributoColumnViews {
+  readonly enter: (block: MonotributoBlock, side: 'left' | 'right') => MonotributoColumnWindow | undefined;
+  readonly move: (
+    block: MonotributoBlock,
+    window: MonotributoColumnWindow,
+    direction: 'left' | 'right',
+  ) => MonotributoColumnWindow | undefined;
+}
+
+/**
+ * "Ver todas las columnas" cuando un bloque no entra a lo ancho: una ventana de columnas con CAT. fija que ←/→ corren
+ * de a una, con la nueva pegada al lado hacia el que te moviste. Pasada la ultima (o antes de la primera) sigue el
+ * otro bloque, desde el lado por el que se entra. Sin ventana (entran todas, o ni una), ←/→ cambian de bloque.
+ */
+export function monotributoColumnViews(report: MonotributoReport): MonotributoColumnViews {
+  return {
+    enter: (block, side) => enterMonotributoColumnWindow(report, block, side),
+    move: (block, window, direction) => moveMonotributoColumnWindow(report, block, window, direction),
+  };
 }

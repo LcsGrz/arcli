@@ -41,6 +41,9 @@ const USTED = [
 ];
 
 const SRC = fileURLToPath(new URL('../../', import.meta.url));
+/** La única carpeta con SQL; los literales de SQL de ahí no son texto de pantalla. */
+const SQL_FOLDER = join('services', 'data');
+const SQL = /\b(SELECT|INSERT INTO|UPDATE|CREATE (UNIQUE )?(TABLE|INDEX))\s/;
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory).flatMap((name) => {
@@ -81,6 +84,8 @@ describe('textos en voseo y con tildes', () => {
         .map((match) => humanText(match[1] ?? match[2] ?? ''))
         // Un template anidado en otro corta mal el literal y deja codigo: se descarta.
         .filter((text) => text.includes(' ') && !text.includes('=>'))
+        // El SQL de src/services/data (columnas como `numero`) no es texto para quien usa el CLI. Solo ahí.
+        .filter((text) => !(file.includes(SQL_FOLDER) && SQL.test(text)))
         .flatMap((text) => {
           const found = words.exec(text)?.[1];
 

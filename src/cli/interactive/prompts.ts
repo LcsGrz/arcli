@@ -6,7 +6,7 @@ import type { RowEdits } from '../../modules/interactive/row-marks';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { bold, colorize, type RowActionsListRow, uiSymbol, usesAsciiBorders, writeTerminalRaw } from '../../ui';
 
-import { blockPager } from './block-pager';
+import { blockPager, type BlockPagerViews } from './block-pager';
 import { filterList, type FilterListRow } from './filter-list';
 import { listSelect, type ListSelectState, type LiveList, topBlock } from './list-select';
 import { multiSelect } from './multi-select';
@@ -644,18 +644,20 @@ export async function browseFilterList(
 }
 
 /**
- * Un contenido en bloques para mirar, que se recorren con ← y → (`render` dibuja cada uno). Enter o Esc lo cierran y
- * no deja rastro en pantalla.
+ * Un contenido en bloques para mirar, que se recorren con ← y → (`render` dibuja cada uno). Con `views`, cada bloque
+ * se recorre por dentro antes de pasar al siguiente, como las columnas que no entran. Enter o Esc lo cierran y no
+ * deja rastro en pantalla.
  */
-export async function browseBlocks<B extends string>(
+export async function browseBlocks<B extends string, V = never>(
   message: string,
   blocks: readonly B[],
-  render: (block: B) => string,
+  render: (block: B, view?: V) => string,
   keys: ReadonlyArray<readonly [key: string, action: string]>,
+  views?: BlockPagerViews<B, V>,
 ): Promise<void> {
   await runStepPrompt(
     (context) =>
-      blockPager<B>(
+      blockPager<B, V>(
         {
           blocks,
           help: keys
@@ -664,6 +666,7 @@ export async function browseBlocks<B extends string>(
           message,
           render,
           theme: STEP_THEME,
+          views,
         },
         context,
       ),

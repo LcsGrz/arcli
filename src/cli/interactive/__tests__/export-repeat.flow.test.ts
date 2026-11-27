@@ -5,6 +5,8 @@ import type { ExportGateway } from '../../../modules/export/export.gateway';
 import type { ExportIssuedVoucher } from '../../../modules/export/export.types';
 import { buildExportRepeatInput } from '../../../modules/interactive/export-repeat-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
+import type { ArcaClient } from '../../../services/arca/arca-client.factory';
+import { ArcaExportGateway } from '../../../services/arca/arca-export.gateway';
 import { exportAnswer } from '../../../testing/arca-answers';
 import { fakeBillingGateway } from '../../../testing/arca-gateways';
 import { stripAnsi } from '../../../ui';
@@ -519,6 +521,31 @@ describe('runExportRepeatFlow', () => {
     script = createScript([[/Cuál repetimos/, BACK]]);
 
     await expect(runExportRepeatFlow(createSession(), 4)).resolves.toBe(BACK);
+  });
+
+  // ARQ-24: sin el último número no se dice "No hay" ni se llega a emitir: sale el error de wsfex.
+  it('si ARCA contesta sin el último número, ARCA_EXPORT_ERROR y no se emite', async () => {
+    const real = new ArcaExportGateway(
+      {
+        wsfexService: {
+          getLastCmp: async () => ({
+            FEXGetLast_CMPResult: { FEXErr: { ErrCode: 0, ErrMsg: 'OK' }, FEXResult_LastCMP: {} },
+          }),
+        },
+      } as unknown as ArcaClient,
+      async () => ({ Cuit: 20111111112, Sign: 'firma', Token: 'token' }),
+    );
+
+    vi.mocked(gateway.getLastVoucherNumber).mockImplementationOnce(async (arcaType, pointOfSale, purpose) =>
+      real.getLastVoucherNumber(arcaType, pointOfSale, purpose),
+    );
+    script = createScript([]);
+
+    const error: unknown = await runExportRepeatFlow(createSession(), 4).catch((reason: unknown) => reason);
+
+    expect(error).toMatchObject({ code: 'ARCA_EXPORT_ERROR', details: { errores: [] } });
+    expect(printed()).not.toContain('No hay');
+    expect(gateway.authorize).not.toHaveBeenCalled();
   });
 });
 

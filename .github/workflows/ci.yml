@@ -55,8 +55,9 @@ jobs:
       - name: Typecheck
         run: yarn typecheck
 
+      # En Windows el runner a veces se frena unos 5 s y varios tests cortan juntos por el límite (ARQ-23): ahí, 15 s.
       - name: Test with coverage
-        run: yarn test:coverage
+        run: yarn test:coverage ${{ runner.os == 'Windows' && '--testTimeout=15000' || '' }}
 
       - name: Build
         run: yarn build
@@ -73,9 +74,53 @@ jobs:
       - name: El paquete se instala y arranca
         run: yarn pack:check
 
+  # Los datos locales en SQLite (ARQ-12): node:sqlite cambia entre versiones de Node (el aviso de 22, `defensive`,
+  # `undefined` en 26) y el bloqueo de archivos entre sistemas, asi que van en los 3 SO x 4 Node. 22.22.1 es el minimo
+  # de "engines"; check-latest para no quedarse con un Node del cache del runner.
+  datos-locales:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node-version: ['22.22.1', '22', '24', '26']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node-version }}
+          check-latest: true
+          cache: yarn
+
+      - name: Enable Corepack
+        if: startsWith(matrix.node-version, '22') || startsWith(matrix.node-version, '24')
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --ignore-scripts
+
+      - name: Build
+        run: yarn build
+
+      # En Windows el runner a veces se frena unos 5 s y varios tests cortan juntos por el límite (ARQ-23): ahí, 15 s.
+      - name: Tests de los datos locales
+        run: yarn vitest run src/services/data src/modules/local-data ${{ runner.os == 'Windows' && '--testTimeout=15000' || '' }}
+
+      # Procesos reales sobre dist/: concurrencia, SIGKILL, migraciones y el aviso de Node 22.
+      - name: Datos locales con procesos reales
+        run: yarn vitest run --config vitest.e2e.config.ts src/services/data
+
   # La proteccion de main exige un check llamado "validate": este job lo da cuando pasa toda la matriz.
   validate:
-    needs: test
+    needs: [test, datos-locales]
     runs-on: ubuntu-latest
 
     steps:

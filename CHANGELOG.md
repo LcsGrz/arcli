@@ -56,6 +56,11 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - `Ctrl+C` o `SIGTERM` con un comprobante ya enviado a ARCA esperan la respuesta, antes cortaban sin salida. Un lote cortado así sale con `BATCH_EMISSION_ERROR` y exit code `1`, con `codigoCausa` `CANCELLED`, código nuevo. Dos señales cortan, después de escribir lo que se sabe.
 > - `Ctrl+C` o `SIGTERM` mientras se genera el PDF de algo emitido: el resultado sale completo, con `PDF_GENERATION_ERROR` en `pdf.error`, y el exit code de siempre; antes, `130` sin salida con `Ctrl+C`. Dos señales cortan, después de escribirlo.
 > - Si ARCA no contesta un pedido a tiempo (30 segundos una consulta, 60 el login en WSAA), sale `UNEXPECTED_ERROR` y, en `estado`, `ARCA_UNAVAILABLE`; una emisión sin respuesta en 120, o un login de esa misma llamada, `EMISSION_UNCERTAIN`. Antes esperaba sin límite.
+> - Si ARCA contesta sin el último número, o con uno que no es un entero de 0 en adelante, facturar, `ultimos` y el asistente salen con `ARCA_LAST_VOUCHER_ERROR` (en la `E`, `ARCA_EXPORT_ERROR`), `detalles.errores` vacío y exit code `1`. Antes, al facturar se pedía el 1 y ARCA lo rechazaba (exit code `2`), `ultimos` salía con `0` y la lista vacía, y `fe`, `nce` y `nde` con `--previsualizar` salían con `0` y el número 1.
+> - En la `E`, lo mismo si `FEXGetLast_ID` contesta sin el ID de solicitud o con uno ilegible: `ARCA_EXPORT_ERROR` y exit code `1` antes de emitir; antes se pedía el ID 1.
+> - En A, B, C, FCE y recibos, un último número que llega como texto (`"41"`) se lee como número y se pide el 42; antes se pegaba y se pedía el 411.
+> - Un argumento que empieza con `-V` y sigue con otras letras (`-Vx`) sale con `INPUT_VALIDATION_ERROR` y exit code `1`; antes mostraba la versión con `0`. `-V` suelto, no como valor de un flag, sigue mostrándola.
+> - Un valor que empieza con `-V` después de un flag que pide valor (`--descripcion -Varios`, también `-V`) ahora llega al flag y el comando corre: con `--emitir` o `emitir true`, emite. Antes salía la versión con `0` sin hacer nada.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
 
@@ -86,6 +91,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **PDF:** en el asistente, la condición de venta se elige o se escribe en la misma lista, sin la pregunta aparte de "Otra" (#257).
 - **Factura E:** en el asistente, la actividad de WSFEX y la forma de pago se eligen de una lista donde también podés escribir (#261).
 - **Config:** en "Modificar configuración", la moneda y la actividad de exportación se eligen de una lista donde también podés escribir (#261).
+- **Config:** `arcli config` y "Modificar configuración" muestran cada dato igual; sin nada guardado, el valor por defecto con "(por defecto)" (#316).
+- **Config:** en "Modificar configuración", borrar dice si vuelve al valor por defecto o queda sin configurar, y las carpetas se arrastran como carpetas (#316).
+- **Config:** el autocompletado de `config establecer` ofrece `si` y `no` también para `emitir`, `json` y `bruto` (#316).
 - **FCE:** el error de un alias del CBU inválido dice lo mismo en los flags, `--cargar`, la config y el asistente (#262).
 - **Facturas:** un flag que cambia a quién, qué comprobante o qué moneda descarta del JSON de `--cargar` lo que dependía del anterior (#282).
 - **FCE:** el alias guardado va solo con su CBU, y el asistente siempre pide el alias si pide el CBU (#282).
@@ -105,6 +113,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Asistente:** el menú abre sin esperar a ARCA ni a npm: el estado de ARCA y la versión nueva se completan solos (#295).
 - **Salida:** los comandos no esperan a npm al terminar; si no contestó, consulta el próximo (#295).
 - **Factura E:** en el asistente, la lista de incoterms muestra el nombre del marcado, como `Free on Board` (#296).
+- **Monotributo:** la tabla ocupa el ancho de la terminal y tu categoría va resaltada de punta a punta; lo que la explica, debajo (#317).
+- **Consultas:** en `parametros` y `monotributo`, lo que explica cada tabla va debajo de ella, centrado, sin la línea de adentro (#317).
+- **Asistente:** en "Ver todas las columnas" del monotributo, si un bloque no entra, ←/→ corren sus columnas de a una (#317).
 
 <details><summary>Detalle</summary>
 
@@ -160,6 +171,16 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 **Nombre del incoterm.** La lista mostraba solo el código (`FOB`). Ahora, debajo, se ve el nombre de la tabla de WSFEX del que está marcado; si la tabla no lo trae o repite el código, no se ve nada. El filtro, que ya encontraba por el nombre, lo que se emite y el comando equivalente no cambian.
 
+**Tabla del monotributo.** Antes las columnas iban con 2 espacios, pegadas a la izquierda, y "tu categoría" al lado de tu fila si entraba. Ahora la tabla de `arcli monotributo` y los dos bloques de `--completa` reparten el ancho entre las columnas (por lo menos 3 espacios entre cada una; si no entra, 2), y tu fila lleva, además de la `❯`, un fondo de punta a punta con color. Si tampoco entra con 2, la tabla de `arcli monotributo` pone cada categoría en dos líneas y `--completa` apila la letra y un dato por línea, como antes, con el fondo en todas las líneas de la tuya. Sin color queda solo la `❯`. Debajo de la tabla, `❯ tu categoría` lo explica una vez.
+
+**Leyendas debajo de las tablas.** En las tablas de `arcli parametros <tabla>`, `arcli monotributo` y `--completa`, lo que explica la tabla (para qué sirve el código, qué incluye la cuota, de dónde salió la tabla, tu tope configurado y los comandos para ver más) iba adentro, debajo de una línea `═`. Ahora va afuera, debajo del borde, centrado, atenuado y una idea por línea; en `--completa`, "Tabla de ARCA, consultada el …", que ya salía una vez, va debajo del bloque de la cuota. La línea `1/2  sigue abajo` sigue adentro. El `--json` no cambia.
+
+**Columnas que no entran en el asistente.** En "Ver todas las columnas", un bloque que no entraba a lo ancho se veía con cada categoría apilada. Ahora se ve por una ventana con la columna de categoría fija y todas las columnas que entran: ←/→ la corren de a una, abajo dice cuáles ves (`columnas 1 a 3 de 5`) y, pasada la última, siguen al otro bloque, como dice la ayuda de teclas. Si una columna no entra ni sola, o la terminal se achica hasta que la ventana no entra, el bloque se apila como antes. `--completa` sigue apilando.
+
+**Cada dato de la config, igual en las dos pantallas.** "Modificar configuración" decía "sin configurar" donde `arcli config` mostraba el valor que se usa, y escribía otros formatos (el CUIT sin guiones, `30000000`, `produccion`). Ahora las dos muestran el mismo texto: lo guardado (`20-12345678-6`, `$ 30.000.000`, `producción`, y el concepto, las condiciones de IVA y la condición de venta con su nombre, como `Productos y servicios` o `Tarjeta de Débito`) o, sin nada guardado, el valor que se usa con "(por defecto)", como `21% (por defecto)` o `sí (por defecto)`, y la cotización, `la oficial de ARCA (por defecto)` también con el 1 que guarda la config al crearse; el navegador, la condición de IVA del emisor y el tope del monotributo dicen "automático", "según la letra" y "el de tu categoría". `arcli config` suma "(por defecto)" en el padrón, la verificación de FCE, el PDF y las dos carpetas. `--json` no cambia.
+
+**Borrar un dato en el asistente.** La opción "Quitar el valor por defecto" borraba lo guardado aunque el dato no tuviera un valor por defecto. Ahora, si lo tiene, la lista ofrece "Dejar el de por defecto (21%)" sin nada guardado y "Volver al de por defecto (21%)" con uno guardado, y en las preguntas de texto `"-"` dice "para volver al de por defecto"; al volver dice "Volvió al de por defecto (21%)." en lugar de "Dato borrado.". Si no lo tiene, "Dejar sin configurar", "Borrar (queda sin configurar)" y `"-" para borrar`. La carpeta de PDFs y la de tickets dicen "podés arrastrar la carpeta", el entorno se elige entre `testing` y `producción` y el PDF entre `Siempre`, `Preguntar` y `Nunca`. Lo que se guarda no cambia: `produccion`, `siempre`, `preguntar` y `nunca`, como en `arcli config establecer`.
+
 </details>
 
 ### ⏳ Deprecado
@@ -178,6 +199,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 ### 🐛 Corregido
 
 - **Facturas:** si ARCA no contesta, ningún comando queda colgado: 30 segundos por consulta, 60 el login en WSAA y 120 la emisión (#302).
+- **Facturas:** si ARCA contesta sin el último número, facturar y `ultimos` cortan con un error, sin pedir el 1 ni decir que no hay (#314).
+- **Facturas:** un último número que ARCA manda como texto (`"41"`) pide el 42, no el 411 (#314).
 - **Facturas:** `Ctrl+C` al emitir espera la respuesta de ARCA, y un lote cortado muestra los CAE ya emitidos y los que faltan (#299).
 - **PDF:** `Ctrl+C` mientras se genera ya no pierde el CAE: el resultado sale completo, con el aviso del PDF que faltó (#305).
 - **Asistente:** `Ctrl+C` mientras espera a ARCA vuelve al menú, y emitiendo espera la respuesta como los comandos, sin cerrar el asistente (#308).
@@ -220,6 +243,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Factura E:** sin autorización de WSFEX, o si ARCA no tiene el asociado, qué hacer va en `sugerencia`, como A, B y C (#290).
 - **Factura E:** un error de ARCA al pedir el ID de solicitud dice que no se emitió nada (#290).
 - **Errores:** `--testing` con `--produccion` da `INPUT_VALIDATION_ERROR` en todos los comandos (#290).
+- **Errores:** un valor que empieza con `-V`, como `--descripcion -Varios`, ya no muestra la versión: llega al flag o es una opción desconocida (#313).
 
 <details><summary>Detalle</summary>
 
@@ -296,6 +320,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **`Ctrl+C` mientras se genera el PDF.** Con `--json`, el comprobante ya emitido salía recién con su PDF: cortar mientras se generaba terminaba sin ninguna salida y el CAE no se veía. Ahora la primera señal deja de esperar el PDF, o la instalación del plugin, y el resultado sale completo, con `PDF_GENERATION_ERROR` ("Se cortó antes de generar el PDF.") en los que faltaban y el exit code de siempre. La segunda termina por la señal, después de escribirlo (si nadie lee la salida, espera hasta dos segundos). El navegador se cierra y no queda un PDF a medio escribir. Por `npx`, la señal repetida no cuenta. Si se corta la instalación del plugin, no pasa por instalado y la próxima empieza de cero.
 
 **Si ARCA no contesta.** Un pedido sin respuesta, o con una que no terminaba de llegar, dejaba el comando esperando sin límite. Ahora cada pedido tiene un plazo total: 30 segundos las consultas, 60 el login en WSAA y 120 la emisión. Una consulta o un login previo vencidos salen con `UNEXPECTED_ERROR` ("ARCA no contestó en 30 segundos.") y `estado` con `ARCA_UNAVAILABLE`. Una emisión vencida sale con `EMISSION_UNCERTAIN` y su número, porque ARCA pudo autorizarla igual: verificala antes de repetirla. ARCLI no reintenta nada. Las consultas que solo avisan si falla la red (el régimen FCE, el permiso de embarque, el rango de la cotización y una tabla de la `E` que no hace falta para emitir) avisan igual; una tabla obligatoria, o dos consultas de la `E` vencidas, cortan antes de emitir. Si vence el login que va en la misma llamada que emite (el ticket venció justo antes), sale `EMISSION_UNCERTAIN`. Los plazos son fijos, y lo que contesta a tiempo no cambia.
+
+**Sin el último número.** ARCA puede contestar el pedido del último número sin errores y sin el número (el WSDL lo hace obligatorio), o con algo que no es un entero de 0 en adelante. Se tomaba como 0: al facturar se pedía el 1, que ARCA rechazaba, y `ultimos`, el asistente y la vista previa de la `E` decían que no había comprobantes o mostraban el número 1, lo que al verificar una emisión sin confirmar podía llevar a emitir dos veces. Ahora corta antes de emitir y en cada consulta que usa el último número, con `ARCA_LAST_VOUCHER_ERROR` en A, B, C, FCE y recibos y `ARCA_EXPORT_ERROR` en la `E`, `detalles.errores` vacío, exit code `1` y "ARCA contestó sin el último número de factura C del punto de venta 3 (sin errores)." Como no hay un mensaje de ARCA para revisar, la sugerencia dice que puede ser un problema pasajero: al facturar, que no se emitió nada y que reintentes en unos minutos; al consultar, que vuelvas a consultar y que no reintentes una emisión hasta saber si existe. En un lote, el comprobante que no tiene el último número corta ahí, con `codigoCausa` `ARCA_LAST_VOUCHER_ERROR`, y los anteriores quedan emitidos, con su CAE. En la `E`, el ID de solicitud de `FEXGetLast_ID` sigue la misma regla (el WSDL también lo hace obligatorio): sin él, "ARCA contestó sin el último ID de solicitud de WSFEX (sin errores)." En una nota A, B, C o FCE cuyo asociado ARCA no tiene, si tampoco llega el último número del punto de venta del asociado, el aviso dice "no se pudo consultar si el punto de venta … es de web service", antes "no es de web service". El 0 sigue siendo un punto de venta sin comprobantes. Un número que llega como texto se lee como número: en A, B, C, FCE y recibos, `"41"` se pegaba y se pedía el 411. `consultar` no usa el último número y no cambia.
+
+**Valores que empiezan con `-V`.** ARCLI tomaba cualquier argumento que empezara con `-V` como `-V` y mostraba la versión con exit code `0`: `--descripcion -Varios` o `monotributo --categoria -Varios` no llegaban al flag, y `config establecer cuenta <CBU> -Ventas.sa` salía sin guardar nada. Ahora el valor llega al flag que lo pide, y un argumento suelto como `-Vx` o `-Ventas.sa` es una opción desconocida (`INPUT_VALIDATION_ERROR`, exit code `1`). Si el comando lleva argumentos, la `sugerencia` muestra el comando armado, con los flags que usaste y `--` antes de los valores, como `arcli config establecer --json -- cuenta <CBU> -Ventas.sa` (en Windows, `'--'`), y la ayuda del comando por si era un flag mal escrito. `-V` suelto y `--version` siguen mostrando la versión en cualquier lugar del comando, salvo que otro error salga antes: `arcli fc -x -V` da opción desconocida `-x` y `arcli noexiste -V`, comando desconocido. Como valor de un flag (`--descripcion -V`), `-V` ahora llega al flag.
 
 </details>
 

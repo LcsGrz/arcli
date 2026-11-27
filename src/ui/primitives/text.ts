@@ -9,6 +9,7 @@ const BOLD = '\u001B[1m';
 const BOLD_OFF = '\u001B[22m';
 const COLOR_OFF = '\u001B[39m';
 const DIM = '\u001B[2m';
+const INVERSE_OFF = '\u001B[27m';
 
 export type OutputTarget = 'stderr' | 'stdout';
 export type UiTextColor = UiColorToken;
@@ -78,9 +79,33 @@ export function colorize(value: string, color: UiTextColor, target: OutputTarget
 
   const open = resolveTextColor(color);
 
-  // El atenuado (muted) no se apaga con COLOR_OFF: si se cerrara asi quedaria prendido y
-  // apagaria todo lo que se imprime despues. Se cierra igual que la negrita.
-  return wrapLines(value, open, open === DIM ? BOLD_OFF : COLOR_OFF);
+  return wrapLines(value, open, closingCode(color, open));
+}
+
+// El atenuado (muted) no se apaga con COLOR_OFF: si se cerrara asi quedaria prendido y apagaria todo lo que se
+// imprime despues. Se cierra igual que la negrita. El fondo de `mark` (video inverso) tiene su propio cierre.
+function closingCode(color: UiTextColor, open: string): string {
+  if (color === 'mark') {
+    return INVERSE_OFF;
+  }
+
+  return open === DIM ? BOLD_OFF : COLOR_OFF;
+}
+
+/**
+ * Una fila marcada, como la categoria propia del monotributo: con color, el fondo `mark` de punta a punta de
+ * `width` columnas (cada linea rellena con espacios). Sin color no pinta ni rellena: la marca tiene que leerse por
+ * otro lado, como la `❯` de la fila.
+ */
+export function markRow(value: string, width: number, target: OutputTarget = defaultTarget): string {
+  if (!shouldUseColor(target)) {
+    return value;
+  }
+
+  return value
+    .split('\n')
+    .map((line) => colorize(padEndVisible(line, width), 'mark', target))
+    .join('\n');
 }
 
 export function bold(value: string, target: OutputTarget = defaultTarget): string {

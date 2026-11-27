@@ -4,6 +4,7 @@ import { attentionPanel, listingPanel, sheetPanel } from '../../ui/components';
 import {
   bold,
   colorize,
+  markRow,
   panelContentWidth,
   renderKeyValueRows,
   resolveKeyValueLabelWidth,
@@ -18,6 +19,15 @@ import {
   type MonotributoCategoryLetter,
   nextMonotributoCategory,
 } from './monotributo';
+import {
+  columnGaps,
+  type ColumnWindow,
+  enterColumnWindow,
+  moveColumnWindow,
+  NARROW_GAP,
+  ROW_PREFIX_WIDTH,
+  windowColumns,
+} from './monotributo.columns';
 import { serializeMonotributoCategory } from './monotributo.serialization';
 import type { LoadedMonotributoTable } from './monotributo.service';
 
@@ -44,7 +54,6 @@ interface ViewOptions {
   readonly width?: number;
 }
 
-const GAP = '  ';
 const OWN_LABEL = 'tu categoría';
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -98,8 +107,9 @@ function panelTitle(width: number, ...candidates: readonly [string, ...string[]]
   return candidates.find((title) => visibleWidth(title) + 4 <= width + 6) ?? candidates[candidates.length - 1];
 }
 
-function muted(lines: readonly string[]): string[] {
-  return lines.map((line) => colorize(line, 'muted'));
+/** La leyenda de la marca, si hay categoria propia: "❯ tu categoría". */
+function ownCategoryLegend(report: MonotributoReport): string[] {
+  return report.ownCategory ? [`${uiSymbol('pointer')} ${OWN_LABEL}`] : [];
 }
 
 /** `❯ ` en la fila propia, dos espacios en las demas: asi la marca se lee sin color. */
@@ -107,8 +117,9 @@ function rowPrefix(isOwn: boolean): string {
   return isOwn ? `${uiSymbol('pointer')} ` : '  ';
 }
 
-function emphasize(line: string, isOwn: boolean): string {
-  return isOwn ? bold(line) : line;
+/** La fila propia, en negrita y con el fondo `mark` hasta `width` (sin color, solo la `❯`). */
+function emphasize(line: string, isOwn: boolean, width: number): string {
+  return isOwn ? markRow(bold(line), width) : line;
 }
 
 interface Column {
@@ -119,8 +130,10 @@ interface Column {
 
 const CATEGORY_COLUMN: Column = { align: 'left', header: 'CAT.', value: (category) => category.letter };
 
-function columnWidth(column: Column, categories: readonly MonotributoCategory[]): number {
-  return Math.max(visibleWidth(column.header), ...categories.map((category) => visibleWidth(column.value(category))));
+function columnWidths(columns: readonly Column[], categories: readonly MonotributoCategory[]): number[] {
+  return columns.map((column) =>
+    Math.max(visibleWidth(column.header), ...categories.map((category) => visibleWidth(column.value(category)))),
+  );
 }
 
 function pad(text: string, width: number, align: Column['align']): string {
@@ -129,23 +142,36 @@ function pad(text: string, width: number, align: Column['align']): string {
   return align === 'right' ? `${fill}${text}` : `${text}${fill}`;
 }
 
-/** Tabla en columnas: encabezado y una fila por categoria, con la propia marcada. Devuelve tambien su ancho. */
+/**
+ * Tabla en columnas a todo el ancho (ver `columnGaps`): encabezado y una fila por categoria, con la propia marcada.
+ * `undefined` si no entra en `width`.
+ */
 function renderColumns(
   columns: readonly Column[],
   categories: readonly MonotributoCategory[],
   ownCategory: MonotributoCategoryLetter | null,
-): { readonly lines: string[]; readonly width: number } {
-  const widths = columns.map((column) => columnWidth(column, categories));
+  width: number,
+): string[] | undefined {
+  const widths = columnWidths(columns, categories);
+  const gaps = columnGaps(widths, width);
+
+  if (!gaps) return undefined;
+
   const join = (cells: readonly string[]) =>
-    cells.map((cell, index) => pad(cell, widths[index] ?? 0, columns[index]?.align ?? 'left')).join(GAP);
-  const header = `  ${join(columns.map((column) => column.header))}`;
+    cells
+      .map(
+        (cell, index) =>
+          `${index > 0 ? ' '.repeat(gaps[index - 1] ?? NARROW_GAP) : ''}${pad(cell, widths[index] ?? 0, columns[index]?.align ?? 'left')}`,
+      )
+      .join('');
+  const header = `${' '.repeat(ROW_PREFIX_WIDTH)}${join(columns.map((column) => column.header))}`;
   const rows = categories.map((category) => {
     const isOwn = category.letter === ownCategory;
 
-    return emphasize(`${rowPrefix(isOwn)}${join(columns.map((column) => column.value(category)))}`, isOwn);
+    return emphasize(`${rowPrefix(isOwn)}${join(columns.map((column) => column.value(category)))}`, isOwn, width);
   });
 
-  return { lines: [bold(header.trimEnd()), ...rows], width: visibleWidth(header) };
+  return [bold(header.trimEnd()), ...rows];
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -167,29 +193,9 @@ const SUMMARY_COLUMNS: readonly Column[] = [
   { align: 'right', header: 'CUOTA VENTAS', value: (category) => formatArgentineMoney(category.monthlyFee.sales) },
 ];
 
-/** En columnas; la etiqueta "tu categoría" al lado de la fila propia, si entra. */
-function summaryWide(report: MonotributoReport, width: number): { lines: string[]; ownLabelFits: boolean } | undefined {
-  const { lines, width: tableWidth } = renderColumns(SUMMARY_COLUMNS, report.table.categories, report.ownCategory);
-
-  if (tableWidth > width) return undefined;
-
-  const ownLabelFits = tableWidth + GAP.length + OWN_LABEL.length <= width;
-
-  return {
-    lines: lines.map((line, index) => {
-      const category = report.table.categories[index - 1];
-      const isOwn = category !== undefined && category.letter === report.ownCategory;
-      const label = isOwn && ownLabelFits ? `${GAP}${colorize(OWN_LABEL, 'muted')}` : '';
-
-      return `${line}${label}`;
-    }),
-    ownLabelFits,
-  };
-}
-
 /**
- * Terminal angosta: cada categoria en dos lineas, el tope arriba y "cuota serv. · cuota ventas" abajo. La etiqueta
- * "tu categoría" va en la primera linea que la deja entrar.
+ * Terminal angosta: cada categoria en dos lineas, el tope arriba y "cuota serv. · cuota ventas" abajo. La propia, con
+ * el fondo en las dos.
  */
 function summaryNarrow(report: MonotributoReport, width: number): string[] {
   const separator = ` ${uiSymbol('separator')} `;
@@ -203,18 +209,8 @@ function summaryNarrow(report: MonotributoReport, width: number): string[] {
       `${rowPrefix(isOwn)}${category.letter}  ${formatArgentineMoney(category.grossIncomeLimit)}`,
       `${indent}${formatArgentineMoney(category.monthlyFee.services)}${separator}${formatArgentineMoney(category.monthlyFee.sales)}`,
     ];
-    const labelLine = isOwn
-      ? pair.findIndex((line) => visibleWidth(line) + GAP.length + OWN_LABEL.length <= width)
-      : -1;
-    const styled = pair.map(
-      (line, index) => emphasize(line, isOwn) + (index === labelLine ? `${GAP}${colorize(OWN_LABEL, 'muted')}` : ''),
-    );
 
-    lines.push(...styled);
-
-    if (isOwn && labelLine < 0) {
-      lines.push(`${indent}${colorize(OWN_LABEL, 'muted')}`);
-    }
+    lines.push(...pair.map((line) => emphasize(line, isOwn, width)));
   }
 
   return lines;
@@ -229,13 +225,13 @@ export function formatMonotributoSummaryAsText(
   options: ViewOptions & { readonly hints?: boolean } = {},
 ): string {
   const width = options.width ?? panelContentWidth('wide');
-  const wide = summaryWide(report, width);
-  const table = wide?.lines ?? summaryNarrow(report, width);
+  const table =
+    renderColumns(SUMMARY_COLUMNS, report.table.categories, report.ownCategory, width) ?? summaryNarrow(report, width);
   const example = report.ownCategory ?? 'E';
   const notes = [
+    ...ownCategoryLegend(report),
     'La cuota es mensual: impuesto integrado, aporte jubilatorio (SIPA) y obra social.',
     formatMonotributoSource(report),
-    ...(report.ownCategory && wide && !wide.ownLabelFits ? [`${uiSymbol('pointer')} ${OWN_LABEL}.`] : []),
     ...(report.configuredLimit === undefined
       ? []
       : [`Tu tope de ingresos configurado (\`monotributo.tope\`): ${formatArgentineMoney(report.configuredLimit)}.`]),
@@ -255,7 +251,7 @@ export function formatMonotributoSummaryAsText(
     `Monotributo ${separator} ${sinceLabel(report)}`,
   );
 
-  return listingPanel(title, [...table, '', ...muted(notes), ...muted(hints)]);
+  return listingPanel(title, table, { contentWidth: options.width, legend: [...notes, ...hints] });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -395,31 +391,84 @@ export function formatMonotributoBlockPosition(
  * Sin lugar para las columnas, cada categoria apilada: la letra y debajo un dato por linea, con el nombre de la
  * columna.
  */
-function stackedBlock(columns: readonly Column[], report: MonotributoReport): string[] {
+function stackedBlock(columns: readonly Column[], report: MonotributoReport, width: number): string[] {
   const [, ...data] = columns;
 
   return report.table.categories.flatMap((category, index) => {
     const isOwn = category.letter === report.ownCategory;
     const rows = data.map((column) => [column.header.toLowerCase(), column.value(category)] as const);
 
+    // La propia, con el fondo en la letra y en cada dato, como el resumen en dos lineas.
     return [
       ...(index > 0 ? [''] : []),
-      emphasize(`${rowPrefix(isOwn)}${category.letter}`, isOwn),
-      ...renderKeyValueRows(rows, { indent: 4, labelTone: 'muted' }),
+      ...[`${rowPrefix(isOwn)}${category.letter}`, ...renderKeyValueRows(rows, { indent: 4, labelTone: 'muted' })].map(
+        (line) => emphasize(line, isOwn, width),
+      ),
     ];
   });
 }
 
-/** Un bloque de `--completa`, con la columna de categoria, la propia marcada y su linea de posicion arriba. */
+/** Las columnas de un bloque que se ven a la vez en "Ver todas las columnas" (ver `enterColumnWindow`). */
+export type MonotributoColumnWindow = ColumnWindow;
+
+/** "columnas 2 a 4 de 5", con ← si hay columnas a la izquierda y → si hay a la derecha. */
+function formatColumnWindow({ first, last, total }: MonotributoColumnWindow): string {
+  return [
+    first > 1 ? `${uiSymbol('moreLeft')}  ` : '',
+    `columnas ${first} a ${last} de ${total}`,
+    last < total ? `  ${uiSymbol('moreRight')}` : '',
+  ].join('');
+}
+
+/**
+ * La ventana con la que se entra a `block` desde `side`; `undefined` si entra entero o si alguna columna no entra ni
+ * sola (va apilado, entrando por cualquier lado).
+ */
+export function enterMonotributoColumnWindow(
+  report: MonotributoReport,
+  block: MonotributoBlock,
+  side: 'left' | 'right',
+  options: ViewOptions = {},
+): MonotributoColumnWindow | undefined {
+  const widths = columnWidths(BLOCK_COLUMNS[block], report.table.categories);
+
+  return enterColumnWindow(widths, side, options.width ?? panelContentWidth('wide'));
+}
+
+/** La ventana corrida una columna hacia `direction`; `undefined` si ya no hay columnas de ese lado. */
+export function moveMonotributoColumnWindow(
+  report: MonotributoReport,
+  block: MonotributoBlock,
+  window: MonotributoColumnWindow,
+  direction: 'left' | 'right',
+  options: ViewOptions = {},
+): MonotributoColumnWindow | undefined {
+  const widths = columnWidths(BLOCK_COLUMNS[block], report.table.categories);
+
+  return moveColumnWindow(widths, window, direction, options.width ?? panelContentWidth('wide'));
+}
+
+/**
+ * Un bloque de `--completa` o de "Ver todas las columnas", con la columna de categoria, la propia marcada y su linea
+ * de posicion arriba. Con `window` (solo en el asistente), las columnas de esa ventana y cuales son, abajo; sin
+ * ventana, si no entra va apilado. La fuente de la tabla va una vez, en la leyenda del bloque de la cuota.
+ */
 export function formatMonotributoBlockAsText(
   report: MonotributoReport,
   block: MonotributoBlock,
-  options: ViewOptions & { readonly navigation: MonotributoBlockNavigation },
+  options: ViewOptions & {
+    readonly navigation: MonotributoBlockNavigation;
+    readonly window?: MonotributoColumnWindow;
+  },
 ): string {
   const width = options.width ?? panelContentWidth('wide');
-  const columns = BLOCK_COLUMNS[block];
-  const table = renderColumns(columns, report.table.categories, report.ownCategory);
-  const lines = table.width <= width ? table.lines : stackedBlock(columns, report);
+  const columns = options.window
+    ? windowColumns(BLOCK_COLUMNS[block], options.window.first, options.window.last)
+    : BLOCK_COLUMNS[block];
+  const table = renderColumns(columns, report.table.categories, report.ownCategory, width);
+  // Si la ventana ya no entra (la terminal se achico), apilado y sin el indicador de columnas.
+  const window = table ? options.window : undefined;
+  const lines = table ?? stackedBlock(BLOCK_COLUMNS[block], report, width);
 
   const separator = uiSymbol('separator');
   const title = panelTitle(
@@ -428,12 +477,16 @@ export function formatMonotributoBlockAsText(
     `${BLOCK_TITLES[block]} ${separator} ${formatArcaDateAsArgentineDate(report.table.validFrom)}`,
   );
 
-  return listingPanel(title, [
-    colorize(formatMonotributoBlockPosition(block, options.navigation), 'muted'),
-    '',
-    ...lines,
-    ...(block === 'cuota' ? ['', colorize(formatMonotributoSource(report), 'muted')] : []),
-  ]);
+  return listingPanel(
+    title,
+    [
+      colorize(formatMonotributoBlockPosition(block, options.navigation), 'muted'),
+      '',
+      ...lines,
+      ...(window ? ['', colorize(formatColumnWindow(window), 'muted')] : []),
+    ],
+    { contentWidth: options.width, legend: block === 'cuota' ? [formatMonotributoSource(report)] : [] },
+  );
 }
 
 /** `--completa`: los dos bloques, uno debajo del otro. */

@@ -36,3 +36,13 @@ export function lastNumberErrorSuggestion(purpose: LastNumberPurpose): string {
     ? ARCA_QUERY_ERROR_SUGGESTION
     : 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.';
 }
+
+/**
+ * Que hacer si ARCA contesta sin errores pero sin el ultimo numero (ARQ-24): no hay un mensaje de ARCA para revisar.
+ * Al consultar se puede estar verificando una emision, y eso no se reintenta.
+ */
+export function missingLastNumberSuggestion(purpose: LastNumberPurpose, missing: string): string {
+  return purpose === 'consultar'
+    ? `ARCA no informó ${missing}: puede ser un problema pasajero de ARCA; volvé a consultar en unos minutos. Si se repite, no insistas. ${VERIFY_BEFORE_RETRY}`
+    : `No se emitió nada. ARCA no informó ${missing}: puede ser un problema pasajero de ARCA; reintentá en unos minutos.`;
+}
