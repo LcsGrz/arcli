@@ -52,6 +52,7 @@ export const COMMAND_COVERAGE: SurfaceCoverage = {
   'consultar-fce-obligado': { en: ['fce-obligado'] },
   'consultar-monotributo': { en: ['monotributo'] },
   'consultar-padron': { en: ['padron'] },
+  'constatar-comprobante': { en: ['constatar'] },
   'consultar-parametros': { en: ['parametros'] },
   'emitir-factura': { en: withFlag(INVOICES, '--emitir') },
   'emitir-factura-credito-electronica': { en: withFlag(FCE_INVOICES, '--emitir') },
@@ -100,6 +101,10 @@ export const ASSISTANT_COVERAGE: SurfaceCoverage = {
   'consultar-fce-obligado': { en: ['Consultas > Si un cliente recibe FCE'] },
   'consultar-monotributo': { en: ['Consultas > Categorías del monotributo'] },
   'consultar-padron': { en: ['Consultas > Datos de un CUIT'] },
+  'constatar-comprobante': {
+    en: [],
+    excepcion: 'SDK-10: el asistente lo suma en el PR 2, en Consultas > Constatar un comprobante recibido',
+  },
   'consultar-parametros': { en: ['Consultas > Tablas de ARCA'] },
   'emitir-factura': { en: ['Emitir factura'] },
   'emitir-factura-credito-electronica': { en: ['Emitir factura'] },

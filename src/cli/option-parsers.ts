@@ -3,10 +3,14 @@ import { parseCuit } from '../lib/identity/cuit';
 import { parseArgentineAmount } from '../lib/numbers/argentine-amount';
 import { parseDocumentNumber, parseStrictInteger } from '../lib/numbers/strict-integer';
 
-/** Montos como en Argentina: punto para miles y coma para decimales. */
-export function amountOption(flag: string, maxDecimals?: number): (value: string) => number {
+/** Montos como en Argentina: punto para miles y coma para decimales. Mayores a 0, salvo con `allowZero`. */
+export function amountOption(
+  flag: string,
+  maxDecimals?: number,
+  options: { readonly allowZero?: boolean } = {},
+): (value: string) => number {
   return (value) => {
-    const result = parseArgentineAmount(value, { maxDecimals });
+    const result = parseArgentineAmount(value, { allowZero: options.allowZero, maxDecimals });
 
     if (!result.ok) {
       throw new InputValidationError(`\`${flag}\` "${value}" no es válido: ${result.reason}.`);

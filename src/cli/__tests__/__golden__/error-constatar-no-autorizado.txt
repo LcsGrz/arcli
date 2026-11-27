@@ -1,0 +1,13 @@
+$ arcli constatar fa 3-1234 --emisor 30709965812 -f 10/11/2026 -m 12.100 --cae 76463926585341 --cuit 20111111112 --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "WSCDC_SERVICE_NOT_AUTHORIZED",
+  "detalles": null,
+  "error": "El certificado no está autorizado para el servicio wscdc (constatación de comprobantes).",
+  "sugerencia": "Autorizalo igual que wsfe: en testing desde WSASS (\"Crear autorización a servicio\") y en producción desde el Administrador de Relaciones."
+}
+

@@ -53,6 +53,7 @@ comando arcli config eliminar
 comando arcli config establecer
 comando arcli config revisar
 comando arcli config ruta
+comando arcli constatar
 comando arcli consultar
 comando arcli ejemplos
 comando arcli estado
@@ -121,6 +122,20 @@ flag arcli config eliminar --json
 flag arcli config establecer --json
 flag arcli config revisar --json
 flag arcli config ruta --json
+flag arcli constatar --cae
+flag arcli constatar --caea
+flag arcli constatar --cuil
+flag arcli constatar --cuit
+flag arcli constatar --dni
+flag arcli constatar --emisor
+flag arcli constatar --fecha
+flag arcli constatar --json
+flag arcli constatar --monto
+flag arcli constatar --produccion
+flag arcli constatar --qr
+flag arcli constatar --testing
+flag arcli constatar -f
+flag arcli constatar -m
 flag arcli consultar --json
 flag arcli consultar --produccion
 flag arcli consultar --punto-venta

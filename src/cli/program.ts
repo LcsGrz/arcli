@@ -15,6 +15,7 @@ import { registerPadronCommand } from './commands/padron.command';
 import { registerParametersCommands } from './commands/parameters.command';
 import { registerPdfCommand } from './commands/pdf.command';
 import { registerStorybookCommand } from './commands/storybook.command';
+import { registerVoucherCheckCommand } from './commands/voucher-check.command';
 import { registerVoucherQueryCommands } from './commands/vouchers.command';
 import { configureCommandExits, configureUsageErrors, matchVersionByLongFlagOnly } from './error-output';
 import { registerGlobalOptions } from './global-options';
@@ -55,6 +56,7 @@ export function createProgram(): Command {
   registerPdfCommand(program);
   registerParametersCommands(program);
   registerVoucherQueryCommands(program);
+  registerVoucherCheckCommand(program);
   registerStorybookCommand(program);
   configureCommandExits(program);
 

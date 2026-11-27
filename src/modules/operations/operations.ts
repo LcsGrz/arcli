@@ -21,6 +21,7 @@ export const OPERATIONS = [
   'listar-ultimos',
   'consultar-padron',
   'consultar-fce-obligado',
+  'constatar-comprobante',
   'consultar-parametros',
   'consultar-cotizacion',
   'consultar-monotributo',

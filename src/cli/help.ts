@@ -435,6 +435,46 @@ export function createPadronHelp(): string {
   ].join('\n');
 }
 
+export function createVoucherCheckHelp(): string {
+  return [
+    '',
+    section(
+      'Para qué sirve',
+      compactList([
+        'Saber si un comprobante que recibiste existe en ARCA y coincide con lo que te entregaron.',
+        'Con los datos del comprobante, o con --qr y la dirección que trae su QR.',
+      ]),
+    ),
+    '',
+    section(
+      'Ejemplos',
+      compactList([
+        'arcli constatar fa 3-1234 --emisor 30709965812 -f 10/11/2026 -m 12.100 --cae 76463926585341 --cuit 20111111112',
+        'arcli constatar fb 00003-00001234 --emisor 30709965812 -f 10/11 -m 1.500,50 --cae 76463926585341',
+        'arcli constatar --qr "https://www.arca.gob.ar/fe/qr/?p=…" --json',
+      ]),
+    ),
+    '',
+    section(
+      'Detalles',
+      compactList([
+        'El tipo es el atajo (fa, fb, fc, nca, fcea…) o el código de ARCA: también se constatan los que ARCLI no emite, como la M (51).',
+        'En A y FCE A va --cuit con el CUIT del receptor. En B y C, el documento del receptor solo si el importe supera $ 10.000.000.',
+        'Constatado: exit 0. No constatado (no existe o no coincide): exit 2, con el motivo de ARCA. Un error: exit 1.',
+        'Solo consulta: no emite ni modifica nada.',
+      ]),
+    ),
+    '',
+    section(
+      'Requisitos',
+      compactList([
+        'Autorizar wscdc: el certificado tiene que estar autorizado para el servicio wscdc en ARCA, igual que wsfe.',
+      ]),
+    ),
+    '',
+  ].join('\n');
+}
+
 export function createMonotributoHelp(): string {
   return [
     '',

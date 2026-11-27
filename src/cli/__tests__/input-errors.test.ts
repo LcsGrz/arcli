@@ -41,6 +41,15 @@ describe('un dato que falta, en los flags', () => {
   });
 });
 
+describe('`-m 0`', () => {
+  // `arcli constatar` acepta `-m 0` (WSCDC, ImpTotal >= 0): al emitir, el monto sigue teniendo que ser mayor a 0.
+  it.each([['fc'], ['fe']])('al emitir con %s sigue siendo inválido', async (kind) => {
+    const error = await profile.runJsonError([kind, '-m', '0', '--previsualizar']);
+
+    expect(error).toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR', error: expect.stringContaining('mayor a 0') });
+  });
+});
+
 describe('config.json editado a mano: el tipo equivocado no es "falta"', () => {
   it.each([
     [{ puntoVentaPorDefecto: 'a' }, '`puntoVentaPorDefecto` tiene que ser un número.', ['puntoVentaPorDefecto']],

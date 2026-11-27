@@ -1,5 +1,6 @@
 import {
   Arca,
+  type ArcaServiceName,
   ArcaServiceNames,
   AuthRepository,
   type Context,
@@ -22,6 +23,7 @@ import { systemClock } from '../time/system-clock';
 import { ArcaExportGateway, type WsfexAuthenticator } from './arca-export.gateway';
 import { installSoapDeadlines } from './soap-deadline';
 import { avoidWeakDhe } from './tls';
+import { ArcaVoucherCheckGateway, WSCDC_SERVICE, type WscdcAuthenticator } from './wscdc/arca-voucher-check.gateway';
 
 /** El cliente de ARCA: quien lo pide se lo pasa a un gateway y no conoce el SDK. */
 export type ArcaClient = Arca;
@@ -34,10 +36,10 @@ function createArcaClient(context: Context): ArcaClient {
 }
 
 /**
- * Pide el ticket de wsfex con la misma configuracion que arma `Arca`, y el mismo almacenamiento: el ticket que
- * guarda una llamada lo reusa la otra. Es para `FEXGetLast_CMP` (ver `ArcaExportGateway.getLastVoucherNumber`).
+ * El login de WSAA con la misma configuracion que arma `Arca`, y el mismo almacenamiento: el ticket que guarda una
+ * llamada lo reusa la otra.
  */
-function createWsfexAuthenticator(context: Context): WsfexAuthenticator {
+function createAuthRepository(context: Context): AuthRepository {
   installSoapDeadlines();
 
   const production = context.production ?? false;
@@ -46,7 +48,8 @@ function createWsfexAuthenticator(context: Context): WsfexAuthenticator {
     (context.ticketPath
       ? new FileSystemTicketStorage({ cuit: context.cuit, production, ticketPath: context.ticketPath })
       : new MemoryTicketStorage({ cuit: context.cuit, production }));
-  const auth = new AuthRepository({
+
+  return new AuthRepository({
     cert: context.cert,
     credentials: context.credentials,
     cuit: context.cuit,
@@ -56,8 +59,23 @@ function createWsfexAuthenticator(context: Context): WsfexAuthenticator {
     ticketStorage,
     useHttpsAgent: context.useHttpsAgent,
   });
+}
+
+/** El ticket de wsfex, para `FEXGetLast_CMP` (ver `ArcaExportGateway.getLastVoucherNumber`). */
+function createWsfexAuthenticator(context: Context): WsfexAuthenticator {
+  const auth = createAuthRepository(context);
 
   return async () => auth.getAuthParams(await auth.login(ArcaServiceNames.WSFEX), context.cuit).Auth;
+}
+
+/**
+ * El ticket de wscdc. El SDK no conoce el servicio, pero `login` solo lo pone en el pedido a WSAA y en el nombre del
+ * ticket guardado: el tipo se fuerza.
+ */
+function createWscdcAuthenticator(context: Context): WscdcAuthenticator {
+  const auth = createAuthRepository(context);
+
+  return async () => auth.getAuthParams(await auth.login(WSCDC_SERVICE as ArcaServiceName), context.cuit).Auth;
 }
 
 /** Los pedidos simultaneos comparten el login. Ni el ticket ni un error quedan guardados aca: el ticket, en su storage. */
@@ -103,6 +121,20 @@ export class ArcaClientFactory {
     }
 
     return createArcaClient(this.withTicketStorage(runtime.context));
+  }
+
+  /** WSCDC (`arcli constatar`), con el certificado de facturacion: lo que corta en `create` corta aca. */
+  public createVoucherCheckGateway(
+    runtime: Pick<ArcaProfile, 'certificateExpiry' | 'context' | 'environment'>,
+  ): ArcaVoucherCheckGateway {
+    if (runtime.certificateExpiry?.expired) {
+      throw new CertificateExpiredError(runtime.certificateExpiry);
+    }
+
+    return new ArcaVoucherCheckGateway({
+      authenticate: createWscdcAuthenticator(this.withTicketStorage(runtime.context)),
+      environment: runtime.environment,
+    });
   }
 
   /** El cliente de WSFEX, con su certificado (ver `resolveExportContext`). */

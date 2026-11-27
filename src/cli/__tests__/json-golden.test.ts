@@ -58,6 +58,8 @@ const sdk = vi.hoisted(() => ({
     getVoucherTypes: vi.fn(),
   },
   wsfecred: { consultarMontoObligadoRecepcion: vi.fn() },
+  /** `ComprobanteConstatar`: el resultado tal como lo devuelve node-soap, sin la tupla. */
+  wscdc: { constatar: vi.fn() },
   wsfexStatus: { fetch: vi.fn() },
   wsfex: {
     authorize: vi.fn(),
@@ -81,25 +83,45 @@ const WSAA = vi.hoisted(() => ({ sign: 'FIRMA-DE-WSAA', token: 'TOKEN-DE-WSAA' }
 
 vi.mock('../../services/arca/wsfex-status', () => ({ fetchWsfexServerStatus: sdk.wsfexStatus.fetch }));
 
-vi.mock('@arcasdk/core', async (importOriginal) => ({
-  ...(await importOriginal<Record<string, unknown>>()),
-  Arca: class {
-    public readonly electronicBillingService = sdk.wsfe;
-    public readonly genericService = sdk.generic;
-    public readonly registerInscriptionProofService = sdk.padron;
-    public readonly wsfecredService = sdk.wsfecred;
-    public readonly wsfexService = sdk.wsfex;
-  },
-  AuthRepository: class {
-    public getAuthParams() {
-      return { Auth: { Cuit: 20111111112, Sign: WSAA.sign, Token: WSAA.token } };
-    }
+vi.mock('@arcasdk/core', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@arcasdk/core')>();
 
-    public async login() {
-      return sdk.wsaa.login();
-    }
-  },
-}));
+  return {
+    ...original,
+    Arca: class {
+      public readonly electronicBillingService = sdk.wsfe;
+      public readonly genericService = sdk.generic;
+      public readonly registerInscriptionProofService = sdk.padron;
+      public readonly wsfecredService = sdk.wsfecred;
+      public readonly wsfexService = sdk.wsfex;
+    },
+    AuthRepository: class {
+      public getAuthParams() {
+        return { Auth: { Cuit: 20111111112, Sign: WSAA.sign, Token: WSAA.token } };
+      }
+
+      public async login() {
+        return sdk.wsaa.login();
+      }
+    },
+    // WSCDC no está en el SDK: `arcli constatar` arma su cliente con `SoapClient` y el WSDL propio.
+    SoapClient: class extends original.SoapClient {
+      public override createClient<T>(...args: Parameters<InstanceType<typeof original.SoapClient>['createClient']>) {
+        const [wsdl] = args;
+
+        return (
+          wsdl === 'wscdc'
+            ? Promise.resolve({
+                ComprobanteConstatarAsync: async (params: unknown) => [
+                  { ComprobanteConstatarResult: await sdk.wscdc.constatar(params) },
+                ],
+              })
+            : super.createClient(...args)
+        ) as Promise<T>;
+      }
+    },
+  };
+});
 
 // El acceso directo cambia según el sistema (en Windows llama a PowerShell).
 vi.mock('../../modules/desktop-shortcut/installer', () => ({
@@ -274,6 +296,16 @@ const EXPORT_INVOICE = {
   },
 };
 
+/** `ComprobanteConstatar`: el eco de lo pedido y el resultado, como lo lee node-soap. */
+function constatarAnswer(result: 'A' | 'R', observations: Obs = []) {
+  return async ({ CmpReq }: { readonly CmpReq: Record<string, unknown> }) => ({
+    CmpResp: CmpReq,
+    FchProceso: '20261117120000',
+    ...(observations.length > 0 ? { Observaciones: { Obs: observations } } : {}),
+    Resultado: result,
+  });
+}
+
 function resetSdk(): void {
   for (const service of Object.values(sdk)) {
     for (const mock of Object.values(service)) {
@@ -304,6 +336,7 @@ function resetSdk(): void {
   sdk.wsfecred.consultarMontoObligadoRecepcion.mockResolvedValue({
     consultarMontoObligadoRecepcionReturn: { montoDesde: 3958316, obligado: 'S' },
   });
+  sdk.wscdc.constatar.mockImplementation(constatarAnswer('A'));
 
   sdk.wsfex.authorize.mockImplementation(wsfexAnswer('A'));
   sdk.wsfex.getCmp.mockResolvedValue(EXPORT_INVOICE);
@@ -599,6 +632,22 @@ afterEach(() => {
 // Casos
 // ---------------------------------------------------------------------------------------------------------------
 
+/** Una Factura A recibida de `CLIENT_CUIT`, con el CUIT de la config como receptor. */
+const CONSTATAR = [
+  'constatar',
+  'fa',
+  '3-1234',
+  '--emisor',
+  String(CLIENT_CUIT),
+  '-f',
+  '10/11/2026',
+  '-m',
+  '12.100',
+  '--cae',
+  '76463926585341',
+  '--cuit',
+  String(CUIT),
+];
 const FC = ['fc', '-m', '1000', '--cs', '--cfinal'];
 const FA = ['fa', '-m', '12100', '--cs', '--cuit', String(CLIENT_CUIT), '--ir-ri'];
 const FB = ['fb', '-m', '12100', '--cs', '--cfinal'];
@@ -3298,6 +3347,26 @@ describe('otros comandos que van a ARCA', () => {
     });
 
     return golden('error-fce-obligacion', ['fce-obligado', String(CLIENT_CUIT), '--json']);
+  });
+
+  it('constatar: constatado', () => golden('constatar', [...CONSTATAR, '--json']));
+
+  it('constatar: no constatado, exit 2', () => {
+    sdk.wscdc.constatar.mockImplementation(
+      constatarAnswer('R', [
+        { Code: 100, Msg: 'El CAE informado no existe registrado y autorizado en las bases del organismo.' },
+      ]),
+    );
+
+    return golden('constatar-no-constatado', [...CONSTATAR, '--json']);
+  });
+
+  it('WSCDC_SERVICE_NOT_AUTHORIZED', () => {
+    sdk.wsaa.login.mockRejectedValue(
+      new Error('ns1:coe.notAuthorized: Computador no autorizado a acceder al servicio'),
+    );
+
+    return golden('error-constatar-no-autorizado', [...CONSTATAR, '--json']);
   });
 
   it('ARCA_UNAVAILABLE', () => {
