@@ -50,3 +50,5 @@ jobs:
         with:
           fail-on-severity: high
           deny-licenses: GPL-2.0-only, GPL-3.0-only, AGPL-3.0-only
+          # node-forge es "(BSD-3-Clause OR GPL-2.0)": se usa bajo BSD. La regla no entiende el OR. Autorizado el 27/11; reemplazarlo: ARQ-14.
+          allow-dependencies-licenses: pkg:npm/node-forge
