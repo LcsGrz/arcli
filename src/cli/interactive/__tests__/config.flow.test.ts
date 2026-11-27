@@ -46,6 +46,7 @@ vi.mock('../../../modules/config/config.service', () => ({
     public ensureInitialized() {}
     public getConfig() {
       return {
+        alicuotaPorDefecto: store.alicuota,
         cert: { produccion: store['cert.produccion'], testing: store['cert.testing'] },
         conceptoPorDefecto: store.concepto,
         condicionVenta: store.condicionVenta,
@@ -541,20 +542,35 @@ describe('configuración: volver, cancelar y dejar como estaba', () => {
       expect(store.cuit).toBe('20123456786');
     });
 
-    it('volver desde una lista de opciones no cambia nada; "Quitar el valor por defecto" lo borra', async () => {
+    it('volver desde una lista de opciones no cambia nada; "Borrar (queda sin configurar)" lo borra', async () => {
       store.concepto = 'servicios';
       vi.mocked(chooseOne).mockResolvedValueOnce('cambiar').mockResolvedValueOnce('volver');
       chooseStepMock
         .mockImplementationOnce(pick('Concepto'))
         .mockResolvedValueOnce(BACK)
         .mockImplementationOnce(pick('Concepto'))
-        .mockImplementationOnce(pick('Quitar el valor por defecto'))
+        .mockImplementationOnce(pick('Borrar (queda sin configurar)'))
         .mockResolvedValueOnce(BACK);
 
       await runConfigMenu();
 
       expect(store.concepto).toBeUndefined();
       expect(printed()).toContain('Dato borrado.');
+    });
+
+    it('"Volver al de por defecto (21%)" lo borra y dice a cuál volvió, no "Dato borrado."', async () => {
+      store.alicuota = '10.5';
+      vi.mocked(chooseOne).mockResolvedValueOnce('cambiar').mockResolvedValueOnce('volver');
+      chooseStepMock
+        .mockImplementationOnce(pickField('alicuota'))
+        .mockImplementationOnce(pick('Volver al de por defecto (21%)'))
+        .mockResolvedValueOnce(BACK);
+
+      await runConfigMenu();
+
+      expect(store.alicuota).toBeUndefined();
+      expect(printed()).toContain('Volvió al de por defecto (21%).');
+      expect(printed()).not.toContain('Dato borrado.');
     });
 
     describe('entorno (TUI-46)', () => {
@@ -764,8 +780,8 @@ describe('configuración: volver, cancelar y dejar como estaba', () => {
 
 /**
  * Criterio 10 (TUI-35): un dato con valores conocidos (la condición de venta) es una lista donde también se escribe. Un
- * valor guardado que no es de la lista arranca escrito o como fila, sin la fila "Mantener: …" aparte, y "Quitar el
- * valor por defecto" y "Dejar sin configurar" siguen.
+ * valor guardado que no es de la lista arranca escrito o como fila, sin la fila "Mantener: …" aparte, y "Borrar (queda
+ * sin configurar)" y "Dejar sin configurar" siguen.
  */
 describe('configuración: un dato con valores conocidos, de una lista donde también se escribe (TUI-35)', () => {
   const FIELD_LIST = '¿Qué querés modificar?';
@@ -820,7 +836,7 @@ describe('configuración: un dato con valores conocidos, de una lista donde tamb
     await changeSaleCondition('');
 
     expect(offeredRows().filter((row) => /Mantener/.test(row))).toEqual([]);
-    expect(offeredRows()).toContain('Quitar el valor por defecto');
+    expect(offeredRows()).toContain('Borrar (queda sin configurar)');
     expect(store.condicionVenta).toBe('Billetera virtual');
     expect(printed()).toContain('Sin cambios.');
   });
@@ -840,10 +856,10 @@ describe('configuración: un dato con valores conocidos, de una lista donde tamb
     expect(store.condicionVenta).toBe('cuenta-corriente');
   });
 
-  it('"Quitar el valor por defecto" lo borra', async () => {
+  it('"Borrar (queda sin configurar)" lo borra', async () => {
     store.condicionVenta = 'Billetera virtual';
 
-    await changeSaleCondition('Quitar el valor por defecto');
+    await changeSaleCondition('Borrar (queda sin configurar)');
 
     expect(store.condicionVenta).toBeUndefined();
     expect(printed()).toContain('Dato borrado.');
@@ -859,7 +875,7 @@ describe('configuración: un dato con valores conocidos, de una lista donde tamb
     expect(printed()).not.toContain('Guardado.');
   });
 
-  it('un texto escrito igual a los valores internos de "Quitar" o "Dejar" se guarda como texto', async () => {
+  it('un texto escrito igual a los valores internos de "Borrar" o "Dejar" se guarda como texto', async () => {
     store.condicionVenta = 'contado';
 
     await changeSaleCondition('__borrar__');
@@ -871,7 +887,7 @@ describe('configuración: un dato con valores conocidos, de una lista donde tamb
   it('sin valor guardado, "Dejar sin configurar" no guarda nada', async () => {
     await changeSaleCondition('Dejar sin configurar');
 
-    expect(offeredRows()).not.toContain('Quitar el valor por defecto');
+    expect(offeredRows()).not.toContain('Borrar (queda sin configurar)');
     expect(store.condicionVenta).toBeUndefined();
     expect(printed()).toContain('Sin cambios.');
   });
@@ -953,15 +969,16 @@ describe('configuración: la moneda y la actividad de exportación de una lista 
     vi.mocked(chooseOne).mockReset();
   });
 
-  // Sin valor guardado, la lista arranca en "Dejar sin configurar": Enter con el filtro vacío no guarda la primera fila.
+  // Sin valor guardado, la lista arranca en "Dejar sin configurar" (o el de por defecto): Enter con el filtro vacío no
+  // guarda la primera fila.
   it.each([
-    ['condicionVenta', /^Condición de venta/],
-    ['moneda', /^Moneda/],
-    ['exportacion.actividad', /^Actividad de exportación/],
-  ])('sin valor guardado, Enter en la lista de %s no guarda nada: "Sin cambios."', async (key, question) => {
+    ['condicionVenta', /^Condición de venta/, 'Dejar sin configurar'],
+    ['moneda', /^Moneda/, 'Dejar el de por defecto (PES)'],
+    ['exportacion.actividad', /^Actividad de exportación/, 'Dejar sin configurar'],
+  ])('sin valor guardado, Enter en la lista de %s no guarda nada: "Sin cambios."', async (key, question, keep) => {
     await changeField(key, [[question, '']]);
 
-    expect(listedLabels(question)).toContain('Dejar sin configurar');
+    expect(listedLabels(question)).toContain(keep);
     expect(store[key]).toBeUndefined();
     expect(printed()).toContain('Sin cambios.');
   });
@@ -1047,12 +1064,12 @@ describe('configuración: la moneda y la actividad de exportación de una lista 
     });
 
     // Criterio 5.
-    it('con la tabla, "Quitar el valor por defecto" borra la actividad guardada', async () => {
+    it('con la tabla, "Borrar (queda sin configurar)" borra la actividad guardada', async () => {
       store['exportacion.actividad'] = '620100';
 
-      await changeField('exportacion.actividad', [[ACTIVITY, 'Quitar el valor por defecto']]);
+      await changeField('exportacion.actividad', [[ACTIVITY, 'Borrar (queda sin configurar)']]);
 
-      expect(listedLabels(ACTIVITY)).toContain('Quitar el valor por defecto');
+      expect(listedLabels(ACTIVITY)).toContain('Borrar (queda sin configurar)');
       expect(store['exportacion.actividad']).toBeUndefined();
       expect(printed()).toContain('Dato borrado.');
     });

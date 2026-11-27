@@ -3,6 +3,7 @@ import {
   monotributoActionChoices,
   monotributoBlockKeys,
   monotributoCategoryChoices,
+  monotributoColumnViews,
 } from '../../modules/interactive/monotributo-menu';
 import { BACK } from '../../modules/interactive/wizard';
 import {
@@ -57,6 +58,23 @@ async function showCategory(report: MonotributoReport): Promise<void> {
 }
 
 /**
+ * "Ver todas las columnas": un bloque por vez, como `--completa`. Si un bloque no entra a lo ancho, en una ventana de
+ * columnas que ←/→ corren de a una antes de pasar al otro bloque.
+ */
+async function browseColumns(report: MonotributoReport): Promise<void> {
+  const views = monotributoColumnViews(report);
+  const windowed = MONOTRIBUTO_BLOCKS.some((block) => views.enter(block, 'left') !== undefined);
+
+  await browseBlocks(
+    'Todas las columnas',
+    MONOTRIBUTO_BLOCKS,
+    (block, window) => formatMonotributoBlockAsText(report, block, { navigation: 'flechas', window }),
+    monotributoBlockKeys({ columns: windowed }),
+    views,
+  );
+}
+
+/**
  * "Categorías del monotributo", como `arcli monotributo`: la tabla y despues "¿Y ahora?" para ver una categoría,
  * todas las columnas (un bloque por vez, con ←/→) o volver a leerla en ARCA.
  */
@@ -80,12 +98,7 @@ export async function runMonotributoQuery(session: InteractiveSession): Promise<
         await showCategory(report);
         break;
       case 'columnas':
-        await browseBlocks(
-          'Todas las columnas',
-          MONOTRIBUTO_BLOCKS,
-          (block) => formatMonotributoBlockAsText(report, block, { navigation: 'flechas' }),
-          monotributoBlockKeys(),
-        );
+        await browseColumns(report);
         break;
       case 'actualizar':
         report = await load(session, true);

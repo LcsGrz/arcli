@@ -29,7 +29,7 @@ import {
   COMPLETION_SHELLS,
   type CompletionShell,
 } from '../../modules/completion/shell-scripts';
-import { configPublicKeySchema } from '../../modules/config/config-key-table';
+import { BOOLEAN_CONFIG_KEYS, configPublicKeySchema } from '../../modules/config/config-key-table';
 import { getExportVoucherKindByFamily } from '../../modules/export/export.kinds';
 import { CONFIG_FIELDS } from '../../modules/interactive/config-fields';
 import { PARAMETER_TABLE_NAMES } from '../../modules/parameters/parameters';
@@ -55,8 +55,11 @@ const OPTION_VALUES: Readonly<Record<string, CompletionValues>> = {
   '--transferencia': ['sca', 'adc'],
 };
 
-/** `config establecer <clave> <valor>`: el valor depende de la clave. */
-const configValues: CompletionValues = ([key]) => CONFIG_FIELDS.find((field) => field.key === key)?.choices ?? [];
+/** `config establecer <clave> <valor>`: el valor depende de la clave. Las de sí o no, también las que el asistente no edita. */
+const configValues: CompletionValues = ([key]) =>
+  BOOLEAN_CONFIG_KEYS.some((booleanKey) => booleanKey === key)
+    ? ['si', 'no']
+    : (CONFIG_FIELDS.find((field) => field.key === key)?.choices ?? []);
 
 /** Valores de los argumentos posicionales, por nombre del argumento. */
 const ARGUMENT_VALUES: Readonly<Record<string, CompletionValues>> = {

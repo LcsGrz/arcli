@@ -60,7 +60,7 @@ Claves
   Factura de exportación (E)
     - exportacion.actividad: Actividad de exportación (WSFEX) (código de la tabla de WSFEX, por ejemplo 620100)
   Monotributo
-    - monotributo.tope: Tope de ingresos anuales propio (ingresos anuales en pesos, por ejemplo 30.000.000; sin configurar, el de tu categoría)
+    - monotributo.tope: Tope de ingresos anuales propio (ingresos anuales en pesos, por ejemplo 30.000.000; por defecto, el de tu categoría)
   Datos del emisor (PDF)
     - emisor.razonSocial: Razón social
     - emisor.domicilio: Domicilio comercial
@@ -140,7 +140,7 @@ Claves
   Factura de exportación (E)
     - exportacion.actividad: Actividad de exportación (WSFEX) (código de la tabla de WSFEX, por ejemplo 620100)
   Monotributo
-    - monotributo.tope: Tope de ingresos anuales propio (ingresos anuales en pesos, por ejemplo 30.000.000; sin configurar, el de tu categoría)
+    - monotributo.tope: Tope de ingresos anuales propio (ingresos anuales en pesos, por ejemplo 30.000.000; por defecto, el de tu categoría)
   Datos del emisor (PDF)
     - emisor.razonSocial: Razón social
     - emisor.domicilio: Domicilio comercial
