@@ -590,8 +590,7 @@ describe('repetir, si ARCA contesta sin el último número (ARQ-24)', () => {
     expect(script.remaining()).toBe(0);
   });
 
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails.each(['Factura A', 'Factura B', 'Factura C', 'Recibo C'])(
+  it.each(['Factura A', 'Factura B', 'Factura C', 'Recibo C'])(
     '%s: ARCA_LAST_VOUCHER_ERROR y no hay vista previa',
     async (kind) => {
       const session: InteractiveSession = {

@@ -342,8 +342,7 @@ describe('ArcaVoucherHistoryGateway', () => {
 
 /** ARQ-24: al consultar, sin el último número no se puede decir "No hay": con eso se verifica una emisión. */
 describe('ArcaVoucherHistoryGateway.getLastNumber: ARCA contesta sin el último número (ARQ-24)', () => {
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails.each<[string, Record<string, unknown>]>([
+  it.each<[string, Record<string, unknown>]>([
     ['sin cbteNro', {}],
     ['negativo', { cbteNro: -3 }],
     ['decimal', { cbteNro: 2.5 }],
@@ -372,8 +371,7 @@ describe('ArcaVoucherHistoryGateway.getLastNumber: ARCA contesta sin el último 
     await expect(gateway.getLastNumber(3, 11)).resolves.toBe(0);
   });
 
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails('un número como texto se lee como número', async () => {
+  it('un número como texto se lee como número', async () => {
     const gateway = createGateway({ getLastVoucher: vi.fn(async () => ({ cbteNro: '42' })) });
 
     await expect(gateway.getLastNumber(3, 11)).resolves.toBe(42);

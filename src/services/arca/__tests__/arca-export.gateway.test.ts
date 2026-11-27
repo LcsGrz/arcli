@@ -65,8 +65,7 @@ describe('ArcaExportGateway.getLastVoucherNumber', () => {
         FEXGetLast_CMPResult: { ...EMPTY_RESULT, ...(lastCmp ? { FEXResult_LastCMP: lastCmp } : {}) },
       }));
 
-    // Tests primero (ARQ-24): pasa a it() al implementarlo.
-    it.fails.each(UNREADABLE)('%s, al emitir: ARCA_EXPORT_ERROR sin errores de ARCA', async (_name, lastCmp) => {
+    it.each(UNREADABLE)('%s, al emitir: ARCA_EXPORT_ERROR sin errores de ARCA', async (_name, lastCmp) => {
       const error = await createGateway({ getLastCmp: answering(lastCmp) })
         .getLastVoucherNumber(19, 4, 'emitir')
         .then(
@@ -84,8 +83,7 @@ describe('ArcaExportGateway.getLastVoucherNumber', () => {
       });
     });
 
-    // Tests primero (ARQ-24): pasa a it() al implementarlo.
-    it.fails.each(UNREADABLE)(
+    it.each(UNREADABLE)(
       '%s, al consultar: ARCA_EXPORT_ERROR con la sugerencia de consultar',
       async (_name, lastCmp) => {
         const error = await createGateway({ getLastCmp: answering(lastCmp) })

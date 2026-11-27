@@ -4,7 +4,9 @@ import { AppError } from '../../lib/errors/app-error';
 import { lastNumberErrorSuggestion, type LastNumberPurpose } from '../../lib/errors/query-error';
 import type { AuthorizationAnswer } from '../../modules/billing/authorization-answer';
 import { readRejectedCae } from '../../modules/billing/emission-response';
+import { formatVoucherLabel } from '../../modules/billing/voucher-names';
 import type { ExportGateway } from '../../modules/export/export.gateway';
+import { getExportVoucherKindByArcaType } from '../../modules/export/export.kinds';
 import {
   DEFAULT_EXPORT_UNIT_CODE,
   type ExportActivity,
@@ -24,9 +26,10 @@ import {
 
 import type { Arca, IFEXAuthorizeInput, IFEXGetLast_CMPInput } from './arca-sdk.types';
 import { readExportAnswer } from './authorization-answer';
+import { missingLastNumberError } from './last-voucher';
 import { AUTHORIZE_SERVICE_SUGGESTION, isNotAuthorized, notAuthorizedTitle } from './not-authorized';
 import type { SdkRequest } from './sdk-request';
-import { readNumber, readOptionalText, readText } from './soap-values';
+import { readLastNumber, readNumber, readOptionalText, readText } from './soap-values';
 import { unreadableVoucherError, voucherQueryError } from './voucher-query-error';
 
 const NOT_AUTHORIZED_MESSAGE = notAuthorizedTitle('wsfex', 'factura de exportación');
@@ -417,7 +420,20 @@ export class ArcaExportGateway implements ExportGateway {
 
     assertNoError(data, 'el último número', lastNumberErrorSuggestion(purpose));
 
-    return Number(data?.FEXResult_LastCMP?.Cbte_nro) || 0;
+    const last = readLastNumber(data?.FEXResult_LastCMP?.Cbte_nro);
+
+    if (last === undefined) {
+      const kind = getExportVoucherKindByArcaType(arcaType);
+
+      throw missingLastNumberError({
+        code: 'ARCA_EXPORT_ERROR',
+        pointOfSale,
+        purpose,
+        voucherName: kind ? formatVoucherLabel(kind) : `comprobante tipo ${arcaType}`,
+      });
+    }
+
+    return last;
   }
 
   public async getLastRequestId(): Promise<number> {

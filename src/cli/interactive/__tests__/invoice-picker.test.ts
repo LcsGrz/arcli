@@ -862,8 +862,7 @@ describe('el selector, si ARCA contesta sin el último número (ARQ-24)', () => 
       async () => ({ Cuit: 1, Sign: 'firma', Token: 'token' }),
     );
 
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['pickInvoice', pickInvoice],
     ['pickNoteInvoice', pickNoteInvoice],
   ] as const)('%s: ARCA_LAST_VOUCHER_ERROR sin decir que no hay', async (_name, pick) => {
@@ -875,8 +874,7 @@ describe('el selector, si ARCA contesta sin el último número (ARQ-24)', () => 
     expect(stripAnsi(output)).not.toContain('No hay');
   });
 
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails('pickExportVoucher: ARCA_EXPORT_ERROR sin decir que no hay', async () => {
+  it('pickExportVoucher: ARCA_EXPORT_ERROR sin decir que no hay', async () => {
     script = createScript([]);
 
     const error: unknown = await pickExportVoucher(createSession([]), exportWithoutLastNumber(), {

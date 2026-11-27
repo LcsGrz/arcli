@@ -1,11 +1,15 @@
 import type { Arca } from '@arcasdk/core';
 
 import { AppError } from '../../lib/errors/app-error';
+import type { ErrorCode } from '../../lib/errors/error-codes';
 import { lastNumberErrorSuggestion, type LastNumberPurpose } from '../../lib/errors/query-error';
 import { CERTIFICATE_GUIDE_URL, POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
+import { getVoucherKindByArcaType } from '../../modules/billing/voucher-kind-map';
+import { formatVoucherLabel } from '../../modules/billing/voucher-names';
 
 import { arcaErrorDetails } from './arca-error-details';
 import { isNotAuthorized } from './not-authorized';
+import { readLastNumber } from './soap-values';
 
 /**
  * WSFEv1 11002: el punto de venta no esta habilitado para el web service.
@@ -60,5 +64,39 @@ export async function getLastAuthorizedNumber(
     );
   }
 
-  return result.cbteNro ?? 0;
+  const last = readLastNumber(result.cbteNro);
+
+  if (last === undefined) {
+    const kind = getVoucherKindByArcaType(voucherType);
+
+    throw missingLastNumberError({
+      code: 'ARCA_LAST_VOUCHER_ERROR',
+      pointOfSale,
+      purpose,
+      voucherName: kind ? formatVoucherLabel(kind) : `comprobante tipo ${voucherType}`,
+    });
+  }
+
+  return last;
+}
+
+/**
+ * ARCA contesto sin errores pero sin un ultimo numero que se pueda leer (ARQ-24). No se toma como 0: al emitir se
+ * pediria el 1, y al consultar diria "No hay", lo que empuja a reemitir. El mismo error en wsfe y en wsfex.
+ */
+export function missingLastNumberError(options: {
+  readonly code: Extract<ErrorCode, 'ARCA_EXPORT_ERROR' | 'ARCA_LAST_VOUCHER_ERROR'>;
+  readonly pointOfSale: number;
+  readonly purpose: LastNumberPurpose;
+  /** Como en una frase: `factura C`, `recibo C`, `factura de exportación E`. */
+  readonly voucherName: string;
+}): AppError {
+  return new AppError(
+    `ARCA contestó sin el último número de ${options.voucherName} del punto de venta ${options.pointOfSale} (sin errores).`,
+    {
+      code: options.code,
+      details: { errores: [] },
+      suggestion: lastNumberErrorSuggestion(options.purpose),
+    },
+  );
 }

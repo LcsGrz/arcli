@@ -4302,27 +4302,22 @@ describe('ARCA contesta sin el último número (ARQ-24)', () => {
     ['ncea', NCEA],
   ];
 
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails.each(WSFE_EMISSIONS)(
-    '%s --emitir: ARCA_LAST_VOUCHER_ERROR, exit 1 y no se emite',
-    async (shortcut, args) => {
-      withoutWsfeNumber();
-      sdk.generic.call.mockImplementation(
-        consulting(issuedVoucher(shortcut === 'ncea' ? { DocNro: CLIENT_CUIT, DocTipo: 80, ImpTotal: 5000000 } : {})),
-      );
+  it.each(WSFE_EMISSIONS)('%s --emitir: ARCA_LAST_VOUCHER_ERROR, exit 1 y no se emite', async (shortcut, args) => {
+    withoutWsfeNumber();
+    sdk.generic.call.mockImplementation(
+      consulting(issuedVoucher(shortcut === 'ncea' ? { DocNro: CLIENT_CUIT, DocTipo: 80, ImpTotal: 5000000 } : {})),
+    );
 
-      expect(await failure([...args, '--emitir'])).toEqual({
-        codigo: 'ARCA_LAST_VOUCHER_ERROR',
-        detalles: { errores: [] },
-        error: message(3),
-        sugerencia: EMIT_SUGGESTION,
-      });
-      expect(sdk.wsfe.createVoucher).not.toHaveBeenCalled();
-    },
-  );
+    expect(await failure([...args, '--emitir'])).toEqual({
+      codigo: 'ARCA_LAST_VOUCHER_ERROR',
+      detalles: { errores: [] },
+      error: message(3),
+      sugerencia: EMIT_SUGGESTION,
+    });
+    expect(sdk.wsfe.createVoucher).not.toHaveBeenCalled();
+  });
 
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails.each<[string, Record<string, unknown>]>([
+  it.each<[string, Record<string, unknown>]>([
     ['negativo', { cbteNro: -1 }],
     ['decimal', { cbteNro: 41.5 }],
     ['texto vacío', { cbteNro: '' }],
@@ -4339,8 +4334,7 @@ describe('ARCA contesta sin el último número (ARQ-24)', () => {
     ['nde', ['nde', ...NCE.slice(1)]],
   ];
 
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails.each(WSFEX_EMISSIONS)('%s --emitir: ARCA_EXPORT_ERROR, exit 1 y no se emite', async (_shortcut, args) => {
+  it.each(WSFEX_EMISSIONS)('%s --emitir: ARCA_EXPORT_ERROR, exit 1 y no se emite', async (_shortcut, args) => {
     withoutWsfexNumber();
 
     expect(await failure([...args, '--emitir'])).toEqual({
@@ -4352,8 +4346,7 @@ describe('ARCA contesta sin el último número (ARQ-24)', () => {
     expect(sdk.wsfex.authorize).not.toHaveBeenCalled();
   });
 
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails.each<[string, Record<string, unknown>]>([
+  it.each<[string, Record<string, unknown>]>([
     ['vacío', { Cbte_nro: '' }],
     ['negativo', { Cbte_nro: -2 }],
     ['decimal', { Cbte_nro: 7.5 }],
@@ -4368,8 +4361,7 @@ describe('ARCA contesta sin el último número (ARQ-24)', () => {
   });
 
   // La vista previa de la E muestra el número que va a llevar: sin el último, no hay cuál mostrar.
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails('fe --previsualizar: el mismo error, sin un número inventado', async () => {
+  it('fe --previsualizar: el mismo error, sin un número inventado', async () => {
     withoutWsfexNumber();
 
     expect(await failure([...FE_APPROVABLE, '--previsualizar'])).toMatchObject({
@@ -4379,8 +4371,7 @@ describe('ARCA contesta sin el último número (ARQ-24)', () => {
     });
   });
 
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails.each(['fa', 'fb', 'fc', 'fcea', 'rc', 'ncc'])(
+  it.each(['fa', 'fb', 'fc', 'fcea', 'rc', 'ncc'])(
     'ultimos %s: ARCA_LAST_VOUCHER_ERROR con la sugerencia de consultar, no "no hay"',
     async (shortcut) => {
       withoutWsfeNumber();
@@ -4394,8 +4385,7 @@ describe('ARCA contesta sin el último número (ARQ-24)', () => {
     },
   );
 
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails.each(['fe', 'nce', 'nde'])(
+  it.each(['fe', 'nce', 'nde'])(
     'ultimos %s: ARCA_EXPORT_ERROR con la sugerencia de consultar, no "no hay"',
     async (shortcut) => {
       withoutWsfexNumber();
@@ -4410,8 +4400,7 @@ describe('ARCA contesta sin el último número (ARQ-24)', () => {
     },
   );
 
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails.each<[string, string[], () => void]>([
+  it.each<[string, string[], () => void]>([
     ['fc', ['ultimos', 'fc'], withoutWsfeNumber],
     ['fe', ['ultimos', 'fe', '--pv', '4'], withoutWsfexNumber],
   ])('ultimos %s en la terminal: exit 1 y el error, sin decir que no hay', async (_name, args, answer) => {
@@ -4460,8 +4449,7 @@ describe('ARCA contesta sin el último número (ARQ-24)', () => {
     );
   });
 
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails('fc --emitir con CbteNro como texto: emite el siguiente, no un número pegado', async () => {
+  it('fc --emitir con CbteNro como texto: emite el siguiente, no un número pegado', async () => {
     sdk.wsfe.getLastVoucher.mockResolvedValue({ cbteNro: '41' });
     prepareConfig({});
 
@@ -4480,5 +4468,17 @@ describe('ARCA contesta sin el último número (ARQ-24)', () => {
 
     expect(result).toMatchObject({ code: 0, stderr: '' });
     expect(sdk.wsfe.getLastVoucher).not.toHaveBeenCalled();
+  });
+
+  it('la salida entera al emitir (wsfe)', () => {
+    withoutWsfeNumber();
+
+    return golden('error-ultimo-numero-sin-numero', [...FC, '--emitir', '--json']);
+  });
+
+  it('la salida entera al consultar (wsfex)', () => {
+    withoutWsfexNumber();
+
+    return golden('error-ultimos-fe-sin-numero', ['ultimos', 'fe', '--pv', '4', '--json']);
   });
 });

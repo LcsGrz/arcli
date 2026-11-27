@@ -1,0 +1,15 @@
+$ arcli fc -m 1000 --cs --cfinal --emitir --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "ARCA_LAST_VOUCHER_ERROR",
+  "detalles": {
+    "errores": []
+  },
+  "error": "ARCA contestó sin el último número de factura C del punto de venta 3 (sin errores).",
+  "sugerencia": "No se emitió nada. Revisá el mensaje de ARCA y reintentá."
+}
+

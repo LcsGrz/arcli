@@ -524,8 +524,7 @@ describe('runExportRepeatFlow', () => {
   });
 
   // ARQ-24: sin el último número no se dice "No hay" ni se llega a emitir: sale el error de wsfex.
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails('si ARCA contesta sin el último número, ARCA_EXPORT_ERROR y no se emite', async () => {
+  it('si ARCA contesta sin el último número, ARCA_EXPORT_ERROR y no se emite', async () => {
     const real = new ArcaExportGateway(
       {
         wsfexService: {

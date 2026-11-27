@@ -194,30 +194,25 @@ describe('ArcaBillingGateway.getNextVoucherNumber: ARCA contesta sin el último 
     ['texto que no es un número', { cbteNro: 'cuarenta' }],
   ];
 
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails.each(UNREADABLE)(
-    '%s: ARCA_LAST_VOUCHER_ERROR sin errores de ARCA, antes de emitir',
-    async (_name, answer) => {
-      const gateway = createGateway({ getLastVoucher: vi.fn(async () => answer) });
+  it.each(UNREADABLE)('%s: ARCA_LAST_VOUCHER_ERROR sin errores de ARCA, antes de emitir', async (_name, answer) => {
+    const gateway = createGateway({ getLastVoucher: vi.fn(async () => answer) });
 
-      const error = await gateway.getNextVoucherNumber(3, 11).then(
-        (number) => ({ resolved: number }),
-        (caught: unknown) => caught,
-      );
+    const error = await gateway.getNextVoucherNumber(3, 11).then(
+      (number) => ({ resolved: number }),
+      (caught: unknown) => caught,
+    );
 
-      expect(error).toMatchObject({
-        code: 'ARCA_LAST_VOUCHER_ERROR',
-        details: { errores: [] },
-        message: expect.stringMatching(
-          /^ARCA contestó sin el último número de .+ del punto de venta 3 \(sin errores\)\.$/,
-        ),
-        suggestion: 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.',
-      });
-    },
-  );
+    expect(error).toMatchObject({
+      code: 'ARCA_LAST_VOUCHER_ERROR',
+      details: { errores: [] },
+      message: expect.stringMatching(
+        /^ARCA contestó sin el último número de .+ del punto de venta 3 \(sin errores\)\.$/,
+      ),
+      suggestion: 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.',
+    });
+  });
 
-  // Tests primero (ARQ-24): pasa a it() al implementarlo.
-  it.fails.each<[string, unknown, number]>([
+  it.each<[string, unknown, number]>([
     ['41', '41', 42],
     ['0', '0', 1],
   ])('un número como texto ("%s") se lee como número', async (_name, cbteNro, next) => {

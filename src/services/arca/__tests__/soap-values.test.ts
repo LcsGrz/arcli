@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { readNumber, readOptionalText, readText } from '../soap-values';
+import { readLastNumber, readNumber, readOptionalText, readText } from '../soap-values';
 
 const NOT_TEXT = [undefined, null, 0, 7, true, {}, ['a']];
 
@@ -56,5 +56,32 @@ describe('readNumber', () => {
     ['una lista', ['1']],
   ])('%s no es un numero: `undefined`', (_name, value) => {
     expect(readNumber(value)).toBeUndefined();
+  });
+});
+
+describe('readLastNumber', () => {
+  it.each([
+    [0, 0],
+    [41, 41],
+    ['41', 41],
+    [' 7 ', 7],
+    ['0', 0],
+    [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER],
+  ])('%j es %d', (value, expected) => {
+    expect(readLastNumber(value)).toBe(expected);
+  });
+
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['vacio', ''],
+    ['un texto', 'cuarenta'],
+    ['negativo', -1],
+    ['decimal', 41.5],
+    ['decimal escrito', '41.5'],
+    ['NaN', Number.NaN],
+    ['fuera de lo seguro', Number.MAX_SAFE_INTEGER + 1],
+  ])('%s no es un ultimo numero: `undefined`', (_name, value) => {
+    expect(readLastNumber(value)).toBeUndefined();
   });
 });
