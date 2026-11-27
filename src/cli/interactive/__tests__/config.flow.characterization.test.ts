@@ -40,7 +40,7 @@ beforeEach(() => {
   vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
 });
 
-/** Un valor interno ("Quitar", "Dejar sin configurar") por su nombre. */
+/** Un valor interno ("Borrar", "Dejar sin configurar") por su nombre. */
 const shown = (value: unknown) =>
   typeof value === 'symbol' ? String(value) : value === undefined ? 'nada' : `"${String(value)}"`;
 

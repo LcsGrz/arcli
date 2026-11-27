@@ -1,15 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { nodeLocalFiles } from '../../../services/files/local-files';
+import { formatConfigValue } from '../../config/config.presenter';
 import type { ArcliConfig } from '../../config/config.schemas';
 import { validateConfigValue } from '../../config/config.service';
-import {
-  CONFIG_FIELDS,
-  describeConfigValue,
-  getConfigField,
-  listMissingSetupKeys,
-  resolveActiveEnvironment,
-} from '../config-fields';
+import { CONFIG_FIELDS, listMissingSetupKeys, resolveActiveEnvironment } from '../config-fields';
 
 const BASE = {
   cert: {},
@@ -18,6 +13,8 @@ const BASE = {
   key: {},
   output: { brutoPorDefecto: false, emitirPorDefecto: false, jsonPorDefecto: false },
 } satisfies ArcliConfig;
+
+const PATHS = { pdfFolder: '/Users/x/arcli/comprobantes', ticketPath: '/Users/x/arcli/tickets' };
 
 describe('config-fields', () => {
   it('lists what is missing to emit', () => {
@@ -70,9 +67,9 @@ describe('config-fields', () => {
       emisor: { inicioActividades: '20200301' },
     };
 
-    expect(describeConfigValue(getConfigField('cert.testing'), config)).toBe('.../secretos/cert.crt');
-    expect(describeConfigValue(getConfigField('emisor.inicioActividades'), config)).toBe('01/03/2020');
-    expect(describeConfigValue(getConfigField('cuit'), config)).toBe('sin configurar');
+    expect(formatConfigValue('cert.testing', config, PATHS)).toBe('.../secretos/cert.crt');
+    expect(formatConfigValue('emisor.inicioActividades', config, PATHS)).toBe('01/03/2020');
+    expect(formatConfigValue('cuit', config, PATHS)).toBe('sin configurar');
   });
 
   it('shows labels instead of raw values, without changing what is saved', () => {
@@ -83,9 +80,9 @@ describe('config-fields', () => {
       ivaReceptorPorDefecto: 'responsable-inscripto',
     };
 
-    expect(describeConfigValue(getConfigField('ivaReceptor'), config as ArcliConfig)).toBe('Responsable inscripto');
-    expect(describeConfigValue(getConfigField('alicuota'), config as ArcliConfig)).toBe('10,5%');
-    expect(describeConfigValue(getConfigField('consultarPadron'), config as ArcliConfig)).toBe('No');
+    expect(formatConfigValue('ivaReceptor', config as ArcliConfig, PATHS)).toBe('Responsable inscripto');
+    expect(formatConfigValue('alicuota', config as ArcliConfig, PATHS)).toBe('10,5%');
+    expect(formatConfigValue('consultarPadron', config as ArcliConfig, PATHS)).toBe('no');
   });
 
   it('only offers choices that config accepts', () => {

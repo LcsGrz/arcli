@@ -33,7 +33,7 @@ emisor.inicioActividades: (nada)
 emisor.logo: (nada)
 emisor.razonSocial: (nada)
 entorno: testing produccion
-emitir: (nada)
+emitir: si no
 exportacion.actividad: (nada)
 exportacion.cert.produccion: (nada)
 exportacion.cert.testing: (nada)
@@ -41,12 +41,12 @@ exportacion.key.produccion: (nada)
 exportacion.key.testing: (nada)
 filasPorLista: (nada)
 ivaReceptor: cliente-del-exterior consumidor-final iva-liberado iva-no-alcanzado monotributista-social monotributo-trabajador-independiente-promovido proveedor-del-exterior responsable-inscripto responsable-monotributo sujeto-exento sujeto-no-categorizado
-json: (nada)
+json: si no
 key.produccion: (nada)
 key.testing: (nada)
 moneda: (nada)
 monotributo.tope: (nada)
-bruto: (nada)
+bruto: si no
 pdf: siempre preguntar nunca
 pdfCarpeta: (nada)
 pdfNavegador: (nada)

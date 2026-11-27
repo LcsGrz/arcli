@@ -82,6 +82,15 @@ export type CanonicalConfigKey = CoveringKeys<StoredKey, UncoveredData<ArcliConf
 
 export const configPublicKeySchema = z.enum(Object.keys(CONFIG_KEY_TABLE) as ConfigPublicKey[]);
 
+/** Las claves de sí o no: aceptan true/false, si/no o 1/0 (`parseBoolean`). La ayuda y el autocompletado salen de acá. */
+export const BOOLEAN_CONFIG_KEYS: readonly ConfigPublicKey[] = [
+  'bruto',
+  'consultarPadron',
+  'emitir',
+  'json',
+  'verificarFce',
+];
+
 /** Dónde se guarda cada clave en el `config.json`. */
 export function storedKeyOf(key: AccountStoredKey | ConfigPublicKey): CanonicalConfigKey {
   return key === 'aliasCbu' || key === 'cbu' ? key : CONFIG_KEY_TABLE[key].stored;

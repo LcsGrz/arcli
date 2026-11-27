@@ -1,11 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { formatConfigValue } from '../../../modules/config/config.presenter';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
-import {
-  describeConfigValue,
-  getConfigField,
-  resolveActiveEnvironment,
-} from '../../../modules/interactive/config-fields';
+import { getConfigField, resolveActiveEnvironment } from '../../../modules/interactive/config-fields';
 import { canChooseNoteCurrency, noteCurrencyChoices } from '../../../modules/interactive/note-currency';
 import { BACK } from '../../../modules/interactive/wizard';
 import { BUNDLED_MONOTRIBUTO_TABLE } from '../../../modules/monotributo/monotributo.bundled';
@@ -203,27 +200,34 @@ describe('datos de la config en el menú', () => {
     cuit: '20123456786',
     verificarFce: true,
   });
+  const paths = { pdfFolder: '/Users/ana/arcli/comprobantes', ticketPath: '/Users/ana/arcli/tickets' };
 
   it('sin valor dice "sin configurar"; las rutas van enmascaradas y las opciones con su nombre', () => {
-    expect(describeConfigValue(getConfigField('cuenta'), config)).toBe('sin configurar');
-    expect(describeConfigValue(getConfigField('cert.testing'), config)).not.toContain('/Users/ana');
-    expect(describeConfigValue(getConfigField('condicionVenta'), config)).toBe('Tarjeta de Débito');
-    expect(describeConfigValue(getConfigField('consultarPadron'), config)).toMatch(/^no$/i);
-    expect(describeConfigValue(getConfigField('verificarFce'), config)).toMatch(/^s[ií]$/i);
+    expect(formatConfigValue('cuenta', config, paths)).toBe('sin configurar');
+    expect(formatConfigValue('cert.testing', config, paths)).not.toContain('/Users/ana');
+    expect(formatConfigValue('condicionVenta', config, paths)).toBe('Tarjeta de Débito');
+    expect(formatConfigValue('consultarPadron', config, paths)).toMatch(/^no$/i);
+    expect(formatConfigValue('verificarFce', config, paths)).toMatch(/^s[ií]$/i);
   });
 
-  it('montos de la config con el formato argentino; lo que no se configuró dice "sin configurar"', () => {
+  it('montos de la config con el formato argentino; sin valor guardado, el por defecto', () => {
     const withAmounts = arcliConfigSchema.parse({
       cotizacionPorDefecto: 1185.5,
       monedaPorDefecto: 'USD',
       monotributo: { tope: 30_000_000 },
     });
 
-    expect(describeConfigValue(getConfigField('cotizacion'), withAmounts)).toBe('1185,50');
-    expect(describeConfigValue(getConfigField('monotributo.tope'), withAmounts)).toBe('30000000');
-    expect(describeConfigValue(getConfigField('consultarPadron'), withAmounts)).toBe('sin configurar');
-    expect(describeConfigValue(getConfigField('verificarFce'), withAmounts)).toBe('sin configurar');
-    expect(describeConfigValue(getConfigField('cotizacion'), arcliConfigSchema.parse({}))).toBe('sin configurar');
+    expect(formatConfigValue('cotizacion', withAmounts, paths)).toBe('1.185,50');
+    expect(formatConfigValue('monotributo.tope', withAmounts, paths)).toBe('$ 30.000.000');
+    expect(formatConfigValue('consultarPadron', withAmounts, paths)).toBe('sí (por defecto)');
+    expect(formatConfigValue('verificarFce', withAmounts, paths)).toBe('no (por defecto)');
+    // Sin cotización, o con el 1 que la config guarda al crearse, se usa la oficial de ARCA.
+    expect(formatConfigValue('cotizacion', arcliConfigSchema.parse({}), paths)).toBe(
+      'la oficial de ARCA (por defecto)',
+    );
+    expect(formatConfigValue('cotizacion', arcliConfigSchema.parse({ cotizacionPorDefecto: 1 }), paths)).toBe(
+      'la oficial de ARCA (por defecto)',
+    );
   });
 
   it('una clave que no existe es un error de programación', () => {

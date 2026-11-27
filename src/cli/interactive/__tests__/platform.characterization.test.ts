@@ -241,7 +241,7 @@ describe('ruta arrastrada a la terminal', () => {
     await run(platform, () => runConfigMenu(), [
       [/Configuración/, 'Modificar configuración'],
       [/Qué querés modificar/, 'Carpeta'],
-      [/arrastrar el archivo/, `${directory}/mis\\ pdfs`],
+      [/arrastrar la carpeta/, `${directory}/mis\\ pdfs`],
       [/Qué querés modificar/, BACK],
       [/Configuración/, BACK],
     ]);

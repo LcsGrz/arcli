@@ -16,20 +16,20 @@
 │    Clave de exportación (testing)           sin configurar                               │
 │    Certificado de exportación (producción)  sin configurar                               │
 │    Clave de exportación (producción)        sin configurar                               │
-│    Carpeta de tickets WSAA                  .../config/tickets                           │
+│    Carpeta de tickets WSAA                  .../config/tickets (por defecto)             │
 │    Carpeta de certificados                  .../config/certificados                      │
 │                                                                                          │
 │  Al facturar                                                                             │
 │    Concepto                                 sin configurar                               │
 │    IVA del receptor                         sin configurar                               │
-│    IVA del receptor desde el padrón         sí                                           │
+│    IVA del receptor desde el padrón         sí (por defecto)                             │
 │    Alícuota de IVA (A y B)                  21% (por defecto)                            │
 │    Moneda                                   PES                                          │
-│    Cotización (deprecada)                   1                                            │
+│    Cotización (deprecada)                   la oficial de ARCA (por defecto)             │
 │                                                                                          │
 │  Factura de crédito electrónica (FCE)                                                    │
 │    Cuenta bancaria (CBU y alias)            sin configurar                               │
-│    Verificar régimen FCE del receptor       no                                           │
+│    Verificar régimen FCE del receptor       no (por defecto)                             │
 │                                                                                          │
 │  Factura de exportación (E)                                                              │
 │    Actividad de exportación (WSFEX)         sin configurar                               │
@@ -46,8 +46,8 @@
 │    Logo (PNG o JPG)                         sin configurar                               │
 │                                                                                          │
 │  PDF                                                                                     │
-│    Cuándo generar el PDF                    preguntar                                    │
-│    Carpeta de PDFs                          .../arcli/comprobantes                       │
+│    Cuándo generar el PDF                    preguntar (por defecto)                      │
+│    Carpeta de PDFs                          .../arcli/comprobantes (por defecto)         │
 │    Navegador para PDFs                      automático                                   │
 │    Condición de venta (PDF de A, B y C)     sin configurar                               │
 │                                                                                          │
@@ -78,20 +78,20 @@
 │    ␛[2mClave de exportación (testing)         ␛[22m  ␛[2msin configurar␛[22m                               │
 │    ␛[2mCertificado de exportación (producción)␛[22m  ␛[2msin configurar␛[22m                               │
 │    ␛[2mClave de exportación (producción)      ␛[22m  ␛[2msin configurar␛[22m                               │
-│    ␛[2mCarpeta de tickets WSAA                ␛[22m  ␛]8;;file://<config>/tickets␛\.../config/tickets␛]8;;␛\                           │
+│    ␛[2mCarpeta de tickets WSAA                ␛[22m  ␛]8;;file://<config>/tickets␛\.../config/tickets␛]8;;␛\ (por defecto)             │
 │    ␛[2mCarpeta de certificados                ␛[22m  ␛]8;;file://<config>/certificados␛\.../config/certificados␛]8;;␛\                      │
 │                                                                                          │
 │  ␛[36mAl facturar␛[39m                                                                             │
 │    ␛[2mConcepto                               ␛[22m  ␛[2msin configurar␛[22m                               │
 │    ␛[2mIVA del receptor                       ␛[22m  ␛[2msin configurar␛[22m                               │
-│    ␛[2mIVA del receptor desde el padrón       ␛[22m  sí                                           │
+│    ␛[2mIVA del receptor desde el padrón       ␛[22m  sí (por defecto)                             │
 │    ␛[2mAlícuota de IVA (A y B)                ␛[22m  21% (por defecto)                            │
 │    ␛[2mMoneda                                 ␛[22m  PES                                          │
-│    ␛[2mCotización (deprecada)                 ␛[22m  1                                            │
+│    ␛[2mCotización (deprecada)                 ␛[22m  la oficial de ARCA (por defecto)             │
 │                                                                                          │
 │  ␛[36mFactura de crédito electrónica (FCE)␛[39m                                                    │
 │    ␛[2mCuenta bancaria (CBU y alias)          ␛[22m  ␛[2msin configurar␛[22m                               │
-│    ␛[2mVerificar régimen FCE del receptor     ␛[22m  no                                           │
+│    ␛[2mVerificar régimen FCE del receptor     ␛[22m  no (por defecto)                             │
 │                                                                                          │
 │  ␛[36mFactura de exportación (E)␛[39m                                                              │
 │    ␛[2mActividad de exportación (WSFEX)       ␛[22m  ␛[2msin configurar␛[22m                               │
@@ -108,8 +108,8 @@
 │    ␛[2mLogo (PNG o JPG)                       ␛[22m  ␛[2msin configurar␛[22m                               │
 │                                                                                          │
 │  ␛[36mPDF␛[39m                                                                                     │
-│    ␛[2mCuándo generar el PDF                  ␛[22m  preguntar                                    │
-│    ␛[2mCarpeta de PDFs                        ␛[22m  ␛]8;;file://<home>/arcli/comprobantes␛\.../arcli/comprobantes␛]8;;␛\                       │
+│    ␛[2mCuándo generar el PDF                  ␛[22m  preguntar (por defecto)                      │
+│    ␛[2mCarpeta de PDFs                        ␛[22m  ␛]8;;file://<home>/arcli/comprobantes␛\.../arcli/comprobantes␛]8;;␛\ (por defecto)         │
 │    ␛[2mNavegador para PDFs                    ␛[22m  automático                                   │
 │    ␛[2mCondición de venta (PDF de A, B y C)   ␛[22m  ␛[2msin configurar␛[22m                               │
 │                                                                                          │
@@ -144,8 +144,8 @@
 │    Carpeta de certificados                  .../config/certificados                      │
 │                                                                                          │
 │  Al facturar                                                                             │
-│    Concepto                                 productos-servicios                          │
-│    IVA del receptor                         consumidor-final                             │
+│    Concepto                                 Productos y servicios                        │
+│    IVA del receptor                         Consumidor final                             │
 │    IVA del receptor desde el padrón         no                                           │
 │    Alícuota de IVA (A y B)                  10,5%                                        │
 │    Moneda                                   USD                                          │
@@ -166,7 +166,7 @@
 │    Domicilio comercial                      Calle Ficticia 123                           │
 │    Inicio de actividades                    01/03/2020                                   │
 │    Ingresos Brutos                          901-123456-7                                 │
-│    Condición de IVA                         responsable-inscripto                        │
+│    Condición de IVA                         Responsable inscripto                        │
 │    Logo (PNG o JPG)                         .../config/logo.png                          │
 │                                                                                          │
 │  PDF                                                                                     │
@@ -206,8 +206,8 @@
 │    ␛[2mCarpeta de certificados                ␛[22m  ␛]8;;file://<config>/certificados␛\.../config/certificados␛]8;;␛\                      │
 │                                                                                          │
 │  ␛[36mAl facturar␛[39m                                                                             │
-│    ␛[2mConcepto                               ␛[22m  productos-servicios                          │
-│    ␛[2mIVA del receptor                       ␛[22m  consumidor-final                             │
+│    ␛[2mConcepto                               ␛[22m  Productos y servicios                        │
+│    ␛[2mIVA del receptor                       ␛[22m  Consumidor final                             │
 │    ␛[2mIVA del receptor desde el padrón       ␛[22m  no                                           │
 │    ␛[2mAlícuota de IVA (A y B)                ␛[22m  10,5%                                        │
 │    ␛[2mMoneda                                 ␛[22m  USD                                          │
@@ -228,7 +228,7 @@
 │    ␛[2mDomicilio comercial                    ␛[22m  Calle Ficticia 123                           │
 │    ␛[2mInicio de actividades                  ␛[22m  01/03/2020                                   │
 │    ␛[2mIngresos Brutos                        ␛[22m  901-123456-7                                 │
-│    ␛[2mCondición de IVA                       ␛[22m  responsable-inscripto                        │
+│    ␛[2mCondición de IVA                       ␛[22m  Responsable inscripto                        │
 │    ␛[2mLogo (PNG o JPG)                       ␛[22m  ␛]8;;file://<config>/logo.png␛\.../config/logo.png␛]8;;␛\                          │
 │                                                                                          │
 │  ␛[36mPDF␛[39m                                                                                     │
