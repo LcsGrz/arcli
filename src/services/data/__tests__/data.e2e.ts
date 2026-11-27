@@ -303,8 +303,7 @@ async function damagedBaseWith(cut: 'mitad' | '100 bytes'): Promise<{ dataDirect
 
 describe('copias y base dañada con procesos reales (ARQ-12 PR 4b)', () => {
   // VACUUM INTO lee en una transacción: la copia es una foto entera aunque otro escriba en el medio.
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('las copias diarias salen sanas mientras otro proceso guarda cada 1 ms', async () => {
+  it('las copias diarias salen sanas mientras otro proceso guarda cada 1 ms', async () => {
     const { dataDirectory, file } = await baseWith(50);
     const writer = start(['escritor', dataDirectory, 1000]);
 
@@ -337,8 +336,7 @@ describe('copias y base dañada con procesos reales (ARQ-12 PR 4b)', () => {
   });
 
   // Los dos la ven dañada; uno la aparta y repone, y el otro no aparta la nueva (que está sana): abre esa y guarda.
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails.each(['100 bytes', 'mitad'] as const)(
+  it.each(['100 bytes', 'mitad'] as const)(
     'dos procesos encuentran la base cortada (%s) a la vez: uno la aparta y el otro abre la nueva',
     async (cut) => {
       const { dataDirectory, file } = await damagedBaseWith(cut);
@@ -360,8 +358,7 @@ describe('copias y base dañada con procesos reales (ARQ-12 PR 4b)', () => {
   );
 
   // En Windows SQLite abre la base sin dejar que otro la mueva: el que la encuentra dañada no puede apartarla.
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.runIf(process.platform === 'win32').fails(
+  it.runIf(process.platform === 'win32')(
     'Windows: una dañada abierta por otro da damaged sin tocar, y cuando la cierra el siguiente la aparta',
     async () => {
       const { dataDirectory, file } = await damagedBaseWith('mitad');

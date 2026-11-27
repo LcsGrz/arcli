@@ -207,7 +207,7 @@ export interface Recovery {
 
 /** La recuperación que informó `save`, si la hubo. */
 export function recoveryOf(outcome: SaveOutcome): Recovery | undefined {
-  return (outcome as SaveOutcome & { readonly recovered?: Recovery }).recovered;
+  return outcome.recovered;
 }
 
 /** `datos/<CUIT>/<entorno>/copias/`. */

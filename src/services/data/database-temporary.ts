@@ -66,6 +66,31 @@ export function removeStaleTemporaries(file: string, nowMs: number): void {
   }
 }
 
+/**
+ * Si hay al lado de la base un temporal de menos de 10 minutos: otro proceso puede estar creándola (sin hard links, la
+ * está copiando a su lugar y se ve cortada). Uno más viejo es de un proceso muerto.
+ */
+export function hasLiveTemporary(file: string, nowMs: number): boolean {
+  const folder = dirname(file);
+  let names: string[];
+
+  try {
+    names = readdirSync(folder);
+  } catch {
+    return false;
+  }
+
+  return names
+    .filter((candidate) => TEMPORARY_NAME.test(candidate))
+    .some((name) => {
+      try {
+        return nowMs - statSync(join(folder, name)).mtimeMs <= STALE_TEMPORARY_MS;
+      } catch {
+        return false;
+      }
+    });
+}
+
 /** Un archivo nuevo solo para el dueño, con un nombre que no pisa a nadie y del mismo largo que el de la base. */
 export function createTemporaryFile(file: string): string {
   const hexLength = Math.max(1, basename(file).length - TEMPORARY_PREFIX.length);

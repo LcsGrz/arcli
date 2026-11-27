@@ -83,8 +83,7 @@ const backupOptions = (dataDirectory: string, cuit = CUIT, environment: ArcliEnv
 });
 
 describe('copia antes de migrar (ARQ-12 PR 4b)', () => {
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('deja en copias/ la base de antes, sana y completa, y la anota en migraciones', async () => {
+  it('deja en copias/ la base de antes, sana y completa, y la anota en migraciones', async () => {
     const { dataDirectory, file } = await baseWith([1, 2]);
 
     await expect(
@@ -107,8 +106,7 @@ describe('copia antes de migrar (ARQ-12 PR 4b)', () => {
     expect(health(file).version).toBe(1001);
   });
 
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.runIf(withPermissions).fails('la copia y su carpeta quedan solo para el dueño', async () => {
+  it.runIf(withPermissions)('la copia y su carpeta quedan solo para el dueño', async () => {
     const { dataDirectory } = await baseWith([1]);
 
     await openStore(dataDirectory, { backups: OFF, extraMigrations: [addColumn(1001)] }).save(record(2));
@@ -121,8 +119,7 @@ describe('copia antes de migrar (ARQ-12 PR 4b)', () => {
   });
 
   // Sin copia no se migra: queda la versión anterior entera y el guardado no entra.
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('si la copia falla, no migra: queda v1 con sus datos y save da unavailable', async () => {
+  it('si la copia falla, no migra: queda v1 con sus datos y save da unavailable', async () => {
     const { dataDirectory, file } = await baseWith([1, 2]);
 
     // `copias` es un archivo: no se puede hacer la copia adentro.
@@ -153,8 +150,7 @@ describe('copia antes de migrar (ARQ-12 PR 4b)', () => {
   });
 
   // Se guardan las 2 últimas de migración; las diarias no cuentan ni se tocan.
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('tres migraciones dejan las dos últimas copias de migración', async () => {
+  it('tres migraciones dejan las dos últimas copias de migración', async () => {
     const { dataDirectory, file } = await baseWith([1]);
     const steps = [addColumn(1001), addColumn(1002), addColumn(1003)];
 
@@ -175,8 +171,7 @@ describe('copia antes de migrar (ARQ-12 PR 4b)', () => {
 });
 
 describe('copia diaria (ARQ-12 PR 4b)', () => {
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('la primera escritura del día deja una copia sana con lo recién guardado', async () => {
+  it('la primera escritura del día deja una copia sana con lo recién guardado', async () => {
     const dataDirectory = temporaryDataDirectory();
 
     await openStore(dataDirectory, { backups: ON }).save(record(1));
@@ -194,8 +189,7 @@ describe('copia diaria (ARQ-12 PR 4b)', () => {
     expect(caes(copy)).toEqual([cae(1)]);
   });
 
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.runIf(withPermissions).fails('la copia diaria queda 0600 en una carpeta 0700', async () => {
+  it.runIf(withPermissions)('la copia diaria queda 0600 en una carpeta 0700', async () => {
     const dataDirectory = temporaryDataDirectory();
 
     await openStore(dataDirectory, { backups: ON }).save(record(1));
@@ -208,8 +202,7 @@ describe('copia diaria (ARQ-12 PR 4b)', () => {
   });
 
   // El día es el argentino (UTC-3): 02:59 UTC del 27 todavía es el 26 en Argentina; 03:00 UTC ya es el 27.
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('una sola por día argentino: la segunda del día no copia y la del día siguiente sí', async () => {
+  it('una sola por día argentino: la segunda del día no copia y la del día siguiente sí', async () => {
     const dataDirectory = temporaryDataDirectory();
     const clock = movableClock(NOW);
     const store = openStore(dataDirectory, { backups: ON, clock });
@@ -253,8 +246,7 @@ describe('copia diaria (ARQ-12 PR 4b)', () => {
   });
 
   // La copia antes de migrar no se apaga: es la única forma de volver si la migración sale mal.
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('con enabled en false igual copia antes de migrar', async () => {
+  it('con enabled en false igual copia antes de migrar', async () => {
     const { dataDirectory } = await baseWith([1]);
 
     await openStore(dataDirectory, { backups: OFF, extraMigrations: [addColumn(1001)] }).save(record(2));
@@ -262,8 +254,7 @@ describe('copia diaria (ARQ-12 PR 4b)', () => {
     expect(backupNames(dataDirectory)).toEqual([expect.stringMatching(MIGRATION_BACKUP)]);
   });
 
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('leer en un día nuevo no copia: solo una escritura', async () => {
+  it('leer en un día nuevo no copia: solo una escritura', async () => {
     const dataDirectory = temporaryDataDirectory();
     const clock = movableClock(NOW);
     const store = openStore(dataDirectory, { backups: ON, clock });
@@ -276,8 +267,7 @@ describe('copia diaria (ARQ-12 PR 4b)', () => {
     expect(backupNames(dataDirectory)).toEqual([expect.stringMatching(/^comprobantes-2026-11-26/)]);
   });
 
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('quedan las 7 diarias más nuevas', async () => {
+  it('quedan las 7 diarias más nuevas', async () => {
     const dataDirectory = temporaryDataDirectory();
     const clock = movableClock(NOW);
     const store = openStore(dataDirectory, { backups: ON, clock });
@@ -296,8 +286,7 @@ describe('copia diaria (ARQ-12 PR 4b)', () => {
     );
   });
 
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('la retención de las diarias no borra las de migración', async () => {
+  it('la retención de las diarias no borra las de migración', async () => {
     const dataDirectory = temporaryDataDirectory();
     const clock = movableClock(NOW);
 
@@ -325,8 +314,7 @@ describe('listar las copias, para DATOS-1 (ARQ-12 PR 4b)', () => {
     expect(existsSync(join(dataDirectory, 'datos'))).toBe(false);
   });
 
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('cada copia con su ruta, fecha, tamaño en bytes y tipo', async () => {
+  it('cada copia con su ruta, fecha, tamaño en bytes y tipo', async () => {
     const dataDirectory = temporaryDataDirectory();
     const clock = movableClock(NOW);
 
@@ -369,8 +357,7 @@ describe('restaurar una base desde una copia, para DATOS-1 (ARQ-12 PR 4b)', () =
     return { copy: copyOf(dataDirectory, name), dataDirectory, file: vouchersFile(dataDirectory) };
   }
 
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('repone la base desde la copia y aparta la actual como reemplazada, sin borrar nada', async () => {
+  it('repone la base desde la copia y aparta la actual como reemplazada, sin borrar nada', async () => {
     const { copy, dataDirectory, file } = await withDailyCopy();
     const current = fingerprint(file);
     const copyBefore = fingerprint(copy);
@@ -387,8 +374,7 @@ describe('restaurar una base desde una copia, para DATOS-1 (ARQ-12 PR 4b)', () =
     await expect(openStore(dataDirectory, { backups: OFF }).save(record(3))).resolves.toEqual({ kind: 'saved' });
   });
 
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('una copia dañada da damaged y no toca la base', async () => {
+  it('una copia dañada da damaged y no toca la base', async () => {
     const { copy, dataDirectory, file } = await withDailyCopy();
 
     truncateSync(copy, 100);
@@ -401,8 +387,7 @@ describe('restaurar una base desde una copia, para DATOS-1 (ARQ-12 PR 4b)', () =
   });
 
   // Una copia de otro CUIT o entorno puesta en esta carpeta no reemplaza la base.
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     [OTHER_CUIT, 'testing'],
     [CUIT, 'produccion'],
   ] as const)('una copia de %s/%s da mismatch y no toca la base', async (cuit, environment) => {

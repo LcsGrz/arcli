@@ -24,6 +24,8 @@ export interface SqliteConnection {
 export interface SqliteConnectionOptions {
   /** La espera de SQLite cuando otro proceso tiene la base (`busy_timeout`), en ms. */
   readonly timeoutMs: number;
+  /** Solo para leer una copia (nunca la base): no deshace un `-journal` ni cambia nada del archivo. */
+  readonly readOnly?: boolean;
 }
 
 /** Abre conexiones sin esperar: el módulo ya está cargado. */
@@ -47,7 +49,7 @@ interface NativeDatabase {
 
 type NativeDatabaseConstructor = new (
   path: string,
-  options: { readonly defensive: boolean; readonly timeout: number },
+  options: { readonly defensive: boolean; readonly readOnly: boolean; readonly timeout: number },
 ) => NativeDatabase;
 
 interface NativeSqliteModule {
@@ -130,7 +132,8 @@ export function loadSqliteDriver(): Promise<SqliteDriver> {
       const Database = sqlite.Database ?? sqlite.DatabaseSync;
 
       return {
-        open: (path, { timeoutMs }) => connectionOver(new Database(path, { defensive: true, timeout: timeoutMs })),
+        open: (path, { readOnly = false, timeoutMs }) =>
+          connectionOver(new Database(path, { defensive: true, readOnly, timeout: timeoutMs })),
       };
     },
     (error: unknown) => {

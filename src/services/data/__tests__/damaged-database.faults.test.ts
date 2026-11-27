@@ -38,8 +38,7 @@ const NEXT = record(50);
 const setAsideNames = (file: string) => readdirSync(dirname(file)).filter((name) => name.includes('danada'));
 
 describe('en Windows, una dañada abierta por otro (ARQ-12 PR 4b)', () => {
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails.each(['EBUSY', 'EPERM'])(
+  it.each(['EBUSY', 'EPERM'])(
     'si no se puede mover (%s), ese save da damaged sin tocar y el siguiente la aparta',
     async (code) => {
       const { dataDirectory, file } = await damagedBase((path) => truncateSync(path, 100));

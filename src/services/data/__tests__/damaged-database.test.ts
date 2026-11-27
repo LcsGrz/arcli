@@ -44,34 +44,27 @@ const settle = (promise: Promise<SaveOutcome>): Promise<unknown> => promise.catc
 const setAsideNames = (file: string) => readdirSync(dirname(file)).filter((name) => name.includes('danada'));
 
 describe('una base dañada se aparta y se repone (ARQ-12 PR 4b)', () => {
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails.each(DAMAGES)(
-    '%s, sin copias: queda apartada igual y save guarda en una v1 vacía',
-    async (_name, damage) => {
-      const { dataDirectory, file } = await damagedBase(damage);
-      const before = fingerprint(file);
+  it.each(DAMAGES)('%s, sin copias: queda apartada igual y save guarda en una v1 vacía', async (_name, damage) => {
+    const { dataDirectory, file } = await damagedBase(damage);
+    const before = fingerprint(file);
 
-      const outcome = await settle(openStore(dataDirectory, { backups: OFF }).save(NEXT));
+    const outcome = await settle(openStore(dataDirectory, { backups: OFF }).save(NEXT));
 
-      expect(outcome).toMatchObject({ kind: 'saved', recovered: { setAside: expect.stringMatching(/danada/) } });
+    expect(outcome).toMatchObject({ kind: 'saved', recovered: { setAside: expect.stringMatching(/danada/) } });
 
-      const recovered = recoveryOf(outcome as SaveOutcome) as Recovery;
+    const recovered = recoveryOf(outcome as SaveOutcome) as Recovery;
 
-      expect(recovered.restoredFrom).toBeUndefined();
-      expect(dirname(recovered.setAside)).toBe(dirname(file));
-      expect(basename(recovered.setAside)).toMatch(DAMAGED_NAME);
-      expect(fingerprint(recovered.setAside)).toMatchObject({ hash: before.hash, size: before.size });
-      expect(health(file)).toEqual({ applicationId: APPLICATION_ID, check: 'ok', version: SCHEMA_V1 });
-      expect(caes(file)).toEqual([NEXT.cae]);
-      expect(restoredEvents(file)).toEqual([
-        { cae: null, datos: expect.stringContaining(basename(recovered.setAside)) },
-      ]);
-      await expect(openStore(dataDirectory).findByCae(NEXT.cae)).resolves.toMatchObject({ numero: NEXT.numero });
-    },
-  );
+    expect(recovered.restoredFrom).toBeUndefined();
+    expect(dirname(recovered.setAside)).toBe(dirname(file));
+    expect(basename(recovered.setAside)).toMatch(DAMAGED_NAME);
+    expect(fingerprint(recovered.setAside)).toMatchObject({ hash: before.hash, size: before.size });
+    expect(health(file)).toEqual({ applicationId: APPLICATION_ID, check: 'ok', version: SCHEMA_V1 });
+    expect(caes(file)).toEqual([NEXT.cae]);
+    expect(restoredEvents(file)).toEqual([{ cae: null, datos: expect.stringContaining(basename(recovered.setAside)) }]);
+    await expect(openStore(dataDirectory).findByCae(NEXT.cae)).resolves.toMatchObject({ numero: NEXT.numero });
+  });
 
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.runIf(withPermissions).fails('la base repuesta queda 0600', async () => {
+  it.runIf(withPermissions)('la base repuesta queda 0600', async () => {
     const { dataDirectory, file } = await damagedBase((path) => truncateSync(path, 100));
 
     await expect(openStore(dataDirectory, { backups: OFF }).save(NEXT)).resolves.toMatchObject({ kind: 'saved' });
@@ -79,8 +72,7 @@ describe('una base dañada se aparta y se repone (ARQ-12 PR 4b)', () => {
   });
 
   // El -journal es parte de la base: apartar solo el archivo principal perdería lo que el journal tenía.
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('el -journal se aparta con la dañada, byte a byte', async () => {
+  it('el -journal se aparta con la dañada, byte a byte', async () => {
     const { dataDirectory, file } = await damagedBase((path) => truncateSync(path, 100));
     const journal = `${file}-journal`;
 
@@ -99,8 +91,7 @@ describe('una base dañada se aparta y se repone (ARQ-12 PR 4b)', () => {
   });
 
   // Dos daños el mismo día no se pisan: cada dañada queda con su nombre.
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('dos daños el mismo día dejan dos apartadas distintas', async () => {
+  it('dos daños el mismo día dejan dos apartadas distintas', async () => {
     const { dataDirectory, file } = await damagedBase((path) => truncateSync(path, 100));
     const first = fingerprint(file);
 
@@ -145,8 +136,7 @@ describe('una base dañada se aparta y se repone (ARQ-12 PR 4b)', () => {
     return { clock, dataDirectory, file, newer, older };
   }
 
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('con copias, repone desde la última y la copia queda donde estaba', async () => {
+  it('con copias, repone desde la última y la copia queda donde estaba', async () => {
     const { clock, dataDirectory, file, newer, older } = await damagedWithCopies();
     const copiesBefore = [fingerprint(older), fingerprint(newer)];
 
@@ -160,8 +150,7 @@ describe('una base dañada se aparta y se repone (ARQ-12 PR 4b)', () => {
     expect(setAsideNames(file)).toHaveLength(1);
   });
 
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('si la última copia también está dañada, repone desde la anterior sin tocar la dañada', async () => {
+  it('si la última copia también está dañada, repone desde la anterior sin tocar la dañada', async () => {
     const { clock, dataDirectory, file, newer, older } = await damagedWithCopies();
 
     truncateSync(newer, 100);
@@ -175,8 +164,7 @@ describe('una base dañada se aparta y se repone (ARQ-12 PR 4b)', () => {
   });
 
   // Un temporal de más de 10 minutos es de un proceso que murió creando la base: no hay nadie creándola.
-  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
-  it.fails('con un temporal viejo al lado, la aparta igual', async () => {
+  it('con un temporal viejo al lado, la aparta igual', async () => {
     const { dataDirectory, file } = await damagedBase((path) => truncateSync(path, 100));
     const temporary = join(dirname(file), '.nueva-0000abcd');
 
