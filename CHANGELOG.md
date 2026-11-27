@@ -107,9 +107,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Asistente:** el menú abre sin esperar a ARCA ni a npm: el estado de ARCA y la versión nueva se completan solos (#295).
 - **Salida:** los comandos no esperan a npm al terminar; si no contestó, consulta el próximo (#295).
 - **Factura E:** en el asistente, la lista de incoterms muestra el nombre del marcado, como `Free on Board` (#296).
-- **Monotributo:** la tabla ocupa el ancho de la terminal y tu categoría va resaltada de punta a punta; lo que la explica, debajo.
-- **Consultas:** en `parametros` y `monotributo`, lo que explica cada tabla va debajo de ella, centrado, sin la línea de adentro.
-- **Asistente:** en "Ver todas las columnas" del monotributo, si un bloque no entra, ←/→ corren sus columnas de a una.
+- **Monotributo:** la tabla ocupa el ancho de la terminal y tu categoría va resaltada de punta a punta; lo que la explica, debajo (#317).
+- **Consultas:** en `parametros` y `monotributo`, lo que explica cada tabla va debajo de ella, centrado, sin la línea de adentro (#317).
+- **Asistente:** en "Ver todas las columnas" del monotributo, si un bloque no entra, ←/→ corren sus columnas de a una (#317).
 
 <details><summary>Detalle</summary>
 
