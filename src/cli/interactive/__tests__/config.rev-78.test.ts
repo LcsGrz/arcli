@@ -190,8 +190,7 @@ const pick = (keys: readonly ConfigPublicKey[]) =>
   Object.fromEntries(keys.map((key) => [key, UNSAVED_VALUES[key as keyof typeof UNSAVED_VALUES]]));
 
 describe('A. el valor de cada dato, el mismo en el asistente y en `arcli config`', () => {
-  // Tests primero (REV-78): pasa a it() al implementarlo.
-  it.fails('sin nada guardado, el asistente muestra el valor por defecto, con "(por defecto)"', async () => {
+  it('sin nada guardado, el asistente muestra el valor por defecto, con "(por defecto)"', async () => {
     expect(await assistantValues()).toMatchObject(UNSAVED_VALUES);
   });
 
@@ -199,15 +198,11 @@ describe('A. el valor de cada dato, el mismo en el asistente y en `arcli config`
     expect(await configRows()).toMatchObject(pick(UNSAVED_VALUES_ALREADY_SHOWN));
   });
 
-  // Tests primero (REV-78): pasa a it() al implementarlo.
-  it.fails(
-    'sin nada guardado, `arcli config` suma "(por defecto)" en el padrón, la FCE, el PDF y las carpetas',
-    async () => {
-      expect(await configRows()).toMatchObject(
-        pick(['consultarPadron', 'verificarFce', 'pdf', 'pdfCarpeta', 'ticketPath']),
-      );
-    },
-  );
+  it('sin nada guardado, `arcli config` suma "(por defecto)" en el padrón, la FCE, el PDF y las carpetas', async () => {
+    expect(await configRows()).toMatchObject(
+      pick(['consultarPadron', 'verificarFce', 'pdf', 'pdfCarpeta', 'ticketPath']),
+    );
+  });
 
   it('un valor guardado, aunque sea el mismo que el por defecto, no dice "(por defecto)" en `arcli config`', async () => {
     save('alicuota', '21');
@@ -240,8 +235,7 @@ describe('A. el valor de cada dato, el mismo en el asistente y en `arcli config`
   });
 
   // Una sola función para las dos pantallas: cada dato del asistente dice lo mismo que su fila de `arcli config`.
-  // Tests primero (REV-78): pasa a it() al implementarlo.
-  it.fails.each([['sin nada guardado'], ['con todo guardado']])(
+  it.each([['sin nada guardado'], ['con todo guardado']])(
     'el asistente y `arcli config` muestran el mismo texto de cada dato, %s',
     async (state) => {
       if (state === 'con todo guardado') {
@@ -261,8 +255,7 @@ describe('A. el valor de cada dato, el mismo en el asistente y en `arcli config`
 });
 
 describe('B. las carpetas se arrastran como carpetas', () => {
-  // Tests primero (REV-78): pasa a it() al implementarlo.
-  it.fails.each([['pdfCarpeta'], ['ticketPath']] as const)('%s: "podés arrastrar la carpeta"', async (key) => {
+  it.each([['pdfCarpeta'], ['ticketPath']] as const)('%s: "podés arrastrar la carpeta"', async (key) => {
     const { message } = await questionOf(key);
 
     expect(message).toContain('podés arrastrar la carpeta');
@@ -292,32 +285,23 @@ const LISTED_WITH_DEFAULT = [
 ] as const;
 
 describe('C. dejar o volver al valor por defecto, o borrar', () => {
-  // Tests primero (REV-78): pasa a it() al implementarlo.
-  it.fails(
-    'sin nada guardado, la alícuota ofrece "Dejar el de por defecto (21%)", no "Dejar sin configurar"',
-    async () => {
-      const { options } = await questionOf('alicuota');
+  it('sin nada guardado, la alícuota ofrece "Dejar el de por defecto (21%)", no "Dejar sin configurar"', async () => {
+    const { options } = await questionOf('alicuota');
 
-      expect(options).toContain('Dejar el de por defecto (21%)');
-      expect(options).not.toContain('Dejar sin configurar');
-    },
-  );
+    expect(options).toContain('Dejar el de por defecto (21%)');
+    expect(options).not.toContain('Dejar sin configurar');
+  });
 
-  // Tests primero (REV-78): pasa a it() al implementarlo.
-  it.fails(
-    'con una alícuota guardada, ofrece "Volver al de por defecto (21%)", no "Quitar el valor por defecto"',
-    async () => {
-      save('alicuota');
+  it('con una alícuota guardada, ofrece "Volver al de por defecto (21%)", no "Quitar el valor por defecto"', async () => {
+    save('alicuota');
 
-      const { options } = await questionOf('alicuota');
+    const { options } = await questionOf('alicuota');
 
-      expect(options).toContain('Volver al de por defecto (21%)');
-      expect(options).not.toContain('Quitar el valor por defecto');
-    },
-  );
+    expect(options).toContain('Volver al de por defecto (21%)');
+    expect(options).not.toContain('Quitar el valor por defecto');
+  });
 
-  // Tests primero (REV-78): pasa a it() al implementarlo.
-  it.fails.each(LISTED_WITH_DEFAULT)('%s sin guardar: "Dejar el de por defecto (…)"', async (key, defaultShown) => {
+  it.each(LISTED_WITH_DEFAULT)('%s sin guardar: "Dejar el de por defecto (…)"', async (key, defaultShown) => {
     const { options } = await questionOf(key);
     const keep = options.filter((option) => option.startsWith('Dejar'));
 
@@ -325,8 +309,7 @@ describe('C. dejar o volver al valor por defecto, o borrar', () => {
     expect(keep[0]).toMatch(defaultShown);
   });
 
-  // Tests primero (REV-78): pasa a it() al implementarlo.
-  it.fails.each(LISTED_WITH_DEFAULT)('%s guardado: "Volver al de por defecto (…)"', async (key, defaultShown) => {
+  it.each(LISTED_WITH_DEFAULT)('%s guardado: "Volver al de por defecto (…)"', async (key, defaultShown) => {
     save(key);
 
     const { options } = await questionOf(key);
@@ -337,8 +320,7 @@ describe('C. dejar o volver al valor por defecto, o borrar', () => {
   });
 
   // `entorno` y `moneda` quedan guardados desde que se crea la config: siempre se puede volver al por defecto.
-  // Tests primero (REV-78): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['entorno', /\(testing\)$/i],
     ['moneda', /\(PES\)$/],
   ] as const)('%s: "Volver al de por defecto (…)"', async (key, defaultShown) => {
@@ -361,8 +343,7 @@ describe('C. dejar o volver al valor por defecto, o borrar', () => {
     },
   );
 
-  // Tests primero (REV-78): pasa a it() al implementarlo.
-  it.fails.each([['concepto'], ['ivaReceptor'], ['condicionVenta']] as const)(
+  it.each([['concepto'], ['ivaReceptor'], ['condicionVenta']] as const)(
     '%s, sin valor por defecto y guardado: "Borrar (queda sin configurar)"',
     async (key) => {
       save(key);
@@ -374,8 +355,7 @@ describe('C. dejar o volver al valor por defecto, o borrar', () => {
     },
   );
 
-  // Tests primero (REV-78): pasa a it() al implementarlo.
-  it.fails.each([['filasPorLista'], ['pdfCarpeta'], ['ticketPath'], ['cotizacion']] as const)(
+  it.each([['filasPorLista'], ['pdfCarpeta'], ['ticketPath'], ['cotizacion']] as const)(
     '%s guardado, escrito: "-" para volver al de por defecto',
     async (key) => {
       save(key);
@@ -407,16 +387,14 @@ describe('C. dejar o volver al valor por defecto, o borrar', () => {
 });
 
 describe('D. los nombres de las opciones', () => {
-  // Tests primero (REV-78): pasa a it() al implementarlo.
-  it.fails('el entorno se elige entre "testing" y "producción", con tilde; se guarda igual', async () => {
+  it('el entorno se elige entre "testing" y "producción", con tilde; se guarda igual', async () => {
     const { options, values } = await questionOf('entorno');
 
     expect(options.slice(0, 2)).toEqual(['testing', 'producción']);
     expect(values.slice(0, 2)).toEqual(['testing', 'produccion']);
   });
 
-  // Tests primero (REV-78): pasa a it() al implementarlo.
-  it.fails('el PDF ofrece "Siempre", "Preguntar" y "Nunca", con mayúscula; se guarda igual', async () => {
+  it('el PDF ofrece "Siempre", "Preguntar" y "Nunca", con mayúscula; se guarda igual', async () => {
     const { options, values } = await questionOf('pdf');
 
     expect(options.slice(0, 3)).toEqual(['Siempre', 'Preguntar', 'Nunca']);

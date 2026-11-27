@@ -13,7 +13,10 @@ import {
   toneText,
   uiSymbol,
 } from '../../ui/primitives';
+import { conceptCode, conceptLabel, ivaConditionCode, ivaConditionLabel } from '../billing/arca-codes';
+import { DEFAULT_IVA_RATE } from '../billing/billing.amounts';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
+import { SALE_CONDITION_LABELS, type SaleConditionKey } from '../billing/sale-condition';
 import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 import { formatSavedAccount } from './cbu-alias-change';
@@ -203,57 +206,132 @@ const ROWS_PER_LIST_JSON_DEPRECATION =
 
 const NOT_SET = 'sin configurar';
 const INVALID = 'dato inválido';
+const BY_DEFAULT = '(por defecto)';
 
-type PublicConfigValue = (config: PublicConfigSnapshot) => number | string;
+/** Lo guardado, como se muestra; `undefined` si no hay nada guardado. */
+type SavedConfigText = (config: PublicConfigSnapshot, raw: ArcliConfig) => number | string | undefined;
 
-const notSet = (value: number | string | undefined): number | string => value ?? NOT_SET;
-const yesNo = (value: boolean | undefined): string => (value ? 'sí' : 'no');
+const yesNo = (value: boolean): string => (value ? 'sí' : 'no');
+const optionalYesNo = (value: boolean | undefined): string | undefined =>
+  value === undefined ? undefined : yesNo(value);
+const formatIvaRate = (rate: string): string => `${rate.replace('.', ',')}%`;
+const ivaCondition = (value: ArcliConfig['ivaReceptorPorDefecto']): string | undefined =>
+  value && ivaConditionLabel(ivaConditionCode(value));
+const saleCondition = (value: string | undefined): string | undefined =>
+  value && (Object.hasOwn(SALE_CONDITION_LABELS, value) ? SALE_CONDITION_LABELS[value as SaleConditionKey] : value);
 
-/** Como se muestra cada dato en `arcli config`. */
-const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
-  alicuota: (c) => (c.alicuota ? `${String(c.alicuota).replace('.', ',')}%` : '21% (por defecto)'),
+/** Como se muestra cada dato guardado, en `arcli config` y en "Modificar configuración" del asistente. */
+const SAVED_TEXTS: Record<ConfigPublicKey, SavedConfigText> = {
+  alicuota: (c) => c.alicuota && formatIvaRate(c.alicuota),
   bruto: (c) => yesNo(c.bruto),
-  'cert.produccion': (c) => notSet(c.cert.produccion),
-  'cert.testing': (c) => notSet(c.cert.testing),
-  concepto: (c) => notSet(c.concepto),
-  condicionVenta: (c) => notSet(c.condicionVenta),
-  cotizacion: (c) => formatExchangeRate(c.cotizacion ?? 1),
-  cuenta: (c) => notSet(formatSavedAccount(c)),
-  cuit: (c) => (c.cuit ? formatCuit(c.cuit) : NOT_SET),
-  'emisor.condicionIva': (c) => c.emisor.condicionIva ?? 'según la letra',
-  'emisor.domicilio': (c) => notSet(c.emisor.domicilio),
-  'emisor.iibb': (c) => notSet(c.emisor.iibb),
+  'cert.produccion': (c) => c.cert.produccion,
+  'cert.testing': (c) => c.cert.testing,
+  concepto: (c) => c.concepto && conceptLabel(conceptCode(c.concepto)),
+  condicionVenta: (c) => saleCondition(c.condicionVenta),
+  cotizacion: (c) => (c.cotizacion === undefined ? undefined : formatExchangeRate(c.cotizacion)),
+  cuenta: (c) => formatSavedAccount(c),
+  cuit: (c) => c.cuit && formatCuit(c.cuit),
+  'emisor.condicionIva': (c) => ivaCondition(c.emisor.condicionIva),
+  'emisor.domicilio': (c) => c.emisor.domicilio,
+  'emisor.iibb': (c) => c.emisor.iibb,
   'emisor.inicioActividades': (c) =>
-    c.emisor.inicioActividades ? formatArcaDateAsArgentineDate(c.emisor.inicioActividades) : NOT_SET,
-  'emisor.logo': (c) => notSet(c.emisor.logo),
-  'emisor.razonSocial': (c) => notSet(c.emisor.razonSocial),
+    c.emisor.inicioActividades && formatArcaDateAsArgentineDate(c.emisor.inicioActividades),
+  'emisor.logo': (c) => c.emisor.logo,
+  'emisor.razonSocial': (c) => c.emisor.razonSocial,
   emitir: (c) => yesNo(c.emitir),
   entorno: (c) => formatEnvironmentLabel(c.entorno),
-  'exportacion.actividad': (c) => notSet(c.exportacion.actividad),
-  'exportacion.cert.produccion': (c) => notSet(c.exportacion.cert.produccion),
-  'exportacion.cert.testing': (c) => notSet(c.exportacion.cert.testing),
-  'exportacion.key.produccion': (c) => notSet(c.exportacion.key.produccion),
-  'exportacion.key.testing': (c) => notSet(c.exportacion.key.testing),
-  filasPorLista: (c) => c.filasPorLista ?? `${RECENT_VOUCHERS_LIMIT} (por defecto)`,
-  ivaReceptor: (c) => notSet(c.ivaReceptor),
+  'exportacion.actividad': (c) => c.exportacion.actividad,
+  'exportacion.cert.produccion': (c) => c.exportacion.cert.produccion,
+  'exportacion.cert.testing': (c) => c.exportacion.cert.testing,
+  'exportacion.key.produccion': (c) => c.exportacion.key.produccion,
+  'exportacion.key.testing': (c) => c.exportacion.key.testing,
+  filasPorLista: (c) => c.filasPorLista,
+  ivaReceptor: (c) => ivaCondition(c.ivaReceptor),
   json: (c) => yesNo(c.json),
-  'key.produccion': (c) => notSet(c.key.produccion),
-  'key.testing': (c) => notSet(c.key.testing),
-  moneda: (c) => c.moneda ?? ARCA_LOCAL_CURRENCY_CODE,
-  'monotributo.tope': (c) => (c.monotributo ? formatArgentineMoney(c.monotributo.tope) : 'el de tu categoría'),
-  pdf: (c) => c.pdf,
-  pdfCarpeta: (c) => c.pdfCarpeta,
-  pdfNavegador: (c) => c.pdfNavegador ?? 'automático',
-  puntoVenta: (c) => notSet(c.puntoVenta),
-  ticketPath: (c) => c.ticketPath,
-  verificarFce: (c) => yesNo(c.verificarFce),
-  consultarPadron: (c) => yesNo(isPadronLookupEnabled(c)),
+  'key.produccion': (c) => c.key.produccion,
+  'key.testing': (c) => c.key.testing,
+  moneda: (c) => c.moneda,
+  'monotributo.tope': (c) => c.monotributo && formatArgentineMoney(c.monotributo.tope),
+  // El snapshot trae el valor por defecto en su lugar: si está guardado lo dice la config.
+  pdf: (_c, raw) => raw.pdf,
+  pdfCarpeta: (c, raw) => (raw.pdfCarpeta ? c.pdfCarpeta : undefined),
+  pdfNavegador: (c) => c.pdfNavegador,
+  puntoVenta: (c) => c.puntoVenta,
+  ticketPath: (c, raw) => (raw.ticketPath ? c.ticketPath : undefined),
+  verificarFce: (c) => optionalYesNo(c.verificarFce),
+  consultarPadron: (_c, raw) => optionalYesNo(raw.consultarPadron),
 };
 
+interface ConfigDefault {
+  /** Con "(por defecto)" al lado. Sin marca, el texto ya dice que no hay uno fijo: "automático", "según la letra". */
+  readonly marked: boolean;
+  /** Las carpetas son las de `paths`, que sin una guardada son las por defecto. */
+  readonly text: (paths: ConfigPathSnapshot) => string;
+}
+
+const marked = (text: (paths: ConfigPathSnapshot) => string): ConfigDefault => ({ marked: true, text });
+const unmarked = (text: string): ConfigDefault => ({ marked: false, text: () => text });
+
+/** Lo que vale un dato sin nada guardado. Un dato que no está acá queda "sin configurar". */
+const CONFIG_DEFAULTS: Partial<Record<ConfigPublicKey, ConfigDefault>> = {
+  alicuota: marked(() => formatIvaRate(DEFAULT_IVA_RATE)),
+  consultarPadron: marked(() => yesNo(isPadronLookupEnabled({}))),
+  cotizacion: marked(() => formatExchangeRate(1)),
+  'emisor.condicionIva': unmarked('según la letra'),
+  entorno: marked(() => formatEnvironmentLabel('testing')),
+  filasPorLista: marked(() => String(RECENT_VOUCHERS_LIMIT)),
+  moneda: marked(() => ARCA_LOCAL_CURRENCY_CODE),
+  'monotributo.tope': unmarked('el de tu categoría'),
+  pdf: marked(() => 'preguntar'),
+  pdfCarpeta: marked((paths) => maskPath(paths.pdfFolder)),
+  pdfNavegador: unmarked('automático'),
+  ticketPath: marked((paths) => maskPath(paths.ticketPath)),
+  verificarFce: marked(() => yesNo(false)),
+};
+
+interface ConfigValueText {
+  readonly byDefault: boolean;
+  /** El dato sin "(por defecto)", que va aparte: en `arcli config` las rutas son links. */
+  readonly text: string;
+}
+
+function configValueText(
+  key: ConfigPublicKey,
+  snapshot: PublicConfigSnapshot,
+  config: ArcliConfig,
+  paths: ConfigPathSnapshot,
+): ConfigValueText {
+  const saved = SAVED_TEXTS[key](snapshot, config);
+
+  if (saved !== undefined && saved !== '') {
+    return { byDefault: false, text: String(saved) };
+  }
+
+  const fallback = CONFIG_DEFAULTS[key];
+
+  return fallback ? { byDefault: fallback.marked, text: fallback.text(paths) } : { byDefault: false, text: NOT_SET };
+}
+
+const withDefaultMark = (text: string, byDefault: boolean): string => (byDefault ? `${text} ${BY_DEFAULT}` : text);
+
 /**
- * La configuracion por secciones, en el mismo orden que "Modificar configuracion" del modo interactivo.
- * El peso esta en los valores: titulos en celeste, etiquetas y datos sin cargar atenuados.
+ * Como se muestra un dato: lo guardado o, sin nada guardado, el valor por defecto con "(por defecto)" o "sin
+ * configurar". Es el mismo texto en `arcli config` y en "Modificar configuración" del asistente.
  */
+export function formatConfigValue(key: ConfigPublicKey, config: ArcliConfig, paths: ConfigPathSnapshot): string {
+  const { byDefault, text } = configValueText(key, toPublicSnapshot(config, paths), config, paths);
+
+  return withDefaultMark(text, byDefault);
+}
+
+/**
+ * El valor por defecto de un dato como se muestra ("21%", "automático"), o `undefined` si no tiene uno y sin nada
+ * guardado queda sin configurar. Las carpetas salen de `paths`: con una guardada, `paths` trae esa.
+ */
+export function configDefaultText(key: ConfigPublicKey, paths: ConfigPathSnapshot): string | undefined {
+  return CONFIG_DEFAULTS[key]?.text(paths);
+}
+
 /** La ruta completa de cada clave que es una ruta, para el link de `arcli config`. */
 const CONFIG_PATHS: Partial<
   Record<ConfigPublicKey, (config: ArcliConfig, paths: ConfigPathSnapshot) => string | undefined>
@@ -272,6 +350,10 @@ const CONFIG_PATHS: Partial<
   ticketPath: (_c, paths) => paths.ticketPath,
 };
 
+/**
+ * La configuracion por secciones, en el mismo orden que "Modificar configuracion" del modo interactivo.
+ * El peso esta en los valores: titulos en celeste, etiquetas y datos sin cargar atenuados.
+ */
 export function formatConfigAsText(
   config: ArcliConfig,
   paths: ConfigPathSnapshot,
@@ -287,15 +369,11 @@ export function formatConfigAsText(
         return [CONFIG_LABELS[key], colorize(INVALID, 'warning')] as const;
       }
 
+      const { byDefault, text } = configValueText(key, safeConfig, config, paths);
       const path = CONFIG_PATHS[key]?.(config, paths);
 
       // Las rutas se abren con un clic; el texto es el mismo que sin link.
-      return [
-        CONFIG_LABELS[key],
-        path
-          ? pathLink(path, String(CONFIG_TEXT_VALUES[key](safeConfig)))
-          : String(CONFIG_TEXT_VALUES[key](safeConfig)),
-      ] as const;
+      return [CONFIG_LABELS[key], withDefaultMark(path ? pathLink(path, text) : text, byDefault)] as const;
     }),
   }));
   // La carpeta de `arcli certificado` no es una clave de config: va al final de Certificados, como la de tickets.

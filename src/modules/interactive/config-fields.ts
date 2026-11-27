@@ -1,6 +1,5 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
-import { maskPath } from '../../lib/paths/mask-path';
 import { ivaConditionCode, ivaConditionLabel } from '../billing/arca-codes';
 import { SALE_CONDITION_KEYS, SALE_CONDITION_LABELS } from '../billing/sale-condition';
 import { formatSavedAccount } from '../config/cbu-alias-change';
@@ -10,7 +9,9 @@ import {
   arcliDefaultIvaConditionSchema,
   type ArcliEnvironment,
   arcliEnvironmentSchema,
+  type ArcliPdfMode,
   arcliPdfModeSchema,
+  formatEnvironmentLabel,
   resolveConfiguredRowsPerList,
 } from '../config/config.schemas';
 import { CONFIG_LABELS } from '../config/config.sections';
@@ -29,6 +30,12 @@ const IVA_CONDITION_LABELS = Object.fromEntries(
 
 const YES_NO_LABELS = { no: 'No', si: 'Sí' };
 
+const PDF_MODE_LABELS: Readonly<Record<ArcliPdfMode, string>> = {
+  nunca: 'Nunca',
+  preguntar: 'Preguntar',
+  siempre: 'Siempre',
+};
+
 /** Un dato de la config que se puede cambiar desde el modo interactivo. */
 export interface ConfigField {
   /** Valores posibles para elegir de una lista; sin esto se escribe. */
@@ -41,8 +48,8 @@ export interface ConfigField {
   readonly key: ConfigPublicKey;
   /** El mismo nombre que en `arcli config` (ver CONFIG_LABELS). */
   readonly label: string;
-  /** Las rutas se muestran enmascaradas, igual que en `arcli config`. */
-  readonly path?: boolean;
+  /** Una ruta: se puede arrastrar el archivo o la carpeta a la terminal. */
+  readonly path?: 'archivo' | 'carpeta';
   readonly read: (config: ArcliConfig) => string | undefined;
 }
 
@@ -55,34 +62,37 @@ const date = (value: string | undefined) => (value ? formatArcaDateAsArgentineDa
 const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
   { key: 'cuit', read: (c) => c.cuit, hint: '11 dígitos' },
   {
+    choiceLabels: Object.fromEntries(
+      arcliEnvironmentSchema.options.map((environment) => [environment, formatEnvironmentLabel(environment)]),
+    ),
     choices: arcliEnvironmentSchema.options,
     key: 'entorno',
     read: (c) => c.entornoPorDefecto,
   },
   {
     key: 'cert.testing',
-    path: true,
+    path: 'archivo',
     read: (c) => c.cert.testing,
   },
   {
     key: 'key.testing',
-    path: true,
+    path: 'archivo',
     read: (c) => c.key.testing,
   },
   {
     key: 'cert.produccion',
-    path: true,
+    path: 'archivo',
     read: (c) => c.cert.produccion,
   },
   {
     key: 'key.produccion',
-    path: true,
+    path: 'archivo',
     read: (c) => c.key.produccion,
   },
-  { key: 'exportacion.cert.testing', path: true, read: (c) => c.exportacion?.cert.testing },
-  { key: 'exportacion.key.testing', path: true, read: (c) => c.exportacion?.key.testing },
-  { key: 'exportacion.cert.produccion', path: true, read: (c) => c.exportacion?.cert.produccion },
-  { key: 'exportacion.key.produccion', path: true, read: (c) => c.exportacion?.key.produccion },
+  { key: 'exportacion.cert.testing', path: 'archivo', read: (c) => c.exportacion?.cert.testing },
+  { key: 'exportacion.key.testing', path: 'archivo', read: (c) => c.exportacion?.key.testing },
+  { key: 'exportacion.cert.produccion', path: 'archivo', read: (c) => c.exportacion?.cert.produccion },
+  { key: 'exportacion.key.produccion', path: 'archivo', read: (c) => c.exportacion?.key.produccion },
   {
     hint: 'código de la tabla de WSFEX, por ejemplo 620100',
     key: 'exportacion.actividad',
@@ -121,7 +131,6 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
   {
     choiceLabels: YES_NO_LABELS,
     choices: ['si', 'no'],
-    hint: 'por defecto si',
     key: 'consultarPadron',
     read: (c) => (c.consultarPadron === undefined ? undefined : c.consultarPadron ? 'si' : 'no'),
   },
@@ -132,12 +141,13 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
     read: (c) => (c.verificarFce === undefined ? undefined : c.verificarFce ? 'si' : 'no'),
   },
   {
+    choiceLabels: PDF_MODE_LABELS,
     choices: arcliPdfModeSchema.options,
     key: 'pdf',
     read: (c) => c.pdf,
   },
-  { key: 'pdfCarpeta', path: true, read: (c) => c.pdfCarpeta },
-  { key: 'pdfNavegador', path: true, read: (c) => c.pdfNavegador },
+  { key: 'pdfCarpeta', path: 'carpeta', read: (c) => c.pdfCarpeta },
+  { key: 'pdfNavegador', path: 'archivo', read: (c) => c.pdfNavegador },
   {
     choices: SALE_CONDITION_KEYS,
     choiceLabels: SALE_CONDITION_LABELS,
@@ -159,7 +169,7 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
     key: 'emisor.condicionIva',
     read: (c) => c.emisor.condicionIva,
   },
-  { key: 'emisor.logo', path: true, read: (c) => c.emisor.logo },
+  { key: 'emisor.logo', path: 'archivo', read: (c) => c.emisor.logo },
   {
     hint: 'código de moneda, por ejemplo PES o USD',
     key: 'moneda',
@@ -171,7 +181,7 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
     read: (c) =>
       c.cotizacionPorDefecto === undefined ? undefined : formatArgentineAmountInput(c.cotizacionPorDefecto),
   },
-  { key: 'ticketPath', path: true, read: (c) => c.ticketPath },
+  { key: 'ticketPath', path: 'carpeta', read: (c) => c.ticketPath },
   {
     hint: 'ingresos anuales en pesos, por ejemplo 30.000.000; sin configurar, el de tu categoría',
     key: 'monotributo.tope',
@@ -192,17 +202,6 @@ export function getConfigField(key: ConfigPublicKey): ConfigField {
   }
 
   return field;
-}
-
-/** Valor para mostrar al lado del nombre. */
-export function describeConfigValue(field: ConfigField, config: ArcliConfig): string {
-  const value = field.read(config);
-
-  if (!value) {
-    return 'sin configurar';
-  }
-
-  return field.path ? maskPath(value) : (field.choiceLabels?.[value] ?? value);
 }
 
 /** El entorno en que va a emitir el asistente: el de `--produccion` o `--testing` de `arcli interactivo`, o el de la config. */

@@ -13,42 +13,42 @@ Certificados
   Clave de exportación (testing): sin configurar [exportacion.key.testing]
   Certificado de exportación (producción): sin configurar [exportacion.cert.produccion]
   Clave de exportación (producción): sin configurar [exportacion.key.produccion]
-  Carpeta de tickets WSAA: sin configurar [ticketPath]
+  Carpeta de tickets WSAA: .../config/tickets (por defecto) [ticketPath]
 
 Al facturar
   Concepto: sin configurar [concepto]
   IVA del receptor: sin configurar [ivaReceptor]
-  IVA del receptor desde el padrón: sin configurar [consultarPadron]
-  Alícuota de IVA (A y B): sin configurar [alicuota]
+  IVA del receptor desde el padrón: sí (por defecto) [consultarPadron]
+  Alícuota de IVA (A y B): 21% (por defecto) [alicuota]
   Moneda: PES [moneda]
   Cotización (deprecada): 1 [cotizacion]
 
 Factura de crédito electrónica (FCE)
   Cuenta bancaria (CBU y alias): sin configurar [cuenta]
-  Verificar régimen FCE del receptor: sin configurar [verificarFce]
+  Verificar régimen FCE del receptor: no (por defecto) [verificarFce]
 
 Factura de exportación (E)
   Actividad de exportación (WSFEX): sin configurar [exportacion.actividad]
 
 Monotributo
-  Tope de ingresos anuales propio: sin configurar [monotributo.tope]
+  Tope de ingresos anuales propio: el de tu categoría [monotributo.tope]
 
 Datos del emisor (PDF)
   Razón social: sin configurar [emisor.razonSocial]
   Domicilio comercial: sin configurar [emisor.domicilio]
   Inicio de actividades: sin configurar [emisor.inicioActividades]
   Ingresos Brutos: sin configurar [emisor.iibb]
-  Condición de IVA: sin configurar [emisor.condicionIva]
+  Condición de IVA: según la letra [emisor.condicionIva]
   Logo (PNG o JPG): sin configurar [emisor.logo]
 
 PDF
-  Cuándo generar el PDF: sin configurar [pdf]
-  Carpeta de PDFs: sin configurar [pdfCarpeta]
-  Navegador para PDFs: sin configurar [pdfNavegador]
+  Cuándo generar el PDF: preguntar (por defecto) [pdf]
+  Carpeta de PDFs: .../arcli/comprobantes (por defecto) [pdfCarpeta]
+  Navegador para PDFs: automático [pdfNavegador]
   Condición de venta (PDF de A, B y C): sin configurar [condicionVenta]
 
 Salida y listados
-  Filas por lista: sin configurar [filasPorLista]
+  Filas por lista: 15 (por defecto) [filasPorLista]
 
 Preguntas
   cuit
@@ -60,8 +60,8 @@ Preguntas
   entorno
     elige: Entorno:
       "testing" testing
-      "produccion" produccion
-      Symbol(borrar) Quitar el valor por defecto
+      "produccion" producción
+      Symbol(borrar) Volver al de por defecto (testing)
       propone "testing"
   cert.testing
     escribe: Certificado de testing (podés arrastrar el archivo):
@@ -88,7 +88,7 @@ Preguntas
     escribe: Clave de exportación (producción) (podés arrastrar el archivo):
       propone nada
   ticketPath
-    escribe: Carpeta de tickets WSAA (podés arrastrar el archivo):
+    escribe: Carpeta de tickets WSAA (podés arrastrar la carpeta):
       propone nada
   concepto
     elige: Concepto:
@@ -116,7 +116,7 @@ Preguntas
     elige: IVA del receptor desde el padrón:
       "si" Sí
       "no" No
-      Symbol(mantener) Dejar sin configurar
+      Symbol(mantener) Dejar el de por defecto (sí)
       propone nada
   alicuota
     elige: Alícuota de IVA (A y B):
@@ -126,18 +126,18 @@ Preguntas
       "5" 5%
       "2.5" 2,5%
       "0" 0%
-      Symbol(mantener) Dejar sin configurar
+      Symbol(mantener) Dejar el de por defecto (21%)
       propone nada
   moneda
     elige o escribe: Moneda:
       "PES" PES     Pesos argentinos
       "DOL" DOL     Dólares estadounidenses
       "060" 060     Euros
-      Symbol(borrar) Quitar el valor por defecto
+      Symbol(borrar) Volver al de por defecto (PES)
       (50 filas)
       propone "PES"
   cotizacion
-    escribe: Cotización (deprecada) (solo para moneda extranjera, "-" para borrar):
+    escribe: Cotización (deprecada) (solo para moneda extranjera, "-" para volver al de por defecto):
       propone "1"
   cuenta
     escribe: CBU (22 dígitos):
@@ -146,7 +146,7 @@ Preguntas
     elige: Verificar régimen FCE del receptor:
       "si" Sí
       "no" No
-      Symbol(mantener) Dejar sin configurar
+      Symbol(mantener) Dejar el de por defecto (no)
       propone nada
   exportacion.actividad
     escribe: Actividad de exportación (WSFEX) (código de la tabla de WSFEX, por ejemplo 620100):
@@ -179,20 +179,20 @@ Preguntas
       "responsable-monotributo" Responsable monotributo
       "sujeto-exento" Sujeto exento
       "sujeto-no-categorizado" Sujeto no categorizado
-      Symbol(mantener) Dejar sin configurar
+      Symbol(mantener) Dejar el de por defecto (según la letra)
       propone nada
   emisor.logo
     escribe: Logo (PNG o JPG) (podés arrastrar el archivo):
       propone nada
   pdf
     elige: Cuándo generar el PDF:
-      "siempre" siempre
-      "preguntar" preguntar
-      "nunca" nunca
-      Symbol(mantener) Dejar sin configurar
+      "siempre" Siempre
+      "preguntar" Preguntar
+      "nunca" Nunca
+      Symbol(mantener) Dejar el de por defecto (preguntar)
       propone nada
   pdfCarpeta
-    escribe: Carpeta de PDFs (podés arrastrar el archivo):
+    escribe: Carpeta de PDFs (podés arrastrar la carpeta):
       propone nada
   pdfNavegador
     escribe: Navegador para PDFs (podés arrastrar el archivo):
@@ -215,9 +215,9 @@ Preguntas
 
 # Todas las claves
 Cuenta
-  CUIT del emisor: 20123456786 [cuit]
+  CUIT del emisor: 20-12345678-6 [cuit]
   Punto de venta: 3 [puntoVenta]
-  Entorno: produccion [entorno]
+  Entorno: producción [entorno]
 
 Certificados
   Certificado de testing: .../config/cert-testing.pem [cert.testing]
@@ -233,20 +233,20 @@ Certificados
 Al facturar
   Concepto: Productos y servicios [concepto]
   IVA del receptor: Consumidor final [ivaReceptor]
-  IVA del receptor desde el padrón: No [consultarPadron]
+  IVA del receptor desde el padrón: no [consultarPadron]
   Alícuota de IVA (A y B): 10,5% [alicuota]
   Moneda: USD [moneda]
-  Cotización (deprecada): 1350,50 [cotizacion]
+  Cotización (deprecada): 1.350,50 [cotizacion]
 
 Factura de crédito electrónica (FCE)
   Cuenta bancaria (CBU y alias): 0110599520000012345678 (mi.alias.cbu) [cuenta]
-  Verificar régimen FCE del receptor: Sí [verificarFce]
+  Verificar régimen FCE del receptor: sí [verificarFce]
 
 Factura de exportación (E)
   Actividad de exportación (WSFEX): 620100 [exportacion.actividad]
 
 Monotributo
-  Tope de ingresos anuales propio: 30000000 [monotributo.tope]
+  Tope de ingresos anuales propio: $ 30.000.000 [monotributo.tope]
 
 Datos del emisor (PDF)
   Razón social: Ana Ficticia [emisor.razonSocial]
@@ -275,8 +275,8 @@ Preguntas
   entorno
     elige: Entorno:
       "testing" testing
-      "produccion" produccion
-      Symbol(borrar) Quitar el valor por defecto
+      "produccion" producción
+      Symbol(borrar) Volver al de por defecto (testing)
       propone "produccion"
   cert.testing
     escribe: Certificado de testing (podés arrastrar el archivo, "-" para borrar):
@@ -303,14 +303,14 @@ Preguntas
     escribe: Clave de exportación (producción) (podés arrastrar el archivo, "-" para borrar):
       propone "<config>/expo-key-produccion.pem"
   ticketPath
-    escribe: Carpeta de tickets WSAA (podés arrastrar el archivo, "-" para borrar):
+    escribe: Carpeta de tickets WSAA (podés arrastrar la carpeta, "-" para volver al de por defecto):
       propone "<config>/tickets-propios"
   concepto
     elige: Concepto:
       "productos" Productos
       "productos-servicios" Productos y servicios
       "servicios" Servicios
-      Symbol(borrar) Quitar el valor por defecto
+      Symbol(borrar) Borrar (queda sin configurar)
       propone "productos-servicios"
   ivaReceptor
     elige: IVA del receptor:
@@ -325,13 +325,13 @@ Preguntas
       "responsable-monotributo" Responsable monotributo
       "sujeto-exento" Sujeto exento
       "sujeto-no-categorizado" Sujeto no categorizado
-      Symbol(borrar) Quitar el valor por defecto
+      Symbol(borrar) Borrar (queda sin configurar)
       propone "consumidor-final"
   consultarPadron
     elige: IVA del receptor desde el padrón:
       "si" Sí
       "no" No
-      Symbol(borrar) Quitar el valor por defecto
+      Symbol(borrar) Volver al de por defecto (sí)
       propone "no"
   alicuota
     elige: Alícuota de IVA (A y B):
@@ -341,18 +341,18 @@ Preguntas
       "5" 5%
       "2.5" 2,5%
       "0" 0%
-      Symbol(borrar) Quitar el valor por defecto
+      Symbol(borrar) Volver al de por defecto (21%)
       propone "10.5"
   moneda
     elige o escribe: Moneda:
       "PES" PES     Pesos argentinos
       "DOL" DOL     Dólares estadounidenses
       "060" 060     Euros
-      Symbol(borrar) Quitar el valor por defecto
+      Symbol(borrar) Volver al de por defecto (PES)
       (50 filas)
       propone "DOL"
   cotizacion
-    escribe: Cotización (deprecada) (solo para moneda extranjera, "-" para borrar):
+    escribe: Cotización (deprecada) (solo para moneda extranjera, "-" para volver al de por defecto):
       propone "1350,50"
   cuenta
     escribe: CBU (22 dígitos, "-" para borrar la cuenta):
@@ -361,13 +361,13 @@ Preguntas
     elige: Verificar régimen FCE del receptor:
       "si" Sí
       "no" No
-      Symbol(borrar) Quitar el valor por defecto
+      Symbol(borrar) Volver al de por defecto (no)
       propone "si"
   exportacion.actividad
     escribe: Actividad de exportación (WSFEX) (código de la tabla de WSFEX, por ejemplo 620100, "-" para borrar):
       propone "620100"
   monotributo.tope
-    escribe: Tope de ingresos anuales propio (ingresos anuales en pesos, por ejemplo 30.000.000; sin configurar, el de tu categoría, "-" para borrar):
+    escribe: Tope de ingresos anuales propio (ingresos anuales en pesos, por ejemplo 30.000.000; sin configurar, el de tu categoría, "-" para volver al de por defecto):
       propone "30000000"
   emisor.razonSocial
     escribe: Razón social ("-" para borrar):
@@ -394,23 +394,23 @@ Preguntas
       "responsable-monotributo" Responsable monotributo
       "sujeto-exento" Sujeto exento
       "sujeto-no-categorizado" Sujeto no categorizado
-      Symbol(borrar) Quitar el valor por defecto
+      Symbol(borrar) Volver al de por defecto (según la letra)
       propone "responsable-inscripto"
   emisor.logo
     escribe: Logo (PNG o JPG) (podés arrastrar el archivo, "-" para borrar):
       propone "<config>/logo.png"
   pdf
     elige: Cuándo generar el PDF:
-      "siempre" siempre
-      "preguntar" preguntar
-      "nunca" nunca
-      Symbol(borrar) Quitar el valor por defecto
+      "siempre" Siempre
+      "preguntar" Preguntar
+      "nunca" Nunca
+      Symbol(borrar) Volver al de por defecto (preguntar)
       propone "siempre"
   pdfCarpeta
-    escribe: Carpeta de PDFs (podés arrastrar el archivo, "-" para borrar):
+    escribe: Carpeta de PDFs (podés arrastrar la carpeta, "-" para volver al de por defecto):
       propone "<config>/pdfs"
   pdfNavegador
-    escribe: Navegador para PDFs (podés arrastrar el archivo, "-" para borrar):
+    escribe: Navegador para PDFs (podés arrastrar el archivo, "-" para volver al de por defecto):
       propone "<config>/navegador"
   condicionVenta
     elige o escribe: Condición de venta (PDF de A, B y C):
@@ -422,8 +422,8 @@ Preguntas
       "transferencia" Transferencia Bancaria
       "otros-medios-electronicos" Otros medios de pago electrónico
       "otra" Otra
-      Symbol(borrar) Quitar el valor por defecto
+      Symbol(borrar) Borrar (queda sin configurar)
       propone "a 45 días"
   filasPorLista
-    escribe: Filas por lista (1 a 50, por defecto 15, "-" para borrar):
+    escribe: Filas por lista (1 a 50, por defecto 15, "-" para volver al de por defecto):
       propone "20"

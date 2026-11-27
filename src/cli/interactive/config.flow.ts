@@ -19,7 +19,13 @@ import {
 } from '../../modules/completion/installer';
 import { COMPLETION_SHELLS, type CompletionShell } from '../../modules/completion/shell-scripts';
 import { accountAliasRemovedWarning, cbuRemovalWarning } from '../../modules/config/cbu-alias-change';
-import { formatConfigAsText, formatConfigDoctorAsText } from '../../modules/config/config.presenter';
+import {
+  configDefaultText,
+  type ConfigPathSnapshot,
+  formatConfigAsText,
+  formatConfigDoctorAsText,
+  formatConfigValue,
+} from '../../modules/config/config.presenter';
 import { type ArcliConfig, type ArcliEnvironment, formatEnvironmentLabel } from '../../modules/config/config.schemas';
 import { CONFIG_SECTIONS } from '../../modules/config/config.sections';
 import { type ConfigService, validateConfigValue } from '../../modules/config/config.service';
@@ -30,7 +36,6 @@ import { createDesktopShortcut, currentDesktopShortcutEnvironment } from '../../
 import {
   CONFIG_FIELDS,
   type ConfigField,
-  describeConfigValue,
   getConfigField,
   resolveActiveEnvironment,
 } from '../../modules/interactive/config-fields';
@@ -57,7 +62,7 @@ import { SKIP_HINT, skipAndRemoveHint } from './text-hints';
 /** `--produccion` o `--testing` de `arcli interactivo`: la configuracion guiada pide el certificado de ese entorno. */
 type EnvironmentFlags = Pick<GlobalCliOptions, 'produccion' | 'testing'>;
 
-// Symbols, no textos: un valor escrito no puede confundirse con "Quitar" o "Dejar sin configurar".
+// Symbols, no textos: un valor escrito no puede confundirse con "Borrar" o "Dejar sin configurar".
 const CLEAR = Symbol('borrar');
 const KEEP = Symbol('mantener');
 
@@ -91,6 +96,34 @@ function readConfig(): ArcliConfig {
   return withInitializedConfig((service) => service.getConfig());
 }
 
+/** La config y sus carpetas, para mostrar cada dato como `arcli config`. */
+function readConfigView(): { readonly config: ArcliConfig; readonly paths: ConfigPathSnapshot } {
+  return withInitializedConfig((service) => {
+    const config = service.getConfig();
+
+    return { config, paths: service.resolvePaths(config) };
+  });
+}
+
+/**
+ * Las opciones para no guardar nada o borrar lo guardado, y el `-` de lo que se escribe: con un valor por defecto,
+ * dicen cuál es; sin uno, que queda sin configurar.
+ */
+function clearTexts(field: ConfigField, config: ArcliConfig) {
+  const byDefault = configDefaultText(
+    field.key,
+    withInitializedConfig((service) => service.resolvePaths(config)),
+  );
+
+  return byDefault === undefined
+    ? { clear: 'Borrar (queda sin configurar)', dash: '"-" para borrar', keep: 'Dejar sin configurar' }
+    : {
+        clear: `Volver al de por defecto (${byDefault})`,
+        dash: '"-" para volver al de por defecto',
+        keep: `Dejar el de por defecto (${byDefault})`,
+      };
+}
+
 function validate(key: ConfigPublicKey, value: string): string | true {
   try {
     validateConfigValue(key, value, nodeLocalFiles);
@@ -115,17 +148,18 @@ async function askField(
 ): Promise<'borrado' | 'guardado' | 'sin-cambios' | typeof BACK> {
   const current = field.read(config);
   const list = await (options.lists ?? configFieldLists()).of(field);
+  const texts = clearTexts(field, config);
   let value: string | typeof CLEAR;
 
   if (list) {
     // De la lista o escrito (TUI-35, TUI-39): un valor propio guardado arranca escrito, y Enter lo deja. Sin valor
-    // guardado arranca en "Dejar sin configurar": Enter no guarda la primera fila.
+    // guardado arranca en "Dejar sin configurar" (o el de por defecto): Enter no guarda la primera fila.
     const answer = await chooseOrTypeStep<string | typeof CLEAR | typeof KEEP>(
       `${field.label}:`,
       [
         ...list.rows,
-        ...(current && !options.required ? [{ label: 'Quitar el valor por defecto', value: CLEAR } as const] : []),
-        ...(!current && !options.required ? [{ label: 'Dejar sin configurar', value: KEEP } as const] : []),
+        ...(current && !options.required ? [{ label: texts.clear, value: CLEAR } as const] : []),
+        ...(!current && !options.required ? [{ label: texts.keep, value: KEEP } as const] : []),
       ],
       {
         header: list.header,
@@ -162,8 +196,8 @@ async function askField(
           name: field.choiceLabels?.[choice] ?? choice,
           value: choice,
         })),
-        ...(current && !options.required ? [{ name: 'Quitar el valor por defecto', value: CLEAR } as const] : []),
-        ...(!current && !options.required ? [{ name: 'Dejar sin configurar', value: KEEP } as const] : []),
+        ...(current && !options.required ? [{ name: texts.clear, value: CLEAR } as const] : []),
+        ...(!current && !options.required ? [{ name: texts.keep, value: KEEP } as const] : []),
       ],
       current,
     );
@@ -178,14 +212,14 @@ async function askField(
 
     value = answer;
   } else {
-    // Con un valor actual, Enter lo deja igual (es el default del prompt); "-" lo borra.
+    // Con un valor actual, Enter lo deja igual (es el default del prompt); "-" lo borra (o vuelve al de por defecto).
     const canClear = !options.required && Boolean(current);
-    // Un archivo arrastrado a la terminal llega entre comillas o con espacios escapados, como en Certificados.
+    // Un archivo o carpeta arrastrado a la terminal llega entre comillas o con espacios escapados, como en Certificados.
     const normalize = (text: string) => (field.path ? normalizeDroppedPath(text, process.platform) : text);
     const hint = [
       field.hint,
-      field.path ? 'podés arrastrar el archivo' : undefined,
-      canClear ? '"-" para borrar' : undefined,
+      field.path ? `podés arrastrar ${field.path === 'carpeta' ? 'la carpeta' : 'el archivo'}` : undefined,
+      canClear ? texts.dash : undefined,
     ]
       .filter(Boolean)
       .join(', ');
@@ -424,7 +458,7 @@ export async function runGuidedSetup(flags: EnvironmentFlags = {}): Promise<void
 }
 
 /** Los datos agrupados por seccion, en el mismo orden que `arcli config`, con un titulo arriba de cada una. */
-function fieldChoicesBySection(config: ArcliConfig): Array<Choice<ConfigField> | Separator> {
+function fieldChoicesBySection(config: ArcliConfig, paths: ConfigPathSnapshot): Array<Choice<ConfigField> | Separator> {
   const sections = CONFIG_SECTIONS.map((section) => ({
     fields: section.keys.flatMap((key) => CONFIG_FIELDS.filter((field) => field.key === key)),
     label: section.label,
@@ -434,7 +468,7 @@ function fieldChoicesBySection(config: ArcliConfig): Array<Choice<ConfigField> |
     ...(index > 0 ? [new Separator(' ')] : []),
     new Separator(bold(section.label)),
     ...section.fields.map((field) => ({
-      description: describeConfigValue(field, config),
+      description: formatConfigValue(field.key, config, paths),
       name: field.label,
       value: field,
     })),
@@ -451,8 +485,8 @@ async function runChangeField(flags: EnvironmentFlags): Promise<void> {
   let lastField: ConfigField | undefined;
 
   for (;;) {
-    const config = readConfig();
-    const choices = fieldChoicesBySection(config);
+    const { config, paths } = readConfigView();
+    const choices = fieldChoicesBySection(config, paths);
     const field = await chooseStep<ConfigField>(
       '¿Qué querés modificar?',
       choices,
