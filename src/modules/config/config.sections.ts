@@ -1,7 +1,16 @@
 import type { ConfigPublicKey } from './config-key-table';
 
 type ConfigSectionId =
-  'certificados' | 'cuenta' | 'emisor' | 'exportacion' | 'facturacion' | 'fce' | 'monotributo' | 'pdf' | 'salida';
+  | 'asistente'
+  | 'certificados'
+  | 'cuenta'
+  | 'emisor'
+  | 'exportacion'
+  | 'facturacion'
+  | 'fce'
+  | 'monotributo'
+  | 'pdf'
+  | 'salida';
 
 export interface ConfigSection {
   readonly id: ConfigSectionId;
@@ -52,11 +61,13 @@ export const CONFIG_SECTIONS: readonly ConfigSection[] = [
   },
   { id: 'pdf', keys: ['pdf', 'pdfCarpeta', 'pdfNavegador', 'condicionVenta'], label: 'PDF' },
   { id: 'salida', keys: ['filasPorLista', 'emitir', 'json', 'bruto'], label: 'Salida y listados' },
+  { id: 'asistente', keys: ['asistente.comandoEquivalente'], label: 'Asistente' },
 ];
 
 /** Nombre de cada dato, igual en `arcli config` y en el modo interactivo. */
 export const CONFIG_LABELS: Record<ConfigPublicKey, string> = {
   alicuota: 'Alícuota de IVA (A y B)',
+  'asistente.comandoEquivalente': 'Mostrar el comando equivalente',
   bruto: 'Salida bruta',
   'cert.produccion': 'Certificado de producción',
   'cert.testing': 'Certificado de testing',

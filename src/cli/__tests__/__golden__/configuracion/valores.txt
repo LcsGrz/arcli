@@ -858,6 +858,33 @@ consultarPadron
   "  "
     INPUT_VALIDATION_ERROR, sugerencia 1: `consultarPadron` no acepta "  ". Usá true/false, si/no o 1/0.
     asistente: El valor "  " no es un booleano válido. Usá true/false, si/no o 1/0.
+asistente.comandoEquivalente
+  "true"
+    guarda asistente.comandoEquivalente = true
+  "FALSE"
+    guarda lo mismo
+  "si"
+    guarda asistente.comandoEquivalente = true
+  " Sí "
+    guarda asistente.comandoEquivalente = true
+  "no"
+    guarda lo mismo
+  "1"
+    guarda asistente.comandoEquivalente = true
+  "0"
+    guarda lo mismo
+  "2"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `asistente.comandoEquivalente` no acepta "2". Usá true/false, si/no o 1/0.
+    asistente: El valor "2" no es un booleano válido. Usá true/false, si/no o 1/0.
+  "x"
+    INPUT_VALIDATION_ERROR, sugerencia 1: `asistente.comandoEquivalente` no acepta "x". Usá true/false, si/no o 1/0.
+    asistente: El valor "x" no es un booleano válido. Usá true/false, si/no o 1/0.
+  ""
+    INPUT_VALIDATION_ERROR, sugerencia 1: `asistente.comandoEquivalente` no acepta "". Usá true/false, si/no o 1/0.
+    asistente: El valor "" no es un booleano válido. Usá true/false, si/no o 1/0.
+  "  "
+    INPUT_VALIDATION_ERROR, sugerencia 1: `asistente.comandoEquivalente` no acepta "  ". Usá true/false, si/no o 1/0.
+    asistente: El valor "  " no es un booleano válido. Usá true/false, si/no o 1/0.
 cuenta
   "0170099220000067797370" "otro.alias"
     guarda cbu = "0170099220000067797370"; aliasCbu = "otro.alias"

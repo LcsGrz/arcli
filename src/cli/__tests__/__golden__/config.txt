@@ -3,6 +3,9 @@ exit: 0
 --- stdout ---
 
 {
+  "asistente": {
+    "comandoEquivalente": true
+  },
   "cert": {
     "testing": ".../config/testing.crt"
   },

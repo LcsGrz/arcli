@@ -51,6 +51,7 @@ const CONFIG_KEY_TABLE = {
   ticketPath: { stored: 'ticketPath' },
   verificarFce: { stored: 'verificarFce' },
   consultarPadron: { stored: 'consultarPadron' },
+  'asistente.comandoEquivalente': { stored: 'asistente.comandoEquivalente' },
 } as const satisfies Record<string, ConfigKeyRow>;
 
 export type ConfigPublicKey = keyof typeof CONFIG_KEY_TABLE;
@@ -84,6 +85,7 @@ export const configPublicKeySchema = z.enum(Object.keys(CONFIG_KEY_TABLE) as Con
 
 /** Las claves de sí o no: aceptan true/false, si/no o 1/0 (`parseBoolean`). La ayuda y el autocompletado salen de acá. */
 export const BOOLEAN_CONFIG_KEYS: readonly ConfigPublicKey[] = [
+  'asistente.comandoEquivalente',
   'bruto',
   'consultarPadron',
   'emitir',

@@ -24,6 +24,9 @@
 		"brutoPorDefecto": true
 	},
 	"alicuotaPorDefecto": "10.5",
+	"asistente": {
+		"comandoEquivalente": false
+	},
 	"cuit": "20123456786",
 	"cbu": "0110599520000012345678",
 	"aliasCbu": "mi.alias.cbu",
@@ -66,18 +69,18 @@ cert.testing
     - 		"testing": "<config>/cert-testing.pem"
     + 		"produccion": "<config>/cert-produccion.pem"
 concepto
-    línea 30
+    línea 33
     - 	"conceptoPorDefecto": "productos-servicios",
 condicionVenta
-    línea 49
+    línea 52
     - 	"condicionVenta": "a 45 días",
 cuenta
-    línea 28
+    línea 31
     - 	"cbu": "0110599520000012345678",
     - 	"aliasCbu": "mi.alias.cbu",
     aviso: AVISOS • Se borró también el alias mi.alias.cbu de la config: sin el CBU no se usa.
 cuit
-    línea 27
+    línea 30
     - 	"cuit": "20123456786",
 cotizacion
     línea 20
@@ -112,29 +115,29 @@ emitir
     - 		"emitirPorDefecto": true,
     + 		"emitirPorDefecto": false,
 exportacion.actividad
-    línea 33
+    línea 36
     - 		"actividad": 620100,
 exportacion.cert.produccion
-    línea 35
+    línea 38
     - 			"produccion": "<config>/expo-cert-produccion.pem",
 exportacion.cert.testing
-    línea 35
+    línea 38
     - 			"produccion": "<config>/expo-cert-produccion.pem",
     - 			"testing": "<config>/expo-cert-testing.pem"
     + 			"produccion": "<config>/expo-cert-produccion.pem"
 exportacion.key.produccion
-    línea 39
+    línea 42
     - 			"produccion": "<config>/expo-key-produccion.pem",
 exportacion.key.testing
-    línea 39
+    línea 42
     - 			"produccion": "<config>/expo-key-produccion.pem",
     - 			"testing": "<config>/expo-key-testing.pem"
     + 			"produccion": "<config>/expo-key-produccion.pem"
 filasPorLista
-    línea 50
+    línea 53
     - 	"filasPorLista": 20,
 ivaReceptor
-    línea 31
+    línea 34
     - 	"ivaReceptorPorDefecto": "consumidor-final",
 json
     igual
@@ -151,7 +154,7 @@ moneda
     - 	"monedaPorDefecto": "USD",
     + 	"monedaPorDefecto": "PES",
 monotributo.tope
-    línea 43
+    línea 46
     - 	"monotributo": {
     - 		"tope": 30000000
     - 	},
@@ -161,38 +164,44 @@ bruto
     - 		"brutoPorDefecto": true
     + 		"brutoPorDefecto": false
 pdf
-    línea 46
+    línea 49
     - 	"pdf": "siempre",
 pdfCarpeta
-    línea 47
+    línea 50
     - 	"pdfCarpeta": "<config>/pdfs",
 pdfNavegador
-    línea 48
+    línea 51
     - 	"pdfNavegador": "<config>/navegador",
 puntoVenta
-    línea 51
+    línea 54
     - 	"puntoVentaPorDefecto": 3,
 ticketPath
-    línea 52
+    línea 55
     - 	"ticketPath": "<config>/tickets-propios",
 verificarFce
-    línea 53
+    línea 56
     - 	"consultarPadron": false,
     - 	"verificarFce": true
     + 	"consultarPadron": false
 consultarPadron
-    línea 53
+    línea 56
     - 	"consultarPadron": false,
+asistente.comandoEquivalente
+    línea 27
+    - 	"asistente": {
+    - 		"comandoEquivalente": false
+    - 	},
+    + 	"asistente": {},
 aliasCbu
-    línea 29
+    línea 32
     - 	"aliasCbu": "mi.alias.cbu",
     aviso: La clave "aliasCbu" está deprecada y se va a sacar en la 3.0.0: usá `arcli config establecer cuenta <CBU>`, que deja la cuenta sin alias.
 cbu
-    línea 28
+    línea 31
     - 	"cbu": "0110599520000012345678",
     - 	"aliasCbu": "mi.alias.cbu",
     aviso: La clave "cbu" está deprecada y se va a sacar en la 3.0.0: usá `arcli config eliminar cuenta`. AVISOS • Se borró también el alias mi.alias.cbu de la config: sin el CBU no se usa.
 comprobantesPorLista
-    línea 50
+    línea 53
     - 	"filasPorLista": 20,
     aviso: La clave "comprobantesPorLista" está deprecada y se va a sacar en la 3.0.0: usá `filasPorLista`.

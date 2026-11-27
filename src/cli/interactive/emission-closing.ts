@@ -2,6 +2,7 @@ import { AppError, InputIssuesError, InputValidationError } from '../../lib/erro
 import type { EmissionOutcome } from '../../modules/billing/billing.batch-run';
 import type { EmissionInterruption } from '../../modules/billing/emission-interruption';
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
+import { isEquivalentCommandShown } from '../../modules/config/config.schemas';
 import { isAuthorized } from '../../modules/interactive/steps/config-offer';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import {
@@ -137,7 +138,10 @@ export async function closeWithEmission<R extends ClosingResult, P extends { rea
   }
 
   writeTerminalOutput(closing.format(previewed.preview, { previewShown: false }));
-  writeTerminalOutput(formatEquivalentCommand(closing.equivalentCommand()));
+
+  if (isEquivalentCommandShown(runtime.config)) {
+    writeTerminalOutput(formatEquivalentCommand(closing.equivalentCommand()));
+  }
 
   const label = formatVoucherWithArticle(previewed.preview.voucherKind);
   const choice = await confirmEmission(

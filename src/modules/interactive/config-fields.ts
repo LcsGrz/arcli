@@ -30,6 +30,10 @@ const IVA_CONDITION_LABELS = Object.fromEntries(
 
 const YES_NO_LABELS = { no: 'No', si: 'Sí' };
 
+/** Un sí o no guardado como el valor de su lista; sin guardar, `undefined`. */
+const yesNoValue = (value: boolean | undefined): string | undefined =>
+  value === undefined ? undefined : value ? 'si' : 'no';
+
 const PDF_MODE_LABELS: Readonly<Record<ArcliPdfMode, string>> = {
   nunca: 'Nunca',
   preguntar: 'Preguntar',
@@ -132,13 +136,19 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
     choiceLabels: YES_NO_LABELS,
     choices: ['si', 'no'],
     key: 'consultarPadron',
-    read: (c) => (c.consultarPadron === undefined ? undefined : c.consultarPadron ? 'si' : 'no'),
+    read: (c) => yesNoValue(c.consultarPadron),
   },
   {
     choiceLabels: YES_NO_LABELS,
     choices: ['si', 'no'],
     key: 'verificarFce',
-    read: (c) => (c.verificarFce === undefined ? undefined : c.verificarFce ? 'si' : 'no'),
+    read: (c) => yesNoValue(c.verificarFce),
+  },
+  {
+    choiceLabels: YES_NO_LABELS,
+    choices: ['si', 'no'],
+    key: 'asistente.comandoEquivalente',
+    read: (c) => yesNoValue(c.asistente?.comandoEquivalente),
   },
   {
     choiceLabels: PDF_MODE_LABELS,

@@ -50,6 +50,9 @@ PDF
 Salida y listados
   Filas por lista: 15 (por defecto) [filasPorLista]
 
+Asistente
+  Mostrar el comando equivalente: sí (por defecto) [asistente.comandoEquivalente]
+
 Preguntas
   cuit
     escribe: CUIT del emisor (11 dígitos):
@@ -212,6 +215,12 @@ Preguntas
   filasPorLista
     escribe: Filas por lista (1 a 50, por defecto 15):
       propone nada
+  asistente.comandoEquivalente
+    elige: Mostrar el comando equivalente:
+      "si" Sí
+      "no" No
+      Symbol(mantener) Dejar el de por defecto (sí)
+      propone nada
 
 # Todas las claves
 Cuenta
@@ -264,6 +273,9 @@ PDF
 
 Salida y listados
   Filas por lista: 20 [filasPorLista]
+
+Asistente
+  Mostrar el comando equivalente: no [asistente.comandoEquivalente]
 
 Preguntas
   cuit
@@ -427,3 +439,9 @@ Preguntas
   filasPorLista
     escribe: Filas por lista (1 a 50, por defecto 15, "-" para volver al de por defecto):
       propone "20"
+  asistente.comandoEquivalente
+    elige: Mostrar el comando equivalente:
+      "si" Sí
+      "no" No
+      Symbol(borrar) Volver al de por defecto (sí)
+      propone "no"

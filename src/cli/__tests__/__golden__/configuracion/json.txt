@@ -2,6 +2,9 @@
 {
   "alicuota": "10.5",
   "aliasCbu": "mi.alias.cbu",
+  "asistente": {
+    "comandoEquivalente": false
+  },
   "comprobantesPorLista": 20,
   "cbu": "0110599520000012345678",
   "cert": {

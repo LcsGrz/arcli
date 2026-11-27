@@ -1,4 +1,5 @@
 import { Separator } from '@inquirer/core';
+import { writeFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CONFIG_LABELS } from '../../../modules/config/config.sections';
@@ -7,6 +8,7 @@ import { CONFIG_FIELDS, type ConfigField } from '../../../modules/interactive/co
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
 import {
+  configPath,
   fullValue,
   normalize,
   runCli,
@@ -166,6 +168,7 @@ async function configRows(): Promise<Partial<Record<ConfigPublicKey, string>>> {
 /** Lo que se ve sin nada guardado en las claves con un valor por defecto (o sin uno fijo). */
 const UNSAVED_VALUES = {
   alicuota: '21% (por defecto)',
+  'asistente.comandoEquivalente': 'sí (por defecto)',
   consultarPadron: 'sí (por defecto)',
   'emisor.condicionIva': 'según la letra',
   filasPorLista: '15 (por defecto)',
@@ -399,5 +402,76 @@ describe('D. los nombres de las opciones', () => {
 
     expect(options.slice(0, 3)).toEqual(['Siempre', 'Preguntar', 'Nunca']);
     expect(values.slice(0, 3)).toEqual(['siempre', 'preguntar', 'nunca']);
+  });
+});
+
+/** TUI-47: mostrar o no el comando equivalente. */
+const EQUIVALENT_COMMAND: ConfigPublicKey = 'asistente.comandoEquivalente';
+
+/** Como lo deja `config establecer asistente.comandoEquivalente no`, escrito a mano. */
+const saveEquivalentCommandOff = () =>
+  writeFileSync(configPath(), JSON.stringify({ asistente: { comandoEquivalente: false } }));
+
+/** Los títulos de sección y los nombres de los datos de la lista del asistente, en orden. */
+async function assistantList(): Promise<string[]> {
+  let listed: string[] = [];
+
+  vi.mocked(chooseOne).mockResolvedValueOnce('cambiar').mockResolvedValueOnce('volver');
+  vi.mocked(chooseStep).mockImplementation(async (message, choices) => {
+    if (message === FIELD_LIST) {
+      listed = choices.map((choice) =>
+        stripAnsi(Separator.isSeparator(choice) ? choice.separator : String(choice.name)).trim(),
+      );
+    }
+
+    return BACK;
+  });
+
+  await runConfigMenu();
+
+  return listed.filter(Boolean);
+}
+
+/** Abre el dato en "Modificar configuración"; antes afirma que está, para que su falta sea el fallo. */
+async function equivalentCommandQuestion(): Promise<Question> {
+  expect(CONFIG_FIELDS.map((field) => field.key)).toContain(EQUIVALENT_COMMAND);
+
+  return questionOf(EQUIVALENT_COMMAND);
+}
+
+const backOptions = (options: readonly string[]) =>
+  options.filter((option) => /^(Dejar|Volver|Quitar|Borrar)/.test(option));
+
+describe('E. el comando equivalente (TUI-47)', () => {
+  it('"Mostrar el comando equivalente" va en una sección "Asistente", después de "Salida y listados"', async () => {
+    const listed = await assistantList();
+    const output = listed.indexOf('Salida y listados');
+    const assistant = listed.indexOf('Asistente');
+
+    expect(output).toBeGreaterThan(-1);
+    expect(assistant).toBeGreaterThan(output);
+    expect(listed[assistant + 1]).toBe('Mostrar el comando equivalente');
+  });
+  it('sin nada guardado, el asistente muestra "sí (por defecto)"', async () => {
+    expect((await assistantValues())[EQUIVALENT_COMMAND]).toBe('sí (por defecto)');
+  });
+  it('guardado en no, el asistente muestra "no"', async () => {
+    saveEquivalentCommandOff();
+
+    expect((await assistantValues())[EQUIVALENT_COMMAND]).toBe('no');
+  });
+  it('sin guardar: "Sí", "No" y "Dejar el de por defecto (sí)"', async () => {
+    const { options, values } = await equivalentCommandQuestion();
+
+    expect(options.slice(0, 2)).toEqual(['Sí', 'No']);
+    expect(values.slice(0, 2)).toEqual(['si', 'no']);
+    expect(backOptions(options)).toEqual(['Dejar el de por defecto (sí)']);
+  });
+  it('guardado: "Volver al de por defecto (sí)"', async () => {
+    saveEquivalentCommandOff();
+
+    const { options } = await equivalentCommandQuestion();
+
+    expect(backOptions(options)).toEqual(['Volver al de por defecto (sí)']);
   });
 });
