@@ -4,6 +4,7 @@ import { setTimeout as pause } from 'node:timers/promises';
 import { LocalDataError } from '../../modules/local-data/local-data-error';
 
 import type { SqliteConnection, SqliteDriver } from './sqlite-driver';
+import { classifySqliteError } from './sqlite-errors';
 
 /**
  * El turno para cambiar qué archivo es la base (ARQ-12 PR 4b, decidido en la revisión de #318): crearla, apartar una
@@ -47,16 +48,21 @@ function ensureLockFile(lock: string): void {
 }
 
 /** `BEGIN EXCLUSIVE`; `false` si lo tiene otro. */
-function tryTake(connection: SqliteConnection): boolean {
+function tryTake(connection: SqliteConnection, lock: string): boolean {
   try {
     connection.exec('BEGIN EXCLUSIVE');
 
     return true;
   } catch (error) {
-    const { code, errcode } = error as { code?: unknown; errcode?: unknown };
+    const kind = classifySqliteError(error);
 
-    if (code === 'ERR_SQLITE_ERROR' && typeof errcode === 'number' && [5, 6].includes(errcode & 0xff)) {
+    if (kind === 'locked') {
       return false;
+    }
+
+    // Un turno dañado no es la base dañada: que nunca lleve a apartarla (el arreglo del turno va a otro ticket).
+    if (kind === 'damaged') {
+      throw new LocalDataError('unavailable', `El turno ${lock} no es una base de SQLite sana.`, { cause: error });
     }
 
     throw error;
@@ -74,7 +80,7 @@ export async function withDatabaseLock<T>(driver: SqliteDriver, lock: string, wo
   const connection = driver.open(lock, { mustExist: true, timeoutMs: LOCK_BUSY_TIMEOUT_MS });
 
   try {
-    for (const deadline = Date.now() + LOCK_WAIT_MS; !tryTake(connection); await pause(LOCK_POLL_MS)) {
+    for (const deadline = Date.now() + LOCK_WAIT_MS; !tryTake(connection, lock); await pause(LOCK_POLL_MS)) {
       if (Date.now() > deadline) {
         throw new LocalDataError('locked', `Otro proceso tiene el turno ${lock} (está creando o reponiendo la base).`);
       }

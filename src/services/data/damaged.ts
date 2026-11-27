@@ -1,38 +1,37 @@
-import {
-  closeSync,
-  existsSync,
-  linkSync,
-  openSync,
-  readdirSync,
-  renameSync,
-  rmSync,
-  statSync,
-  unlinkSync,
-} from 'node:fs';
+import { existsSync, readdirSync, renameSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { setTimeout as pause } from 'node:timers/promises';
 
 import { LocalDataError, type LocalDataErrorReason } from '../../modules/local-data/local-data-error';
 import type { LocalDataRecovery } from '../../modules/vouchers/voucher-record-store';
 
-import { argentineStamp, listBackupFiles, vacuumInto } from './backup-files';
+import { argentineStampToIso, listBackupFiles, vacuumInto } from './backup-files';
 import {
   buildEmptyDatabase,
   buildTemporary,
   createDatabase,
   databaseExists,
   type DatabaseSpec,
-  fileIdentity,
   openOrCreateDatabase,
   openVerified,
   openVerifiedCopy,
   openWritableConnection,
   publishBuilt,
-  toLocalDataError,
   withLockOf,
 } from './database-file';
-import { hasLiveTemporary, NO_HARD_LINKS, removeTemporary } from './database-temporary';
+import { hasLiveTemporary, removeTemporary } from './database-temporary';
 import { inImmediateTransaction, type MigrationContext } from './migrations';
+import {
+  dropPlaceholders,
+  isEmptyOrMissing,
+  journalOf,
+  moveAside,
+  moveToReserved,
+  moveWithoutClobbering,
+  putBack,
+  reserve,
+  withSetAside,
+} from './set-aside';
 import type { SqliteConnection, SqliteDriver } from './sqlite-driver';
 
 /**
@@ -49,157 +48,6 @@ const RECENT_DAMAGE_MS = 10_000;
 /** Cuánto se vuelve a mirar una base cortada muy reciente antes de apartarla, y cada cuánto. */
 const RECENT_DAMAGE_WAIT_MS = 3000;
 const RECENT_DAMAGE_POLL_MS = 250;
-
-/** En Windows, mover un archivo que otro tiene abierto da EBUSY o EPERM: se reintenta un rato y después se rinde. */
-const MOVE_ATTEMPTS = 5;
-const MOVE_PAUSE_MS = 100;
-const BUSY_CODES = new Set(['EBUSY', 'EPERM']);
-
-const journalOf = (file: string) => `${file}-journal`;
-const identityOf = fileIdentity;
-
-/**
- * Los nombres donde va a quedar la base apartada y su `-journal`, tomados con `wx` (vacíos): nadie más los puede usar,
- * así que mover la base encima reemplaza solo el lugar propio y nunca otro archivo. `-2`, `-3` si ya están.
- */
-interface Reservation {
-  readonly aside: string;
-  /** Lo que hay en cada nombre mientras es solo la reserva (para no borrar después lo que se movió ahí). */
-  readonly placeholders: ReadonlyMap<string, string | undefined>;
-}
-
-function reserve(file: string, reason: 'danada' | 'reemplazada', now: Date): Reservation {
-  const base = join(dirname(file), `${basename(file, '.db')}.${reason}-${argentineStamp(now)}`);
-
-  for (let counter = 1; ; counter += 1) {
-    const aside = `${base}${counter === 1 ? '' : `-${counter}`}.db`;
-    const taken: string[] = [];
-
-    try {
-      for (const path of [aside, journalOf(aside)]) {
-        closeSync(openSync(path, 'wx', 0o600));
-        taken.push(path);
-      }
-
-      return { aside, placeholders: new Map(taken.map((path) => [path, identityOf(path)])) };
-    } catch (error) {
-      taken.forEach((path) => rmSync(path, { force: true }));
-
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
-        throw toLocalDataError(error);
-      }
-    }
-  }
-}
-
-/** Borra las reservas que siguen siendo reservas (vacías y las mismas); lo que se movió a esos nombres queda. */
-function dropPlaceholders({ placeholders }: Reservation): void {
-  for (const [path, identity] of placeholders) {
-    try {
-      if (identityOf(path) === identity && statSync(path).size === 0) {
-        rmSync(path, { force: true });
-      }
-    } catch {
-      // Ya no está.
-    }
-  }
-}
-
-/** Mueve `from` a su reserva `to`. Si está abierto por otro (Windows), `LocalDataError(busyReason)` sin moverlo. */
-async function moveToReserved(from: string, to: string, busyReason: LocalDataErrorReason): Promise<void> {
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      renameSync(from, to);
-
-      return;
-    } catch (error) {
-      const { code = '' } = error as NodeJS.ErrnoException;
-
-      if (!BUSY_CODES.has(code)) {
-        throw toLocalDataError(error);
-      }
-
-      if (attempt >= MOVE_ATTEMPTS) {
-        throw new LocalDataError(busyReason, `${from} está abierta por otro programa: no se pudo mover.`, {
-          cause: error,
-        });
-      }
-    }
-
-    await pause(MOVE_PAUSE_MS);
-  }
-}
-
-/** Mueve `from` a `to` sin pisar: hard link y después se saca el nombre viejo; sin hard links, rename si no hay nada. */
-function moveWithoutClobbering(from: string, to: string): void {
-  try {
-    linkSync(from, to);
-  } catch (error) {
-    if (!NO_HARD_LINKS.has((error as NodeJS.ErrnoException).code ?? '')) {
-      throw error;
-    }
-
-    if (existsSync(to)) {
-      throw new LocalDataError('unavailable', `${to} ya está: no se pisa.`);
-    }
-
-    renameSync(from, to);
-
-    return;
-  }
-
-  unlinkSync(from);
-}
-
-/**
- * Devuelve una base apartada (y su `-journal`, primero, para que la base nunca quede sin él) a su lugar, sin pisar lo
- * que haya ahí. Si no se puede, queda apartada: no se borra nada. La usan apartar y restaurar cuando algo falla.
- */
-function putBack(aside: string, file: string): void {
-  try {
-    if (existsSync(journalOf(aside)) && statSync(journalOf(aside)).size > 0) {
-      moveWithoutClobbering(journalOf(aside), journalOf(file));
-    }
-
-    moveWithoutClobbering(aside, file);
-  } catch {
-    // Queda apartada, con su nombre.
-  }
-}
-
-/**
- * Mueve la base y su `-journal` a la reserva. Si el `-journal` no se puede mover, la base vuelve a su lugar: un
- * `-journal` suelto al lado de otra base la rompería.
- */
-async function moveAside(file: string, aside: string, busyReason: LocalDataErrorReason): Promise<void> {
-  await moveToReserved(file, aside, busyReason);
-
-  if (existsSync(journalOf(file))) {
-    try {
-      await moveToReserved(journalOf(file), journalOf(aside), busyReason);
-    } catch (error) {
-      putBack(aside, file);
-      throw error;
-    }
-  }
-}
-
-/** Aparta la base a una reserva (`<base>.<motivo>-<día>-<hora>.db`), corre `replace` y, si falla, la devuelve. */
-export async function withSetAside<T>(
-  file: string,
-  reason: 'danada' | 'reemplazada',
-  now: Date,
-  busyReason: LocalDataErrorReason,
-  replace: (aside: string) => Promise<T> | T,
-): Promise<T> {
-  const reservation = reserve(file, reason, now);
-
-  try {
-    return await replace(reservation.aside);
-  } finally {
-    dropPlaceholders(reservation);
-  }
-}
 
 /** Anota en la base nueva de dónde salió: el evento `base-repuesta` (sin CAE), con los nombres de los archivos. */
 function addRestoredEvent(connection: SqliteConnection, context: MigrationContext, datos: Record<string, string>) {
@@ -282,6 +130,23 @@ function buildReplacement(
 interface SetAsideFile {
   readonly path: string;
   readonly reason: 'danada' | 'reemplazada';
+  /** ISO UTC, del nombre (hora argentina, al segundo). */
+  readonly createdAt: string;
+}
+
+/**
+ * La reemplazada de un restaurar que se cortó es la base sana que estaba, pero solo es la mejor fuente si es más nueva
+ * (o igual) que la copia más nueva: una vieja no gana sobre copias posteriores.
+ */
+function preferredSetAside(spec: DatabaseSpec, setAside: SetAsideFile | undefined): string | undefined {
+  if (setAside?.reason !== 'reemplazada') {
+    return undefined;
+  }
+
+  const newestCopy = listBackupFiles(spec.backups)[0];
+
+  // En el mismo segundo gana la reemplazada: es la base de ese momento, con todo lo de la copia o más.
+  return newestCopy === undefined || setAside.createdAt >= newestCopy.createdAt ? setAside.path : undefined;
 }
 
 /**
@@ -323,7 +188,9 @@ function latestSetAside(file: string): SetAsideFile | undefined {
 
   const latest = found.sort((a, b) => a.stamp.localeCompare(b.stamp) || a.counter - b.counter).at(-1);
 
-  return latest === undefined ? undefined : { path: latest.path, reason: latest.reason };
+  return latest === undefined
+    ? undefined
+    : { createdAt: argentineStampToIso(latest.stamp), path: latest.path, reason: latest.reason };
 }
 
 /**
@@ -341,19 +208,24 @@ function needsRebuild(spec: DatabaseSpec): boolean {
  * la base nueva: se aparta antes, al lado de la apartada que le corresponde o, si esa ya tiene el suyo, solo, con
  * nombre de dañada. Nunca se borra.
  */
-async function setAsideOrphanJournal(file: string, setAside: SetAsideFile | undefined, now: Date): Promise<void> {
+export async function setAsideOrphanJournal(
+  file: string,
+  setAside: SetAsideFile | undefined,
+  now: Date,
+): Promise<void> {
   const journal = journalOf(file);
 
-  try {
-    if (statSync(journal).size === 0) {
-      return;
-    }
-  } catch {
+  if (isEmptyOrMissing(journal)) {
     return;
   }
 
-  if (setAside !== undefined && !existsSync(journalOf(setAside.path))) {
-    moveWithoutClobbering(journal, journalOf(setAside.path));
+  if (setAside !== undefined && isEmptyOrMissing(journalOf(setAside.path))) {
+    // Una reserva vacía que quedó en ese nombre no es "su journal": se reemplaza (es solo el lugar reservado).
+    if (existsSync(journalOf(setAside.path))) {
+      renameSync(journal, journalOf(setAside.path));
+    } else {
+      moveWithoutClobbering(journal, journalOf(setAside.path));
+    }
 
     return;
   }
@@ -379,7 +251,7 @@ async function rebuildMissing(
     spec,
     context,
     setAside === undefined ? {} : { apartada: basename(setAside.path) },
-    setAside?.reason === 'reemplazada' ? setAside.path : undefined,
+    preferredSetAside(spec, setAside),
   );
 
   try {
@@ -407,6 +279,7 @@ async function createOrRebuild(
     return rebuildMissing(driver, spec, context);
   }
 
+  await setAsideOrphanJournal(spec.file, undefined, new Date(context.now));
   createDatabase(driver, spec, context);
 
   return undefined;

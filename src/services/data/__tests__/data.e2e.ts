@@ -1,6 +1,6 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { existsSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { setTimeout as pause } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
@@ -457,5 +457,29 @@ describe('el turno de la base con procesos reales (ARQ-12 PR 4b, revisión de #3
     expect(fingerprint(`${aside}-journal`).hash).toBe(hot.hash);
     expect(health(file)).toEqual({ integrity: 'ok', version: SCHEMA_V1 });
     expect(count(file)).toBe(1);
+  });
+
+  // Tercera pasada de #318: sin copias ni apartadas se crea vacía, pero el -journal caliente que quedó también se aparta.
+  it('base borrada con su -journal caliente y sin copias: la nueva sale sana y el journal queda apartado', async () => {
+    const { dataDirectory, file } = await baseWith(3);
+    const victim = start(['victima', file]);
+
+    await untilSays(victim, 'medio');
+    await kill(victim);
+
+    const journal = `${file}-journal`;
+    const hot = fingerprint(journal);
+
+    rmSync(file);
+
+    expect(await result(start(['guardar-uno', dataDirectory, 101]))).toEqual({ outcome: { kind: 'saved' } });
+    expect(existsSync(journal)).toBe(false);
+    expect(health(file)).toEqual({ integrity: 'ok', version: SCHEMA_V1 });
+    expect(count(file)).toBe(1);
+
+    const [aside = ''] = readdirSync(dirname(file)).filter((name) => name.endsWith('.db-journal'));
+
+    expect(aside).toMatch(/^comprobantes\.danada-.*\.db-journal$/);
+    expect(fingerprint(join(dirname(file), aside)).hash).toBe(hot.hash);
   });
 });

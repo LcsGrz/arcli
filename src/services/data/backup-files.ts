@@ -60,6 +60,14 @@ export function argentineStamp(now: Date): string {
   return `${parts.year}-${parts.month}-${parts.day}-${parts.hour}${parts.minute}${parts.second}`;
 }
 
+/** De `2026-11-26-120000` (`argentineStamp`) al instante, ISO UTC. */
+export function argentineStampToIso(stamp: string): string {
+  const [, day = '', hour = '00', minute = '00', second = '00'] =
+    /^(\d{4}-\d{2}-\d{2})-(\d{2})(\d{2})(\d{2})$/.exec(stamp) ?? [];
+
+  return new Date(`${day}T${hour}:${minute}:${second}.000${ARGENTINE_OFFSET}`).toISOString();
+}
+
 function namePattern(prefix: string): RegExp {
   return new RegExp(
     `^${prefix}-(\\d{4}-\\d{2}-\\d{2})-(\\d{2})(\\d{2})(\\d{2})(?:-antes-de-(\\d+))?(?:-(\\d+))?\\.db$`,
@@ -107,7 +115,7 @@ export function listBackupFiles(target: BackupTarget): BackupFile[] {
       if (stats.isFile()) {
         found.push({
           counter: Number(counter),
-          createdAt: new Date(`${day}T${hour}:${minute}:${second}.000${ARGENTINE_OFFSET}`).toISOString(),
+          createdAt: argentineStampToIso(`${day}-${hour}${minute}${second}`),
           day,
           kind: schema === undefined ? 'daily' : 'migration',
           path,

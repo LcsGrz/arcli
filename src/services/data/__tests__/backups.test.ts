@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   readdirSync,
+  readFileSync,
   rmSync,
   statSync,
   truncateSync,
@@ -510,6 +511,26 @@ describe('restaurar una base desde una copia, para DATOS-1 (ARQ-12 PR 4b)', () =
 
     expect(fingerprint(file).hash).toBe(before);
     expect(readdirSync(dirname(file)).filter((name) => name.includes('reemplazada'))).toEqual([]);
+  });
+
+  // Tercera pasada de #318: esperar a otros no corre pragmas sobre una base sin verificar (journal_mode = DELETE
+  // convertiría un WAL ajeno); la reemplazada queda como estaba, en WAL.
+  it('una base en WAL queda en WAL en la reemplazada', async () => {
+    const { copy, dataDirectory, file } = await withDailyCopy();
+
+    inspect(file, (database) => database.exec('PRAGMA journal_mode = WAL'));
+
+    const walMode = (path: string) => {
+      const header = readFileSync(path).subarray(18, 20);
+
+      return [header[0], header[1]];
+    };
+
+    expect(walMode(file)).toEqual([2, 2]);
+
+    const { replaced = '' } = await restoreVoucherBackup(backupOptions(dataDirectory), copy);
+
+    expect(walMode(replaced)).toEqual([2, 2]);
   });
 
   it('una copia que no está da unavailable y no toca la base', async () => {

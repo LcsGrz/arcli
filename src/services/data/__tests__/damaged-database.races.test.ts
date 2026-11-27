@@ -84,7 +84,10 @@ describe('segunda pasada de #318', () => {
   // recuperación que no pasó.
   it('si al poner la nueva ya hay otro archivo en su lugar, sale el error y la apartada queda', async () => {
     const { dataDirectory, file } = await damagedBase((path) => truncateSync(path, 100));
+    const journal = Buffer.from('un journal ajeno '.repeat(64));
 
+    writeFileSync(`${file}-journal`, journal);
+    makeOld(`${file}-journal`);
     vi.mocked(fs.linkSync).mockImplementation((from, to) => {
       if (basename(String(from)).startsWith('.nueva-') && basename(String(to)) === 'comprobantes.db') {
         writeFileSync(to, 'de otro');
@@ -96,7 +99,12 @@ describe('segunda pasada de #318', () => {
 
     await expectLocalDataError(openStore(dataDirectory, { backups: OFF }).save(NEXT), 'unavailable');
     expect(actualFs.readFileSync(file, 'utf8')).toBe('de otro');
-    expect(namesWith(file, 'danada')).toHaveLength(1);
+
+    const [aside = ''] = namesWith(file, 'danada').filter((name) => name.endsWith('.db'));
+
+    // El -journal sigue con la apartada: al lado del intruso lo rompería.
+    expect(actualFs.readFileSync(join(dirname(file), `${aside}-journal`))).toEqual(journal);
+    expect(actualFs.existsSync(`${file}-journal`)).toBe(false);
   });
 
   // La base se perdió entre que se la miró (estaba) y se la abrió: la decisión con el turno es la misma que reponer.

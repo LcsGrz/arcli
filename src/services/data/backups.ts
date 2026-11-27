@@ -6,7 +6,7 @@ import type { ArcliEnvironment } from '../../modules/config/config.schemas';
 import { LocalDataError } from '../../modules/local-data/local-data-error';
 
 import { type BackupKind, listBackupFiles } from './backup-files';
-import { buildFromCopy, swapIn, withSetAside } from './damaged';
+import { buildFromCopy, setAsideOrphanJournal, swapIn } from './damaged';
 import {
   checkPathLength,
   databaseExists,
@@ -17,6 +17,8 @@ import {
   toLocalDataError,
   withLockOf,
 } from './database-file';
+import { removeTemporary } from './database-temporary';
+import { withSetAside } from './set-aside';
 import { loadSqliteDriver, type SqliteConnection, type SqliteDriver } from './sqlite-driver';
 import { vouchersDatabaseSpec } from './sqlite-voucher-record-store';
 
@@ -122,7 +124,17 @@ export async function restoreVoucherBackup(
 
   return withLockOf(driver, spec, async () => {
     if (!hasCurrentDatabase(spec.file)) {
-      publishBuilt(spec, build({}), 'fail');
+      const temporary = build({});
+
+      try {
+        // Un -journal que quedó sin su base se reproduciría sobre la restaurada: se aparta antes.
+        await setAsideOrphanJournal(spec.file, undefined, now);
+      } catch (error) {
+        removeTemporary(temporary);
+        throw error;
+      }
+
+      publishBuilt(spec, temporary, 'fail');
 
       return { restoredFrom: backup };
     }

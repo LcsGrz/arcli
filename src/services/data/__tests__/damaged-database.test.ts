@@ -1,5 +1,6 @@
 import {
   chmodSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -331,6 +332,45 @@ describe('una base que falta con copias o una apartada al lado (ARQ-12 PR 4b)', 
     expect(outcome).toMatchObject({ kind: 'saved', recovered: { restoredFrom: replaced, setAside: replaced } });
     expect(caes(file)).toEqual([cae(1), cae(2), NEXT.cae]);
     expect(caes(replaced)).toEqual([cae(1), cae(2)]);
+  });
+
+  // Tercera pasada de #318: una reemplazada vieja no gana sobre una copia posterior.
+  it('si hay una copia más nueva que la reemplazada, repone desde la copia', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const file = vouchersFile(dataDirectory);
+    const clock = movableClock('2026-11-25T15:00:00.000Z');
+    const replaced = join(dirname(file), 'comprobantes.reemplazada-2026-11-25-120000.db');
+
+    await openStore(dataDirectory, { backups: { enabled: true }, clock }).save(record(1));
+    copyFileSync(file, replaced);
+    clock.set(NOW);
+    await openStore(dataDirectory, { backups: { enabled: true }, clock }).save(record(2));
+    rmSync(file);
+
+    const outcome = await openStore(dataDirectory, { backups: OFF, clock }).save(NEXT);
+
+    expect(outcome).toMatchObject({
+      kind: 'saved',
+      recovered: { restoredFrom: expect.stringMatching(/copias.comprobantes-2026-11-26/), setAside: replaced },
+    });
+    expect(caes(file)).toEqual([cae(1), cae(2), NEXT.cae]);
+  });
+
+  // Una reserva vacía que quedó en el nombre del -journal de la apartada no es "su journal": el huérfano va ahí.
+  it('el -journal huérfano va con su apartada aunque ahí haya una reserva vacía', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const folder = dirname(vouchersFile(dataDirectory));
+    const aside = join(folder, 'comprobantes.danada-2026-11-26-120000.db');
+
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(aside, 'dañada');
+    writeFileSync(`${aside}-journal`, '');
+    writeFileSync(join(folder, 'comprobantes.db-journal'), 'journal huérfano');
+
+    await openStore(dataDirectory, { backups: OFF }).save(NEXT);
+
+    expect(readFileSync(`${aside}-journal`, 'utf8')).toBe('journal huérfano');
+    expect(existsSync(join(folder, 'comprobantes.db-journal'))).toBe(false);
   });
 
   // Por fecha y contador numérico (`-10` es después de `-2`); una reserva de 0 bytes de un proceso muerto no cuenta.
