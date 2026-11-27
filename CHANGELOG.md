@@ -88,6 +88,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **PDF:** en el asistente, la condición de venta se elige o se escribe en la misma lista, sin la pregunta aparte de "Otra" (#257).
 - **Factura E:** en el asistente, la actividad de WSFEX y la forma de pago se eligen de una lista donde también podés escribir (#261).
 - **Config:** en "Modificar configuración", la moneda y la actividad de exportación se eligen de una lista donde también podés escribir (#261).
+- **Config:** `arcli config` y "Modificar configuración" muestran cada dato igual; sin nada guardado, el valor por defecto con "(por defecto)".
+- **Config:** en "Modificar configuración", borrar dice si vuelve al valor por defecto o queda sin configurar, y las carpetas se arrastran como carpetas.
+- **Config:** el autocompletado de `config establecer` ofrece `si` y `no` también para `emitir`, `json` y `bruto`.
 - **FCE:** el error de un alias del CBU inválido dice lo mismo en los flags, `--cargar`, la config y el asistente (#262).
 - **Facturas:** un flag que cambia a quién, qué comprobante o qué moneda descarta del JSON de `--cargar` lo que dependía del anterior (#282).
 - **FCE:** el alias guardado va solo con su CBU, y el asistente siempre pide el alias si pide el CBU (#282).
@@ -161,6 +164,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **npm al terminar un comando.** Una vez por día, un comando que terminaba antes que la consulta a npm la esperaba hasta 1,5 segundos, y más si la conexión no se establecía. Ahora cancela la consulta y corta la conexión, y el próximo comando vuelve a consultar; si ya se sabía de una versión más nueva, la avisa igual. Una falla de npm se sigue anotando hasta el día siguiente. stdout, `--json`, el exit code y el lugar del aviso no cambian.
 
 **Nombre del incoterm.** La lista mostraba solo el código (`FOB`). Ahora, debajo, se ve el nombre de la tabla de WSFEX del que está marcado; si la tabla no lo trae o repite el código, no se ve nada. El filtro, que ya encontraba por el nombre, lo que se emite y el comando equivalente no cambian.
+
+**Cada dato de la config, igual en las dos pantallas.** "Modificar configuración" decía "sin configurar" donde `arcli config` mostraba el valor que se usa, y escribía otros formatos (el CUIT sin guiones, `30000000`, `produccion`). Ahora las dos muestran el mismo texto: lo guardado (`20-12345678-6`, `$ 30.000.000`, `producción`, y el concepto y las condiciones de IVA con su nombre, como `Productos y servicios`) o, sin nada guardado, el valor que se usa con "(por defecto)", como `21% (por defecto)` o `sí (por defecto)`; el navegador, la condición de IVA del emisor y el tope del monotributo dicen "automático", "según la letra" y "el de tu categoría". `arcli config` suma "(por defecto)" en el padrón, la verificación de FCE, el PDF y las dos carpetas. `--json` no cambia.
+
+**Borrar un dato en el asistente.** La opción "Quitar el valor por defecto" borraba lo guardado aunque el dato no tuviera un valor por defecto. Ahora, si lo tiene, la lista ofrece "Dejar el de por defecto (21%)" sin nada guardado y "Volver al de por defecto (21%)" con uno guardado, y en las preguntas de texto `"-"` dice "para volver al de por defecto"; si no lo tiene, "Dejar sin configurar", "Borrar (queda sin configurar)" y `"-" para borrar`. La carpeta de PDFs y la de tickets dicen "podés arrastrar la carpeta", el entorno se elige entre `testing` y `producción` y el PDF entre `Siempre`, `Preguntar` y `Nunca`. Lo que se guarda no cambia: `produccion`, `siempre`, `preguntar` y `nunca`, como en `arcli config establecer`.
 
 </details>
 
