@@ -109,7 +109,7 @@
     "eslint-plugin-simple-import-sort": "14.0.0",
     "fast-check": "4.11.0",
     "husky": "9.1.7",
-    "jscpd": "4.3.0",
+    "jscpd": "5.4.3",
     "knip": "6.49.0",
     "lint-staged": "17.6.2",
     "lockfile-lint": "5.1.1",
