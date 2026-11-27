@@ -145,10 +145,10 @@
     sitemap "^9.0.0"
     zod "^4.3.6"
 
-"@astrojs/starlight@0.42.11":
-  version "0.42.11"
-  resolved "https://registry.yarnpkg.com/@astrojs/starlight/-/starlight-0.42.11.tgz#47ae4c53131b2ab1c927de1fd078e7d564d260bb"
-  integrity sha512-z5kNKF7HR5Ma0DQkRNgv/6vmcodL/d5LTUTFfuoYRLgSnoozsRoudBlmTrkd+/GzqBwsIStPcSqtpK9GZfSUwA==
+"@astrojs/starlight@0.43.2":
+  version "0.43.2"
+  resolved "https://registry.yarnpkg.com/@astrojs/starlight/-/starlight-0.43.2.tgz#ac666334d61123293f3042d04c913dd6d941e19c"
+  integrity sha512-ZKNLpDdlExdVD3EugTUtJx4bUPcIBIZwgpm9sR4bDgHOn9u42x5GVgMQPlyPpXdechjadb0URJLQE6oPm0F3vw==
   dependencies:
     "@astrojs/markdown-satteri" "^0.4.3"
     "@astrojs/mdx" "^8.0.3"
@@ -163,7 +163,7 @@
     hast-util-to-html "^9.0.5"
     hast-util-to-string "^3.0.1"
     hastscript "^9.0.1"
-    i18next "^26.0.7"
+    i18next "^27.0.1"
     klona "^2.0.6"
     magic-string "^1.2.3"
     mdast-util-directive "^3.1.0"
@@ -1625,10 +1625,10 @@ http-cache-semantics@^4.3.0:
   resolved "https://registry.yarnpkg.com/http-cache-semantics/-/http-cache-semantics-4.3.0.tgz#09eead3b16c6d85552857cc3fbd888d8353a2aaf"
   integrity sha512-M5t5LlJpS1UHMjvwRQVdFHvPISGeLAxNcrWuJkeGh0KxsqCHZ1O3NXZU/8x7cD0BDcGW8kapxMKTvwlqrNkHkA==
 
-i18next@^26.0.7:
-  version "26.7.2"
-  resolved "https://registry.yarnpkg.com/i18next/-/i18next-26.7.2.tgz#56e7550d479f05d0150479fbb345e6c29b78bbd1"
-  integrity sha512-RsOY3BeaCDdkk52NeJSFAXELQ2rQXBO/tOub6L8ue2ICPfR/FRDWDOfEDg4xMPd1SqO5goVYQ6i72qWEUB/PPw==
+i18next@^27.0.1:
+  version "27.2.10"
+  resolved "https://registry.yarnpkg.com/i18next/-/i18next-27.2.10.tgz#1a0f2f4317052019dbbb8d8cf17c11cff9363f4e"
+  integrity sha512-v2hQPOZ4yvfhK5CNyXevVjneTX85rDxgTKSV96tftmp89yrF1MEFIDV0i6jYKEnzR3lnWDe62HktDFy6624/UQ==
 
 iron-webcrypto@^1.2.1:
   version "1.2.1"
