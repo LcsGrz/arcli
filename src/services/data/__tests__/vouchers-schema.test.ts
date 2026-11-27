@@ -98,8 +98,7 @@ async function createdVouchersBase(): Promise<string> {
 }
 
 describe('comprobantes.db v1 (ARQ-12, esquema del 26/11)', () => {
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('tiene las tablas, columnas e índices del esquema aprobado', async () => {
+  it('tiene las tablas, columnas e índices del esquema aprobado', async () => {
     const file = await createdVouchersBase();
     const expected = inMemory(VOUCHERS_DDL, structure);
 
@@ -111,8 +110,7 @@ describe('comprobantes.db v1 (ARQ-12, esquema del 26/11)', () => {
     expect(inspect(file, structure)).toEqual(expected);
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('application_id, user_version y metadatos dicen de quién es la base', async () => {
+  it('application_id, user_version y metadatos dicen de quién es la base', async () => {
     const file = await createdVouchersBase();
 
     inspect(file, (database) => {
@@ -136,8 +134,7 @@ describe('comprobantes.db v1 (ARQ-12, esquema del 26/11)', () => {
   });
 
   // Lo que no se llena queda NULL ("no se sabe"), nunca '' ni 0; cada fila sabe con qué ARCLI y esquema se escribió.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('la fila guardada: lo del registro, la procedencia y NULL en lo demás', async () => {
+  it('la fila guardada: lo del registro, la procedencia y NULL en lo demás', async () => {
     const file = await createdVouchersBase();
     const row = inspect(file, (database) => ({ ...database.prepare('SELECT * FROM comprobantes').get() }));
 
@@ -167,8 +164,7 @@ describe('comprobantes.db v1 (ARQ-12, esquema del 26/11)', () => {
   });
 
   // json_valid y json_type en CHECK, STRICT e índices parciales: que anden con el SQLite de cada Node (job datos-locales).
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('los CHECK con json_valid y json_type rechazan lo que no es JSON o no es un objeto', async () => {
+  it('los CHECK con json_valid y json_type rechazan lo que no es JSON o no es un objeto', async () => {
     const file = await createdVouchersBase();
 
     inspect(file, (database) => {
@@ -191,8 +187,7 @@ describe('comprobantes.db v1 (ARQ-12, esquema del 26/11)', () => {
     });
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('STRICT y los CHECK de identidad rechazan tipos y valores que no son', async () => {
+  it('STRICT y los CHECK de identidad rechazan tipos y valores que no son', async () => {
     const file = await createdVouchersBase();
 
     inspect(file, (database) => {
@@ -208,8 +203,7 @@ describe('comprobantes.db v1 (ARQ-12, esquema del 26/11)', () => {
     });
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('el número es único solo entre los no reemplazados (índice parcial)', async () => {
+  it('el número es único solo entre los no reemplazados (índice parcial)', async () => {
     const file = await createdVouchersBase();
 
     inspect(file, (database) => {
@@ -228,8 +222,7 @@ describe('comprobantes.db v1 (ARQ-12, esquema del 26/11)', () => {
 });
 
 describe('clientes.db v1 (ARQ-12, esquema del 26/11)', () => {
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('se crea en datos/<CUIT>/clientes.db con el esquema aprobado y sus metadatos', async () => {
+  it('se crea en datos/<CUIT>/clientes.db con el esquema aprobado y sus metadatos', async () => {
     const dataDirectory = temporaryDataDirectory();
 
     await ensureClientsDatabase({ clock: movableClock(), cuit: CUIT, dataDirectory, version: VERSION });
@@ -254,8 +247,7 @@ describe('clientes.db v1 (ARQ-12, esquema del 26/11)', () => {
     });
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('abrirla otra vez no la cambia', async () => {
+  it('abrirla otra vez no la cambia', async () => {
     const dataDirectory = temporaryDataDirectory();
     const options = { clock: movableClock(), cuit: CUIT, dataDirectory, version: VERSION };
 
@@ -268,8 +260,7 @@ describe('clientes.db v1 (ARQ-12, esquema del 26/11)', () => {
     expect(fingerprint(clientsFile(dataDirectory))).toEqual(before);
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.runIf(withPermissions).fails('sale 0600 con umask 022', async () => {
+  it.runIf(withPermissions)('sale 0600 con umask 022', async () => {
     const previousUmask = process.umask(0o022);
 
     try {

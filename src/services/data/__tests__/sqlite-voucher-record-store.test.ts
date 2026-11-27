@@ -30,8 +30,7 @@ function events(dataDirectory: string, type: string): number {
 
 describe('SqliteVoucherRecordStore: sin base (ARQ-12)', () => {
   // Leer no crea nada: ni la base ni las carpetas.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('findByCae y findByNumber sin base dan undefined y no crean datos/', async () => {
+  it('findByCae y findByNumber sin base dan undefined y no crean datos/', async () => {
     const dataDirectory = temporaryDataDirectory();
     const store = openStore(dataDirectory);
 
@@ -41,8 +40,7 @@ describe('SqliteVoucherRecordStore: sin base (ARQ-12)', () => {
     expect(readdirSync(dataDirectory)).toEqual([]);
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('armar el store no abre ni crea nada', () => {
+  it('armar el store no abre ni crea nada', () => {
     const dataDirectory = temporaryDataDirectory();
 
     openStore(dataDirectory);
@@ -53,8 +51,7 @@ describe('SqliteVoucherRecordStore: sin base (ARQ-12)', () => {
 
 describe('SqliteVoucherRecordStore: CUIT y entorno inválidos (ARQ-12)', () => {
   // `../x` llevaría la base afuera de datos/: tiene que lanzar antes de crear nada, también en la carpeta de arriba.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails.each(['../x', '2011111111', '20111111113'])('con el CUIT %j, save lanza y no crea nada', async (cuit) => {
+  it.each(['../x', '2011111111', '20111111113'])('con el CUIT %j, save lanza y no crea nada', async (cuit) => {
     const parent = temporaryDataDirectory();
     const dataDirectory = join(parent, 'config');
     const store = openStore(dataDirectory, { cuit });
@@ -64,8 +61,7 @@ describe('SqliteVoucherRecordStore: CUIT y entorno inválidos (ARQ-12)', () => {
     expect(readdirSync(parent)).toEqual([]);
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails.each(['homologacion', '../testing'])('con el entorno %j, save lanza y no crea nada', async (environment) => {
+  it.each(['homologacion', '../testing'])('con el entorno %j, save lanza y no crea nada', async (environment) => {
     const dataDirectory = temporaryDataDirectory();
     const store = openStore(dataDirectory, { environment: environment as ArcliEnvironment });
 
@@ -75,8 +71,7 @@ describe('SqliteVoucherRecordStore: CUIT y entorno inválidos (ARQ-12)', () => {
 });
 
 describe('SqliteVoucherRecordStore: reglas de save (ARQ-12)', () => {
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('uno nuevo: saved, y se encuentra por CAE y por número con la fecha del reloj', async () => {
+  it('uno nuevo: saved, y se encuentra por CAE y por número con la fecha del reloj', async () => {
     const store = openStore(temporaryDataDirectory());
     const record = voucherRecord();
     const saved: SaveOutcome = { kind: 'saved' };
@@ -88,8 +83,7 @@ describe('SqliteVoucherRecordStore: reglas de save (ARQ-12)', () => {
     await expect(store.findByNumber(number)).resolves.toEqual(stored);
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('el mismo CAE con el mismo número: already-saved, sin otra fila ni otra fecha', async () => {
+  it('el mismo CAE con el mismo número: already-saved, sin otra fila ni otra fecha', async () => {
     const dataDirectory = temporaryDataDirectory();
     const clock = movableClock();
     const store = openStore(dataDirectory, { clock });
@@ -105,8 +99,7 @@ describe('SqliteVoucherRecordStore: reglas de save (ARQ-12)', () => {
   });
 
   // Un CAE es de un solo comprobante: si llega con otro número no se pisa lo guardado, y queda el rastro.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('el CAE con otro número: cae-on-other-number, sin cambios y con un evento conflicto-numero', async () => {
+  it('el CAE con otro número: cae-on-other-number, sin cambios y con un evento conflicto-numero', async () => {
     const dataDirectory = temporaryDataDirectory();
     const store = openStore(dataDirectory);
 
@@ -121,8 +114,7 @@ describe('SqliteVoucherRecordStore: reglas de save (ARQ-12)', () => {
     expect(events(dataDirectory, 'conflicto-numero')).toBe(1);
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('otro tipo o punto de venta con el mismo CAE también es otro número', async () => {
+  it('otro tipo o punto de venta con el mismo CAE también es otro número', async () => {
     const store = openStore(temporaryDataDirectory());
 
     await store.save(voucherRecord());
@@ -132,8 +124,7 @@ describe('SqliteVoucherRecordStore: reglas de save (ARQ-12)', () => {
   });
 
   // ARCA reinicia homologación: el mismo número vuelve con otro CAE. Vale el nuevo; el viejo no se borra.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('otro CAE para el mismo número: replaced, el anterior queda marcado y con un evento reemplazo', async () => {
+  it('otro CAE para el mismo número: replaced, el anterior queda marcado y con un evento reemplazo', async () => {
     const dataDirectory = temporaryDataDirectory();
     const clock = movableClock();
     const store = openStore(dataDirectory, { clock });
@@ -164,8 +155,7 @@ describe('SqliteVoucherRecordStore: reglas de save (ARQ-12)', () => {
     expect(events(dataDirectory, 'reemplazo')).toBe(1);
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('un tercer CAE reemplaza al segundo, no al primero', async () => {
+  it('un tercer CAE reemplaza al segundo, no al primero', async () => {
     const store = openStore(temporaryDataDirectory());
 
     await store.save(voucherRecord());
@@ -177,8 +167,7 @@ describe('SqliteVoucherRecordStore: reglas de save (ARQ-12)', () => {
     });
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('números distintos conviven, y findByNumber distingue tipo y punto de venta', async () => {
+  it('números distintos conviven, y findByNumber distingue tipo y punto de venta', async () => {
     const store = openStore(temporaryDataDirectory());
 
     await store.save(voucherRecord());
@@ -194,8 +183,7 @@ describe('SqliteVoucherRecordStore: reglas de save (ARQ-12)', () => {
   });
 
   // El CAE va como texto: 14 dígitos no entran exactos en un REAL y no se pierden ceros a la izquierda.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('el CAE se guarda y vuelve como texto, igual', async () => {
+  it('el CAE se guarda y vuelve como texto, igual', async () => {
     const dataDirectory = temporaryDataDirectory();
     const store = openStore(dataDirectory);
 
@@ -208,8 +196,7 @@ describe('SqliteVoucherRecordStore: reglas de save (ARQ-12)', () => {
   });
 
   // node:sqlite en Node 26 guarda NULL sin avisar: tiene que lanzar en todas las versiones y no dejar nada.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('un campo obligatorio undefined lanza y no guarda', async () => {
+  it('un campo obligatorio undefined lanza y no guarda', async () => {
     const dataDirectory = temporaryDataDirectory();
     const store = openStore(dataDirectory);
 

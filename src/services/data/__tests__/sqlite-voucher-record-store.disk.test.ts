@@ -20,8 +20,7 @@ import {
 } from './local-data.fixtures';
 
 describe('SqliteVoucherRecordStore: el primer save crea la base (ARQ-12)', () => {
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('crea datos/<CUIT>/<entorno>/comprobantes.db en v1, sana y sin acompañantes al terminar', async () => {
+  it('crea datos/<CUIT>/<entorno>/comprobantes.db en v1, sana y sin acompañantes al terminar', async () => {
     const dataDirectory = temporaryDataDirectory();
 
     await openStore(dataDirectory).save(voucherRecord());
@@ -38,8 +37,7 @@ describe('SqliteVoucherRecordStore: el primer save crea la base (ARQ-12)', () =>
     });
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('produccion y testing son bases distintas del mismo CUIT', async () => {
+  it('produccion y testing son bases distintas del mismo CUIT', async () => {
     const dataDirectory = temporaryDataDirectory();
 
     await openStore(dataDirectory).save(voucherRecord());
@@ -65,8 +63,7 @@ describe.skipIf(!withPermissions)('SqliteVoucherRecordStore: permisos (ARQ-12)',
     process.umask(previousUmask);
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('carpetas 0700 y base 0600 con umask 022', async () => {
+  it('carpetas 0700 y base 0600 con umask 022', async () => {
     const dataDirectory = temporaryDataDirectory();
 
     await openStore(dataDirectory).save(voucherRecord());
@@ -79,8 +76,7 @@ describe.skipIf(!withPermissions)('SqliteVoucherRecordStore: permisos (ARQ-12)',
     expect(permissions(join(dataDirectory, 'datos'))).toBe(0o700);
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('carpetas que ya estaban en 0755 quedan en 0700', async () => {
+  it('carpetas que ya estaban en 0755 quedan en 0700', async () => {
     const dataDirectory = temporaryDataDirectory();
     const folder = join(dataDirectory, 'datos', CUIT, 'testing');
 
@@ -98,8 +94,7 @@ describe.skipIf(!withPermissions)('SqliteVoucherRecordStore: permisos (ARQ-12)',
   });
 
   // El -journal toma los permisos de la base: si la base nació 0644, el journal también lo sería.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('el -journal de una escritura en curso sale 0600', async () => {
+  it('el -journal de una escritura en curso sale 0600', async () => {
     const dataDirectory = temporaryDataDirectory();
     const file = vouchersFile(dataDirectory);
 
@@ -122,8 +117,7 @@ describe.skipIf(!withPermissions)('SqliteVoucherRecordStore: permisos (ARQ-12)',
   });
 
   // DELETE: con la carpeta de solo lectura se puede leer pero no crear el -journal (SQLITE_READONLY_DIRECTORY, 1544).
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('carpeta de solo lectura: save da read-only sin tocar nada, y se sigue leyendo', async () => {
+  it('carpeta de solo lectura: save da read-only sin tocar nada, y se sigue leyendo', async () => {
     const dataDirectory = temporaryDataDirectory();
     const file = vouchersFile(dataDirectory);
     const store = openStore(dataDirectory);
@@ -148,8 +142,7 @@ describe.skipIf(!withPermissions)('SqliteVoucherRecordStore: permisos (ARQ-12)',
 describe('SqliteVoucherRecordStore: rutas raras (ARQ-12)', () => {
   // La carpeta de la config puede tener cualquier nombre: el de quien usa el CLI, uno sincronizado, uno con símbolos que
   // una URL o una shell interpretan. ñ en NFD: macOS la guarda así y no es la misma cadena que en NFC.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     'con espacios',
     'acentos áéíóú',
     'ñ NFD ñ',
@@ -168,18 +161,14 @@ describe('SqliteVoucherRecordStore: rutas raras (ARQ-12)', () => {
   });
 
   // SQLite no abre rutas de 260 o más en Windows: se dice antes de intentarlo, sin crear carpetas a medias.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.runIf(process.platform === 'win32').fails(
-    'en Windows, una carpeta de 300 caracteres da path-too-long',
-    async () => {
-      const parent = temporaryDataDirectory();
-      // Cada parte de menos de 255 (el máximo de un nombre en NTFS), hasta llegar a 300 en total.
-      const missing = 300 - parent.length - 2;
-      const dataDirectory = join(parent, 'x'.repeat(Math.ceil(missing / 2)), 'y'.repeat(Math.floor(missing / 2)));
+  it.runIf(process.platform === 'win32')('en Windows, una carpeta de 300 caracteres da path-too-long', async () => {
+    const parent = temporaryDataDirectory();
+    // Cada parte de menos de 255 (el máximo de un nombre en NTFS), hasta llegar a 300 en total.
+    const missing = 300 - parent.length - 2;
+    const dataDirectory = join(parent, 'x'.repeat(Math.ceil(missing / 2)), 'y'.repeat(Math.floor(missing / 2)));
 
-      expect(dataDirectory).toHaveLength(300);
-      await expectLocalDataError(openStore(dataDirectory).save(voucherRecord()), 'path-too-long');
-      expect(readdirSync(parent)).toEqual([]);
-    },
-  );
+    expect(dataDirectory).toHaveLength(300);
+    await expectLocalDataError(openStore(dataDirectory).save(voucherRecord()), 'path-too-long');
+    expect(readdirSync(parent)).toEqual([]);
+  });
 });

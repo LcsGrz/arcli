@@ -58,8 +58,7 @@ const columns = (file: string) =>
 
 describe('versión del esquema: mayor desconocida (ARQ-12)', () => {
   // La escribió un ARCLI con otro esquema mayor: no se lee ni se escribe, ni con pragmas.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('2000: save, findByCae y findByNumber dan newer-version y el archivo queda igual', async () => {
+  it('2000: save, findByCae y findByNumber dan newer-version y el archivo queda igual', async () => {
     const { dataDirectory, file } = await savedBase();
 
     inspect(file, (database) => database.exec('PRAGMA user_version = 2000'));
@@ -77,8 +76,7 @@ describe('versión del esquema: mayor desconocida (ARQ-12)', () => {
 
 describe('versión del esquema: menor desconocida (ARQ-12)', () => {
   // Una menor solo suma (columna nullable, tabla, índice): el ARCLI que no la conoce lee y escribe igual, sin bajarla.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('1001 con una columna y una tabla nuevas: lee, guarda y la deja en 1001', async () => {
+  it('1001 con una columna y una tabla nuevas: lee, guarda y la deja en 1001', async () => {
     const { dataDirectory, file } = await savedBase();
 
     inspect(file, (database) =>
@@ -98,8 +96,7 @@ describe('versión del esquema: menor desconocida (ARQ-12)', () => {
 });
 
 describe('migraciones (ARQ-12, con una menor de prueba)', () => {
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('una base v1 con datos pasa a 1001 al abrirla, con los datos', async () => {
+  it('una base v1 con datos pasa a 1001 al abrirla, con los datos', async () => {
     const { dataDirectory, file } = await savedBase();
     const store = openStore(dataDirectory, { extraMigrations: [addColumn(1001)] });
 
@@ -109,8 +106,7 @@ describe('migraciones (ARQ-12, con una menor de prueba)', () => {
     expect(columns(file)).toContain('prueba');
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('una base nueva sale directo en la última versión', async () => {
+  it('una base nueva sale directo en la última versión', async () => {
     const dataDirectory = temporaryDataDirectory();
 
     await openStore(dataDirectory, { extraMigrations: [addColumn(1001)] }).save(voucherRecord());
@@ -119,8 +115,7 @@ describe('migraciones (ARQ-12, con una menor de prueba)', () => {
   });
 
   // La migración va entera en una transacción: si falla a la mitad, no queda la columna con la versión vieja.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('si un paso falla, queda en v1 con sus datos y sin la mitad del cambio', async () => {
+  it('si un paso falla, queda en v1 con sus datos y sin la mitad del cambio', async () => {
     const { dataDirectory, file } = await savedBase();
     const broken: SqliteMigration = {
       version: 1001,
@@ -151,8 +146,7 @@ describe('base de otro CUIT, entorno o programa (ARQ-12)', () => {
     return { store: openStore(dataDirectory, { cuit, environment }), target };
   }
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     [OTHER_CUIT, 'testing'],
     [CUIT, 'produccion'],
   ] as const)('en la carpeta de %s/%s da mismatch y no se toca', async (cuit, environment) => {
@@ -164,8 +158,7 @@ describe('base de otro CUIT, entorno o programa (ARQ-12)', () => {
     });
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('una base de SQLite de otro programa (otro application_id) da mismatch y no se toca', async () => {
+  it('una base de SQLite de otro programa (otro application_id) da mismatch y no se toca', async () => {
     const { dataDirectory, file } = await savedBase();
 
     inspect(file, (database) => database.exec('PRAGMA application_id = 12345'));

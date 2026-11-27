@@ -121,8 +121,7 @@ const health = (file: string) =>
 
 describe('datos locales con procesos reales (ARQ-12 PR 4a)', () => {
   // Con DELETE y carga continua, Windows da "database is locked" aun con 5 s (CI del 25/11): el reintento lo cubre.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     [2, 300],
     [8, 100],
   ])('%i procesos × %i guardados sobre la misma base: todos, sin errores y sana', async (processes, each) => {
@@ -142,8 +141,7 @@ describe('datos locales con procesos reales (ARQ-12 PR 4a)', () => {
   });
 
   // Otro proceso tiene la base más que la espera de SQLite (bajada a 300 ms): el guardado se reintenta y entra.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('tomada por otro más que la espera: reintenta y guarda', async () => {
+  it('tomada por otro más que la espera: reintenta y guarda', async () => {
     const { dataDirectory, file } = await baseWith(1);
     const barrier = join(temporaryDataDirectory('arcli-e2e-barrera-'), 'ya');
     const saver = start(['guardar', dataDirectory, 2, 1, 300], barrier);
@@ -165,35 +163,30 @@ describe('datos locales con procesos reales (ARQ-12 PR 4a)', () => {
   });
 
   // Tras SIGKILL queda un -journal caliente: abrir con readOnly fallaría (SQLITE_READONLY_ROLLBACK). Cinco veces.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails(
-    'SIGKILL en medio de una transacción ×5: misma versión, sin filas a medias, sana, y el siguiente guarda',
-    async () => {
-      const { dataDirectory, file } = await baseWith(3);
+  it('SIGKILL en medio de una transacción ×5: misma versión, sin filas a medias, sana, y el siguiente guarda', async () => {
+    const { dataDirectory, file } = await baseWith(3);
 
-      for (let round = 0; round < 5; round += 1) {
-        const victim = start(['victima', file]);
+    for (let round = 0; round < 5; round += 1) {
+      const victim = start(['victima', file]);
 
-        await untilSays(victim, 'medio');
-        await kill(victim);
+      await untilSays(victim, 'medio');
+      await kill(victim);
 
-        expect(existsSync(`${file}-journal`)).toBe(true);
-        expect(await result(start(['guardar', dataDirectory, 10 + round, 1]))).toMatchObject({
-          errors: [],
-          outcomes: { saved: 1 },
-        });
-        expect(health(file)).toEqual({ integrity: 'ok', version: SCHEMA_V1 });
-        expect(
-          inspect(file, (database) => scalar(database, "SELECT count(*) FROM eventos WHERE tipo = 'victima'")),
-        ).toBe(0);
-        expect(count(file)).toBe(3 + round + 1);
-      }
-    },
-  );
+      expect(existsSync(`${file}-journal`)).toBe(true);
+      expect(await result(start(['guardar', dataDirectory, 10 + round, 1]))).toMatchObject({
+        errors: [],
+        outcomes: { saved: 1 },
+      });
+      expect(health(file)).toEqual({ integrity: 'ok', version: SCHEMA_V1 });
+      expect(inspect(file, (database) => scalar(database, "SELECT count(*) FROM eventos WHERE tipo = 'victima'"))).toBe(
+        0,
+      );
+      expect(count(file)).toBe(3 + round + 1);
+    }
+  });
 
   // Lo que el proceso llegó a decir que guardó está, aunque lo maten enseguida (synchronous=FULL).
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('un proceso que guarda sin parar y muere no pierde lo que avisó', async () => {
+  it('un proceso que guarda sin parar y muere no pierde lo que avisó', async () => {
     const { dataDirectory, file } = await baseWith(1);
     const writer = start(['confirmador', dataDirectory, 100]);
 
@@ -214,8 +207,7 @@ describe('datos locales con procesos reales (ARQ-12 PR 4a)', () => {
   });
 
   // Cuatro que guardan por primera vez a la vez: uno crea la base y los demás la abren; nadie pisa a nadie.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('4 procesos crean la base a la vez: todas las filas, un solo archivo, sin temporales', async () => {
+  it('4 procesos crean la base a la vez: todas las filas, un solo archivo, sin temporales', async () => {
     const dataDirectory = temporaryDataDirectory('arcli-e2e-datos-');
     const children = await together([1, 2, 3, 4].map((index) => ['guardar', dataDirectory, index * 100, 10]));
 
@@ -233,8 +225,7 @@ describe('datos locales con procesos reales (ARQ-12 PR 4a)', () => {
 
   // La migración va en una transacción con la versión adentro: matarla a la mitad deja la v1 entera, y el reintento
   // no encuentra la columna a medias ("duplicate column name").
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('SIGKILL durante una migración: queda en v1 con sus datos y el reintento migra', async () => {
+  it('SIGKILL durante una migración: queda en v1 con sus datos y el reintento migra', async () => {
     const { dataDirectory, file } = await baseWith(3);
     const victim = start(['migrar', dataDirectory, 'si', 50]);
 
@@ -252,8 +243,7 @@ describe('datos locales con procesos reales (ARQ-12 PR 4a)', () => {
     expect(count(file)).toBe(4);
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('4 procesos migran a la vez: todos bien y queda en la menor nueva', async () => {
+  it('4 procesos migran a la vez: todos bien y queda en la menor nueva', async () => {
     const { dataDirectory, file } = await baseWith(3);
     const children = await together([1, 2, 3, 4].map((index) => ['migrar', dataDirectory, 'no', 50 + index]));
 
@@ -266,27 +256,22 @@ describe('datos locales con procesos reales (ARQ-12 PR 4a)', () => {
   });
 
   // Node 22 avisa "SQLite is an experimental feature" al cargarlo: se oculta ese y solo ese. 24 y 26 no avisan.
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('guardar no escribe nada en stderr, en ningún Node', async () => {
+  it('guardar no escribe nada en stderr, en ningún Node', async () => {
     const child = start(['guardar', temporaryDataDirectory('arcli-e2e-datos-'), 1, 1]);
 
     expect(await result(child)).toMatchObject({ errors: [], outcomes: { saved: 1 } });
     expect(child.output.stderr).toBe('');
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails(
-    'los demás avisos siguen saliendo: otro experimental, uno de "SQLite" de otro tipo y uno común',
-    async () => {
-      const child = start(['avisos', temporaryDataDirectory('arcli-e2e-datos-')]);
+  it('los demás avisos siguen saliendo: otro experimental, uno de "SQLite" de otro tipo y uno común', async () => {
+    const child = start(['avisos', temporaryDataDirectory('arcli-e2e-datos-')]);
 
-      await child.closed;
+    await child.closed;
 
-      expect(lines(child)).toEqual(['ok']);
-      expect(child.output.stderr).toContain('ExperimentalWarning: otro experimento');
-      expect(child.output.stderr).toContain('DeprecationWarning: SQLite otro');
-      expect(child.output.stderr).toContain('Warning: aviso común');
-      expect(child.output.stderr).not.toContain('SQLite is an experimental feature');
-    },
-  );
+    expect(lines(child)).toEqual(['ok']);
+    expect(child.output.stderr).toContain('ExperimentalWarning: otro experimento');
+    expect(child.output.stderr).toContain('DeprecationWarning: SQLite otro');
+    expect(child.output.stderr).toContain('Warning: aviso común');
+    expect(child.output.stderr).not.toContain('SQLite is an experimental feature');
+  });
 });
