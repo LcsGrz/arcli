@@ -168,6 +168,7 @@ async function configRows(): Promise<Partial<Record<ConfigPublicKey, string>>> {
 /** Lo que se ve sin nada guardado en las claves con un valor por defecto (o sin uno fijo). */
 const UNSAVED_VALUES = {
   alicuota: '21% (por defecto)',
+  'asistente.comandoEquivalente': 'sí (por defecto)',
   consultarPadron: 'sí (por defecto)',
   'emisor.condicionIva': 'según la letra',
   filasPorLista: '15 (por defecto)',
@@ -404,10 +405,10 @@ describe('D. los nombres de las opciones', () => {
   });
 });
 
-/** TUI-47: la clave nueva, que todavía no es una `ConfigPublicKey`. */
-const EQUIVALENT_COMMAND = 'asistente.comandoEquivalente' as ConfigPublicKey;
+/** TUI-47: mostrar o no el comando equivalente. */
+const EQUIVALENT_COMMAND: ConfigPublicKey = 'asistente.comandoEquivalente';
 
-/** Como lo deja `config establecer asistente.comandoEquivalente no`, escrito a mano: hoy la clave no se guarda. */
+/** Como lo deja `config establecer asistente.comandoEquivalente no`, escrito a mano. */
 const saveEquivalentCommandOff = () =>
   writeFileSync(configPath(), JSON.stringify({ asistente: { comandoEquivalente: false } }));
 
@@ -442,43 +443,31 @@ const backOptions = (options: readonly string[]) =>
   options.filter((option) => /^(Dejar|Volver|Quitar|Borrar)/.test(option));
 
 describe('E. el comando equivalente (TUI-47)', () => {
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails(
-    '"Mostrar el comando equivalente" va en una sección "Asistente", después de "Salida y listados"',
-    async () => {
-      const listed = await assistantList();
-      const output = listed.indexOf('Salida y listados');
-      const assistant = listed.indexOf('Asistente');
+  it('"Mostrar el comando equivalente" va en una sección "Asistente", después de "Salida y listados"', async () => {
+    const listed = await assistantList();
+    const output = listed.indexOf('Salida y listados');
+    const assistant = listed.indexOf('Asistente');
 
-      expect(output).toBeGreaterThan(-1);
-      expect(assistant).toBeGreaterThan(output);
-      expect(listed[assistant + 1]).toBe('Mostrar el comando equivalente');
-    },
-  );
-
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('sin nada guardado, el asistente muestra "sí (por defecto)"', async () => {
+    expect(output).toBeGreaterThan(-1);
+    expect(assistant).toBeGreaterThan(output);
+    expect(listed[assistant + 1]).toBe('Mostrar el comando equivalente');
+  });
+  it('sin nada guardado, el asistente muestra "sí (por defecto)"', async () => {
     expect((await assistantValues())[EQUIVALENT_COMMAND]).toBe('sí (por defecto)');
   });
-
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('guardado en no, el asistente muestra "no"', async () => {
+  it('guardado en no, el asistente muestra "no"', async () => {
     saveEquivalentCommandOff();
 
     expect((await assistantValues())[EQUIVALENT_COMMAND]).toBe('no');
   });
-
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('sin guardar: "Sí", "No" y "Dejar el de por defecto (sí)"', async () => {
+  it('sin guardar: "Sí", "No" y "Dejar el de por defecto (sí)"', async () => {
     const { options, values } = await equivalentCommandQuestion();
 
     expect(options.slice(0, 2)).toEqual(['Sí', 'No']);
     expect(values.slice(0, 2)).toEqual(['si', 'no']);
     expect(backOptions(options)).toEqual(['Dejar el de por defecto (sí)']);
   });
-
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('guardado: "Volver al de por defecto (sí)"', async () => {
+  it('guardado: "Volver al de por defecto (sí)"', async () => {
     saveEquivalentCommandOff();
 
     const { options } = await equivalentCommandQuestion();

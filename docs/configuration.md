@@ -143,6 +143,18 @@ Para scripts, automatización y las listas.
 
 > Para claves booleanas, ARCLI acepta `true` / `false`, `sí` / `no` o `1` / `0`.
 
+### Asistente
+
+Lo que solo cambia el [modo interactivo](modo-interactivo.md), no los comandos con flags.
+
+| Clave                          | Tipo    | Valor por defecto | Descripción                                                                                                                                                        |
+| ------------------------------ | ------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `asistente.comandoEquivalente` | boolean | `true`            | Mostrar el comando equivalente ("Esto equivale a:") antes de "¿Emitimos…?". Con `false`, el asistente muestra la vista previa y pregunta si emitir, sin el comando |
+
+```sh
+arcli config establecer asistente.comandoEquivalente no
+```
+
 ### Certificados con `arcli certificado`
 
 `arcli certificado generar` y `arcli certificado importar` guardan la clave y el certificado en `certificados/<CUIT>/`, junto a `config.json`, y configuran `cert.<entorno>` y `key.<entorno>` apuntando ahí. Si ya tenés las rutas configuradas a mano, siguen andando igual. Ver [Comando `arcli certificado`](cli-reference.md#comando-arcli-certificado).

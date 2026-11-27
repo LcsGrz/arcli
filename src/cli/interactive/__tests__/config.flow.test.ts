@@ -296,6 +296,7 @@ describe('runConfigMenu', () => {
       'Datos del emisor (PDF)',
       'PDF',
       'Salida y listados',
+      'Asistente',
     ]);
   });
 

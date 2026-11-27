@@ -22,7 +22,12 @@ import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 import { formatSavedAccount } from './cbu-alias-change';
 import type { ArcliConfig } from './config.schemas';
-import { formatEnvironmentLabel, isPadronLookupEnabled, resolveConfiguredRowsPerList } from './config.schemas';
+import {
+  formatEnvironmentLabel,
+  isEquivalentCommandShown,
+  isPadronLookupEnabled,
+  resolveConfiguredRowsPerList,
+} from './config.schemas';
 import { CONFIG_LABELS, CONFIG_SECTIONS } from './config.sections';
 import { CONFIG_DOCTOR_SECTIONS, type ConfigDoctorReport } from './config-doctor';
 import type { ConfigPublicKey } from './config-key-table';
@@ -32,6 +37,10 @@ import type { PendingConfigProblems } from './config-problems';
 interface PublicConfigSnapshot {
   readonly alicuota?: ArcliConfig['alicuotaPorDefecto'];
   readonly aliasCbu?: string;
+  /** Siempre con el valor resuelto: sin nada guardado, `comandoEquivalente` es true. */
+  readonly asistente: {
+    readonly comandoEquivalente: boolean;
+  };
   /** Deprecada hasta la 3.0.0: el mismo valor que `filasPorLista`, para quien ya la leia. */
   readonly comprobantesPorLista?: number;
   readonly cbu?: string;
@@ -95,6 +104,7 @@ function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): Publi
   return {
     alicuota: config.alicuotaPorDefecto,
     aliasCbu: config.aliasCbu,
+    asistente: { comandoEquivalente: isEquivalentCommandShown(config) },
     comprobantesPorLista: rowsPerList,
     cbu: config.cbu,
     cert: {
@@ -224,6 +234,8 @@ const saleCondition = (value: string | undefined): string | undefined =>
 /** Como se muestra cada dato guardado, en `arcli config` y en "Modificar configuración" del asistente. */
 const SAVED_TEXTS: Record<ConfigPublicKey, SavedConfigText> = {
   alicuota: (c) => c.alicuota && formatIvaRate(c.alicuota),
+  // El snapshot trae el valor resuelto: si está guardado lo dice la config.
+  'asistente.comandoEquivalente': (_c, raw) => optionalYesNo(raw.asistente?.comandoEquivalente),
   bruto: (c) => yesNo(c.bruto),
   'cert.produccion': (c) => c.cert.produccion,
   'cert.testing': (c) => c.cert.testing,
@@ -278,6 +290,7 @@ const unmarked = (text: string): ConfigDefault => ({ marked: false, text: () => 
 /** Lo que vale un dato sin nada guardado. Un dato que no está acá queda "sin configurar". */
 const DEFAULT_TEXTS: Partial<Record<ConfigPublicKey, ConfigDefault>> = {
   alicuota: marked(() => formatIvaRate(DEFAULT_IVA_RATE)),
+  'asistente.comandoEquivalente': marked(() => yesNo(isEquivalentCommandShown({}))),
   consultarPadron: marked(() => yesNo(isPadronLookupEnabled({}))),
   cotizacion: marked(() => 'la oficial de ARCA'),
   'emisor.condicionIva': unmarked('según la letra'),

@@ -36,6 +36,12 @@ export const arcliDefaultIvaRateSchema = billingIvaRateSchema;
 
 export const arcliConfigSchema = z.object({
   alicuotaPorDefecto: arcliDefaultIvaRateSchema.optional(),
+  /** Lo que solo cambia el modo interactivo. `comandoEquivalente`: mostrar "Esto equivale a:"; sin definir, si. */
+  asistente: z
+    .object({
+      comandoEquivalente: z.boolean().optional(),
+    })
+    .optional(),
   cert: certificatePathsSchema.default({}),
   cuit: z
     .string()
@@ -109,6 +115,11 @@ export type ArcliEnvironment = z.infer<typeof arcliEnvironmentSchema>;
 /** El padrón se consulta salvo que se haya apagado con `consultarPadron false`. */
 export function isPadronLookupEnabled(config: Pick<ArcliConfig, 'consultarPadron'>): boolean {
   return config.consultarPadron ?? true;
+}
+
+/** El asistente muestra el comando equivalente antes de "¿Emitimos?" salvo que se haya apagado (TUI-47). */
+export function isEquivalentCommandShown(config: Pick<ArcliConfig, 'asistente'>): boolean {
+  return config.asistente?.comandoEquivalente ?? true;
 }
 
 /** Lo mismo en facturacion, la E y las consultas. */

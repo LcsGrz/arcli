@@ -141,6 +141,16 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
     read: (c) => (c.verificarFce === undefined ? undefined : c.verificarFce ? 'si' : 'no'),
   },
   {
+    choiceLabels: YES_NO_LABELS,
+    choices: ['si', 'no'],
+    key: 'asistente.comandoEquivalente',
+    read: (c) => {
+      const shown = c.asistente?.comandoEquivalente;
+
+      return shown === undefined ? undefined : shown ? 'si' : 'no';
+    },
+  },
+  {
     choiceLabels: PDF_MODE_LABELS,
     choices: arcliPdfModeSchema.options,
     key: 'pdf',

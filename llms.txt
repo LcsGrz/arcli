@@ -335,7 +335,9 @@ Claves válidas: `cuit`, `cuenta` (CBU y alias, solo facturas FCE; en el archivo
 de exportación; si faltan, se usan `cert.*`/`key.*`), `exportacion.actividad` (código de la tabla de
 actividades de WSFEX para la `E`; `--actividad` lo pisa), `ticketPath` (carpeta donde se cachea el
 ticket WSAA; por defecto una carpeta junto al archivo de config), `monotributo.tope` (tope de ingresos anuales
-propio en pesos, pisa el de la categoría; `arcli monotributo` lo muestra).
+propio en pesos, pisa el de la categoría; `arcli monotributo` lo muestra), `asistente.comandoEquivalente`
+(booleano, por defecto `true`: con `false` el modo interactivo no muestra el comando equivalente antes de emitir;
+en `config --json` sale siempre como `"asistente": { "comandoEquivalente": true }`).
 Para el PDF: `pdf` (`siempre`/`preguntar`/`nunca`), `pdfCarpeta` (por defecto `~/arcli/comprobantes`; una subcarpeta
 por CUIT emisor, los de testing en `testing/<CUIT>/`, y nunca se pisa un PDF existente: se suma `-2`, `-3`), `pdfNavegador` (ruta a Chrome/Chromium/Edge), `condicionVenta` (default de `--condicion-venta`; se omite por comprobante con `--sin-condicion-venta` o JSON `null`), `emisor.razonSocial`, `emisor.domicilio`,
 `emisor.inicioActividades` (fecha con año), `emisor.iibb`, `emisor.condicionIva`, `emisor.logo` (PNG o JPG).

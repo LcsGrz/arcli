@@ -3,7 +3,7 @@
   "codigo": "INPUT_VALIDATION_ERROR",
   "detalles": [
     {
-      "mensaje": "El valor no está entre los soportados. Valores válidos: alicuota, cert.produccion, cert.testing, concepto, condicionVenta, cuenta, cuit, cotizacion, emisor.condicionIva, emisor.domicilio, emisor.iibb, emisor.inicioActividades, emisor.logo, emisor.razonSocial, entorno, emitir, exportacion.actividad, exportacion.cert.produccion, exportacion.cert.testing, exportacion.key.produccion, exportacion.key.testing, filasPorLista, ivaReceptor, json, key.produccion, key.testing, moneda, monotributo.tope, bruto, pdf, pdfCarpeta, pdfNavegador, puntoVenta, ticketPath, verificarFce, consultarPadron.",
+      "mensaje": "El valor no está entre los soportados. Valores válidos: alicuota, cert.produccion, cert.testing, concepto, condicionVenta, cuenta, cuit, cotizacion, emisor.condicionIva, emisor.domicilio, emisor.iibb, emisor.inicioActividades, emisor.logo, emisor.razonSocial, entorno, emitir, exportacion.actividad, exportacion.cert.produccion, exportacion.cert.testing, exportacion.key.produccion, exportacion.key.testing, filasPorLista, ivaReceptor, json, key.produccion, key.testing, moneda, monotributo.tope, bruto, pdf, pdfCarpeta, pdfNavegador, puntoVenta, ticketPath, verificarFce, consultarPadron, asistente.comandoEquivalente.",
       "ruta": []
     }
   ],
@@ -12,10 +12,10 @@
 }
 
 # Las claves al completar establecer
-alicuota cert.produccion cert.testing concepto condicionVenta cuenta cuit cotizacion emisor.condicionIva emisor.domicilio emisor.iibb emisor.inicioActividades emisor.logo emisor.razonSocial entorno emitir exportacion.actividad exportacion.cert.produccion exportacion.cert.testing exportacion.key.produccion exportacion.key.testing filasPorLista ivaReceptor json key.produccion key.testing moneda monotributo.tope bruto pdf pdfCarpeta pdfNavegador puntoVenta ticketPath verificarFce consultarPadron
+alicuota cert.produccion cert.testing concepto condicionVenta cuenta cuit cotizacion emisor.condicionIva emisor.domicilio emisor.iibb emisor.inicioActividades emisor.logo emisor.razonSocial entorno emitir exportacion.actividad exportacion.cert.produccion exportacion.cert.testing exportacion.key.produccion exportacion.key.testing filasPorLista ivaReceptor json key.produccion key.testing moneda monotributo.tope bruto pdf pdfCarpeta pdfNavegador puntoVenta ticketPath verificarFce consultarPadron asistente.comandoEquivalente
 
 # Las claves al completar eliminar
-alicuota cert.produccion cert.testing concepto condicionVenta cuenta cuit cotizacion emisor.condicionIva emisor.domicilio emisor.iibb emisor.inicioActividades emisor.logo emisor.razonSocial entorno emitir exportacion.actividad exportacion.cert.produccion exportacion.cert.testing exportacion.key.produccion exportacion.key.testing filasPorLista ivaReceptor json key.produccion key.testing moneda monotributo.tope bruto pdf pdfCarpeta pdfNavegador puntoVenta ticketPath verificarFce consultarPadron
+alicuota cert.produccion cert.testing concepto condicionVenta cuenta cuit cotizacion emisor.condicionIva emisor.domicilio emisor.iibb emisor.inicioActividades emisor.logo emisor.razonSocial entorno emitir exportacion.actividad exportacion.cert.produccion exportacion.cert.testing exportacion.key.produccion exportacion.key.testing filasPorLista ivaReceptor json key.produccion key.testing moneda monotributo.tope bruto pdf pdfCarpeta pdfNavegador puntoVenta ticketPath verificarFce consultarPadron asistente.comandoEquivalente
 
 # Los valores de cada clave al completar establecer
 alicuota: 21 10.5 27 5 2.5 0
@@ -54,3 +54,4 @@ puntoVenta: (nada)
 ticketPath: (nada)
 verificarFce: si no
 consultarPadron: si no
+asistente.comandoEquivalente: si no

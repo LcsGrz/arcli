@@ -139,9 +139,7 @@ describe.each(FAMILIES)('$name', (family) => {
 
     expect(await shownBeforeEmitting(family)).toContain('Esto equivale a:');
   });
-
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('con `asistente.comandoEquivalente` en no, no lo muestra, pero sí la vista previa', async () => {
+  it('con `asistente.comandoEquivalente` en no, no lo muestra, pero sí la vista previa', async () => {
     writeConfig(false);
 
     const shown = await shownBeforeEmitting(family);

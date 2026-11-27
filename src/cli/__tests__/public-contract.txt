@@ -3,6 +3,7 @@
 # Una línea que se va es un cambio que rompe: ver "Contrato público" en AGENTS.md.
 clave aliasCbu
 clave alicuota
+clave asistente.comandoEquivalente
 clave bruto
 clave cbu
 clave cert.produccion

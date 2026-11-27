@@ -57,6 +57,9 @@
 │    Salida JSON                              no                                           │
 │    Salida bruta                             no                                           │
 │                                                                                          │
+│  Asistente                                                                               │
+│    Mostrar el comando equivalente           sí (por defecto)                             │
+│                                                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 
 
@@ -118,6 +121,9 @@
 │    ␛[2mEmitir sin `--emitir`                  ␛[22m  no                                           │
 │    ␛[2mSalida JSON                            ␛[22m  no                                           │
 │    ␛[2mSalida bruta                           ␛[22m  no                                           │
+│                                                                                          │
+│  ␛[36mAsistente␛[39m                                                                               │
+│    ␛[2mMostrar el comando equivalente         ␛[22m  sí (por defecto)                             │
 │                                                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 
@@ -181,6 +187,9 @@
 │    Salida JSON                              no                                           │
 │    Salida bruta                             sí                                           │
 │                                                                                          │
+│  Asistente                                                                               │
+│    Mostrar el comando equivalente           no                                           │
+│                                                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 
 
@@ -242,6 +251,9 @@
 │    ␛[2mEmitir sin `--emitir`                  ␛[22m  sí                                           │
 │    ␛[2mSalida JSON                            ␛[22m  no                                           │
 │    ␛[2mSalida bruta                           ␛[22m  sí                                           │
+│                                                                                          │
+│  ␛[36mAsistente␛[39m                                                                               │
+│    ␛[2mMostrar el comando equivalente         ␛[22m  no                                           │
 │                                                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 

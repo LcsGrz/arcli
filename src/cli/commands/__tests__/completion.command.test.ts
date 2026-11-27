@@ -154,14 +154,10 @@ describe('arcli __completar sin candidatos', () => {
   it.each([['emitir'], ['json'], ['bruto']])('la clave de sí o no %s también ofrece si y no', async (key) => {
     expect(await complete('config', 'establecer', key, '')).toEqual(['si', 'no']);
   });
-
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('asistente.comandoEquivalente ofrece si y no', async () => {
+  it('asistente.comandoEquivalente ofrece si y no', async () => {
     expect(await complete('config', 'establecer', 'asistente.comandoEquivalente', '')).toEqual(['si', 'no']);
   });
-
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails.each([['establecer'], ['eliminar']])('config %s completa asistente.comandoEquivalente', async (action) => {
+  it.each([['establecer'], ['eliminar']])('config %s completa asistente.comandoEquivalente', async (action) => {
     expect(await complete('config', action, 'asis')).toEqual(['asistente.comandoEquivalente']);
   });
 

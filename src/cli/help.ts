@@ -202,6 +202,7 @@ const CONFIG_VALUE_OVERRIDES: Partial<Record<ConfigPublicKey, string>> = {
   ...Object.fromEntries(BOOLEAN_CONFIG_KEYS.map((key) => [key, BOOLEAN_CONFIG_VALUES])),
   alicuota: 'general, reducida, incrementada, cero o el número: 0, 2.5, 5, 10.5, 21, 27; por defecto 21',
   consultarPadron: `${BOOLEAN_CONFIG_VALUES}; por defecto si`,
+  'asistente.comandoEquivalente': `${BOOLEAN_CONFIG_VALUES}; por defecto si`,
 };
 
 function describeConfigValues(key: ConfigPublicKey): string | undefined {

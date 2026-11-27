@@ -45,8 +45,7 @@ function rowValue(lines: readonly string[]): string | undefined {
 }
 
 describe('`config establecer asistente.comandoEquivalente`', () => {
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     ['true', true],
     ['FALSE', false],
     ['si', true],
@@ -59,16 +58,12 @@ describe('`config establecer asistente.comandoEquivalente`', () => {
 
     expect(json.asistente).toEqual({ comandoEquivalente: saved });
   });
-
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('queda en el config.json como `asistente.comandoEquivalente`', async () => {
+  it('queda en el config.json como `asistente.comandoEquivalente`', async () => {
     await runJson('config', 'establecer', KEY, 'no');
 
     expect((JSON.parse(storedBytes()) as Json).asistente).toEqual({ comandoEquivalente: false });
   });
-
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('un valor que no es sí o no se rechaza con los valores válidos', async () => {
+  it('un valor que no es sí o no se rechaza con los valores válidos', async () => {
     const { code, stderr } = await runCli('config', 'establecer', KEY, 'quizas', '--json');
 
     expect(code).toBe(1);
@@ -77,25 +72,20 @@ describe('`config establecer asistente.comandoEquivalente`', () => {
       error: '`asistente.comandoEquivalente` no acepta "quizas". Usá true/false, si/no o 1/0.',
     });
   });
-
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('sin `--json` muestra la config con la fila en "no"', async () => {
+  it('sin `--json` muestra la config con la fila en "no"', async () => {
     expect(rowValue(await configLines('config', 'establecer', KEY, 'no'))).toBe('no');
   });
 });
 
 describe('`config eliminar asistente.comandoEquivalente`', () => {
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('vuelve al por defecto: `--json` dice true', async () => {
+  it('vuelve al por defecto: `--json` dice true', async () => {
     await runJson('config', 'establecer', KEY, 'no');
 
     const json = await runJson('config', 'eliminar', KEY);
 
     expect(json.asistente).toEqual({ comandoEquivalente: true });
   });
-
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('sin `--json` muestra la fila con "sí (por defecto)"', async () => {
+  it('sin `--json` muestra la fila con "sí (por defecto)"', async () => {
     await runJson('config', 'establecer', KEY, 'no');
 
     expect(rowValue(await configLines('config', 'eliminar', KEY))).toBe('sí (por defecto)');
@@ -103,33 +93,24 @@ describe('`config eliminar asistente.comandoEquivalente`', () => {
 });
 
 describe('`arcli config`', () => {
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('`--json` sin nada guardado trae `asistente.comandoEquivalente` en true', async () => {
+  it('`--json` sin nada guardado trae `asistente.comandoEquivalente` en true', async () => {
     expect((await runJson('config')).asistente).toEqual({ comandoEquivalente: true });
   });
-
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('`--json` trae el valor guardado', async () => {
-    // Como lo deja `config establecer`, escrito a mano: hoy la clave no se puede guardar.
+  it('`--json` trae el valor guardado', async () => {
+    // Como lo deja `config establecer`, escrito a mano: lo que se lee es el archivo, no lo que guarda el comando.
     writeFileSync(configPath(), JSON.stringify({ asistente: { comandoEquivalente: false } }));
 
     expect((await runJson('config')).asistente).toEqual({ comandoEquivalente: false });
   });
-
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('sin nada guardado, la fila dice "sí (por defecto)"', async () => {
+  it('sin nada guardado, la fila dice "sí (por defecto)"', async () => {
     expect(rowValue(await configLines('config'))).toBe('sí (por defecto)');
   });
-
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('guardado en sí, la fila dice "sí", sin "(por defecto)"', async () => {
+  it('guardado en sí, la fila dice "sí", sin "(por defecto)"', async () => {
     await runJson('config', 'establecer', KEY, 'si');
 
     expect(rowValue(await configLines('config'))).toBe('sí');
   });
-
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('la fila va en una sección "Asistente", después de "Salida y listados"', async () => {
+  it('la fila va en una sección "Asistente", después de "Salida y listados"', async () => {
     const lines = await configLines('config');
     const output = lines.indexOf('Salida y listados');
     const assistant = lines.indexOf('Asistente');
@@ -143,8 +124,7 @@ describe('`arcli config`', () => {
 });
 
 describe('`config establecer --ayuda`', () => {
-  // Tests primero (TUI-47): pasa a it() al implementarlo.
-  it.fails('lista la clave con sus valores de sí o no y el por defecto', async () => {
+  it('lista la clave con sus valores de sí o no y el por defecto', async () => {
     const lines = await configLines('config', 'establecer', '--ayuda');
 
     expect(lines).toContain(`- ${KEY}: ${LABEL} (true/false, si/no o 1/0; por defecto si)`);
