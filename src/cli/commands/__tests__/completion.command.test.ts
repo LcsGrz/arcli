@@ -155,6 +155,16 @@ describe('arcli __completar sin candidatos', () => {
     expect(await complete('config', 'establecer', key, '')).toEqual(['si', 'no']);
   });
 
+  // Tests primero (TUI-47): pasa a it() al implementarlo.
+  it.fails('asistente.comandoEquivalente ofrece si y no', async () => {
+    expect(await complete('config', 'establecer', 'asistente.comandoEquivalente', '')).toEqual(['si', 'no']);
+  });
+
+  // Tests primero (TUI-47): pasa a it() al implementarlo.
+  it.fails.each([['establecer'], ['eliminar']])('config %s completa asistente.comandoEquivalente', async (action) => {
+    expect(await complete('config', action, 'asis')).toEqual(['asistente.comandoEquivalente']);
+  });
+
   // La lista de claves de sí o no sale del parser: una nueva que guarda un booleano no puede quedar sin si y no.
   it('toda clave que el parser guarda como sí o no ofrece si y no', async () => {
     const booleanKeys = configPublicKeySchema.options.filter((key) => {
