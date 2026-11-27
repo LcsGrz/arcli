@@ -39,16 +39,14 @@ describe('node:sqlite solo en el driver (ARQ-12)', () => {
   });
 
   // Un import estático avisa antes de que se pueda filtrar el aviso de Node 22 (medido el 25/11).
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails('el driver lo carga con import() dinámico, nunca estático', () => {
+  it('el driver lo carga con import() dinámico, nunca estático', () => {
     const driver = readFileSync(DRIVER, 'utf8');
 
     expect(driver).toMatch(/await import\(\s*['"]node:sqlite['"]\s*\)/);
     expect(driver).not.toMatch(/^\s*import\s[^(]*['"]node:sqlite['"]/m);
   });
 
-  // Tests primero (ARQ-12 PR 4a): pasa a it() al implementarlo.
-  it.fails.each([
+  it.each([
     'src/services/data/sqlite-voucher-record-store.ts',
     'src/services/data/sqlite-errors.ts',
     'src/services/files/conf-config-store.ts',
