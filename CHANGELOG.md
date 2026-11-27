@@ -179,7 +179,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 ### 🐛 Corregido
 
 - **Facturas:** si ARCA no contesta, ningún comando queda colgado: 30 segundos por consulta, 60 el login en WSAA y 120 la emisión (#302).
-- **Facturas:** si ARCA contesta sin el último número, facturar y `ultimos` cortan con un error, sin pedir el 1 ni decir que no hay.
+- **Facturas:** si ARCA contesta sin el último número, facturar y `ultimos` cortan con un error, sin pedir el 1 ni decir que no hay (#314).
 - **Facturas:** `Ctrl+C` al emitir espera la respuesta de ARCA, y un lote cortado muestra los CAE ya emitidos y los que faltan (#299).
 - **PDF:** `Ctrl+C` mientras se genera ya no pierde el CAE: el resultado sale completo, con el aviso del PDF que faltó (#305).
 - **Asistente:** `Ctrl+C` mientras espera a ARCA vuelve al menú, y emitiendo espera la respuesta como los comandos, sin cerrar el asistente (#308).
