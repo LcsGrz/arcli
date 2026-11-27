@@ -43,7 +43,7 @@ async function savedBase(): Promise<{ dataDirectory: string; file: string }> {
 
 describe('cada operación cierra lo que abre (ARQ-12)', () => {
   // Una conexión o un descriptor sin cerrar en Windows deja la base sin poder moverse ni borrarse (4b la aparta).
-  it.runIf(POSIX)('crear, guardar, leer y fallar no dejan archivos abiertos', async () => {
+  it.runIf(POSIX)('crear, guardar, leer y fallar no dejan archivos abiertos', { timeout: 30_000 }, async () => {
     const { dataDirectory, file } = await savedBase();
     const newer = await savedBase();
     const damaged = temporaryDataDirectory();
@@ -103,32 +103,41 @@ describe('base tomada por otro (ARQ-12)', () => {
 
 describe('una base dañada por dentro (ARQ-12)', () => {
   // La cabecera está bien y una consulta suelta anda, pero quick_check ve la página rota: no se escribe encima.
-  it('una página de un índice rota: damaged al leer y al guardar, sin tocar el archivo', async () => {
-    const { dataDirectory, file } = await savedBase();
+  it(
+    'una página de un índice rota: damaged al leer y al guardar, sin tocar el archivo',
+    { timeout: 30_000 },
+    async () => {
+      const { dataDirectory, file } = await savedBase();
 
-    inspect(file, (database) => {
-      const insert = database.prepare(
-        "INSERT INTO eventos (tipo, ocurrido_el, version_arcli, datos) VALUES ('relleno', :ahora, 'x', NULL)",
-      );
+      inspect(file, (database) => {
+        const insert = database.prepare(
+          "INSERT INTO eventos (tipo, ocurrido_el, version_arcli, datos) VALUES ('relleno', :ahora, 'x', NULL)",
+        );
 
-      for (let index = 0; index < 3000; index += 1) {
-        insert.run({ ahora: `2026-11-26T15:${String(index % 60).padStart(2, '0')}:00.000Z` });
-      }
-    });
+        // En una transacción: 3000 fsync sueltos tardan segundos en un disco ocupado.
+        database.exec('BEGIN IMMEDIATE');
 
-    const pageSize = Number(inspect(file, (database) => scalar(database, 'PRAGMA page_size')));
-    const pages = statSync(file).size / pageSize;
-    const descriptor = openSync(file, 'r+');
+        for (let index = 0; index < 3000; index += 1) {
+          insert.run({ ahora: `2026-11-26T15:${String(index % 60).padStart(2, '0')}:00.000Z` });
+        }
 
-    writeSync(descriptor, Buffer.alloc(pageSize, 0x41), 0, pageSize, pageSize * (pages - 3));
-    closeSync(descriptor);
+        database.exec('COMMIT');
+      });
 
-    const before = fingerprint(file);
+      const pageSize = Number(inspect(file, (database) => scalar(database, 'PRAGMA page_size')));
+      const pages = statSync(file).size / pageSize;
+      const descriptor = openSync(file, 'r+');
 
-    await expectLocalDataError(openStore(dataDirectory).findByCae('76123456789012'), 'damaged');
-    await expectLocalDataError(openStore(dataDirectory).save(voucherRecord({ numero: 2 })), 'damaged');
-    expect(fingerprint(file)).toEqual(before);
-  });
+      writeSync(descriptor, Buffer.alloc(pageSize, 0x41), 0, pageSize, pageSize * (pages - 3));
+      closeSync(descriptor);
+
+      const before = fingerprint(file);
+
+      await expectLocalDataError(openStore(dataDirectory).findByCae('76123456789012'), 'damaged');
+      await expectLocalDataError(openStore(dataDirectory).save(voucherRecord({ numero: 2 })), 'damaged');
+      expect(fingerprint(file)).toEqual(before);
+    },
+  );
 });
 
 describe('versiones (ARQ-12)', () => {
