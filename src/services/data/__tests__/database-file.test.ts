@@ -25,7 +25,12 @@ import {
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
 
-  return { ...actual, linkSync: vi.fn(actual.linkSync), rmSync: vi.fn(actual.rmSync) };
+  return {
+    ...actual,
+    copyFileSync: vi.fn(actual.copyFileSync),
+    linkSync: vi.fn(actual.linkSync),
+    rmSync: vi.fn(actual.rmSync),
+  };
 });
 
 const actualFs = await vi.importActual<typeof import('node:fs')>('node:fs');
@@ -106,7 +111,10 @@ describe('abrir una base que no es de SQLite (ARQ-12): no se toca', () => {
     chmodSync(file, 0o000);
 
     try {
-      await expectLocalDataError(openStore(dataDirectory).findByCae('76123456789012'), 'unavailable');
+      await expect(openStore(dataDirectory).findByCae('76123456789012')).rejects.toMatchObject({
+        cause: expect.objectContaining({ code: 'EACCES' }),
+        reason: 'unavailable',
+      });
     } finally {
       chmodSync(file, 0o600);
     }
@@ -227,6 +235,21 @@ describe('crear la base (ARQ-12)', () => {
 
     await expect(openStore(dataDirectory).save(voucherRecord())).resolves.toEqual({ kind: 'saved' });
     expect(readdirSync(dirname(vouchersFile(dataDirectory)))).toEqual(['comprobantes.db']);
+  });
+
+  // Sin hard links, la copia que falla por otra cosa que "ya está" (sin lugar) no se tapa: el save lo dice.
+  it('sin hard links, si la copia falla sin lugar en el disco, da disk-full y no deja nada', async () => {
+    vi.mocked(fs.linkSync).mockImplementationOnce(() => {
+      throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' });
+    });
+    vi.mocked(fs.copyFileSync).mockImplementationOnce(() => {
+      throw Object.assign(new Error('no space left on device'), { code: 'ENOSPC' });
+    });
+
+    const dataDirectory = temporaryDataDirectory();
+
+    await expectLocalDataError(openStore(dataDirectory).save(voucherRecord()), 'disk-full');
+    expect(readdirSync(dirname(vouchersFile(dataDirectory)))).toEqual([]);
   });
 
   it.runIf(withPermissions)('en una carpeta de datos de solo lectura da read-only sin crear nada', async () => {
