@@ -30,6 +30,7 @@ Solo tokens de `UI_THEME.colors`, cada uno con un significado. No se usan como a
 | `testing`    | El entorno de testing                                 |
 | `production` | El entorno de producción                              |
 | `logo`       | El celeste de la bandera, solo en el logo             |
+| `mark`       | Fondo de la fila resaltada, como tu categoría         |
 | `debug`      | Solo storybook                                        |
 
 ## Paneles
@@ -55,6 +56,8 @@ Se elige por lo que se muestra, no por cómo se ve. Cada rol tiene su función, 
 
 - **Un comando va en `command`**, sin borde a la derecha: así se copia sin arrastrar caracteres.
 - **Títulos** en mayúscula, los pone el panel. El pie lleva el estado o el veredicto.
+- **Leyendas de un listado:** lo que explica la tabla (qué marca la fila resaltada, de dónde salen los datos, el comando que sigue) va en `legend` de `listingPanel`: afuera, debajo del borde y tras una línea en blanco, centrada, atenuada y una idea por línea; la que no entra se parte al ancho del panel con `visibleWidth`. Adentro del listado queda solo la tabla, sin divisor ni pie. Lo que ubica la tabla, como `1/2  sigue abajo: … ↓` o `columnas 1 a 3 de 5  →`, sí va adentro.
+- **Fila resaltada:** la propia (tu categoría del monotributo) lleva `❯` (`>` en ASCII) y, con color, el fondo `mark` de punta a punta del contenido con `markRow`, que sin color no pinta ni rellena: la `❯` sola tiene que alcanzar. La leyenda lo dice una vez (`❯ tu categoría`), no al lado de la fila.
 - **Mensajes de ARCA** como lista (`formatArcaMessages`), nunca JSON crudo. El JSON es para `--bruto`.
 
 ## Layout
@@ -64,7 +67,8 @@ Se elige por lo que se muestra, no por cómo se ve. Cada rol tiene su función, 
 - **Ancho visible:** se mide con `visibleWidth` (columnas de la terminal, como boxen), nunca con `length`: un emoji o un carácter chino ocupan dos columnas y una `é` pegada desde macOS (NFD) ocupa una. Los cortes de una palabra larga caen entre grafemas, sin partir un emoji ni una letra de su acento.
 - **Listas:** `• texto` o `1. texto`. Al partirse, la línea sigue alineada al texto.
 - **Barra de estado:** una línea; en una terminal angosta, una por lado. Nunca esconde el entorno. El estado de ARCA va en mayúscula y en su color; mientras se consulta, `COMPROBANDO ARCA` en `muted`, y si ya no se espera, `ARCA SIN VERIFICAR`.
-- **Tablas que no entran a lo ancho:** se mide el lugar con `panelContentWidth` y, si las columnas no entran, cada fila se parte en líneas (como `arcli monotributo` en 40 columnas: el tope arriba y las cuotas abajo) en vez de dejar que la terminal la corte. Una tabla con muchas columnas se parte en bloques, con la columna que identifica la fila en cada uno: uno debajo del otro, con `1/2  sigue abajo: … ↓`, o de a uno con `←`/`→` en el modo interactivo.
+- **Tablas que no entran a lo ancho:** se mide el lugar con `panelContentWidth` y, si las columnas no entran, cada fila se parte en líneas (como `arcli monotributo` en 40 columnas: el tope arriba y las cuotas abajo) en vez de dejar que la terminal la corte. Una tabla con muchas columnas se parte en bloques, con la columna que identifica la fila en cada uno: uno debajo del otro, con `1/2  sigue abajo: … ↓`, o de a uno con `←`/`→` en el modo interactivo. Ahí, un bloque que tampoco entra se ve por una ventana de columnas con la que identifica la fila fija: `←`/`→` la corren de a una, con la nueva pegada al lado hacia el que te moviste, y abajo dice cuáles se ven (`←  columnas 2 a 4 de 5  →`).
+- **Tablas a todo el ancho:** la del monotributo y los bloques de `--completa` reparten el sobrante entre columnas en partes iguales si deja por lo menos 3 espacios entre cada una; si no, van con 2, y si tampoco entran, se parten como arriba. Las demás tablas, como las de `arcli parametros`, no se estiran: 2 espacios entre columnas.
 
 ## Símbolos
 

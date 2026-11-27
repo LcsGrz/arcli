@@ -107,6 +107,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Asistente:** el menú abre sin esperar a ARCA ni a npm: el estado de ARCA y la versión nueva se completan solos (#295).
 - **Salida:** los comandos no esperan a npm al terminar; si no contestó, consulta el próximo (#295).
 - **Factura E:** en el asistente, la lista de incoterms muestra el nombre del marcado, como `Free on Board` (#296).
+- **Monotributo:** la tabla ocupa el ancho de la terminal y tu categoría va resaltada de punta a punta; lo que la explica, debajo.
+- **Consultas:** en `parametros` y `monotributo`, lo que explica cada tabla va debajo de ella, centrado, sin la línea de adentro.
+- **Asistente:** en "Ver todas las columnas" del monotributo, si un bloque no entra, ←/→ corren sus columnas de a una.
 
 <details><summary>Detalle</summary>
 
@@ -161,6 +164,12 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **npm al terminar un comando.** Una vez por día, un comando que terminaba antes que la consulta a npm la esperaba hasta 1,5 segundos, y más si la conexión no se establecía. Ahora cancela la consulta y corta la conexión, y el próximo comando vuelve a consultar; si ya se sabía de una versión más nueva, la avisa igual. Una falla de npm se sigue anotando hasta el día siguiente. stdout, `--json`, el exit code y el lugar del aviso no cambian.
 
 **Nombre del incoterm.** La lista mostraba solo el código (`FOB`). Ahora, debajo, se ve el nombre de la tabla de WSFEX del que está marcado; si la tabla no lo trae o repite el código, no se ve nada. El filtro, que ya encontraba por el nombre, lo que se emite y el comando equivalente no cambian.
+
+**Tabla del monotributo.** Antes las columnas iban con 2 espacios, pegadas a la izquierda, y "tu categoría" al lado de tu fila si entraba. Ahora la tabla de `arcli monotributo` y los dos bloques de `--completa` reparten el ancho entre las columnas (por lo menos 3 espacios entre cada una; si no entra, 2, y si tampoco, cada categoría en dos líneas), y tu fila lleva, además de la `❯`, un fondo de punta a punta con color. Sin color queda solo la `❯`. Debajo de la tabla, `❯ tu categoría` lo explica una vez.
+
+**Leyendas debajo de las tablas.** En las tablas de `arcli parametros <tabla>`, `arcli monotributo` y `--completa`, lo que explica la tabla (para qué sirve el código, qué incluye la cuota, de dónde salió la tabla, tu tope configurado y los comandos para ver más) iba adentro, debajo de una línea `═`. Ahora va afuera, debajo del borde, centrado, atenuado y una idea por línea; en `--completa`, "Tabla de ARCA, consultada el …" va una sola vez, debajo de la cuota. La línea `1/2  sigue abajo` sigue adentro. El `--json` no cambia.
+
+**Columnas que no entran en el asistente.** En "Ver todas las columnas", un bloque que no entraba a lo ancho se veía con cada categoría apilada. Ahora se ve por una ventana con la columna de categoría fija: ←/→ corren las columnas de a una, abajo dice cuáles ves (`columnas 1 a 3 de 5`) y, pasada la última, siguen al otro bloque. `--completa` sigue apilando.
 
 </details>
 

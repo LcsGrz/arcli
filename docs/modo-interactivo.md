@@ -288,12 +288,12 @@ Lo que el CLI consulta con `ultimos`, `consultar`, `padron`, `fce-obligado`, `mo
 
 Muestra la tabla de `arcli monotributo`, con tu categoría marcada si el padrón la informa, y los avisos arriba (tabla vieja, sin conexión). Después pregunta **¿Y ahora?**:
 
-| Opción                     | Qué hace                                                                                                                                         |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Ver una categoría completa | Elegís la letra (con su tope; la tuya viene marcada) y muestra lo mismo que `arcli monotributo --categoria`                                      |
-| Ver todas las columnas     | Límites anuales y cuota mensual, un bloque por vez con la columna de categoría fija: **←** y **→** pasan de uno a otro, **Enter** vuelve al menú |
-| Actualizar desde ARCA      | Vuelve a leer la tabla en la página de ARCA y tu categoría en el padrón, como `arcli monotributo --actualizar`, y la muestra de nuevo            |
-| ← Volver                   | Vuelve a Consultas                                                                                                                               |
+| Opción                     | Qué hace                                                                                                                                                                                                                                                                                                                      |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ver una categoría completa | Elegís la letra (con su tope; la tuya viene marcada) y muestra lo mismo que `arcli monotributo --categoria`                                                                                                                                                                                                                   |
+| Ver todas las columnas     | Límites anuales y cuota mensual, un bloque por vez con la columna de categoría fija: **←** y **→** pasan de uno a otro, **Enter** vuelve al menú. Si un bloque no entra a lo ancho, **←** y **→** corren sus columnas de a una (abajo dice cuáles ves, como `columnas 1 a 3 de 5`) y, pasada la última, siguen al otro bloque |
+| Actualizar desde ARCA      | Vuelve a leer la tabla en la página de ARCA y tu categoría en el padrón, como `arcli monotributo --actualizar`, y la muestra de nuevo                                                                                                                                                                                         |
+| ← Volver                   | Vuelve a Consultas                                                                                                                                                                                                                                                                                                            |
 
 ### Tablas de ARCA
 
