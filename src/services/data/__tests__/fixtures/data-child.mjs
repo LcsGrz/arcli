@@ -4,7 +4,7 @@
 // Uso: node data-child.mjs <modo> <carpeta de datos o archivo> ...
 // Entorno: ARCLI_TEST_DIST (la carpeta dist/), ARCLI_TEST_BARRIER (si está, espera a que exista ese archivo).
 /* global process, setTimeout */
-import { existsSync, writeSync } from 'node:fs';
+import { closeSync, existsSync, openSync, rmSync, writeSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -24,6 +24,9 @@ function waitForBarrier() {
 
   while (!existsSync(barrier)) sleep(2);
 }
+
+/** Un módulo de src/services/data compilado en dist/. */
+const importDist = (name) => import(pathToFileURL(join(process.env.ARCLI_TEST_DIST, 'services', 'data', name)).href);
 
 async function openStore(options = {}) {
   const url = pathToFileURL(join(process.env.ARCLI_TEST_DIST, 'services', 'data', 'sqlite-voucher-record-store.js'));
@@ -137,6 +140,112 @@ const modes = {
     // Los avisos salen en el siguiente tick.
     await new Promise((resolve) => setTimeout(resolve, 50));
     say('ok');
+  },
+
+  /** escritor <carpeta> <desde>: guarda sin parar, con 1 ms entre uno y otro, hasta que lo matan (ARQ-12 PR 4b). */
+  async escritor() {
+    const store = await openStore({ backups: { enabled: false } });
+
+    for (let numero = Number(args[0]); ; numero += 1) {
+      await store.save(record(numero));
+      say(String(numero));
+      sleep(1);
+    }
+  },
+
+  /**
+   * copiar <carpeta> <días> <desde>: un guardado por día, desde el 1/1/2030, con las copias diarias prendidas: cada uno
+   * hace la copia de su día (ARQ-12 PR 4b).
+   */
+  async copiar() {
+    const [days, from] = args.map(Number);
+    let now = new Date('2030-01-01T15:00:00.000Z');
+    const store = await openStore({ backups: { enabled: true }, clock: { now: () => new Date(now) } });
+    const result = { errors: [], outcomes: {} };
+
+    for (let day = 0; day < days; day += 1) {
+      now = new Date(Date.parse('2030-01-01T15:00:00.000Z') + day * 24 * 60 * 60 * 1000);
+
+      try {
+        const { kind } = await store.save(record(from + day));
+
+        result.outcomes[kind] = (result.outcomes[kind] ?? 0) + 1;
+      } catch (error) {
+        result.errors.push(describeError(error));
+      }
+    }
+
+    say(result);
+  },
+
+  /** guardar-uno <carpeta> <número>: guarda uno y dice lo que devolvió entero, o el error (ARQ-12 PR 4b). */
+  async 'guardar-uno'() {
+    const store = await openStore({ backups: { enabled: false } });
+
+    waitForBarrier();
+
+    try {
+      say({ outcome: await store.save(record(Number(args[0]))) });
+    } catch (error) {
+      say({ error: describeError(error) });
+    }
+  },
+
+  /** abrir <archivo> <ms>: abre la base con SQLite (en Windows, sin dejar moverla), avisa y la cierra a los ms. */
+  abrir() {
+    const database = rawDatabase(target);
+
+    try {
+      database.exec('PRAGMA schema_version');
+    } catch {
+      // Dañada: igual queda abierta, que es lo que importa.
+    }
+
+    say('abierto');
+    sleep(Number(args[0]));
+    database.close();
+    say('cerrado');
+  },
+
+  /**
+   * turno <archivo del turno> <veces> <marca>: toma el turno de la base (el de dist/) `veces` veces; adentro crea la
+   * marca con `wx` (si ya está, otro tiene el turno a la vez), espera un poco y la borra. Dice cuántas veces se
+   * encontró con otro adentro (revisión de #318).
+   */
+  async turno() {
+    const [times, marker] = [Number(args[0]), args[1]];
+    const { withDatabaseLock } = await importDist('database-lock.js');
+    const { loadSqliteDriver } = await importDist('sqlite-driver.js');
+    const driver = await loadSqliteDriver();
+    let overlaps = 0;
+
+    waitForBarrier();
+
+    for (let index = 0; index < times; index += 1) {
+      await withDatabaseLock(driver, target, () => {
+        try {
+          closeSync(openSync(marker, 'wx'));
+        } catch {
+          overlaps += 1;
+        }
+
+        sleep(5);
+        rmSync(marker, { force: true });
+      });
+    }
+
+    say({ overlaps });
+  },
+
+  /** tener-turno <archivo del turno>: toma el turno, avisa y no lo suelta nunca (lo matan). */
+  async 'tener-turno'() {
+    const { withDatabaseLock } = await importDist('database-lock.js');
+    const { loadSqliteDriver } = await importDist('sqlite-driver.js');
+
+    await withDatabaseLock(await loadSqliteDriver(), target, () => {
+      say('tomado');
+      sleep(120_000);
+    });
   },
 
   /** sostener <archivo> <ms>: toma la base con BEGIN IMMEDIATE, avisa y la suelta a los ms. */

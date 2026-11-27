@@ -1,12 +1,29 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { existsSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { setTimeout as pause } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { inspect, scalar, SCHEMA_V1, temporaryDataDirectory, vouchersFile } from './local-data.fixtures';
+import { restoreVoucherBackup } from '../backups';
+
+import {
+  backupNames,
+  backupsFolder,
+  cutFile,
+  fingerprint,
+  inspect,
+  makeOld,
+  openStore,
+  scalar,
+  SCHEMA_V1,
+  temporaryDataDirectory,
+  voucherRecord,
+  vouchersFile,
+} from './local-data.fixtures';
+
+const storeRecord = (numero: number) => voucherRecord({ cae: String(76_000_000_000_000 + numero), numero });
 
 /**
  * Los datos locales con procesos reales sobre el adaptador compilado (ARQ-12 PR 4a): varios ARCLI a la vez, uno que
@@ -254,6 +271,18 @@ describe('datos locales con procesos reales (ARQ-12 PR 4a)', () => {
 
     expect(health(file)).toEqual({ integrity: 'ok', version: 1001 });
     expect(count(file)).toBe(7);
+
+    // Revisión de #318: cada copia de antes de migrar es de antes (v1) y la anotada en migraciones está.
+    const copies = backupNames(dataDirectory).filter((name) => name.includes('-antes-de-1001'));
+    const recorded = inspect(file, (database) =>
+      scalar(database, 'SELECT copia FROM migraciones WHERE esquema = 1001'),
+    );
+
+    expect(copies).toContain(String(recorded));
+
+    for (const name of copies) {
+      expect(health(join(backupsFolder(dataDirectory), name)).version).toBe(SCHEMA_V1);
+    }
   });
 
   // Node 22 avisa "SQLite is an experimental feature" al cargarlo: se oculta ese y solo ese. 24 y 26 no avisan.
@@ -274,5 +303,216 @@ describe('datos locales con procesos reales (ARQ-12 PR 4a)', () => {
     expect(child.output.stderr).toContain('DeprecationWarning: SQLite otro');
     expect(child.output.stderr).toContain('Warning: aviso común');
     expect(child.output.stderr).not.toContain('SQLite is an experimental feature');
+  });
+});
+
+/** Los nombres de la carpeta de la base que son una dañada apartada. */
+const setAsideNames = (file: string) => readdirSync(dirname(file)).filter((name) => name.includes('danada'));
+
+/** Una base v1 con 3 comprobantes, cortada (a 100 bytes o a la mitad) y con fecha vieja: nadie la está creando. */
+async function damagedBaseWith(cut: 'mitad' | '100 bytes'): Promise<{ dataDirectory: string; file: string }> {
+  const base = await baseWith(3);
+
+  cutFile(base.file, (size) => (cut === 'mitad' ? Math.floor(size / 2) : 100));
+  makeOld(base.file);
+
+  return base;
+}
+
+describe('copias y base dañada con procesos reales (ARQ-12 PR 4b)', () => {
+  // VACUUM INTO lee en una transacción: la copia es una foto entera aunque otro escriba en el medio.
+  it('las copias diarias salen sanas mientras otro proceso guarda cada 1 ms', async () => {
+    const { dataDirectory, file } = await baseWith(50);
+    const writer = start(['escritor', dataDirectory, 1000]);
+
+    for (const deadline = Date.now() + HANG_MS; lines(writer).length < 20; await pause(2)) {
+      if (exited(writer) || Date.now() > deadline) {
+        throw new Error(`El escritor no guardó: ${writer.output.stderr.slice(-800)}`);
+      }
+    }
+
+    const copied = await result(start(['copiar', dataDirectory, 7, 500]));
+
+    expect(exited(writer)).toBe(false);
+    await kill(writer);
+
+    expect(copied).toMatchObject({ errors: [], outcomes: { saved: 7 } });
+
+    // Solo las 7 copias: ningún temporal de VACUUM INTO quedó en la carpeta.
+    const names = backupNames(dataDirectory);
+
+    expect(names).toHaveLength(7);
+
+    for (const name of names) {
+      const copy = join(backupsFolder(dataDirectory), name);
+
+      expect(health(copy)).toEqual({ integrity: 'ok', version: SCHEMA_V1 });
+      expect(count(copy)).toBeGreaterThanOrEqual(50);
+    }
+
+    expect(health(file)).toEqual({ integrity: 'ok', version: SCHEMA_V1 });
+  });
+
+  // Los dos la ven dañada; uno la aparta y repone, y el otro no aparta la nueva (que está sana): abre esa y guarda.
+  it.each(['100 bytes', 'mitad'] as const)(
+    'dos procesos encuentran la base cortada (%s) a la vez: uno la aparta y el otro abre la nueva',
+    async (cut) => {
+      const { dataDirectory, file } = await damagedBaseWith(cut);
+      const children = await together([
+        ['guardar-uno', dataDirectory, 101],
+        ['guardar-uno', dataDirectory, 102],
+      ]);
+      const results = await Promise.all(children.map(result));
+
+      expect(results).toEqual([
+        { outcome: expect.objectContaining({ kind: 'saved' }) },
+        { outcome: expect.objectContaining({ kind: 'saved' }) },
+      ]);
+      expect(results.filter(({ outcome }) => (outcome as { recovered?: unknown }).recovered)).toHaveLength(1);
+      expect(setAsideNames(file)).toHaveLength(1);
+      expect(health(file)).toEqual({ integrity: 'ok', version: SCHEMA_V1 });
+      expect(count(file)).toBe(2);
+    },
+  );
+
+  // Revisión de #318: con tres o más, uno suelta el turno, otro lo toma y un tercero mira en el medio; nunca dos lo
+  // tienen a la vez, así que hay una sola apartada.
+  it('4 procesos encuentran la base cortada a la vez: exactamente una apartada y todos guardan', async () => {
+    const { dataDirectory, file } = await damagedBaseWith('mitad');
+    const children = await together([101, 102, 103, 104].map((numero) => ['guardar-uno', dataDirectory, numero]));
+    const results = await Promise.all(children.map(result));
+
+    expect(results).toEqual(Array.from({ length: 4 }, () => ({ outcome: expect.objectContaining({ kind: 'saved' }) })));
+    expect(results.filter(({ outcome }) => (outcome as { recovered?: unknown }).recovered)).toHaveLength(1);
+    expect(setAsideNames(file)).toHaveLength(1);
+    expect(health(file)).toEqual({ integrity: 'ok', version: SCHEMA_V1 });
+    expect(count(file)).toBe(4);
+  });
+
+  // En Windows SQLite abre la base sin dejar que otro la mueva: el que la encuentra dañada no puede apartarla.
+  it.runIf(process.platform === 'win32')(
+    'Windows: una dañada abierta por otro da damaged sin tocar, y cuando la cierra el siguiente la aparta',
+    async () => {
+      const { dataDirectory, file } = await damagedBaseWith('mitad');
+      const holder = start(['abrir', file, HANG_MS]);
+
+      await untilSays(holder, 'abierto');
+
+      const before = fingerprint(file);
+
+      expect(await result(start(['guardar-uno', dataDirectory, 101]))).toMatchObject({ error: { reason: 'damaged' } });
+      expect(fingerprint(file)).toEqual(before);
+      expect(setAsideNames(file)).toEqual([]);
+
+      await kill(holder);
+
+      expect(await result(start(['guardar-uno', dataDirectory, 102]))).toMatchObject({
+        outcome: { kind: 'saved', recovered: { setAside: expect.stringMatching(/danada/) } },
+      });
+      expect(setAsideNames(file)).toHaveLength(1);
+      expect(count(file)).toBe(1);
+    },
+  );
+});
+
+describe('el turno de la base con procesos reales (ARQ-12 PR 4b, revisión de #318)', () => {
+  it('4 procesos que piden el turno a la vez nunca lo tienen dos juntos', async () => {
+    const folder = temporaryDataDirectory('arcli-e2e-turno-');
+    const lock = join(folder, '.turno-comprobantes.db');
+    const marker = join(folder, 'adentro');
+    const children = await together([1, 2, 3, 4].map(() => ['turno', lock, 25, marker]));
+
+    for (const child of children) {
+      expect(await result(child)).toEqual({ overlaps: 0 });
+    }
+  });
+
+  // El bloqueo es del sistema: al morir el proceso se suelta, sin esperar a que el turno "se vuelva viejo".
+  it('un proceso que muere con el turno lo suelta enseguida', async () => {
+    const folder = temporaryDataDirectory('arcli-e2e-turno-');
+    const lock = join(folder, '.turno-comprobantes.db');
+    const holder = start(['tener-turno', lock]);
+
+    await untilSays(holder, 'tomado');
+    await kill(holder);
+
+    const started = Date.now();
+
+    expect(await result(start(['turno', lock, 1, join(folder, 'adentro')]))).toEqual({ overlaps: 0 });
+    expect(Date.now() - started).toBeLessThan(10_000);
+  });
+
+  // Uno movió la base y murió antes de mover su -journal caliente: el journal no se reproduce sobre la base nueva.
+  it('un -journal caliente que quedó sin su base se aparta con ella antes de reponer', async () => {
+    const { dataDirectory, file } = await baseWith(3);
+    const victim = start(['victima', file]);
+
+    await untilSays(victim, 'medio');
+    await kill(victim);
+
+    const journal = `${file}-journal`;
+    const hot = fingerprint(journal);
+    const aside = join(dirname(file), 'comprobantes.danada-2026-11-26-120000.db');
+
+    renameSync(file, aside);
+
+    const saved = await result(start(['guardar-uno', dataDirectory, 101]));
+
+    expect(saved).toMatchObject({ outcome: { kind: 'saved', recovered: { setAside: aside } } });
+    expect(existsSync(journal)).toBe(false);
+    expect(fingerprint(`${aside}-journal`).hash).toBe(hot.hash);
+    expect(health(file)).toEqual({ integrity: 'ok', version: SCHEMA_V1 });
+    expect(count(file)).toBe(1);
+  });
+
+  // Tercera pasada de #318: sin copias ni apartadas se crea vacía, pero el -journal caliente que quedó también se aparta.
+  it('base borrada con su -journal caliente y sin copias: la nueva sale sana y el journal queda apartado', async () => {
+    const { dataDirectory, file } = await baseWith(3);
+    const victim = start(['victima', file]);
+
+    await untilSays(victim, 'medio');
+    await kill(victim);
+
+    const journal = `${file}-journal`;
+    const hot = fingerprint(journal);
+
+    rmSync(file);
+
+    expect(await result(start(['guardar-uno', dataDirectory, 101]))).toEqual({ outcome: { kind: 'saved' } });
+    expect(existsSync(journal)).toBe(false);
+    expect(health(file)).toEqual({ integrity: 'ok', version: SCHEMA_V1 });
+    expect(count(file)).toBe(1);
+
+    const [aside = ''] = readdirSync(dirname(file)).filter((name) => name.endsWith('.db-journal'));
+
+    expect(aside).toMatch(/^comprobantes\.danada-.*\.db-journal$/);
+    expect(fingerprint(join(dirname(file), aside)).hash).toBe(hot.hash);
+  });
+});
+
+describe('restaurar con otro proceso escribiendo (ARQ-12 PR 4b)', () => {
+  // La espera de SQLite es síncrona: hace falta otro proceso real. Uno sostiene BEGIN IMMEDIATE medio segundo; restaurar
+  // espera (con la espera de siempre, 5 s) a que lo suelte y recién entonces aparta la actual.
+  it('espera a que el otro suelte la base antes de apartarla', async () => {
+    const dataDirectory = temporaryDataDirectory('arcli-e2e-datos-');
+    const clock = { now: () => new Date('2026-11-26T15:00:00.000Z') };
+
+    await openStore(dataDirectory, { backups: { enabled: true }, clock }).save(storeRecord(1));
+
+    const file = vouchersFile(dataDirectory);
+    const [copy = ''] = backupNames(dataDirectory).map((name) => join(backupsFolder(dataDirectory), name));
+    const holder = start(['sostener', file, 500]);
+
+    await untilSays(holder, 'tomado');
+
+    const started = Date.now();
+    const restored = await restoreVoucherBackup(
+      { clock, cuit: '20111111112', dataDirectory, environment: 'testing', version: '9.9.9-test' },
+      copy,
+    );
+
+    expect(Date.now() - started).toBeGreaterThanOrEqual(200);
+    expect(restored.restoredFrom).toBe(copy);
+    await untilSays(holder, 'soltado');
   });
 });
