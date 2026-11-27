@@ -125,5 +125,8 @@ export default defineConfig({
       title: 'arcli',
     }),
   ],
+  // Starlight forzaba `where` hasta la 0.43; ahora sigue esta opción (Astro usa `attribute` por defecto, con selectores
+  // más específicos). Con `where`, los estilos de src/styles y de los componentes pesan lo mismo que antes.
+  scopedStyleStrategy: 'where',
   site: 'https://arcli.com.ar',
 });
