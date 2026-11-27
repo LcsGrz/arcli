@@ -54,15 +54,36 @@ const CORE_FILES = ['src/lib/**/*.ts', 'src/modules/**/*.ts'];
 const TEST_FILES = ['src/**/__tests__/**/*.ts', 'src/**/*.test.ts'];
 /** Lo que puede importar src/testing. */
 const TESTING_USERS = [...TEST_FILES, 'src/testing/**', 'src/**/*.arca.ts'];
-/** Los imports prohibidos de una capa y, salvo en los tests, también los de src/testing. */
-const layerImports = ({ files, ignores = [], paths = [], patterns }) => [
-  { files, ignores, rules: { 'no-restricted-imports': ['error', { paths, patterns }] } },
-  {
-    files,
-    ignores: [...ignores, ...TESTING_USERS],
-    rules: { 'no-restricted-imports': ['error', { paths, patterns: [...patterns, TESTING_OUTSIDE_TESTS] }] },
-  },
-];
+/**
+ * ARQ-12: SQLite se carga en un solo archivo, que oculta el aviso de Node 22 y es lo único que cambia si cambia el
+ * driver. Los tests pueden mirar la base con node:sqlite. No ve `import()` ni `getBuiltinModule`: eso lo busca
+ * scripts/lint/__tests__/sqlite-boundary.test.mjs en el texto.
+ */
+const SQLITE_DRIVER = 'src/services/data/sqlite-driver.ts';
+const SQLITE_OUTSIDE_DRIVER = {
+  name: 'node:sqlite',
+  message: `SQLite se abre solo desde ${SQLITE_DRIVER} (loadSqliteDriver): ahí se oculta el aviso de Node 22.`,
+};
+/**
+ * Los imports prohibidos de una capa y, salvo en los tests, también los de src/testing y node:sqlite. `driver` es el
+ * archivo de la capa que sí carga SQLite: en flat config las opciones de la regla se reemplazan, no se suman, así que
+ * va en su propio bloque con todo lo demás.
+ */
+const layerImports = ({ files, ignores = [], paths = [], patterns, driver }) => {
+  const outsideTests = { paths, patterns: [...patterns, TESTING_OUTSIDE_TESTS] };
+
+  return [
+    { files, ignores, rules: { 'no-restricted-imports': ['error', { paths, patterns }] } },
+    {
+      files,
+      ignores: [...ignores, ...TESTING_USERS],
+      rules: {
+        'no-restricted-imports': ['error', { ...outsideTests, paths: [...paths, SQLITE_OUTSIDE_DRIVER] }],
+      },
+    },
+    ...(driver ? [{ files: [driver], rules: { 'no-restricted-imports': ['error', outsideTests] } }] : []),
+  ];
+};
 /** Módulos que son de la app CLI y no del núcleo: ARQ-7 los muda a la app. Mientras, su deuda dice ARQ-7. */
 const APP_MODULES = ['completion', 'desktop-shortcut', 'examples', 'storybook', 'update-check'].map(
   (name) => `src/modules/${name}/**/*.ts`,
@@ -150,7 +171,7 @@ const coreImportRules = (extraPaths = []) => ({
   'no-restricted-imports': [
     'error',
     {
-      paths: [...UI_STYLE_IMPORTS, ...CORE_ON_APP_LIBS, ...extraPaths],
+      paths: [...UI_STYLE_IMPORTS, ...CORE_ON_APP_LIBS, SQLITE_OUTSIDE_DRIVER, ...extraPaths],
       patterns: [
         UI_BARREL,
         SDK_OUTSIDE_SERVICES,
@@ -344,6 +365,7 @@ export default defineConfig([
     ignores: ['src/services/arca/**'],
     paths: UI_STYLE_IMPORTS,
     patterns: [UI_BARREL, SDK_INTERNAL_PATHS, SDK_TYPES_OUTSIDE_ARCA, SERVICES_ON_CLI],
+    driver: SQLITE_DRIVER,
   }),
   ...layerImports({
     files: ['src/services/arca/**/*.ts'],
