@@ -34,7 +34,7 @@ const LEGENDS: Record<ParameterTable, readonly string[]> = {
   ],
   monedas: ['`--moneda` acepta este código o el ISO: `060` o `EUR`.'],
   opcionales: ['Datos que ARCA acepta además de los básicos. ARCLI completa solo los que usa, como el CBU de la FCE.'],
-  'puntos-venta': ['El número va en `--pv` o en la config (`puntoVenta`). Solo sirven los de web service.'],
+  'puntos-venta': ['El número va en `--pv` o en la config (`puntoVenta`).', 'Solo sirven los de web service.'],
   tributos: ['ARCLI todavía no informa tributos, como las percepciones de IIBB.'],
 };
 
@@ -91,6 +91,17 @@ describe('arcli parametros: la leyenda va afuera de la tabla (TUI-28)', () => {
 
     for (const line of legend) {
       expect(offCenter(line, 92)).toBeLessThanOrEqual(0.5);
+    }
+  });
+
+  it.each(TABLES)('%s, en 92 columnas: una idea por línea', (table) => {
+    terminal.set({ columns: 92 });
+
+    const [panel] = listingPanels(formatParameterEntriesAsText(table, ENTRIES[table], 'testing'));
+
+    // Ninguna línea junta el final de una frase con el comienzo de otra.
+    for (const line of trimmed(legendLines(panel ?? { after: [], inside: [], width: 0 }))) {
+      expect(line).not.toMatch(/\.\s+\S/);
     }
   });
 

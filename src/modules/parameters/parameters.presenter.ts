@@ -96,7 +96,7 @@ const PARAMETER_TABLE_LEGEND: Record<ParameterTable, readonly string[]> = {
     'Datos que ARCA acepta además de los básicos.',
     'ARCLI completa solo los que usa, como el CBU de la FCE.',
   ],
-  'puntos-venta': ['El número va en `--pv` o en la config (`puntoVenta`). Solo sirven los de web service.'],
+  'puntos-venta': ['El número va en `--pv` o en la config (`puntoVenta`).', 'Solo sirven los de web service.'],
   tributos: ['ARCLI todavía no informa tributos, como las percepciones de IIBB.'],
 };
 
