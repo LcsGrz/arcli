@@ -30,6 +30,10 @@ output
   error: La configuración guardada tiene un dato inválido. `emitir`, `json`, `bruto`: tiene que ser un objeto.
   detalles: [{"mensaje":"`output` tiene que ser un objeto.","ruta":["output"]}]
   sugerencia: Corregilo con `arcli config establecer emitir <valor>`.
+asistente
+  error: La configuración guardada tiene un dato inválido. `asistente`: tiene que ser un objeto.
+  detalles: [{"mensaje":"`asistente` tiene que ser un objeto.","ruta":["asistente"]}]
+  sugerencia: Corregilo con `arcli config establecer asistente.comandoEquivalente <valor>`.
 cert.produccion
   error: La configuración guardada tiene un dato inválido. `cert.produccion`: tiene que ser un texto.
   detalles: [{"mensaje":"`cert.produccion` tiene que ser un texto.","ruta":["cert","produccion"]}]

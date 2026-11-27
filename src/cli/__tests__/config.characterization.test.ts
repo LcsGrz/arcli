@@ -455,6 +455,7 @@ it('la sugerencia de cada grupo roto y de cada clave rota', async () => {
     'monotributo',
     'emisor',
     'output',
+    'asistente',
   ];
   const keys = Object.keys(flatten(JSON.parse(storedBytes())));
   const lines: string[] = [];

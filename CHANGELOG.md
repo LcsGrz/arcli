@@ -48,6 +48,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - En una nota, si el asociado del JSON no trae `puntoVenta`, `--apv` o `--pv` de otro punto de venta descartan su `fecha`: pasá `--afecha`.
 > - Un comprobante A, B, C, FCE o recibo que ARCA devuelve con su número y su CAE pero no se puede leer: `ultimos` lo trae en su lugar, en `--json` solo con `numero`, `cae` y `error`, y avisa, con `--json` en stderr, y `consultar` sale con `ARCA_VOUCHER_QUERY_ERROR`, antes `VOUCHER_NOT_FOUND`.
 > - `estado` suma `servidoresExportacion`, `null` si WSFEX no responde. `listo` y el exit code no cambian.
+> - `config --json` (y `config establecer` o `eliminar` con `--json`) suma `asistente`, siempre presente con `comandoEquivalente`. Los demás campos no cambian.
 > - `--testing` con `--produccion` sale con `INPUT_VALIDATION_ERROR` en todos los comandos, antes `CONFIGURATION_ERROR` en casi todos. `error` y el exit code `1` no cambian.
 > - En la `E`, `WSFEX_SERVICE_NOT_AUTHORIZED` y el asociado que ARCA no tiene dicen qué hacer en `sugerencia`, antes al final de `error`. `ARCA_EXPORT_ERROR` por el ID de solicitud trae `sugerencia`, antes `null`.
 > - En la `E`, `detalles` es `{ "campos": […] }` con un dato inválido en `--cargar` y `{ "errores": [] }` en `ARCA_QUOTATION_ERROR`; antes `null`.
@@ -70,7 +71,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 - **Config:** `config establecer cuenta <CBU> [ALIAS]` guarda el CBU y su alias juntos, y `config eliminar cuenta` borra los dos (#284).
 - **Errores:** con `--json`, `EMISSION_UNCERTAIN` de A, B, C, FCE y recibos trae `detalles.numero`, como la `E`; en un lote, si hay uno sin confirmar (#297).
-- **Asistente:** la clave `asistente.comandoEquivalente` en no deja de mostrar el comando equivalente antes de "¿Emitimos…?" (#321).
+- **Asistente:** con `asistente.comandoEquivalente` en no, el asistente deja de mostrar el comando equivalente antes de "¿Emitimos…?" (#321).
 
 <details><summary>Detalle</summary>
 
@@ -78,7 +79,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 **Número de una emisión sin confirmar.** Con `--json`, `EMISSION_UNCERTAIN` traía `detalles.numero` solo en la `E`. Ahora también en A, B, C, FCE, recibos y sus notas: es el número que se le pidió a ARCA. En un lote, `BATCH_EMISSION_ERROR` lo trae junto con `detalles.sinConfirmar`, y sin este no va. El comando para verificar, los textos y el panel no cambian.
 
-**Sin el comando equivalente.** El asistente mostraba siempre "Esto equivale a:" antes de "¿Emitimos…?". Con `arcli config establecer asistente.comandoEquivalente no`, o en Configuración → Modificar configuración → Asistente, muestra la vista previa y pregunta si emitir, sin el comando, en todos los comprobantes. Por defecto es sí. `arcli config --json` trae siempre `"asistente": { "comandoEquivalente": true }` con el valor resuelto. Los comandos con flags no cambian.
+**Sin el comando equivalente.** El asistente mostraba siempre "Esto equivale a:" antes de "¿Emitimos…?". Con `arcli config establecer asistente.comandoEquivalente no`, o en Configuración → Modificar configuración → Mostrar el comando equivalente → No, muestra la vista previa y pregunta si emitir, sin el comando, en todos los comprobantes. Por defecto es sí. `arcli config --json` trae siempre `asistente` con `comandoEquivalente` resuelto: `true` si no lo configuraste. Los comandos con flags no cambian.
 
 </details>
 
