@@ -389,7 +389,7 @@ arcli fc ayuda
 
 ### ARCA contestó sin el último número
 
-- **Severidad:** rara
+- **Severidad:** ocasional
 - **Síntoma:** `ARCA contestó sin el último número de factura C del punto de venta 3 (sin errores).` al facturar, con `ultimos` o en el asistente, con el código `ARCA_LAST_VOUCHER_ERROR` (en la `E`, `ARCA_EXPORT_ERROR`), `detalles.errores` vacío y exit 1. Al facturar una `E` también puede decir `ARCA contestó sin el último ID de solicitud de WSFEX (sin errores).`
 - **Causa:** ARCA contestó el pedido del último número (o, en la `E`, del último ID de solicitud) sin errores, pero sin el número o con algo que no es un entero de 0 en adelante. El 0 sí vale: es un punto de venta sin comprobantes de ese tipo. No hay un mensaje de ARCA para revisar: suele ser un problema pasajero de ARCA. Hasta la 2.6.0 se tomaba como 0: al facturar se pedía el 1 y ARCA lo rechazaba, y `ultimos` decía que no había comprobantes.
 - **Solución:** al facturar no se emitió nada: reintentá en unos minutos (en un lote, los anteriores quedaron emitidos, con su CAE: no los repitas). Con `ultimos` o en el asistente, volvé a consultar en unos minutos; si estabas verificando una emisión, **no la reintentes** hasta saber si el comprobante existe. Si se repite, no insistas. En una nota, si el aviso dice `no se pudo consultar si el punto de venta … es de web service`, es por esto: la nota sigue con ese aviso, como cuando no se puede consultar el asociado.
