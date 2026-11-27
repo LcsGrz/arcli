@@ -204,15 +204,14 @@ describe('la fila de la categoría propia (TUI-27)', () => {
     },
   );
 
-  // Tests primero (TUI-27/28): sigue en it.fails. En 92 columnas la fila de la E sigue con las dos cuotas después del
-  // tope y la regex pide que la línea termine en el tope (como en la tabla de dos líneas). Ver el informe de TUI-27.
-  it.fails('en ASCII la marca y la leyenda van con >', () => {
+  // En 92 columnas la fila de la E sigue con las dos cuotas, sin la etiqueta al lado.
+  it('en ASCII la marca y la leyenda van con >', () => {
     terminal.set({ ascii: true, columns: 92 });
 
     const text = plainText(formatMonotributoSummaryAsText(report()));
     const lines = text.split('\n');
 
-    expect(text).toMatch(/\n\|?\s+> E\s+\$ 36\.028\.231,33\s*\|?\n/);
+    expect(text).toMatch(/\n\|?\s+> E\s+\$ 36\.028\.231,33\s+\$ 119\.811,45\s+\$ 108\.267,51\s*\|?\n/);
     expect(lines.filter((line) => line.includes('tu categoría')).map((line) => line.trim())).toEqual([
       '> tu categoría',
     ]);
