@@ -425,6 +425,8 @@ describe('una base cortada muy reciente (ARQ-12 PR 4b)', () => {
     const outcome = await openStore(dataDirectory, { backups: OFF }).save(NEXT);
 
     expect(Date.now() - started).toBeGreaterThanOrEqual(2500);
+    // Y no mucho más: la espera es de unos segundos, no hasta que la base deje de ser reciente (10 s).
+    expect(Date.now() - started).toBeLessThan(8000);
     expect(basename(recoveryOf(outcome)?.setAside ?? '')).toMatch(DAMAGED_NAME);
     expect(caes(file)).toEqual([NEXT.cae]);
   });

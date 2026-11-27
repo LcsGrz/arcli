@@ -492,6 +492,28 @@ describe('restaurar una base desde una copia, para DATOS-1 (ARQ-12 PR 4b)', () =
 
   // Revisión de #318: antes de apartar la actual se espera la escritura en curso de otro; si dura más que la espera,
   // locked y no se aparta nada.
+  // Huecos que dejó Stryker en #318: el evento con los dos nombres y que una copia inválida no cree carpetas. Esperar
+  // a otro proceso que escribe está en data.e2e.ts (la espera de SQLite es síncrona: no se arma en el mismo proceso).
+  it('el evento base-repuesta dice de qué copia salió y cómo quedó la reemplazada', async () => {
+    const { copy, dataDirectory, file } = await withDailyCopy();
+    const { replaced = '' } = await restoreVoucherBackup(backupOptions(dataDirectory), copy);
+    const datos = inspect(file, (database) =>
+      String(scalar(database, "SELECT datos FROM eventos WHERE tipo = 'base-repuesta'")),
+    );
+
+    expect(JSON.parse(datos)).toEqual({ copia: basename(copy), reemplazada: basename(replaced) });
+  });
+
+  it('una copia dañada en una carpeta de datos nueva no crea nada', async () => {
+    const { copy } = await withDailyCopy();
+    const fresh = temporaryDataDirectory();
+
+    truncateSync(copy, 100);
+
+    await expectLocalDataError(restoreVoucherBackup(backupOptions(fresh), copy), 'damaged');
+    expect(existsSync(join(fresh, 'datos'))).toBe(false);
+  });
+
   it('con otro escribiendo más que la espera, da locked y no aparta la actual', async () => {
     const { copy, dataDirectory, file } = await withDailyCopy();
     const before = fingerprint(file).hash;

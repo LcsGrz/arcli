@@ -6,6 +6,8 @@ import { setTimeout as pause } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { restoreVoucherBackup } from '../backups';
+
 import {
   backupNames,
   backupsFolder,
@@ -13,11 +15,15 @@ import {
   fingerprint,
   inspect,
   makeOld,
+  openStore,
   scalar,
   SCHEMA_V1,
   temporaryDataDirectory,
+  voucherRecord,
   vouchersFile,
 } from './local-data.fixtures';
+
+const storeRecord = (numero: number) => voucherRecord({ cae: String(76_000_000_000_000 + numero), numero });
 
 /**
  * Los datos locales con procesos reales sobre el adaptador compilado (ARQ-12 PR 4a): varios ARCLI a la vez, uno que
@@ -481,5 +487,32 @@ describe('el turno de la base con procesos reales (ARQ-12 PR 4b, revisión de #3
 
     expect(aside).toMatch(/^comprobantes\.danada-.*\.db-journal$/);
     expect(fingerprint(join(dirname(file), aside)).hash).toBe(hot.hash);
+  });
+});
+
+describe('restaurar con otro proceso escribiendo (ARQ-12 PR 4b)', () => {
+  // La espera de SQLite es síncrona: hace falta otro proceso real. Uno sostiene BEGIN IMMEDIATE medio segundo; restaurar
+  // espera (con la espera de siempre, 5 s) a que lo suelte y recién entonces aparta la actual.
+  it('espera a que el otro suelte la base antes de apartarla', async () => {
+    const dataDirectory = temporaryDataDirectory('arcli-e2e-datos-');
+    const clock = { now: () => new Date('2026-11-26T15:00:00.000Z') };
+
+    await openStore(dataDirectory, { backups: { enabled: true }, clock }).save(storeRecord(1));
+
+    const file = vouchersFile(dataDirectory);
+    const [copy = ''] = backupNames(dataDirectory).map((name) => join(backupsFolder(dataDirectory), name));
+    const holder = start(['sostener', file, 500]);
+
+    await untilSays(holder, 'tomado');
+
+    const started = Date.now();
+    const restored = await restoreVoucherBackup(
+      { clock, cuit: '20111111112', dataDirectory, environment: 'testing', version: '9.9.9-test' },
+      copy,
+    );
+
+    expect(Date.now() - started).toBeGreaterThanOrEqual(200);
+    expect(restored.restoredFrom).toBe(copy);
+    await untilSays(holder, 'soltado');
   });
 });

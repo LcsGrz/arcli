@@ -227,4 +227,14 @@ describe('clientes.db (ARQ-12)', () => {
     expect(permissions(join(dataDirectory, 'datos'))).toBe(0o700);
     expect(permissions(cuitFolder)).toBe(0o700);
   });
+
+  // ARQ-12 PR 4b: clientes.db tiene su turno propio en datos/ (no el de comprobantes) y su carpeta queda sin acompañantes.
+  it('clientes.db crea su turno en datos/ y nada más al lado', async () => {
+    const dataDirectory = temporaryDataDirectory();
+
+    await ensureClientsDatabase({ clock: movableClock(), cuit: CUIT, dataDirectory, version: VERSION });
+
+    expect(readdirSync(join(dataDirectory, 'datos')).sort()).toEqual([`.turno-${CUIT}-clientes.db`, CUIT]);
+    expect(readdirSync(join(dataDirectory, 'datos', CUIT))).toEqual(['clientes.db']);
+  });
 });

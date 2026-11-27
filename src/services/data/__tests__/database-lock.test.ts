@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -95,6 +96,23 @@ describe('el turno de la base (ARQ-12 PR 4b)', () => {
       holder.close();
     }
 
+    expect(work).not.toHaveBeenCalled();
+  });
+
+  // Un turno que no es una base de SQLite no se confunde con la base dañada, y no se espera 40 s por él.
+  it('un archivo del turno dañado da unavailable enseguida, no damaged', async () => {
+    const { lock } = folderWithBase();
+    const work = vi.fn();
+
+    writeFileSync(lock, 'x'.repeat(4096));
+
+    const started = Date.now();
+
+    await expect(withDatabaseLock(await loadSqliteDriver(), lock, work)).rejects.toMatchObject({
+      name: 'LocalDataError',
+      reason: 'unavailable',
+    });
+    expect(Date.now() - started).toBeLessThan(2000);
     expect(work).not.toHaveBeenCalled();
   });
 
