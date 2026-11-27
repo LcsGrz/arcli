@@ -16,7 +16,7 @@ import { registerParametersCommands } from './commands/parameters.command';
 import { registerPdfCommand } from './commands/pdf.command';
 import { registerStorybookCommand } from './commands/storybook.command';
 import { registerVoucherQueryCommands } from './commands/vouchers.command';
-import { configureUsageErrors } from './error-output';
+import { configureUsageErrors, matchVersionByLongFlagOnly } from './error-output';
 import { registerGlobalOptions } from './global-options';
 import { configureSpanishHelp, createProgramHeader, createProgramHelp } from './help';
 import { warnAboutIgnoredGlobalOptions } from './ignored-global-options';
@@ -35,6 +35,7 @@ export function createProgram(): Command {
     .version(CLI_VERSION, '-V, --version', 'mostrar la versión instalada')
     .showHelpAfterError('(usá `ayuda` para ver comandos y ejemplos)');
 
+  matchVersionByLongFlagOnly(program);
   configureSpanishHelp(program);
   registerGlobalOptions(program);
   warnAboutIgnoredGlobalOptions(program);

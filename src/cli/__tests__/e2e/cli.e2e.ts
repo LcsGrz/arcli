@@ -75,8 +75,7 @@ describe('arcli compilado', () => {
     expect(result.stdout.trim()).toBe(VERSION);
   });
 
-  // Tests primero (ERR-23): pasa a it() al implementarlo.
-  it.fails('un valor que empieza con -V es una opción desconocida, no la versión (exit 1)', () => {
+  it('un valor que empieza con -V es una opción desconocida, no la versión (exit 1)', () => {
     const result = run('config', 'establecer', 'cuenta', '0110599520000012345678', '-Ventas.sa', '--json');
 
     expect(result.stdout).toBe('');

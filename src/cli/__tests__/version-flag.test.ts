@@ -44,8 +44,7 @@ describe('la versión', () => {
 });
 
 describe('un argumento que empieza con -V no es la versión', () => {
-  // Tests primero (ERR-23): pasa a it() al implementarlo.
-  it.fails('`--descripcion -Varios…` usa el valor como descripción', async () => {
+  it('`--descripcion -Varios…` usa el valor como descripción', async () => {
     // Con la config completa, lo primero que falla es la descripción; sin ARCA: no pasa de la validación.
     saveFullConfig();
 
@@ -62,8 +61,7 @@ describe('un argumento que empieza con -V no es la versión', () => {
     expect(code).toBe(1);
   });
 
-  // Tests primero (ERR-23): pasa a it() al implementarlo.
-  it.fails('`monotributo --categoria -Varios` es un error del valor de --categoria', async () => {
+  it('`monotributo --categoria -Varios` es un error del valor de --categoria', async () => {
     const { code, stderr, stdout } = await runCli('monotributo', '--categoria', '-Varios', '--json');
 
     expect(stdout).toBe('');
@@ -74,8 +72,7 @@ describe('un argumento que empieza con -V no es la versión', () => {
     expect(code).toBe(1);
   });
 
-  // Tests primero (ERR-23): pasa a it() al implementarlo.
-  it.fails('`arcli -Vx` es una opción desconocida', async () => {
+  it('`arcli -Vx` es una opción desconocida', async () => {
     const { code, stderr, stdout } = await runCli('-Vx', '--json');
 
     expect(stdout).toBe('');
@@ -85,8 +82,7 @@ describe('un argumento que empieza con -V no es la versión', () => {
 });
 
 describe('una opción corta desconocida entre los argumentos sugiere `--`', () => {
-  // Tests primero (ERR-23): pasa a it() al implementarlo.
-  it.fails.each([['-Ventas.sa'], ['-mi.alias']])(
+  it.each([['-Ventas.sa'], ['-mi.alias']])(
     '`config establecer cuenta <CBU> %s` no guarda nada y muestra el comando con `--`',
     async (alias) => {
       const { code, stderr, stdout } = await runCli('config', 'establecer', 'cuenta', CBU, alias, '--json');
@@ -102,8 +98,7 @@ describe('una opción corta desconocida entre los argumentos sugiere `--`', () =
     },
   );
 
-  // Tests primero (ERR-23): pasa a it() al implementarlo.
-  it.fails('sin --json, el panel de error lleva la misma sugerencia', async () => {
+  it('sin --json, el panel de error lleva la misma sugerencia', async () => {
     const { code, stderr, stdout } = await runCli('config', 'establecer', 'cuenta', CBU, '-Ventas.sa');
 
     expect(stdout).not.toContain(CLI_VERSION);
