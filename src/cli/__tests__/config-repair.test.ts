@@ -1,5 +1,5 @@
 import Conf from 'conf';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -332,15 +332,53 @@ describe('certificado generar con el pedido pendiente ilegible (ERR-21)', () => 
     },
   );
 
-  it.runIf(withPermissions)('con --reemplazar repone el permiso de la carpeta y lo descarta', async () => {
+  // ARQ-27: el permiso que la persona le sacó a la carpeta no se repone; frena con el error de permiso de siempre.
+  it.runIf(withPermissions)('con --reemplazar y la carpeta del CUIT sin permiso, frena sin reponerlo', async () => {
     chmodSync(folder(), 0o000);
 
-    const result = await run('certificado', 'generar', '--reemplazar');
+    let error: CliError;
+    let modeAfter: number;
 
-    chmodSync(folder(), 0o700);
-    expect(result.exitCode, result.stderr).toBe(0);
-    expect(readFileSync(key(), 'utf8')).toContain('PRIVATE KEY');
+    try {
+      error = await runError('certificado', 'generar', '--reemplazar');
+      modeAfter = mode(folder());
+    } finally {
+      chmodSync(folder(), 0o700);
+    }
+
+    expect(error).toMatchObject({
+      codigo: 'UNEXPECTED_ERROR',
+      error: expect.stringMatching(/^No se pudo abrir .*testing\.nueva\.key: no tenés permiso\.$/),
+    });
+    expect(modeAfter).toBe(0);
+    expect(readFileSync(key(), 'utf8')).toBe('CLAVE');
   });
+
+  it.runIf(withPermissions)(
+    'con la carpeta del CUIT de solo lectura, no le da escritura para crear el pedido',
+    async () => {
+      rmSync(key());
+      rmSync(request());
+      chmodSync(folder(), 0o500);
+
+      let error: CliError;
+      let modeAfter: number;
+
+      try {
+        error = await runError('certificado', 'generar');
+        modeAfter = mode(folder());
+      } finally {
+        chmodSync(folder(), 0o700);
+      }
+
+      expect(error).toMatchObject({
+        codigo: 'UNEXPECTED_ERROR',
+        error: expect.stringMatching(/testing\.nueva\.key: no tenés permiso\.$/),
+      });
+      expect(modeAfter).toBe(0o500);
+      expect(readdirSync(folder())).toEqual([]);
+    },
+  );
 
   it('con un pedido legible, CERTIFICATE_REQUEST_PENDING; sin pedido, lo arma', async () => {
     expect((await runError('certificado', 'generar')).codigo).toBe('CERTIFICATE_REQUEST_PENDING');
