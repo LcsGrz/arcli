@@ -25,7 +25,7 @@
 │    IVA del receptor desde el padrón         sí (por defecto)                             │
 │    Alícuota de IVA (A y B)                  21% (por defecto)                            │
 │    Moneda                                   PES                                          │
-│    Cotización (deprecada)                   1                                            │
+│    Cotización (deprecada)                   la oficial de ARCA (por defecto)             │
 │                                                                                          │
 │  Factura de crédito electrónica (FCE)                                                    │
 │    Cuenta bancaria (CBU y alias)            sin configurar                               │
@@ -87,7 +87,7 @@
 │    ␛[2mIVA del receptor desde el padrón       ␛[22m  sí (por defecto)                             │
 │    ␛[2mAlícuota de IVA (A y B)                ␛[22m  21% (por defecto)                            │
 │    ␛[2mMoneda                                 ␛[22m  PES                                          │
-│    ␛[2mCotización (deprecada)                 ␛[22m  1                                            │
+│    ␛[2mCotización (deprecada)                 ␛[22m  la oficial de ARCA (por defecto)             │
 │                                                                                          │
 │  ␛[36mFactura de crédito electrónica (FCE)␛[39m                                                    │
 │    ␛[2mCuenta bancaria (CBU y alias)          ␛[22m  ␛[2msin configurar␛[22m                               │

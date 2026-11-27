@@ -183,7 +183,7 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
   },
   { key: 'ticketPath', path: 'carpeta', read: (c) => c.ticketPath },
   {
-    hint: 'ingresos anuales en pesos, por ejemplo 30.000.000; sin configurar, el de tu categoría',
+    hint: 'ingresos anuales en pesos, por ejemplo 30.000.000; por defecto, el de tu categoría',
     key: 'monotributo.tope',
     read: (c) => (c.monotributo?.tope === undefined ? undefined : formatArgentineAmountInput(c.monotributo.tope)),
   },

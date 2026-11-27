@@ -221,7 +221,13 @@ describe('datos de la config en el menú', () => {
     expect(formatConfigValue('monotributo.tope', withAmounts, paths)).toBe('$ 30.000.000');
     expect(formatConfigValue('consultarPadron', withAmounts, paths)).toBe('sí (por defecto)');
     expect(formatConfigValue('verificarFce', withAmounts, paths)).toBe('no (por defecto)');
-    expect(formatConfigValue('cotizacion', arcliConfigSchema.parse({}), paths)).toBe('1 (por defecto)');
+    // Sin cotización, o con el 1 que la config guarda al crearse, se usa la oficial de ARCA.
+    expect(formatConfigValue('cotizacion', arcliConfigSchema.parse({}), paths)).toBe(
+      'la oficial de ARCA (por defecto)',
+    );
+    expect(formatConfigValue('cotizacion', arcliConfigSchema.parse({ cotizacionPorDefecto: 1 }), paths)).toBe(
+      'la oficial de ARCA (por defecto)',
+    );
   });
 
   it('una clave que no existe es un error de programación', () => {

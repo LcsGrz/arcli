@@ -46,6 +46,7 @@ vi.mock('../../../modules/config/config.service', () => ({
     public ensureInitialized() {}
     public getConfig() {
       return {
+        alicuotaPorDefecto: store.alicuota,
         cert: { produccion: store['cert.produccion'], testing: store['cert.testing'] },
         conceptoPorDefecto: store.concepto,
         condicionVenta: store.condicionVenta,
@@ -555,6 +556,21 @@ describe('configuración: volver, cancelar y dejar como estaba', () => {
 
       expect(store.concepto).toBeUndefined();
       expect(printed()).toContain('Dato borrado.');
+    });
+
+    it('"Volver al de por defecto (21%)" lo borra y dice a cuál volvió, no "Dato borrado."', async () => {
+      store.alicuota = '10.5';
+      vi.mocked(chooseOne).mockResolvedValueOnce('cambiar').mockResolvedValueOnce('volver');
+      chooseStepMock
+        .mockImplementationOnce(pickField('alicuota'))
+        .mockImplementationOnce(pick('Volver al de por defecto (21%)'))
+        .mockResolvedValueOnce(BACK);
+
+      await runConfigMenu();
+
+      expect(store.alicuota).toBeUndefined();
+      expect(printed()).toContain('Volvió al de por defecto (21%).');
+      expect(printed()).not.toContain('Dato borrado.');
     });
 
     describe('entorno (TUI-46)', () => {

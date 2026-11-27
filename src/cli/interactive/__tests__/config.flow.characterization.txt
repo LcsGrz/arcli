@@ -21,7 +21,7 @@ Al facturar
   IVA del receptor desde el padrón: sí (por defecto) [consultarPadron]
   Alícuota de IVA (A y B): 21% (por defecto) [alicuota]
   Moneda: PES [moneda]
-  Cotización (deprecada): 1 [cotizacion]
+  Cotización (deprecada): la oficial de ARCA (por defecto) [cotizacion]
 
 Factura de crédito electrónica (FCE)
   Cuenta bancaria (CBU y alias): sin configurar [cuenta]
@@ -152,7 +152,7 @@ Preguntas
     escribe: Actividad de exportación (WSFEX) (código de la tabla de WSFEX, por ejemplo 620100):
       propone nada
   monotributo.tope
-    escribe: Tope de ingresos anuales propio (ingresos anuales en pesos, por ejemplo 30.000.000; sin configurar, el de tu categoría):
+    escribe: Tope de ingresos anuales propio (ingresos anuales en pesos, por ejemplo 30.000.000; por defecto, el de tu categoría):
       propone nada
   emisor.razonSocial
     escribe: Razón social:
@@ -367,7 +367,7 @@ Preguntas
     escribe: Actividad de exportación (WSFEX) (código de la tabla de WSFEX, por ejemplo 620100, "-" para borrar):
       propone "620100"
   monotributo.tope
-    escribe: Tope de ingresos anuales propio (ingresos anuales en pesos, por ejemplo 30.000.000; sin configurar, el de tu categoría, "-" para volver al de por defecto):
+    escribe: Tope de ingresos anuales propio (ingresos anuales en pesos, por ejemplo 30.000.000; por defecto, el de tu categoría, "-" para volver al de por defecto):
       propone "30000000"
   emisor.razonSocial
     escribe: Razón social ("-" para borrar):

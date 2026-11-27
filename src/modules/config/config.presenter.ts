@@ -15,6 +15,7 @@ import {
 } from '../../ui/primitives';
 import { conceptCode, conceptLabel, ivaConditionCode, ivaConditionLabel } from '../billing/arca-codes';
 import { DEFAULT_IVA_RATE } from '../billing/billing.amounts';
+import { DEFAULT_EXCHANGE_RATE } from '../billing/billing.constants';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { SALE_CONDITION_LABELS, type SaleConditionKey } from '../billing/sale-condition';
 import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
@@ -228,7 +229,9 @@ const SAVED_TEXTS: Record<ConfigPublicKey, SavedConfigText> = {
   'cert.testing': (c) => c.cert.testing,
   concepto: (c) => c.concepto && conceptLabel(conceptCode(c.concepto)),
   condicionVenta: (c) => saleCondition(c.condicionVenta),
-  cotizacion: (c) => (c.cotizacion === undefined ? undefined : formatExchangeRate(c.cotizacion)),
+  // La config guarda el 1 al crearse, y al facturar es lo mismo que no tenerla (`billingVoucherDefaults`).
+  cotizacion: (c) =>
+    c.cotizacion === undefined || c.cotizacion === DEFAULT_EXCHANGE_RATE ? undefined : formatExchangeRate(c.cotizacion),
   cuenta: (c) => formatSavedAccount(c),
   cuit: (c) => c.cuit && formatCuit(c.cuit),
   'emisor.condicionIva': (c) => ivaCondition(c.emisor.condicionIva),
@@ -273,10 +276,10 @@ const marked = (text: (paths: ConfigPathSnapshot) => string): ConfigDefault => (
 const unmarked = (text: string): ConfigDefault => ({ marked: false, text: () => text });
 
 /** Lo que vale un dato sin nada guardado. Un dato que no está acá queda "sin configurar". */
-const CONFIG_DEFAULTS: Partial<Record<ConfigPublicKey, ConfigDefault>> = {
+const DEFAULT_TEXTS: Partial<Record<ConfigPublicKey, ConfigDefault>> = {
   alicuota: marked(() => formatIvaRate(DEFAULT_IVA_RATE)),
   consultarPadron: marked(() => yesNo(isPadronLookupEnabled({}))),
-  cotizacion: marked(() => formatExchangeRate(1)),
+  cotizacion: marked(() => 'la oficial de ARCA'),
   'emisor.condicionIva': unmarked('según la letra'),
   entorno: marked(() => formatEnvironmentLabel('testing')),
   filasPorLista: marked(() => String(RECENT_VOUCHERS_LIMIT)),
@@ -307,7 +310,7 @@ function configValueText(
     return { byDefault: false, text: String(saved) };
   }
 
-  const fallback = CONFIG_DEFAULTS[key];
+  const fallback = DEFAULT_TEXTS[key];
 
   return fallback ? { byDefault: fallback.marked, text: fallback.text(paths) } : { byDefault: false, text: NOT_SET };
 }
@@ -329,7 +332,7 @@ export function formatConfigValue(key: ConfigPublicKey, config: ArcliConfig, pat
  * guardado queda sin configurar. Las carpetas salen de `paths`: con una guardada, `paths` trae esa.
  */
 export function configDefaultText(key: ConfigPublicKey, paths: ConfigPathSnapshot): string | undefined {
-  return CONFIG_DEFAULTS[key]?.text(paths);
+  return DEFAULT_TEXTS[key]?.text(paths);
 }
 
 /** La ruta completa de cada clave que es una ruta, para el link de `arcli config`. */

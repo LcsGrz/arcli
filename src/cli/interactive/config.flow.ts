@@ -510,7 +510,9 @@ async function runChangeField(flags: EnvironmentFlags): Promise<void> {
       continue;
     }
 
-    const saved = readConfig();
+    const { config: saved, paths: savedPaths } = readConfigView();
+    // Un dato con valor por defecto no queda vacío: dice a cuál volvió, como la opción que lo borró.
+    const restored = result === 'borrado' ? configDefaultText(field.key, savedPaths) : undefined;
 
     if (field.key === 'entorno' && result === 'guardado' && saved.entornoPorDefecto === 'produccion') {
       writeTerminalOutput(
@@ -520,7 +522,12 @@ async function runChangeField(flags: EnvironmentFlags): Promise<void> {
         }),
       );
     } else {
-      writeTerminalOutput(noticePanel(messages[result], result === 'sin-cambios' ? 'muted' : 'success'));
+      writeTerminalOutput(
+        noticePanel(
+          restored === undefined ? messages[result] : `Volvió al de por defecto (${restored}).`,
+          result === 'sin-cambios' ? 'muted' : 'success',
+        ),
+      );
     }
   }
 }
