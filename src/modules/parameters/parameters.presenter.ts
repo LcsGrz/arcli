@@ -82,7 +82,7 @@ const PARAMETER_TABLE_COLUMNS: Record<ParameterTable, readonly [id: string, desc
  * Para que sirve el codigo de cada tabla en ARCLI, una idea por linea: va en la leyenda, debajo del listado. La
  * ayuda del asistente las junta en una (`PARAMETER_TABLE_HELP`).
  */
-export const PARAMETER_TABLE_LEGEND: Record<ParameterTable, readonly string[]> = {
+const PARAMETER_TABLE_LEGEND: Record<ParameterTable, readonly string[]> = {
   alicuotas: ['`--alicuota` va con la tasa (`21`, `10.5`), no con el código.'],
   comprobantes: ['ARCLI los elige por atajo (`fc`, `nca`); el código es el de `--at`, el tipo del asociado.'],
   conceptos: ['`--concepto` va con el nombre: `productos`, `servicios` o `productos-servicios`.'],

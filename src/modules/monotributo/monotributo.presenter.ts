@@ -19,6 +19,15 @@ import {
   type MonotributoCategoryLetter,
   nextMonotributoCategory,
 } from './monotributo';
+import {
+  columnGaps,
+  type ColumnWindow,
+  enterColumnWindow,
+  moveColumnWindow,
+  NARROW_GAP,
+  ROW_PREFIX_WIDTH,
+  windowColumns,
+} from './monotributo.columns';
 import { serializeMonotributoCategory } from './monotributo.serialization';
 import type { LoadedMonotributoTable } from './monotributo.service';
 
@@ -46,11 +55,6 @@ interface ViewOptions {
 }
 
 const OWN_LABEL = 'tu categoría';
-/** Entre columnas: el sobrante se reparte si deja por lo menos 3; si no, 2, como las demas tablas. */
-const WIDE_GAP = 3;
-const NARROW_GAP = 2;
-/** Antes de la primera columna: la `❯ ` de la fila propia o dos espacios. */
-const ROW_PREFIX_WIDTH = 2;
 
 // ---------------------------------------------------------------------------------------------------------------
 // JSON
@@ -103,6 +107,11 @@ function panelTitle(width: number, ...candidates: readonly [string, ...string[]]
   return candidates.find((title) => visibleWidth(title) + 4 <= width + 6) ?? candidates[candidates.length - 1];
 }
 
+/** La leyenda de la marca, si hay categoria propia: "❯ tu categoría". */
+function ownCategoryLegend(report: MonotributoReport): string[] {
+  return report.ownCategory ? [`${uiSymbol('pointer')} ${OWN_LABEL}`] : [];
+}
+
 /** `❯ ` en la fila propia, dos espacios en las demas: asi la marca se lee sin color. */
 function rowPrefix(isOwn: boolean): string {
   return isOwn ? `${uiSymbol('pointer')} ` : '  ';
@@ -113,11 +122,6 @@ function emphasize(line: string, isOwn: boolean, width: number): string {
   return isOwn ? markRow(bold(line), width) : line;
 }
 
-/** La leyenda de la marca, si hay categoria propia: "❯ tu categoría". */
-function ownCategoryLegend(report: MonotributoReport): string[] {
-  return report.ownCategory ? [`${uiSymbol('pointer')} ${OWN_LABEL}`] : [];
-}
-
 interface Column {
   readonly align: 'left' | 'right';
   readonly header: string;
@@ -126,8 +130,10 @@ interface Column {
 
 const CATEGORY_COLUMN: Column = { align: 'left', header: 'CAT.', value: (category) => category.letter };
 
-function columnWidth(column: Column, categories: readonly MonotributoCategory[]): number {
-  return Math.max(visibleWidth(column.header), ...categories.map((category) => visibleWidth(column.value(category))));
+function columnWidths(columns: readonly Column[], categories: readonly MonotributoCategory[]): number[] {
+  return columns.map((column) =>
+    Math.max(visibleWidth(column.header), ...categories.map((category) => visibleWidth(column.value(category)))),
+  );
 }
 
 function pad(text: string, width: number, align: Column['align']): string {
@@ -137,26 +143,8 @@ function pad(text: string, width: number, align: Column['align']): string {
 }
 
 /**
- * Los espacios entre columnas de `widths` para que la tabla ocupe `width`: el sobrante repartido en partes iguales
- * (lo que no se reparte parejo va en las primeras), si deja por lo menos 3 entre cada una; si no, 2. `undefined` si
- * no entra con `minimumGap`.
- */
-function columnGaps(widths: readonly number[], width: number, minimumGap = NARROW_GAP): number[] | undefined {
-  const count = widths.length - 1;
-  const free = width - ROW_PREFIX_WIDTH - widths.reduce((total, columnWidth) => total + columnWidth, 0);
-
-  if (free < count * minimumGap) return undefined;
-  if (count === 0) return [];
-  if (free < count * WIDE_GAP) return Array.from({ length: count }, () => NARROW_GAP);
-
-  const base = Math.floor(free / count);
-
-  return Array.from({ length: count }, (_, index) => base + (index < free % count ? 1 : 0));
-}
-
-/**
- * Tabla en columnas a todo el ancho: encabezado y una fila por categoria, con la propia marcada. `undefined` si no
- * entra en `width`.
+ * Tabla en columnas a todo el ancho (ver `columnGaps`): encabezado y una fila por categoria, con la propia marcada.
+ * `undefined` si no entra en `width`.
  */
 function renderColumns(
   columns: readonly Column[],
@@ -164,7 +152,7 @@ function renderColumns(
   ownCategory: MonotributoCategoryLetter | null,
   width: number,
 ): string[] | undefined {
-  const widths = columns.map((column) => columnWidth(column, categories));
+  const widths = columnWidths(columns, categories);
   const gaps = columnGaps(widths, width);
 
   if (!gaps) return undefined;
@@ -418,106 +406,8 @@ function stackedBlock(columns: readonly Column[], report: MonotributoReport, wid
   });
 }
 
-/**
- * Las columnas de un bloque que se ven a la vez en el asistente cuando no entran todas: de `first` a `last` de
- * `total`, contadas desde 1 y sin CAT., que va siempre.
- */
-export interface MonotributoColumnWindow {
-  readonly first: number;
-  readonly last: number;
-  readonly total: number;
-}
-
-/** Las columnas de datos de `first` a `last` (desde 1), con CAT. adelante. */
-function windowColumns(columns: readonly Column[], first: number, last: number): Column[] {
-  const [category = CATEGORY_COLUMN, ...data] = columns;
-
-  return [category, ...data.slice(first - 1, last)];
-}
-
-/** Si las columnas de `first` a `last` de `block` entran en `width`, con `minimumGap` entre cada una. */
-function windowFits(
-  report: MonotributoReport,
-  block: MonotributoBlock,
-  [first, last]: readonly [number, number],
-  width: number,
-  minimumGap: number,
-): boolean {
-  const widths = windowColumns(BLOCK_COLUMNS[block], first, last).map((column) =>
-    columnWidth(column, report.table.categories),
-  );
-
-  return columnGaps(widths, width, minimumGap) !== undefined;
-}
-
-/**
- * La ventana con la que se entra a `block` en el asistente: desde la primera columna (`side` `left`, entrando desde
- * el bloque de la izquierda) o hasta la ultima (`right`), con todas las que entran con 3 espacios entre cada una.
- * `undefined` si el bloque entra entero (no hace falta ventana) o si no entra ni una columna (va apilado).
- */
-export function enterMonotributoColumnWindow(
-  report: MonotributoReport,
-  block: MonotributoBlock,
-  side: 'left' | 'right',
-  options: ViewOptions = {},
-): MonotributoColumnWindow | undefined {
-  const width = options.width ?? panelContentWidth('wide');
-  const total = BLOCK_COLUMNS[block].length - 1;
-  const fits = (first: number, last: number) => windowFits(report, block, [first, last], width, WIDE_GAP);
-
-  if (windowFits(report, block, [1, total], width, NARROW_GAP)) return undefined;
-
-  if (side === 'left') {
-    let last = 1;
-
-    if (!fits(1, last)) return undefined;
-    while (last < total && fits(1, last + 1)) last += 1;
-
-    return { first: 1, last, total };
-  }
-
-  let first = total;
-
-  if (!fits(first, total)) return undefined;
-  while (first > 1 && fits(first - 1, total)) first -= 1;
-
-  return { first, last: total, total };
-}
-
-/**
- * La ventana corrida una columna hacia `direction`: la nueva entra pegada a ese lado y del otro sale una (o las que
- * hagan falta para que entre). `undefined` si ya no hay columnas de ese lado.
- */
-export function moveMonotributoColumnWindow(
-  report: MonotributoReport,
-  block: MonotributoBlock,
-  window: MonotributoColumnWindow,
-  direction: 'left' | 'right',
-  options: ViewOptions = {},
-): MonotributoColumnWindow | undefined {
-  const width = options.width ?? panelContentWidth('wide');
-  const fits = (first: number, last: number) => windowFits(report, block, [first, last], width, WIDE_GAP);
-
-  if (direction === 'right') {
-    if (window.last >= window.total) return undefined;
-
-    const last = window.last + 1;
-    let first = Math.min(window.first + 1, last);
-
-    while (first < last && !fits(first, last)) first += 1;
-
-    return { first, last, total: window.total };
-  }
-
-  if (window.first <= 1) return undefined;
-
-  const first = window.first - 1;
-  let last = Math.max(window.last - 1, first);
-
-  while (last > first && !fits(first, last)) last -= 1;
-
-  return { first, last, total: window.total };
-}
+/** Las columnas de un bloque que se ven a la vez en "Ver todas las columnas" (ver `enterColumnWindow`). */
+export type MonotributoColumnWindow = ColumnWindow;
 
 /** "columnas 2 a 4 de 5", con ← si hay columnas a la izquierda y → si hay a la derecha. */
 function formatColumnWindow({ first, last, total }: MonotributoColumnWindow): string {
@@ -526,6 +416,31 @@ function formatColumnWindow({ first, last, total }: MonotributoColumnWindow): st
     `columnas ${first} a ${last} de ${total}`,
     last < total ? `  ${uiSymbol('moreRight')}` : '',
   ].join('');
+}
+
+/** La ventana con la que se entra a `block` desde `side`; `undefined` si entra entero o no entra ni una columna. */
+export function enterMonotributoColumnWindow(
+  report: MonotributoReport,
+  block: MonotributoBlock,
+  side: 'left' | 'right',
+  options: ViewOptions = {},
+): MonotributoColumnWindow | undefined {
+  const widths = columnWidths(BLOCK_COLUMNS[block], report.table.categories);
+
+  return enterColumnWindow(widths, side, options.width ?? panelContentWidth('wide'));
+}
+
+/** La ventana corrida una columna hacia `direction`; `undefined` si ya no hay columnas de ese lado. */
+export function moveMonotributoColumnWindow(
+  report: MonotributoReport,
+  block: MonotributoBlock,
+  window: MonotributoColumnWindow,
+  direction: 'left' | 'right',
+  options: ViewOptions = {},
+): MonotributoColumnWindow | undefined {
+  const widths = columnWidths(BLOCK_COLUMNS[block], report.table.categories);
+
+  return moveColumnWindow(widths, window, direction, options.width ?? panelContentWidth('wide'));
 }
 
 /**
