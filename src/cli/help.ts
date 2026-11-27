@@ -11,7 +11,7 @@ import {
   VOUCHER_LETTERS,
 } from '../modules/billing/voucher-kind-map';
 import { CONFIG_LABELS, CONFIG_SECTIONS } from '../modules/config/config.sections';
-import type { ConfigPublicKey } from '../modules/config/config-key-table';
+import { BOOLEAN_CONFIG_KEYS, type ConfigPublicKey } from '../modules/config/config-key-table';
 import {
   buildMinimalFamilyExample,
   buildMinimalShortcutExample,
@@ -199,12 +199,9 @@ const BOOLEAN_CONFIG_VALUES = 'true/false, si/no o 1/0';
 
 /** Valores de las claves que el asistente no edita o que, siendo booleanas, aceptan mas formas que si/no. */
 const CONFIG_VALUE_OVERRIDES: Partial<Record<ConfigPublicKey, string>> = {
+  ...Object.fromEntries(BOOLEAN_CONFIG_KEYS.map((key) => [key, BOOLEAN_CONFIG_VALUES])),
   alicuota: 'general, reducida, incrementada, cero o el número: 0, 2.5, 5, 10.5, 21, 27; por defecto 21',
-  bruto: BOOLEAN_CONFIG_VALUES,
   consultarPadron: `${BOOLEAN_CONFIG_VALUES}; por defecto si`,
-  emitir: BOOLEAN_CONFIG_VALUES,
-  json: BOOLEAN_CONFIG_VALUES,
-  verificarFce: BOOLEAN_CONFIG_VALUES,
 };
 
 function describeConfigValues(key: ConfigPublicKey): string | undefined {

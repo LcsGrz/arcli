@@ -119,13 +119,16 @@ Cada dato tiene su helper. Antes de escribir un formato, buscá si ya existe.
 
 **Dato ausente:**
 
-| Situación                                                     | Qué hacer                                       |
-| ------------------------------------------------------------- | ----------------------------------------------- |
-| Nadie lo cargó y queda en cero o vacío                        | No mostrar la fila                              |
-| No hay dato y la fila no aporta (no aplica, ARCA no lo manda) | No mostrar la fila                              |
-| La fila tiene que estar: es lo que se busca                   | Decir qué pasa: `sin CAE`, `ARCA no lo informa` |
-| Viene de una flag, la config o un default                     | Mostrarlo                                       |
-| Falta en la config                                            | `sin configurar`                                |
+| Situación                                                     | Qué hacer                                         |
+| ------------------------------------------------------------- | ------------------------------------------------- |
+| Nadie lo cargó y queda en cero o vacío                        | No mostrar la fila                                |
+| No hay dato y la fila no aporta (no aplica, ARCA no lo manda) | No mostrar la fila                                |
+| La fila tiene que estar: es lo que se busca                   | Decir qué pasa: `sin CAE`, `ARCA no lo informa`   |
+| Viene de una flag, la config o un default                     | Mostrarlo                                         |
+| Falta en la config                                            | `sin configurar`                                  |
+| Falta en la config y se usa un valor por defecto              | El valor con `(por defecto)`: `21% (por defecto)` |
+
+En "Modificar configuración", las opciones para no guardar o borrar un dato dicen qué queda: con un valor por defecto, `Dejar el de por defecto (21%)` y `Volver al de por defecto (21%)` (y al elegirla, `Volvió al de por defecto (21%).`); sin uno, `Dejar sin configurar` y `Borrar (queda sin configurar)`.
 
 Nunca `N/D`: no dice si falta, no aplica o falló. `renderKeyValueRows` no muestra una fila sin valor, así que una que tiene que estar lleva su texto. El `--json` no cambia: ahí el dato ausente es `null` o no está.
 

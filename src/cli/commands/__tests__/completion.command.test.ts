@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { currentCompletionEnvironment, resolveCompletionPath } from '../../../modules/completion/installer';
+import { configPublicKeySchema, storedKeyOf } from '../../../modules/config/config-key-table';
+import { parseConfigValue } from '../../../modules/config/config-value-parser';
+import { nodeLocalFiles } from '../../../services/files/local-files';
 import { stripAnsi } from '../../../ui';
 import { createProgram } from '../../program';
 
@@ -142,6 +145,31 @@ describe('arcli completado sin shell: el de $SHELL, en texto o --json', () => {
 describe('arcli __completar sin candidatos', () => {
   it('no escribe nada si ninguna opcion empieza asi', async () => {
     expect((await run(['__completar', '--', 'fc', '--zzz'])).stdout).toBe('');
+  });
+
+  it.each([['verificarFce'], ['consultarPadron']])('la clave de sí o no %s ofrece si y no', async (key) => {
+    expect(await complete('config', 'establecer', key, '')).toEqual(['si', 'no']);
+  });
+
+  it.each([['emitir'], ['json'], ['bruto']])('la clave de sí o no %s también ofrece si y no', async (key) => {
+    expect(await complete('config', 'establecer', key, '')).toEqual(['si', 'no']);
+  });
+
+  // La lista de claves de sí o no sale del parser: una nueva que guarda un booleano no puede quedar sin si y no.
+  it('toda clave que el parser guarda como sí o no ofrece si y no', async () => {
+    const booleanKeys = configPublicKeySchema.options.filter((key) => {
+      try {
+        return typeof parseConfigValue(storedKeyOf(key), 'si', nodeLocalFiles) === 'boolean';
+      } catch {
+        return false;
+      }
+    });
+
+    expect(booleanKeys).toEqual(expect.arrayContaining(['bruto', 'consultarPadron', 'emitir', 'json', 'verificarFce']));
+
+    for (const key of booleanKeys) {
+      expect(await complete('config', 'establecer', key, ''), key).toEqual(['si', 'no']);
+    }
   });
 
   it('una clave de config sin valores fijos no ofrece valores', async () => {
