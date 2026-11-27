@@ -26,17 +26,22 @@ export async function ensureClientsDatabase(options: ClientsDatabaseOptions): Pr
   const cuitFolder = dirname(file);
   const driver = await loadSqliteDriver();
 
-  await withWriteRetry(() =>
-    openOrCreateDatabase(
-      driver,
-      {
-        busyTimeoutMs: DEFAULT_BUSY_TIMEOUT_MS,
-        file,
-        folders: [join(options.dataDirectory, 'datos'), cuitFolder],
-        identity: { base: 'clientes', emisor_cuit: basename(cuitFolder) },
-        migrations: CLIENTS_MIGRATIONS,
-      },
-      { now: options.clock.now().toISOString(), version: options.version },
+  await withWriteRetry(async () =>
+    (
+      await openOrCreateDatabase(
+        driver,
+        {
+          // Las de antes de migrar (las diarias de clientes las decide CLIENTES-1): `datos/<CUIT>/copias/clientes-….db`.
+          backups: { folder: join(cuitFolder, 'copias'), prefix: 'clientes' },
+          lock: join(options.dataDirectory, 'datos', `.turno-${basename(cuitFolder)}-clientes.db`),
+          busyTimeoutMs: DEFAULT_BUSY_TIMEOUT_MS,
+          file,
+          folders: [join(options.dataDirectory, 'datos'), cuitFolder],
+          identity: { base: 'clientes', emisor_cuit: basename(cuitFolder) },
+          migrations: CLIENTS_MIGRATIONS,
+        },
+        { now: options.clock.now().toISOString(), version: options.version },
+      )
     ).close(),
   );
 }

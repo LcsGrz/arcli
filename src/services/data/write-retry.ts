@@ -25,12 +25,12 @@ export interface WriteRetryOptions {
  * no vuelvan a la vez. Es solo para la base local: una emisión a ARCA nunca se reintenta así.
  */
 export async function withWriteRetry<T>(
-  unit: () => T,
+  unit: () => Promise<T> | T,
   { pause = setTimeout, random = Math.random }: WriteRetryOptions = {},
 ): Promise<T> {
   for (let attempt = 1; ; attempt += 1) {
     try {
-      return unit();
+      return await unit();
     } catch (error) {
       if (attempt >= WRITE_ATTEMPTS || !(error instanceof LocalDataError) || error.reason !== 'locked') {
         throw error;

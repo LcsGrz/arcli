@@ -28,7 +28,7 @@ const TEMPORARY_NAME = /^\.nueva-[0-9a-f]+$/;
 const STALE_TEMPORARY_MS = 10 * 60 * 1000;
 
 /** Borra sin fallar: la limpieza nunca hace fallar un guardado ni tapa el error que importa. */
-function removeQuietly(path: string): void {
+export function removeQuietly(path: string): void {
   try {
     rmSync(path, { force: true, maxRetries: 3 });
   } catch {
@@ -66,6 +66,31 @@ export function removeStaleTemporaries(file: string, nowMs: number): void {
   }
 }
 
+/**
+ * Si hay al lado de la base un temporal de menos de 10 minutos: otro proceso puede estar creándola (sin hard links, la
+ * está copiando a su lugar y se ve cortada). Uno más viejo es de un proceso muerto.
+ */
+export function hasLiveTemporary(file: string, nowMs: number): boolean {
+  const folder = dirname(file);
+  let names: string[];
+
+  try {
+    names = readdirSync(folder);
+  } catch {
+    return false;
+  }
+
+  return names
+    .filter((candidate) => TEMPORARY_NAME.test(candidate))
+    .some((name) => {
+      try {
+        return nowMs - statSync(join(folder, name)).mtimeMs <= STALE_TEMPORARY_MS;
+      } catch {
+        return false;
+      }
+    });
+}
+
 /** Un archivo nuevo solo para el dueño, con un nombre que no pisa a nadie y del mismo largo que el de la base. */
 export function createTemporaryFile(file: string): string {
   const hexLength = Math.max(1, basename(file).length - TEMPORARY_PREFIX.length);
@@ -99,20 +124,31 @@ export function createTemporaryFile(file: string): string {
 }
 
 /** Los errores de `linkSync` que dicen que el sistema de archivos no tiene hard links (FAT, exFAT, algunos de red). */
-const NO_HARD_LINKS = new Set(['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'ENOSYS', 'EMLINK', 'EXDEV']);
+export const NO_HARD_LINKS: ReadonlySet<string> = new Set([
+  'EPERM',
+  'ENOTSUP',
+  'EOPNOTSUPP',
+  'ENOSYS',
+  'EMLINK',
+  'EXDEV',
+]);
 
 /**
  * Pone la base armada en su lugar sin pisar otra: un hard link falla si ya está (otro proceso la creó a la vez, y vale
  * esa). Sin hard links, una copia que también falla si ya está; mientras se copia, otro la vería cortada (`damaged`;
  * ver docs/architecture.md, "Datos locales").
  */
-export function publishTemporary(temporary: string, file: string): void {
+export function publishTemporary(temporary: string, file: string, ifTaken: 'fail' | 'keep' = 'keep'): void {
   try {
     linkSync(temporary, file);
   } catch (error) {
     const { code = '' } = error as NodeJS.ErrnoException;
 
     if (code === 'EEXIST') {
+      if (ifTaken === 'fail') {
+        throw error;
+      }
+
       return;
     }
 
@@ -123,7 +159,7 @@ export function publishTemporary(temporary: string, file: string): void {
     try {
       copyFileSync(temporary, file, constants.COPYFILE_EXCL);
     } catch (copyError) {
-      if ((copyError as NodeJS.ErrnoException).code !== 'EEXIST') {
+      if ((copyError as NodeJS.ErrnoException).code !== 'EEXIST' || ifTaken === 'fail') {
         throw copyError;
       }
     }

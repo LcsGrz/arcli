@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -67,5 +68,35 @@ describe('sqlite-driver (ARQ-12)', () => {
     } finally {
       connection.close();
     }
+  });
+});
+
+describe('abrir sin crear (ARQ-12 PR 4b)', () => {
+  // Si otro proceso apartó la base entre que se miró y se abrió, SQLite no deja una vacía en su lugar.
+  it('con mustExist, una que no está da error y no crea nada', async () => {
+    const folder = temporaryDataDirectory("arcli-driver ñ #%20'-");
+
+    await expect(
+      openSqliteConnection(join(folder, 'comprobantes.db'), { mustExist: true, timeoutMs: 1000 }),
+    ).rejects.toMatchObject({ code: 'ERR_SQLITE_ERROR' });
+    expect(readdirSync(folder)).toEqual([]);
+  });
+
+  it('con mustExist, una que está (espacios, ñ, #, %20 y apóstrofo en la ruta) se abre y se escribe', async () => {
+    const folder = temporaryDataDirectory("arcli-driver ñ #%20'-");
+    const file = join(folder, 'comprobantes.db');
+
+    (await openSqliteConnection(file, { timeoutMs: 1000 })).close();
+
+    const connection = await openSqliteConnection(file, { mustExist: true, timeoutMs: 1000 });
+
+    try {
+      connection.exec('CREATE TABLE t (x INTEGER) STRICT');
+      expect(connection.get("SELECT name FROM sqlite_master WHERE name = 't'")).toEqual({ name: 't' });
+    } finally {
+      connection.close();
+    }
+
+    expect(readdirSync(folder)).toEqual(['comprobantes.db']);
   });
 });

@@ -4,9 +4,10 @@ import { z } from 'zod';
 import { InputValidationError } from '../../lib/errors/app-error';
 import type { Clock } from '../../lib/time/clock';
 import type { ArcliEnvironment } from '../../modules/config/config.schemas';
-import { LocalDataError } from '../../modules/local-data/local-data-error';
+import { LocalDataError, type LocalDataErrorReason } from '../../modules/local-data/local-data-error';
 import { resolveLocalDataFiles } from '../../modules/local-data/local-data-files';
 import type {
+  LocalDataRecovery,
   SaveOutcome,
   StoredVoucherRecord,
   VoucherNumber,
@@ -14,13 +15,9 @@ import type {
   VoucherRecordStore,
 } from '../../modules/vouchers/voucher-record-store';
 
-import {
-  type DatabaseSpec,
-  DEFAULT_BUSY_TIMEOUT_MS,
-  openExistingDatabase,
-  openOrCreateDatabase,
-  toLocalDataError,
-} from './database-file';
+import { hasDailyBackup, writeBackup } from './backup-files';
+import { openRecoveringDatabase } from './damaged';
+import { type DatabaseSpec, DEFAULT_BUSY_TIMEOUT_MS, openExistingDatabase, toLocalDataError } from './database-file';
 import { inImmediateTransaction, latestVersion, type MigrationContext, type SqliteMigration } from './migrations';
 import { loadSqliteDriver, type SqliteConnection } from './sqlite-driver';
 import { VOUCHERS_MIGRATIONS } from './vouchers-schema';
@@ -34,6 +31,11 @@ export interface SqliteVoucherRecordStoreOptions {
   readonly environment: ArcliEnvironment;
   /** La versión de ARCLI que escribe, para `metadatos`, `migraciones` y cada fila. */
   readonly version: string;
+  /**
+   * Las copias diarias (la primera escritura de cada día argentino). Sin indicar, apagadas hasta que LIBRO-1 conecte la
+   * clave de config `copias`. La de antes de migrar se hace siempre, aunque `enabled` sea `false`.
+   */
+  readonly backups?: { readonly enabled: boolean };
   /** @internal Solo tests: la espera de SQLite por intento, en ms (por defecto 5000). */
   readonly busyTimeoutMs?: number;
   /** @internal Solo tests: pasos que se corren después del esquema v1 (una "menor" de prueba). */
@@ -231,28 +233,58 @@ function saveInTransaction(connection: SqliteConnection, record: VoucherRecord, 
   return { kind: 'replaced', previousCae };
 }
 
+/** Lo que distingue a comprobantes.db de un CUIT y entorno: ruta, carpetas, dueño, pasos del esquema y copias. */
+export function vouchersDatabaseSpec(
+  options: Pick<SqliteVoucherRecordStoreOptions, 'busyTimeoutMs' | 'cuit' | 'dataDirectory' | 'environment'>,
+  migrations: readonly SqliteMigration[] = VOUCHERS_MIGRATIONS,
+): DatabaseSpec {
+  const files = resolveLocalDataFiles(options.dataDirectory, options.cuit, options.environment);
+  const cuitFolder = dirname(files.folder);
+
+  return {
+    backups: { folder: files.backups, prefix: 'comprobantes' },
+    lock: join(options.dataDirectory, 'datos', `.turno-${basename(cuitFolder)}-${options.environment}-comprobantes.db`),
+    busyTimeoutMs: options.busyTimeoutMs ?? DEFAULT_BUSY_TIMEOUT_MS,
+    file: files.vouchers,
+    folders: [join(options.dataDirectory, 'datos'), cuitFolder, files.folder],
+    identity: { base: 'comprobantes', emisor_cuit: basename(cuitFolder), entorno: options.environment },
+    migrations,
+  };
+}
+
+/**
+ * La copia diaria, después del COMMIT: si `enabled` y es la primera escritura del día argentino. Si falla, lo guardado
+ * queda igual y se devuelve la razón, para que quien llama avise.
+ */
+function dailyBackup(
+  connection: SqliteConnection,
+  spec: DatabaseSpec,
+  now: Date,
+): { readonly backupFailed?: { readonly reason: LocalDataErrorReason } } {
+  try {
+    if (!hasDailyBackup(spec.backups, now)) {
+      writeBackup(connection, spec.backups, now, 'daily');
+    }
+
+    return {};
+  } catch (error) {
+    const mapped = toLocalDataError(error);
+
+    return { backupFailed: { reason: mapped instanceof LocalDataError ? mapped.reason : 'unavailable' } };
+  }
+}
+
 /**
  * Los comprobantes de un CUIT y entorno en SQLite. No abre nada al armarse: cada operación abre, hace lo suyo y
  * cierra, y la base se crea en el primer `save`. Leer sin base no crea nada. Cada operación entera se reintenta si
- * la base está tomada por otro proceso (abrir también puede escribir: migrar).
+ * la base está tomada por otro proceso (abrir también puede escribir: migrar). Solo `save` aparta y repone una base
+ * dañada (damaged.ts); leer una dañada da `damaged` sin tocarla.
  *
  * @internal Lo conecta LIBRO-1.
  */
 export function openSqliteVoucherRecordStore(options: SqliteVoucherRecordStoreOptions): VoucherRecordStore {
   const migrations = [...VOUCHERS_MIGRATIONS, ...(options.extraMigrations ?? [])];
-
-  function spec(): DatabaseSpec {
-    const files = resolveLocalDataFiles(options.dataDirectory, options.cuit, options.environment);
-    const cuitFolder = dirname(files.folder);
-
-    return {
-      busyTimeoutMs: options.busyTimeoutMs ?? DEFAULT_BUSY_TIMEOUT_MS,
-      file: files.vouchers,
-      folders: [join(options.dataDirectory, 'datos'), cuitFolder, files.folder],
-      identity: { base: 'comprobantes', emisor_cuit: basename(cuitFolder), entorno: options.environment },
-      migrations,
-    };
-  }
+  const spec = () => vouchersDatabaseSpec(options, migrations);
 
   const context = (): SaveContext => ({
     now: options.clock.now().toISOString(),
@@ -307,13 +339,24 @@ export function openSqliteVoucherRecordStore(options: SqliteVoucherRecordStoreOp
 
       const databaseSpec = spec();
       const driver = await loadSqliteDriver();
+      // Si se repuso la base y después el guardado se reintenta (tomada), el reintento ya la encuentra sana: el dato
+      // de la recuperación es del primero.
+      let recovered: LocalDataRecovery | undefined;
 
-      return withWriteRetry(() => {
+      return withWriteRetry(async (): Promise<SaveOutcome> => {
         const saveContext = context();
-        const connection = openOrCreateDatabase(driver, databaseSpec, saveContext);
+        const opened = await openRecoveringDatabase(driver, databaseSpec, saveContext);
+        const { connection } = opened;
+
+        recovered ??= opened.recovered;
 
         try {
-          return inImmediateTransaction(connection, () => saveInTransaction(connection, record, saveContext));
+          const outcome = inImmediateTransaction(connection, () => saveInTransaction(connection, record, saveContext));
+          const backup = options.backups?.enabled
+            ? dailyBackup(connection, databaseSpec, new Date(saveContext.now))
+            : {};
+
+          return { ...outcome, ...(recovered === undefined ? {} : { recovered }), ...backup };
         } catch (error) {
           throw toLocalDataError(error);
         } finally {

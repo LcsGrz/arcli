@@ -1,3 +1,5 @@
+import type { LocalDataErrorReason } from '../local-data/local-data-error';
+
 /**
  * El puerto de los comprobantes guardados en esta computadora (ARQ-12). El adaptador sobre SQLite está en
  * src/services/data; lo usa LIBRO-1. Un comprobante se identifica por su CAE, y tipo + punto de venta + número es
@@ -41,11 +43,38 @@ export interface StoredVoucherRecord extends VoucherRecord {
  *   CAE y número aunque llegue varias veces).
  * - `replaced`: el número tenía otro CAE; el anterior queda marcado como reemplazado (evento `reemplazo`).
  */
-export type SaveOutcome =
+export type SaveOutcome = (
   | { readonly kind: 'already-saved'; readonly replacedBy?: string }
   | { readonly kind: 'cae-on-other-number'; readonly saved: VoucherNumber }
   | { readonly kind: 'replaced'; readonly previousCae: string }
-  | { readonly kind: 'saved' };
+  | { readonly kind: 'saved' }
+) &
+  SaveSideEffects;
+
+/**
+ * Lo que pasó además al guardar, para que quien llama avise (LIBRO-1). Cada clave está solo si pasó:
+ *
+ * - `recovered`: la base estaba dañada; se apartó y se repuso antes de guardar.
+ * - `backupFailed`: lo guardado quedó, pero la copia diaria no se pudo hacer (`reason`, la de `LocalDataError`).
+ */
+interface SaveSideEffects {
+  readonly recovered?: LocalDataRecovery;
+  readonly backupFailed?: { readonly reason: LocalDataErrorReason };
+}
+
+/**
+ * Una base dañada que se apartó y se repuso, o una que faltaba y se repuso porque había copias o una apartada al lado
+ * (ARQ-12 PR 4b). Nada se borra.
+ */
+export interface LocalDataRecovery {
+  /**
+   * Donde quedó la dañada: `comprobantes.danada-<día>-<hora>.db`, en la carpeta de la base (con su `-journal`). Si la
+   * base faltaba, la apartada más nueva que había; sin ninguna, no está.
+   */
+  readonly setAside?: string;
+  /** La copia desde la que se repuso (queda donde estaba); sin copia sana, no está y la base nueva salió vacía. */
+  readonly restoredFrom?: string;
+}
 
 /** Los errores de la base son `LocalDataError` (src/modules/local-data/local-data-error.ts). */
 export interface VoucherRecordStore {
