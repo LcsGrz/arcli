@@ -1,6 +1,6 @@
 import { CommanderError } from 'commander';
 import { existsSync, readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { stripAnsi } from '../../ui';
 import { handleCommanderExit } from '../error-output';
@@ -25,6 +25,21 @@ const flat = (text: string) => stripAnsi(text).replace(/[\s│┃╏|]+/g, ' ');
 
 const stored = (): Record<string, unknown> =>
   existsSync(configPath()) ? (JSON.parse(readFileSync(configPath(), 'utf8')) as Record<string, unknown>) : {};
+
+/** Fija `process.platform` en cada test del bloque: en Windows la sugerencia trae `'--'`, con comillas. */
+function usePlatform(platform: NodeJS.Platform): void {
+  const original = Object.getOwnPropertyDescriptor(process, 'platform');
+
+  beforeEach(() => {
+    Object.defineProperty(process, 'platform', { value: platform });
+  });
+
+  afterEach(() => {
+    if (original) {
+      Object.defineProperty(process, 'platform', original);
+    }
+  });
+}
 
 describe('la versión', () => {
   it.each([[['-V']], [['--version']], [['config', '-V']], [['fc', '-m', '1', '-V']]])(
@@ -85,6 +100,8 @@ describe('un argumento que empieza con -V no es la versión', () => {
 });
 
 describe('una opción corta desconocida entre los argumentos sugiere `--`', () => {
+  usePlatform('linux');
+
   it.each([['-Ventas.sa'], ['-mi.alias']])(
     '`config establecer cuenta <CBU> %s` no guarda nada y muestra el comando con `--`',
     async (alias) => {
@@ -136,6 +153,8 @@ const suggestedCommand = (stderr: string): string => {
 };
 
 describe('la sugerencia de `--`', () => {
+  usePlatform('linux');
+
   it('conserva los flags que se usaron antes del `--`, y el comando sugerido guarda la cuenta', async () => {
     const failed = await runCli('config', 'establecer', 'cuenta', CBU, '-Ventas.sa', '--json');
     const suggested = suggestedCommand(failed.stderr);
@@ -149,24 +168,6 @@ describe('la sugerencia de `--`', () => {
     expect(stored()).toMatchObject({ aliasCbu: '-Ventas.sa', cbu: CBU });
   });
 
-  it('en Windows, el `--` va entre comillas: PowerShell no se lo queda', async () => {
-    const platform = Object.getOwnPropertyDescriptor(process, 'platform');
-
-    Object.defineProperty(process, 'platform', { value: 'win32' });
-
-    try {
-      const { stderr } = await runCli('config', 'establecer', 'cuenta', CBU, '-Ventas.sa', '--json');
-
-      expect(JSON.parse(stderr)).toMatchObject({
-        sugerencia: expect.stringContaining(`\`arcli config establecer --json '--' cuenta ${CBU} -Ventas.sa\``),
-      });
-    } finally {
-      if (platform) {
-        Object.defineProperty(process, 'platform', platform);
-      }
-    }
-  });
-
   it('un flag mal escrito también manda a la ayuda del comando', async () => {
     const { code, stderr } = await runCli('padron', '20333333334', '-j', '--json');
 
@@ -178,6 +179,18 @@ describe('la sugerencia de `--`', () => {
         'Si es una opción, mirá `arcli padron --ayuda`.',
     });
     expect(code).toBe(1);
+  });
+});
+
+describe('la sugerencia de `--` en Windows', () => {
+  usePlatform('win32');
+
+  it('el `--` va entre comillas: PowerShell no se lo queda', async () => {
+    const { stderr } = await runCli('config', 'establecer', 'cuenta', CBU, '-Ventas.sa', '--json');
+
+    expect(JSON.parse(stderr)).toMatchObject({
+      sugerencia: expect.stringContaining(`\`arcli config establecer --json '--' cuenta ${CBU} -Ventas.sa\``),
+    });
   });
 });
 
