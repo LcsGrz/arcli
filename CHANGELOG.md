@@ -68,7 +68,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### ✨ Agregado
 
-- **Consultas:** `arcli constatar` verifica en ARCA un comprobante recibido, con sus datos o su QR, y sale con `2` si no coincide (#PR).
+- **Consultas:** `arcli constatar` verifica en ARCA un comprobante recibido, con sus datos o su QR, y sale con `2` si no coincide (#323).
 - **Config:** `config establecer cuenta <CBU> [ALIAS]` guarda el CBU y su alias juntos, y `config eliminar cuenta` borra los dos (#284).
 - **Errores:** con `--json`, `EMISSION_UNCERTAIN` de A, B, C, FCE y recibos trae `detalles.numero`, como la `E`; en un lote, si hay uno sin confirmar (#297).
 
