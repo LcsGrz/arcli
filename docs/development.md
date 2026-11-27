@@ -86,7 +86,7 @@ Sirven para lo que los tests unitarios no ven: el empaquetado de ESM, los errore
 
 ### Datos locales
 
-Los datos locales en SQLite (ARQ-12) tienen su propio job en el CI, `datos-locales`: `node:sqlite` cambia entre versiones de Node y el bloqueo de archivos entre sistemas, así que corre en Linux, macOS y Windows con Node 22.22.1 (el mínimo de `engines`), 22, 24 y 26, con `check-latest`. Hace `yarn build`, los unitarios de `src/services/data` y `src/modules/local-data`, y `src/services/data/__tests__/data.e2e.ts`, que lanza procesos reales sobre `dist/` (fixtures/data-child.mjs): varios guardando a la vez, uno que muere con SIGKILL en medio de una escritura o de una migración, y el aviso de Node 22. `validate` espera a este job y a `test`. En local:
+Los datos locales en SQLite (ARQ-12) tienen su propio job en el CI, `datos-locales`: `node:sqlite` cambia entre versiones de Node y el bloqueo de archivos entre sistemas, así que corre en Linux, macOS y Windows con Node 22.22.1 (el mínimo de `engines`), 22, 24 y 26, con `check-latest`. Hace `yarn build`, los unitarios de `src/services/data` y `src/modules/local-data`, y `src/services/data/__tests__/data.e2e.ts`, que lanza procesos reales sobre `dist/` (fixtures/data-child.mjs): varios guardando a la vez, uno que muere con SIGKILL en medio de una escritura o de una migración, y el aviso de Node 22. En Windows esos unitarios corren con `--testTimeout=15000`, porque el runner a veces se frena unos 5 s (ARQ-23); en Linux, macOS y el job `test` el límite sigue igual. `validate` espera a este job y a `test`. En local:
 
 ```bash
 yarn build && yarn vitest run --config vitest.e2e.config.ts src/services/data
