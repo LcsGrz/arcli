@@ -44,6 +44,16 @@ let output = '';
 const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
 
 /**
+ * Espera a que el visor se dibuje: @inquirer difiere el primer dibujo y una maquina lenta (Windows en el CI) puede
+ * tardar mas que un `tick`. Despues, cada tecla redibuja en el momento.
+ */
+async function untilPagerShows(): Promise<void> {
+  for (let waited = 0; waited < 5000 && !plainText(output).includes('LÍMITES ANUALES'); waited += 20) {
+    await tick();
+  }
+}
+
+/**
  * Entra a "Todas las columnas", aprieta las teclas y devuelve lo que se vio: la pantalla del comienzo y la de despues
  * de cada tecla, sin color. Al final, Enter vuelve al menu y el guion sale.
  */
@@ -57,7 +67,7 @@ async function browse(keys: ReadonlyArray<'left' | 'right'>): Promise<string[]> 
   const frames: string[] = [];
   let mark = output.length;
 
-  await tick();
+  await untilPagerShows();
 
   for (const name of keys) {
     frames.push(plainText(output.slice(mark)));
@@ -99,30 +109,25 @@ describe('"Todas las columnas" cuando un bloque no entra (TUI-27)', () => {
     expect(script.remaining()).toBe(0);
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails(
-    'en 72 columnas arranca con CAT. y las primeras columnas de límites, en columnas y sin cortarse',
-    async () => {
-      terminal.set({ columns: 72 });
+  it('en 72 columnas arranca con CAT. y las primeras columnas de límites, en columnas y sin cortarse', async () => {
+    terminal.set({ columns: 72 });
 
-      const [first = ''] = await browse([]);
-      const window = windowOf(first);
+    const [first = ''] = await browse([]);
+    const window = windowOf(first);
 
-      expect(window).toMatchObject({ first: 1, total: 5 });
-      expect(window?.last).toBeLessThan(5);
-      expect(first).toMatch(new RegExp(`columnas 1 a ${window?.last} de 5  →`));
-      expect(first).not.toMatch(/←\s+columnas/);
-      expect(first).toMatch(/CAT\. +INGRESOS/);
-      // La E en una sola línea, con su tope: no apilada.
-      expect(ownRow(first)).toMatch(/❯ E +\$ 36\.028\.231,33/);
-      expect(Math.max(...first.split('\n').map((line) => line.trimEnd().length))).toBeLessThanOrEqual(72);
-      // La posición entre bloques sigue adentro, arriba.
-      expect(first).toContain('1/2  cuota mensual →');
-    },
-  );
+    expect(window).toMatchObject({ first: 1, total: 5 });
+    expect(window?.last).toBeLessThan(5);
+    expect(first).toMatch(new RegExp(`columnas 1 a ${window?.last} de 5  →`));
+    expect(first).not.toMatch(/←\s+columnas/);
+    expect(first).toMatch(/CAT\. +INGRESOS/);
+    // La E en una sola línea, con su tope: no apilada.
+    expect(ownRow(first)).toMatch(/❯ E +\$ 36\.028\.231,33/);
+    expect(Math.max(...first.split('\n').map((line) => line.trimEnd().length))).toBeLessThanOrEqual(72);
+    // La posición entre bloques sigue adentro, arriba.
+    expect(first).toContain('1/2  cuota mensual →');
+  });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('→ corre de a una columna, con la nueva pegada a la derecha; CAT. no se va', async () => {
+  it('→ corre de a una columna, con la nueva pegada a la derecha; CAT. no se va', async () => {
     terminal.set({ columns: 72 });
 
     const frames = await browse(['right', 'right', 'right', 'right']);
@@ -145,8 +150,7 @@ describe('"Todas las columnas" cuando un bloque no entra (TUI-27)', () => {
     expect(end).toMatch(/PRECIO UNIT\./);
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('← vuelve de a una columna, con la nueva pegada a la izquierda', async () => {
+  it('← vuelve de a una columna, con la nueva pegada a la izquierda', async () => {
     terminal.set({ columns: 72 });
 
     const frames = await browse(['right', 'right', 'left', 'left']);
@@ -159,8 +163,7 @@ describe('"Todas las columnas" cuando un bloque no entra (TUI-27)', () => {
     expect(frames[4]).toMatch(/CAT\. +INGRESOS/);
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('en la cuota, la ventana va como en la propuesta: 1 a 4, 2 a 5 y 3 a 6 de 6', async () => {
+  it('en la cuota, la ventana va como en la propuesta: 1 a 4, 2 a 5 y 3 a 6 de 6', async () => {
     terminal.set({ columns: 72 });
 
     // Se recorren los límites hasta el final y → sigue a la cuota mensual.

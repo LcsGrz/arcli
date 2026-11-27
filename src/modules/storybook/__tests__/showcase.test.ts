@@ -45,8 +45,7 @@ describe('storybook.showcase', () => {
     expect(output).toContain('00003-00001234');
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('shows the monotributo table with the own category explained once per table, below it', () => {
+  it('shows the monotributo table with the own category explained once per table, below it', () => {
     const output = stripAnsi(renderStorybookShowcase('consultas'));
     const lines = output.split('\n');
 

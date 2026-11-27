@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { colorize, type UiTextColor } from '../text';
+import { colorize, markRow, type UiTextColor } from '../text';
 
 /**
  * El token `mark` (TUI-27): el fondo de la fila propia, en video inverso, para que se lea en cualquier tema de la
@@ -29,5 +29,23 @@ describe('colorize con mark', () => {
     vi.stubEnv('NO_COLOR', '1');
 
     expect(colorize('A', MARK)).toBe('A');
+  });
+});
+
+describe('markRow', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('con color rellena cada línea hasta el ancho, adentro del fondo', () => {
+    vi.stubEnv('FORCE_COLOR', '1');
+
+    expect(markRow('❯ E\n  x', 5).split('\n')).toEqual(['\u001B[7m❯ E  \u001B[27m', '\u001B[7m  x  \u001B[27m']);
+  });
+
+  it('sin color no pinta ni rellena', () => {
+    vi.stubEnv('NO_COLOR', '1');
+
+    expect(markRow('❯ E', 10)).toBe('❯ E');
   });
 });

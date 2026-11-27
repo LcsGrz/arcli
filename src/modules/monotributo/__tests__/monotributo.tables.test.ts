@@ -59,8 +59,7 @@ const rowOf = (lines: readonly string[], letter: string) =>
   lines.find((line) => new RegExp(`^\\s+(?:[❯>] )?${letter}\\s{2,}\\$`).test(plainText(line))) ?? '';
 
 describe('la tabla de categorías ocupa todo el ancho (TUI-27)', () => {
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails.each([72, 92, null])(
+  it.each([72, 92, null])(
     'en %s columnas el sobrante se reparte en partes iguales entre columnas, mínimo 3',
     (columns) => {
       terminal.set({ columns });
@@ -81,8 +80,7 @@ describe('la tabla de categorías ocupa todo el ancho (TUI-27)', () => {
     },
   );
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('en una terminal más ancha que ARCLI no pasa de 92', () => {
+  it('en una terminal más ancha que ARCLI no pasa de 92', () => {
     terminal.set({ columns: 140 });
 
     const text = formatMonotributoSummaryAsText(report());
@@ -114,8 +112,7 @@ describe('la tabla de categorías ocupa todo el ancho (TUI-27)', () => {
     expect(Math.max(...text.split('\n').map((line) => line.trimEnd().length))).toBeLessThanOrEqual(40);
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('los dos bloques de --completa también van a todo el ancho, mínimo 3 entre columnas si entran', () => {
+  it('los dos bloques de --completa también van a todo el ancho, mínimo 3 entre columnas si entran', () => {
     terminal.set({ columns: 92 });
 
     const [limits] = listingPanels(formatMonotributoFullAsText(report()));
@@ -143,30 +140,25 @@ describe('la tabla de categorías ocupa todo el ancho (TUI-27)', () => {
 });
 
 describe('la fila de la categoría propia (TUI-27)', () => {
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails.each([72, 92])(
-    'con color, en %s columnas, la fila tiene fondo de punta a punta del contenido',
-    (columns) => {
-      terminal.set({ color: 'forzado', columns });
+  it.each([72, 92])('con color, en %s columnas, la fila tiene fondo de punta a punta del contenido', (columns) => {
+    terminal.set({ color: 'forzado', columns });
 
-      const [panel] = listingPanels(formatMonotributoSummaryAsText(report()));
-      const inside = panel?.inside ?? [];
-      const own = inverseColumns(rowOf(inside, 'E'));
+    const [panel] = listingPanels(formatMonotributoSummaryAsText(report()));
+    const inside = panel?.inside ?? [];
+    const own = inverseColumns(rowOf(inside, 'E'));
 
-      expect(own.length).toBeGreaterThan(0);
-      expect(own[0]).toBeLessThanOrEqual(CONTENT_START);
-      expect(own[0]).toBeGreaterThanOrEqual(1);
-      expect(own.at(-1)).toBeGreaterThanOrEqual(CONTENT_START + contentWidth(columns) - 1);
-      expect(own.at(-1)).toBeLessThan(panelWidth(columns) - 1);
-      // Sin huecos: es un solo fondo, no uno por celda.
-      expect(own).toHaveLength((own.at(-1) ?? 0) - (own[0] ?? 0) + 1);
-      // Solo la propia: ni el encabezado ni las demás.
-      expect(inside.filter((line) => inverseColumns(line).length > 0)).toHaveLength(1);
-    },
-  );
+    expect(own.length).toBeGreaterThan(0);
+    expect(own[0]).toBeLessThanOrEqual(CONTENT_START);
+    expect(own[0]).toBeGreaterThanOrEqual(1);
+    expect(own.at(-1)).toBeGreaterThanOrEqual(CONTENT_START + contentWidth(columns) - 1);
+    expect(own.at(-1)).toBeLessThan(panelWidth(columns) - 1);
+    // Sin huecos: es un solo fondo, no uno por celda.
+    expect(own).toHaveLength((own.at(-1) ?? 0) - (own[0] ?? 0) + 1);
+    // Solo la propia: ni el encabezado ni las demás.
+    expect(inside.filter((line) => inverseColumns(line).length > 0)).toHaveLength(1);
+  });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('con color, en 40 columnas (dos líneas por categoría), el fondo cubre las dos', () => {
+  it('con color, en 40 columnas (dos líneas por categoría), el fondo cubre las dos', () => {
     terminal.set({ color: 'forzado', columns: 40 });
 
     const [panel] = listingPanels(formatMonotributoSummaryAsText(report()));
@@ -196,8 +188,7 @@ describe('la fila de la categoría propia (TUI-27)', () => {
     },
   );
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails.each([40, 72, 92])(
+  it.each([40, 72, 92])(
     'en %s columnas, "tu categoría" no va al lado de la fila: se explica una vez, abajo',
     (columns) => {
       terminal.set({ columns });
@@ -213,7 +204,8 @@ describe('la fila de la categoría propia (TUI-27)', () => {
     },
   );
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
+  // Tests primero (TUI-27/28): sigue en it.fails. En 92 columnas la fila de la E sigue con las dos cuotas después del
+  // tope y la regex pide que la línea termine en el tope (como en la tabla de dos líneas). Ver el informe de TUI-27.
   it.fails('en ASCII la marca y la leyenda van con >', () => {
     terminal.set({ ascii: true, columns: 92 });
 
@@ -248,8 +240,7 @@ describe('las leyendas del monotributo van afuera de la tabla (TUI-28)', () => {
     'Todas las columnas: `arcli monotributo --completa`',
   ];
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails.each([40, 72, 92])(
+  it.each([40, 72, 92])(
     'en %s columnas: debajo del borde, tras una línea en blanco, centradas y una idea por línea',
     (columns) => {
       terminal.set({ columns });
@@ -280,8 +271,7 @@ describe('las leyendas del monotributo van afuera de la tabla (TUI-28)', () => {
     },
   );
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('una nota que no entra se parte, y cada pedazo va centrado', () => {
+  it('una nota que no entra se parte, y cada pedazo va centrado', () => {
     terminal.set({ columns: 40 });
 
     const [panel] = listingPanels(formatMonotributoSummaryAsText(report()));
@@ -302,8 +292,7 @@ describe('las leyendas del monotributo van afuera de la tabla (TUI-28)', () => {
     }
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('con color, la leyenda va atenuada', () => {
+  it('con color, la leyenda va atenuada', () => {
     terminal.set({ color: 'forzado', columns: 92 });
 
     const [panel] = listingPanels(formatMonotributoSummaryAsText(report(), { hints: true }));
@@ -318,8 +307,7 @@ describe('las leyendas del monotributo van afuera de la tabla (TUI-28)', () => {
     }
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('el tope configurado y la tabla incluida también van en la leyenda', () => {
+  it('el tope configurado y la tabla incluida también van en la leyenda', () => {
     terminal.set({ columns: 92 });
 
     const text = formatMonotributoSummaryAsText(
@@ -332,8 +320,7 @@ describe('las leyendas del monotributo van afuera de la tabla (TUI-28)', () => {
     expect(legend).toContain('Tu tope de ingresos configurado (`monotributo.tope`): $ 30.000.000.');
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('adentro solo el borde de arriba y el de abajo, y lo último que se ve es la última sugerencia', () => {
+  it('adentro solo el borde de arriba y el de abajo, y lo último que se ve es la última sugerencia', () => {
     terminal.set({ columns: 92 });
 
     const text = plainText(formatMonotributoSummaryAsText(report(), { hints: true }));
@@ -355,8 +342,7 @@ describe('--completa: posición adentro, fuente una vez afuera (TUI-28)', () => 
     expect(firstLine(fee)).toBe('2/2  ↑ arriba: límites anuales');
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails.each([40, 72, 92])(
+  it.each([40, 72, 92])(
     'en %s columnas, "Tabla de ARCA, consultada el …" una sola vez, centrada, debajo del segundo bloque',
     (columns) => {
       terminal.set({ columns });

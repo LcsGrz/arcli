@@ -145,8 +145,7 @@ describe('Categorías del monotributo', () => {
     expect(help).toBe('←→ cambiar de bloque · ⏎ volver al menú');
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('en el asistente la tabla va a todo el ancho de la terminal y "tu categoría" se explica abajo', async () => {
+  it('en el asistente la tabla va a todo el ancho de la terminal y "tu categoría" se explica abajo', async () => {
     terminal.set({ columns: 72 });
     script = createScript([[/Y ahora/, BACK]]);
 
