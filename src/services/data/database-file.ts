@@ -174,12 +174,47 @@ export function openWritableConnection(driver: SqliteDriver, file: string, spec:
  * 999) es la base de otro programa, `mismatch`, aunque su versión sea alta. Si es de ARCLI, una mayor desconocida es
  * `newer-version`. `metadatos` de otro CUIT o entorno se miran después (`checkHealthAndIdentity`).
  */
+/**
+ * El `application_id` y `user_version` escritos en la cabecera del archivo (bytes 68 y 60, big-endian), leídos sin
+ * SQLite. `undefined` si no se pueden leer.
+ */
+function rawHeaderIdentity(file: string): { readonly applicationId: number; readonly userVersion: number } | undefined {
+  try {
+    const descriptor = openSync(file, 'r');
+
+    try {
+      const header = Buffer.alloc(100);
+
+      return readSync(descriptor, header, 0, header.length, 0) < header.length
+        ? undefined
+        : { applicationId: header.readUInt32BE(68), userVersion: header.readUInt32BE(60) };
+    } finally {
+      closeSync(descriptor);
+    }
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Lo que SQLite dice que no es de ARCLI, pero la cabecera del archivo sí: SQLite no la pudo leer entera (una base
+ * cortada a la mitad dio `application_id` 0 en el CI de Linux con Node 22.22.1, PR #318), así que es `damaged`, no
+ * `mismatch`. Una base de otro programa no tiene `'arcl'` en la cabecera y sigue siendo `mismatch`.
+ */
+function notArcli(spec: Pick<DatabaseSpec, 'file'>, message: string): LocalDataError {
+  const raw = rawHeaderIdentity(spec.file);
+
+  return raw !== undefined && raw.applicationId === ARCLI_APPLICATION_ID && schemaMajor(raw.userVersion) >= 1
+    ? new LocalDataError('damaged', `${spec.file} está dañada: SQLite no lee su cabecera.`)
+    : new LocalDataError('mismatch', message);
+}
+
 function checkVersionAndOwner(connection: SqliteConnection, spec: Pick<DatabaseSpec, 'file' | 'migrations'>): void {
   const applicationId = Number(connection.get('PRAGMA application_id')?.application_id ?? 0);
   const userVersion = readUserVersion(connection);
 
   if (applicationId !== ARCLI_APPLICATION_ID) {
-    throw new LocalDataError('mismatch', `${spec.file} no es una base de ARCLI.`);
+    throw notArcli(spec, `${spec.file} no es una base de ARCLI.`);
   }
 
   if (schemaMajor(userVersion) > schemaMajor(latestVersion(spec.migrations))) {
@@ -190,7 +225,7 @@ function checkVersionAndOwner(connection: SqliteConnection, spec: Pick<DatabaseS
   }
 
   if (schemaMajor(userVersion) < 1) {
-    throw new LocalDataError('mismatch', `${spec.file} tiene la versión ${userVersion}: no es una base de ARCLI.`);
+    throw notArcli(spec, `${spec.file} tiene la versión ${userVersion}: no es una base de ARCLI.`);
   }
 }
 

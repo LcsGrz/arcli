@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { loadSqliteDriver, type SqliteConnection } from '../sqlite-driver';
 
 import { cae, damagedBase, record } from './damaged-database.fixtures';
-import { expectLocalDataError, fingerprint, openStore, recoveryOf } from './local-data.fixtures';
+import { cutFile, expectLocalDataError, fingerprint, openStore, recoveryOf } from './local-data.fixtures';
 
 /**
  * Fallas que no se arman con archivos (ARQ-12 PR 4b): en Windows una base abierta por otro proceso no se puede
@@ -124,5 +124,42 @@ describe('un disco lleno no es una base dañada (ARQ-12 PR 4b)', () => {
     expect(setAsideNames(file)).toEqual([]);
     await expect(openStore(dataDirectory).findByCae(cae(1))).resolves.toMatchObject({ numero: 1 });
     await expect(openStore(dataDirectory).findByCae(NEXT.cae)).resolves.toBeUndefined();
+  });
+});
+
+/** Sobre el archivo `ino`, la cabecera como la leyó SQLite en una base cortada (CI de #318, Linux con Node 22.22.1). */
+function headerlessConnection(connection: SqliteConnection, path: string, ino: number): SqliteConnection {
+  const blind = actualFs.statSync(path).ino === ino;
+
+  return {
+    ...connection,
+    get(sql, parameters) {
+      if (blind && sql === 'PRAGMA application_id') {
+        return { application_id: 0 };
+      }
+
+      return blind && sql === 'PRAGMA user_version' ? { user_version: 0 } : connection.get(sql, parameters);
+    },
+  };
+}
+
+describe('una base cortada que SQLite lee sin cabecera (ARQ-12 PR 4b)', () => {
+  // La cabecera del archivo dice que es de ARCLI: es una base dañada, no la de otro programa.
+  it('leer da damaged y save la aparta, no mismatch', async () => {
+    const { dataDirectory, file } = await damagedBase((path) => cutFile(path, (size) => Math.floor(size / 2)));
+    const { ino } = actualFs.statSync(file);
+
+    vi.mocked(loadSqliteDriver).mockImplementation(async () => {
+      const driver = await actualDriver.loadSqliteDriver();
+
+      return { open: (path, options) => headerlessConnection(driver.open(path, options), path, ino) };
+    });
+
+    await expectLocalDataError(openStore(dataDirectory).findByCae(cae(1)), 'damaged');
+
+    const outcome = await openStore(dataDirectory, { backups: OFF }).save(NEXT);
+
+    expect(recoveryOf(outcome)?.setAside).toMatch(/danada/);
+    expect(setAsideNames(file)).toHaveLength(1);
   });
 });
