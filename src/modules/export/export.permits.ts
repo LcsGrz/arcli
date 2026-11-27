@@ -48,8 +48,9 @@ export async function checkExportPermits(
   countryName?: string,
 ): Promise<ExportPermitsCheckResult | undefined> {
   const permits = payload.Permisos?.Permiso ?? [];
+  const [first] = permits;
 
-  if (permits.length === 0) {
+  if (!first) {
     return undefined;
   }
 
@@ -83,7 +84,7 @@ export async function checkExportPermits(
   const invalid = checks.filter((check) => check.status === 'invalido').map((check) => check.permit);
 
   if (invalid.length > 0) {
-    const country = permits[0].Dst_merc;
+    const country = first.Dst_merc;
 
     throw invalidPermitsError(invalid, `el destino ${countryName ? `${country} - ${countryName}` : country}`);
   }

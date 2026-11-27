@@ -103,8 +103,10 @@ function formatMonotributoSource(report: MonotributoReport): string {
  * El primer titulo que entra en el borde del panel (el contenido mas el margen, menos lo que ocupan las esquinas):
  * boxen corta el que no entra y "DESDE EL 01/08/2026" quedaria a medias.
  */
-function panelTitle(width: number, ...candidates: readonly [string, ...string[]]): string {
-  return candidates.find((title) => visibleWidth(title) + 4 <= width + 6) ?? candidates[candidates.length - 1];
+function panelTitle(width: number, first: string, ...rest: readonly string[]): string {
+  const candidates = [first, ...rest];
+
+  return candidates.find((title) => visibleWidth(title) + 4 <= width + 6) ?? rest.at(-1) ?? first;
 }
 
 /** La leyenda de la marca, si hay categoria propia: "❯ tu categoría". */

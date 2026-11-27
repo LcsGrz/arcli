@@ -26,7 +26,7 @@ import { formatEnvironmentLabel, isPadronLookupEnabled, resolveConfiguredRowsPer
 import { CONFIG_LABELS, CONFIG_SECTIONS } from './config.sections';
 import { CONFIG_DOCTOR_SECTIONS, type ConfigDoctorReport } from './config-doctor';
 import type { ConfigPublicKey } from './config-key-table';
-import { DEPRECATED_CONFIG_KEYS } from './config-keys';
+import { findDeprecatedConfigKey } from './config-keys';
 import type { PendingConfigProblems } from './config-problems';
 
 interface PublicConfigSnapshot {
@@ -180,7 +180,7 @@ export function formatConfigChangeWarnings(
 
 /** Una parte de lo que guarda `key`: `cbu` y `aliasCbu`, de `cuenta`. */
 function isPartOf(name: string, key: ConfigPublicKey): boolean {
-  const deprecated = Object.hasOwn(DEPRECATED_CONFIG_KEYS, name) ? DEPRECATED_CONFIG_KEYS[name] : undefined;
+  const deprecated = findDeprecatedConfigKey(name);
 
   return deprecated?.storedAs !== undefined && deprecated.replacement === key;
 }

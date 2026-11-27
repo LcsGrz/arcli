@@ -40,6 +40,11 @@ export async function prepareBatch<T, R>(options: {
   for (const [position, input] of inputs.entries()) {
     const index = plan.inputIndexes[position];
 
+    // `resolveBillingInputPlan` arma `inputs` e `inputIndexes` juntos, uno por item: siempre hay posicion.
+    if (index === undefined) {
+      throw new Error(`El plan del lote no tiene la posición del item ${position + 1}.`);
+    }
+
     try {
       resolved.push(await resolve(input, index));
     } catch (error) {
@@ -88,6 +93,8 @@ export async function emitBatch<T extends { readonly index: number }, R>(options
 }): Promise<EmissionOutcome<R>> {
   const { emit, interruption = {}, isIssued, items, onAnswered, scope } = options;
   const results: R[] = [];
+  /** La posicion en el lote de cada resultado con CAE, en orden. */
+  const issued: number[] = [];
   let hasGivenUp = false;
   const givenUp = interruption.abandoned?.then((): typeof GIVEN_UP => {
     hasGivenUp = true;
@@ -130,6 +137,11 @@ export async function emitBatch<T extends { readonly index: number }, R>(options
       const result = await emitOrGiveUp(item, position);
 
       results.push(result);
+
+      if (isIssued?.(result)) {
+        issued.push(item.index);
+      }
+
       await onAnswered?.(item, result, position);
     } catch (error) {
       if (!scope.isBatch) {
@@ -144,7 +156,7 @@ export async function emitBatch<T extends { readonly index: number }, R>(options
           stopped:
             hasGivenUp || error instanceof EmissionStoppedError
               ? {
-                  issued: results.flatMap((result, order) => (isIssued?.(result) ? [items[order].index] : [])),
+                  issued,
                   message: interruption.stopMessage?.() ?? 'Se cortó el lote.',
                 }
               : undefined,

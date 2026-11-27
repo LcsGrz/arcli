@@ -18,7 +18,7 @@ import {
   configPublicKeySchema,
   storedKeyOf,
 } from './config-key-table';
-import { DEPRECATED_CONFIG_KEYS } from './config-keys';
+import { findDeprecatedConfigKey } from './config-keys';
 import {
   describePending,
   invalidSavedCbuError,
@@ -48,11 +48,13 @@ export function deprecatedConfigKeyWarning(
 ): string | undefined {
   const key = rawKey.trim();
 
-  if (!Object.hasOwn(DEPRECATED_CONFIG_KEYS, key)) {
+  const deprecated = findDeprecatedConfigKey(key);
+
+  if (!deprecated) {
     return undefined;
   }
 
-  const { removeWarning, warning } = DEPRECATED_CONFIG_KEYS[key];
+  const { removeWarning, warning } = deprecated;
 
   return action === 'eliminar' ? (removeWarning ?? warning) : warning;
 }
@@ -274,10 +276,17 @@ export class ConfigService {
       ...changes.set.map(([key, value]) => this.planSet(key, value)),
     ];
 
+    const last = plans.at(-1);
+
+    // Los que llaman siempre traen algun cambio; sin ninguno, antes fallaba con un TypeError al leer `.keys`.
+    if (!last) {
+      throw new Error('No hay cambios para guardar en la config.');
+    }
+
     return this.saveIfValid({
       apply: (draft, saved) => plans.forEach((plan) => plan.apply(draft, saved)),
       // Los valores ya se validaron al planearlos: lo que falle al guardar es de otra clave.
-      keys: plans[plans.length - 1].keys,
+      keys: last.keys,
     });
   }
 
@@ -456,8 +465,10 @@ export class ConfigService {
   private resolveKey(rawKey: string): AccountStoredKey | ConfigPublicKey {
     const key = rawKey.trim();
 
-    if (Object.hasOwn(DEPRECATED_CONFIG_KEYS, key)) {
-      const { replacement, storedAs } = DEPRECATED_CONFIG_KEYS[key];
+    const deprecated = findDeprecatedConfigKey(key);
+
+    if (deprecated) {
+      const { replacement, storedAs } = deprecated;
 
       return storedAs ?? replacement;
     }

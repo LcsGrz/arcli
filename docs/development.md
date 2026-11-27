@@ -40,7 +40,7 @@ yarn dev --ayuda
 | `yarn pack:check`          | Empaqueta `dist`, lo instala en una carpeta temporal y corre `arcli --version` y `--ayuda` |
 | `yarn open-source:check`   | `typecheck`, `test:coverage`, `build`, publint, `test:e2e` y `pack:check`                  |
 
-`yarn typecheck` corre también `tsconfig.indices.json`, que suma `noUncheckedIndexedAccess` solo en las carpetas ya migradas (hoy `src/lib`, sin tests). Es transitorio (ARQ-15): cuando todo `src` compile con el flag, pasa a `tsconfig.json` y el aparte se borra.
+`yarn typecheck` corre también `tsconfig.indices.json`, que suma `noUncheckedIndexedAccess` solo en las carpetas ya migradas (hoy `src/lib` y `src/modules`, sin tests; `src/modules` arrastra las partes de `src/ui` que importa). Es transitorio (ARQ-15): cuando todo `src` compile con el flag, pasa a `tsconfig.json` y el aparte se borra.
 
 Husky corre `lint-staged` en cada commit: chequeo de tipos, ESLint, Prettier y los tests relacionados con lo modificado. Antes de cada push corre `lint:guardrails` y `check:repo` (unos 15 segundos), que miran el repo entero; no corre al borrar una rama ni al subir un tag. Los errores que solo aparecen en otro sistema operativo o en otra versión de Node los encuentra el CI.
 

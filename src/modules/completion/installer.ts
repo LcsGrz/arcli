@@ -66,9 +66,10 @@ export function resolveCompletionPath(shell: CompletionShell, environment: Compl
 
   // La Terminal de macOS abre bash como login shell: lee el primero que exista de estos. Crear .bash_profile
   // cuando solo hay .profile haria que bash deje de leer .profile.
-  const loginFiles = ['.bash_profile', '.bash_login', '.profile'].map((name) => join(environment.home, name));
+  const loginFiles = ['.bash_profile', '.bash_login', '.profile'] as const;
+  const found = loginFiles.find((name) => existsSync(join(environment.home, name)));
 
-  return loginFiles.find((path) => existsSync(path)) ?? loginFiles[0];
+  return join(environment.home, found ?? loginFiles[0]);
 }
 
 function activationLine(shell: CompletionShell): string {

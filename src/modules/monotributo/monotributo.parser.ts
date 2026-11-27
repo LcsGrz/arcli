@@ -67,7 +67,10 @@ export function parsePageMoney(text: string): number {
 export function parsePageQuantity(text: string): number {
   const match = /(\d[\d.]*)/.exec(text);
 
-  return match ? Number(match[1].replace(/\./g, '')) : Number.NaN;
+  // El grupo es obligatorio en la regex: con `match` siempre hay numero.
+  const [, digits] = match ?? [];
+
+  return digits === undefined ? Number.NaN : Number(digits.replace(/\./g, ''));
 }
 
 /** "Valores de aplicación desde el 1/08/2026" → `20260801`. */
@@ -76,7 +79,8 @@ function readValidFrom(text: string): string | undefined {
 
   if (!match) return undefined;
 
-  const [, day, month, year] = match;
+  // Los tres grupos son obligatorios en la regex: los defaults '' nunca se usan, solo le dicen al tipo que hay string.
+  const [, day = '', month = '', year = ''] = match;
 
   return `${year}${month.padStart(2, '0')}${day.padStart(2, '0')}`;
 }

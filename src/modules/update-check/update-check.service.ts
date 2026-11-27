@@ -28,18 +28,20 @@ function isUpdateCheckDisabled(): boolean {
 
 export function isNewerVersion(latestVersion: string, currentVersion: string): boolean {
   const parse = (version: string) => version.split('.').map((part) => Number.parseInt(part, 10) || 0);
-  const [latestMajor, latestMinor, latestPatch] = parse(latestVersion);
-  const [currentMajor, currentMinor, currentPatch] = parse(currentVersion);
+  const latest = parse(latestVersion);
+  const current = parse(currentVersion);
 
-  if (latestMajor !== currentMajor) {
-    return latestMajor > currentMajor;
+  // Mayor, menor y parche, en ese orden. Si a una le falta esa parte no es mas nueva por ahi (como `undefined > n`).
+  for (const part of [0, 1, 2]) {
+    const latestPart = latest[part];
+    const currentPart = current[part];
+
+    if (latestPart !== currentPart) {
+      return latestPart !== undefined && currentPart !== undefined && latestPart > currentPart;
+    }
   }
 
-  if (latestMinor !== currentMinor) {
-    return latestMinor > currentMinor;
-  }
-
-  return latestPatch > currentPatch;
+  return false;
 }
 
 async function fetchLatestVersion({

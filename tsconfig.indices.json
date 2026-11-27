@@ -4,6 +4,6 @@
     "noEmit": true,
     "noUncheckedIndexedAccess": true
   },
-  "include": ["src/lib/**/*"],
+  "include": ["src/lib/**/*", "src/modules/**/*"],
   "exclude": ["node_modules", "src/**/__tests__/**/*", "src/**/*.test.ts"]
 }

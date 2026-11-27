@@ -5,7 +5,7 @@ import { describeZodIssues, parseZodInput } from '../billing/billing.zod-errors'
 
 import { arcliConfigSchema } from './config.schemas';
 import { type CanonicalConfigKey, type ConfigPublicKey, configPublicKeySchema, storedKeyOf } from './config-key-table';
-import { DEPRECATED_CONFIG_KEYS } from './config-keys';
+import { findDeprecatedConfigKey } from './config-keys';
 
 /**
  * Un CBU guardado que ya no pasa la validación (por ejemplo, desde que se controlan los verificadores): el error
@@ -31,8 +31,10 @@ interface SavedKey {
 }
 
 function findSavedKey(path: string): SavedKey | undefined {
-  if (Object.hasOwn(DEPRECATED_CONFIG_KEYS, path)) {
-    const { replacement, storedAs } = DEPRECATED_CONFIG_KEYS[path];
+  const deprecated = findDeprecatedConfigKey(path);
+
+  if (deprecated) {
+    const { replacement, storedAs } = deprecated;
 
     // Con un alias invalido, eliminar la cuenta se llevaria tambien un CBU sano: se guarda de nuevo.
     return { canDelete: storedAs === 'cbu', key: replacement, names: [path] };
@@ -46,12 +48,13 @@ function findSavedKey(path: string): SavedKey | undefined {
   }
 
   const keys = publicKeys.filter((key) => storedKeyOf(key).startsWith(`${path}.`));
+  const [first] = keys;
 
-  return keys.length === 0
+  return first === undefined
     ? undefined
     : {
         canDelete: false,
-        key: keys[0],
+        key: first,
         names: keys.every((key) => key.startsWith(`${path}.`)) ? [path] : keys,
         needsFile: keys.some((key) => /(^|\.)(cert|key)\./.test(key)),
       };
@@ -77,8 +80,10 @@ function describeSavedProblems(error: ZodError): string[] {
   return error.issues.map((issue, index) => {
     const path = issuePath(issue);
     const names = findSavedKey(path)?.names ?? [path];
+    // `describeZodIssues` describe cada issue en el mismo orden: el de zod nunca se usa, solo le dice al tipo que hay.
+    const mensaje = issues[index]?.mensaje ?? issue.message;
 
-    return `${names.map((name) => `\`${name}\``).join(', ')}: ${describeReason(issues[index].mensaje, path)}`;
+    return `${names.map((name) => `\`${name}\``).join(', ')}: ${describeReason(mensaje, path)}`;
   });
 }
 
@@ -115,9 +120,10 @@ export function suggestConfigFix(saved: ZodError, configPath: string): string {
   }
 
   const keys = [...fixes.values()];
+  const [only, ...others] = keys;
 
-  if (keys.length === 1) {
-    return suggestKeyFix(keys[0], configPath);
+  if (only && others.length === 0) {
+    return suggestKeyFix(only, configPath);
   }
 
   const steps = keys.map(
