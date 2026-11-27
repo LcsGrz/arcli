@@ -10,7 +10,7 @@ import {
   rmSync,
   statSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 import { restrictFolderToOwner } from '../files/restrict-to-owner';
 
@@ -72,7 +72,7 @@ export function argentineStamp(now: Date): string {
 }
 
 /** Un nombre libre en la carpeta: `<base><sufijo>` o, si ya está (o su `-journal`), `<base>-2<sufijo>`, `-3`... */
-export function freePath(folder: string, base: string, suffix: string): string {
+function freePath(folder: string, base: string, suffix: string): string {
   for (let counter = 1; ; counter += 1) {
     const path = join(folder, `${base}${counter === 1 ? '' : `-${counter}`}${suffix}`);
 
@@ -84,7 +84,7 @@ export function freePath(folder: string, base: string, suffix: string): string {
 
 function namePattern(prefix: string): RegExp {
   return new RegExp(
-    `^${prefix}-(\\d{4}-\\d{2}-\\d{2})(?:-(\\d{2})(\\d{2})(\\d{2}))?(?:-antes-de-(\\d+))?(?:-(\\d+))?\\.db$`,
+    `^${prefix}-(\\d{4}-\\d{2}-\\d{2})-(\\d{2})(\\d{2})(\\d{2})(?:-antes-de-(\\d+))?(?:-(\\d+))?\\.db$`,
   );
 }
 
@@ -158,12 +158,35 @@ function removeQuietly(path: string): void {
 }
 
 /** Deja las `KEPT_BACKUPS[kind]` más nuevas de ese tipo; las del otro tipo no se tocan. */
-function pruneBackups(target: BackupTarget, kind: BackupKind): void {
-  for (const backup of listBackupFiles(target)
-    .filter((candidate) => candidate.kind === kind)
-    .slice(KEPT_BACKUPS[kind])) {
+function pruneBackups(
+  target: BackupTarget,
+  kind: BackupKind,
+  now: Date,
+  keep: (path: string) => boolean = () => true,
+): void {
+  // Una con fecha posterior a `now` (el reloj volvió atrás) no cuenta ni se borra.
+  const candidates = listBackupFiles(target).filter(
+    (candidate) => candidate.kind === kind && Date.parse(candidate.createdAt) <= now.getTime(),
+  );
+  const kept = candidates.filter(({ path }) => keep(path)).slice(0, KEPT_BACKUPS[kind]);
+
+  for (const backup of candidates.filter((candidate) => !kept.includes(candidate))) {
     removeQuietly(backup.path);
   }
+}
+
+/**
+ * La retención de las copias de antes de migrar, después de migrar: quedan las 2 más nuevas de las anotadas en
+ * `migraciones.copia`. Las que no están anotadas son de otro proceso que no llegó a migrar (la descarta él) y no
+ * cuentan, así que la de quien migró no se borra aunque otro haya hecho una después.
+ */
+export function pruneMigrationBackups(target: BackupTarget, referenced: ReadonlySet<string>, now: Date): void {
+  pruneBackups(target, 'migration', now, (path) => referenced.has(basename(path)));
+}
+
+/** Descarta una copia de antes de migrar que no sirvió (otro migró en el medio): es propia y nadie la anotó. */
+export function discardBackup(target: BackupTarget, name: string): void {
+  removeQuietly(join(target.folder, name));
 }
 
 /** Lo escrito queda en el disco antes de ponerle el nombre definitivo. */
@@ -212,7 +235,10 @@ export function writeBackup(
     removeTemporary(temporary);
   }
 
-  pruneBackups(target, kind);
+  // La de migración la aplica quien migra, después de la transacción (pruneMigrationBackups).
+  if (kind === 'daily') {
+    pruneBackups(target, 'daily', now);
+  }
 
   return path;
 }

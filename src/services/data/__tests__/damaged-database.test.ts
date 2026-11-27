@@ -4,6 +4,8 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  renameSync,
+  rmSync,
   truncateSync,
   utimesSync,
   writeFileSync,
@@ -271,6 +273,54 @@ describe('lo que no es daño no se aparta (ARQ-12 PR 4b)', () => {
     const outcome = await openStore(dataDirectory, { backups: OFF }).save(NEXT);
 
     expect(basename(recoveryOf(outcome)?.setAside ?? '')).toMatch(DAMAGED_NAME);
+  });
+});
+
+/**
+ * Sin base pero con copias o una apartada al lado (revisión de #318): se perdió (la apartó otro que murió antes de
+ * reponerla, o la borraron). Se repone como una dañada, no se crea vacía como la primera vez.
+ */
+describe('una base que falta con copias o una apartada al lado (ARQ-12 PR 4b)', () => {
+  async function withCopy() {
+    const dataDirectory = temporaryDataDirectory();
+    const file = vouchersFile(dataDirectory);
+
+    await openStore(dataDirectory, { backups: { enabled: true } }).save(record(1));
+    await openStore(dataDirectory, { backups: OFF }).save(record(2));
+
+    return { dataDirectory, file };
+  }
+
+  it('la apartó otro que murió antes de reponerla: repone desde la copia y dice cuál era la apartada', async () => {
+    const { dataDirectory, file } = await withCopy();
+    const aside = join(dirname(file), 'comprobantes.danada-2026-11-26-120000.db');
+
+    renameSync(file, aside);
+
+    const outcome = await openStore(dataDirectory, { backups: OFF }).save(NEXT);
+
+    expect(outcome).toMatchObject({
+      kind: 'saved',
+      recovered: { restoredFrom: expect.stringMatching(/copias/), setAside: aside },
+    });
+    expect(caes(file)).toEqual([cae(1), NEXT.cae]);
+    expect(restoredEvents(file)).toEqual([{ cae: null, datos: expect.stringContaining(basename(aside)) }]);
+    expect(caes(aside)).toEqual([cae(1), cae(2)]);
+  });
+
+  it('borrada, con copias: repone desde la última copia, sin apartada', async () => {
+    const { dataDirectory, file } = await withCopy();
+
+    rmSync(file);
+
+    const outcome = await openStore(dataDirectory, { backups: OFF }).save(NEXT);
+
+    expect(outcome).toEqual({ kind: 'saved', recovered: { restoredFrom: expect.stringMatching(/copias/) } });
+    expect(caes(file)).toEqual([cae(1), NEXT.cae]);
+  });
+
+  it('la primera vez, sin copias ni apartadas, la crea vacía sin dato de recuperación', async () => {
+    await expect(openStore(temporaryDataDirectory(), { backups: OFF }).save(NEXT)).resolves.toEqual({ kind: 'saved' });
   });
 });
 

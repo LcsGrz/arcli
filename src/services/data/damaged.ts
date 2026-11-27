@@ -1,33 +1,45 @@
-import { existsSync, renameSync, statSync } from 'node:fs';
-import { basename, dirname } from 'node:path';
+import {
+  closeSync,
+  existsSync,
+  linkSync,
+  openSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+  unlinkSync,
+} from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import { setTimeout as pause } from 'node:timers/promises';
 
 import { LocalDataError, type LocalDataErrorReason } from '../../modules/local-data/local-data-error';
 import type { LocalDataRecovery } from '../../modules/vouchers/voucher-record-store';
 
-import { argentineStamp, freePath, listBackupFiles, vacuumInto } from './backup-files';
+import { argentineStamp, listBackupFiles, vacuumInto } from './backup-files';
 import {
-  createDatabase,
+  buildEmptyDatabase,
+  buildTemporary,
   databaseExists,
   type DatabaseSpec,
   openOrCreateDatabase,
   openVerified,
   openVerifiedCopy,
   openWritableConnection,
-  publishBuiltDatabase,
+  publishBuilt,
   toLocalDataError,
   withLockOf,
 } from './database-file';
-import { hasLiveTemporary } from './database-temporary';
+import { hasLiveTemporary, NO_HARD_LINKS, removeTemporary } from './database-temporary';
 import { inImmediateTransaction, type MigrationContext } from './migrations';
 import type { SqliteConnection, SqliteDriver } from './sqlite-driver';
 
 /**
  * Una base dañada (ARQ-12 PR 4b): solo `save` la aparta y la repone; leer da `damaged` sin tocarla. Con el turno de la
- * base (database-lock.ts) y mirándola otra vez: si otro ya la repuso, se usa esa. El original se mueve, nunca se
- * borra ni se reescribe, como `comprobantes.danada-<día>-<hora>.db` con su `-journal`. La base nueva sale de la última
- * copia sana (o de la anterior, si esa también está dañada) o, sin copias, vacía en la última versión, con el evento
- * `base-repuesta`. Lo que no es daño (carpeta en lugar del archivo, tomada, solo lectura, disco lleno) no llega acá.
+ * base (database-lock.ts) y mirándola otra vez: si otro ya la repuso, se usa esa. Primero se arma la base nueva en un
+ * temporal (desde la última copia sana, o la anterior si esa también está dañada, o vacía en la última versión, con el
+ * evento `base-repuesta`); recién entonces se mueve el original, que nunca se borra ni se reescribe, a
+ * `comprobantes.danada-<día>-<hora>.db` con su `-journal`, y se pone la nueva. Si algo falla después de moverlo, vuelve
+ * a su lugar. Lo que no es daño (carpeta en lugar del archivo, tomada, solo lectura, disco lleno) no llega acá.
  */
 
 /** Una base cortada con menos de esto puede ser otra que se está copiando a su lugar (sin hard links). */
@@ -41,8 +53,67 @@ const MOVE_ATTEMPTS = 5;
 const MOVE_PAUSE_MS = 100;
 const BUSY_CODES = new Set(['EBUSY', 'EPERM']);
 
-/** Mueve `from` a `to`. Si está abierto por otro (Windows), `LocalDataError(busyReason)` sin haberlo movido. */
-async function move(from: string, to: string, busyReason: LocalDataErrorReason): Promise<void> {
+const journalOf = (file: string) => `${file}-journal`;
+
+function identityOf(path: string): string | undefined {
+  try {
+    const { dev, ino } = statSync(path);
+
+    return `${dev}:${ino}`;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Los nombres donde va a quedar la base apartada y su `-journal`, tomados con `wx` (vacíos): nadie más los puede usar,
+ * así que mover la base encima reemplaza solo el lugar propio y nunca otro archivo. `-2`, `-3` si ya están.
+ */
+interface Reservation {
+  readonly aside: string;
+  /** Lo que hay en cada nombre mientras es solo la reserva (para no borrar después lo que se movió ahí). */
+  readonly placeholders: ReadonlyMap<string, string | undefined>;
+}
+
+function reserve(file: string, reason: 'danada' | 'reemplazada', now: Date): Reservation {
+  const base = join(dirname(file), `${basename(file, '.db')}.${reason}-${argentineStamp(now)}`);
+
+  for (let counter = 1; ; counter += 1) {
+    const aside = `${base}${counter === 1 ? '' : `-${counter}`}.db`;
+    const taken: string[] = [];
+
+    try {
+      for (const path of [aside, journalOf(aside)]) {
+        closeSync(openSync(path, 'wx', 0o600));
+        taken.push(path);
+      }
+
+      return { aside, placeholders: new Map(taken.map((path) => [path, identityOf(path)])) };
+    } catch (error) {
+      taken.forEach((path) => rmSync(path, { force: true }));
+
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+        throw toLocalDataError(error);
+      }
+    }
+  }
+}
+
+/** Borra las reservas que siguen siendo reservas (vacías y las mismas); lo que se movió a esos nombres queda. */
+function dropPlaceholders({ placeholders }: Reservation): void {
+  for (const [path, identity] of placeholders) {
+    try {
+      if (identityOf(path) === identity && statSync(path).size === 0) {
+        rmSync(path, { force: true });
+      }
+    } catch {
+      // Ya no está.
+    }
+  }
+}
+
+/** Mueve `from` a su reserva `to`. Si está abierto por otro (Windows), `LocalDataError(busyReason)` sin moverlo. */
+async function moveToReserved(from: string, to: string, busyReason: LocalDataErrorReason): Promise<void> {
   for (let attempt = 1; ; attempt += 1) {
     try {
       renameSync(from, to);
@@ -66,35 +137,75 @@ async function move(from: string, to: string, busyReason: LocalDataErrorReason):
   }
 }
 
+/** Mueve `from` a `to` sin pisar: hard link y después se saca el nombre viejo; sin hard links, rename si no hay nada. */
+function moveWithoutClobbering(from: string, to: string): void {
+  try {
+    linkSync(from, to);
+  } catch (error) {
+    if (!NO_HARD_LINKS.has((error as NodeJS.ErrnoException).code ?? '')) {
+      throw error;
+    }
+
+    if (existsSync(to)) {
+      throw new LocalDataError('unavailable', `${to} ya está: no se pisa.`);
+    }
+
+    renameSync(from, to);
+
+    return;
+  }
+
+  unlinkSync(from);
+}
+
 /**
- * Mueve la base y su `-journal` a `comprobantes.<motivo>-<día>-<hora>.db` en su carpeta, sin pisar nada. Si el
- * `-journal` no se puede mover, la base vuelve a su lugar: un `-journal` suelto al lado de otra base la rompería.
+ * Devuelve una base apartada (y su `-journal`, primero, para que la base nunca quede sin él) a su lugar, sin pisar lo
+ * que haya ahí. Si no se puede, queda apartada: no se borra nada. La usan apartar y restaurar cuando algo falla.
  */
-export async function setAside(
+function putBack(aside: string, file: string): void {
+  try {
+    if (existsSync(journalOf(aside)) && statSync(journalOf(aside)).size > 0) {
+      moveWithoutClobbering(journalOf(aside), journalOf(file));
+    }
+
+    moveWithoutClobbering(aside, file);
+  } catch {
+    // Queda apartada, con su nombre.
+  }
+}
+
+/**
+ * Mueve la base y su `-journal` a la reserva. Si el `-journal` no se puede mover, la base vuelve a su lugar: un
+ * `-journal` suelto al lado de otra base la rompería.
+ */
+async function moveAside(file: string, aside: string, busyReason: LocalDataErrorReason): Promise<void> {
+  await moveToReserved(file, aside, busyReason);
+
+  if (existsSync(journalOf(file))) {
+    try {
+      await moveToReserved(journalOf(file), journalOf(aside), busyReason);
+    } catch (error) {
+      putBack(aside, file);
+      throw error;
+    }
+  }
+}
+
+/** Aparta la base a una reserva (`<base>.<motivo>-<día>-<hora>.db`), corre `replace` y, si falla, la devuelve. */
+export async function withSetAside<T>(
   file: string,
   reason: 'danada' | 'reemplazada',
   now: Date,
   busyReason: LocalDataErrorReason,
-): Promise<string> {
-  const aside = freePath(dirname(file), `${basename(file, '.db')}.${reason}-${argentineStamp(now)}`, '.db');
+  replace: (aside: string) => Promise<T> | T,
+): Promise<T> {
+  const reservation = reserve(file, reason, now);
 
-  await move(file, aside, busyReason);
-
-  if (existsSync(`${file}-journal`)) {
-    try {
-      await move(`${file}-journal`, `${aside}-journal`, busyReason);
-    } catch (error) {
-      try {
-        renameSync(aside, file);
-      } catch {
-        // Queda apartada sin su -journal, que sigue al lado de donde estaba: no se borra nada.
-      }
-
-      throw error;
-    }
+  try {
+    return await replace(reservation.aside);
+  } finally {
+    dropPlaceholders(reservation);
   }
-
-  return aside;
 }
 
 /** Anota en la base nueva de dónde salió: el evento `base-repuesta` (sin CAE), con los nombres de los archivos. */
@@ -107,57 +218,106 @@ function addRestoredEvent(connection: SqliteConnection, context: MigrationContex
 }
 
 /**
- * Pone en el lugar de la base (que ya no está) una copia de `copy`, con el evento `base-repuesta`. La copia tiene que
- * ser sana y de esta base (`openVerifiedCopy`); no se mueve ni se toca.
+ * Arma en un temporal una base desde `source` (una copia ya verificada con `openVerifiedCopy`), con el evento
+ * `base-repuesta`. La copia no se mueve ni se toca. Devuelve el temporal, todavía sin ponerlo en su lugar.
  */
-export function publishFromCopy(
+export function buildFromCopy(
   driver: SqliteDriver,
   spec: DatabaseSpec,
   context: MigrationContext,
-  copy: string,
+  source: SqliteConnection,
   datos: Record<string, string>,
-): void {
-  const source = openVerifiedCopy(driver, spec, copy);
+): string {
+  return buildTemporary(spec, context, (temporary) => {
+    vacuumInto(source, temporary);
 
-  try {
-    publishBuiltDatabase(spec, context, (temporary) => {
-      vacuumInto(source, temporary);
+    const connection = openWritableConnection(driver, temporary, spec);
 
-      const connection = openWritableConnection(driver, temporary, spec);
-
-      try {
-        inImmediateTransaction(connection, () => addRestoredEvent(connection, context, datos));
-      } finally {
-        connection.close();
-      }
-    });
-  } finally {
-    source.close();
-  }
+    try {
+      inImmediateTransaction(connection, () => addRestoredEvent(connection, context, datos));
+    } finally {
+      connection.close();
+    }
+  });
 }
 
-/** Repone desde la copia más nueva que sirva; sin ninguna, una base vacía. Devuelve la copia que se usó. */
-function replaceDamaged(
+/**
+ * La base que va a reponer la que falta o está dañada, armada en un temporal: desde la copia más nueva que sea sana y
+ * de esta base (una dañada, de otra base o de un ARCLI más nuevo se saltea, sin tocarla) o, sin ninguna, vacía. Un
+ * error al armarla (sin lugar en el disco) sale: no se repone con una vacía por eso.
+ */
+function buildReplacement(
   driver: SqliteDriver,
   spec: DatabaseSpec,
   context: MigrationContext,
-  setAsideFile: string,
-): string | undefined {
-  const apartada = basename(setAsideFile);
-
+  datos: Record<string, string>,
+): { readonly temporary: string; readonly restoredFrom?: string } {
   for (const { path } of listBackupFiles(spec.backups)) {
-    try {
-      publishFromCopy(driver, spec, context, path, { apartada, copia: basename(path) });
+    let source: SqliteConnection;
 
-      return path;
+    try {
+      source = openVerifiedCopy(driver, spec, path);
     } catch {
-      // Dañada, de otra base o de un ARCLI más nuevo: se prueba la anterior. Ninguna se toca.
+      continue;
+    }
+
+    try {
+      return {
+        restoredFrom: path,
+        temporary: buildFromCopy(driver, spec, context, source, { ...datos, copia: basename(path) }),
+      };
+    } finally {
+      source.close();
     }
   }
 
-  createDatabase(driver, spec, context, (connection) => addRestoredEvent(connection, context, { apartada }));
+  return {
+    temporary: buildTemporary(spec, context, (temporary) =>
+      buildEmptyDatabase(driver, spec, context, temporary, (connection) =>
+        addRestoredEvent(connection, context, datos),
+      ),
+    ),
+  };
+}
 
-  return undefined;
+/** La apartada más nueva de esta base, si hay. */
+function latestSetAside(file: string): string | undefined {
+  const pattern = new RegExp(`^${basename(file, '.db')}\\.danada-.+\\.db$`);
+
+  try {
+    return readdirSync(dirname(file))
+      .filter((name) => pattern.test(name))
+      .sort()
+      .map((name) => join(dirname(file), name))
+      .at(-1);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Sin base, pero con copias o una apartada al lado: se perdió (la apartó otro que murió antes de reponerla, o se
+ * borró). Se repone desde la última copia sana (o vacía), con el evento y el dato de la recuperación, en vez de crear
+ * una vacía como la primera vez.
+ */
+function needsRebuild(spec: DatabaseSpec): boolean {
+  return (
+    !existsSync(spec.file) && (listBackupFiles(spec.backups).length > 0 || latestSetAside(spec.file) !== undefined)
+  );
+}
+
+function rebuildMissing(driver: SqliteDriver, spec: DatabaseSpec, context: MigrationContext): LocalDataRecovery {
+  const setAside = latestSetAside(spec.file);
+  const { restoredFrom, temporary } = buildReplacement(
+    driver,
+    spec,
+    context,
+    setAside === undefined ? {} : { apartada: basename(setAside) },
+  );
+
+  publishBuilt(spec, temporary);
+
+  return { ...(restoredFrom === undefined ? {} : { restoredFrom }), ...(setAside === undefined ? {} : { setAside }) };
 }
 
 /** `damaged` si la base está dañada; `undefined` si está sana (y la deja como estaba) o si no está. */
@@ -186,8 +346,8 @@ function isRecent(file: string): boolean {
 }
 
 /**
- * Con el turno: si sigue dañada, la aparta y la repone. Con un temporal vivo al lado no se toca (otro puede estar
- * copiándola a su lugar); una cortada muy reciente se vuelve a mirar unos segundos antes de apartarla.
+ * Con el turno: si sigue dañada, arma la nueva, aparta la dañada y pone la nueva. Con un temporal vivo al lado no se
+ * toca (otro puede estar copiándola a su lugar); una cortada muy reciente se vuelve a mirar unos segundos antes.
  */
 async function recoverWithLock(
   driver: SqliteDriver,
@@ -198,12 +358,7 @@ async function recoverWithLock(
     const damage = damageOf(driver, spec, context);
 
     if (damage === undefined) {
-      if (!databaseExists(spec.file)) {
-        // La apartó otro que murió antes de reponerla: se crea vacía, como la primera vez.
-        createDatabase(driver, spec, context);
-      }
-
-      return undefined;
+      return needsRebuild(spec) ? rebuildMissing(driver, spec, context) : undefined;
     }
 
     if (hasLiveTemporary(spec.file, Date.now())) {
@@ -215,31 +370,70 @@ async function recoverWithLock(
     }
   }
 
-  const setAsideFile = await setAside(spec.file, 'danada', new Date(context.now), 'damaged');
-  const restoredFrom = replaceDamaged(driver, spec, context, setAsideFile);
+  return withSetAside(spec.file, 'danada', new Date(context.now), 'damaged', async (aside) => {
+    const { restoredFrom, temporary } = buildReplacement(driver, spec, context, { apartada: basename(aside) });
 
-  return restoredFrom === undefined ? { setAside: setAsideFile } : { restoredFrom, setAside: setAsideFile };
+    await swapIn(spec, aside, temporary, 'damaged');
+
+    return restoredFrom === undefined ? { setAside: aside } : { restoredFrom, setAside: aside };
+  });
 }
 
 /**
- * Para `save`: la base abierta y verificada como `openOrCreateDatabase`, y si está dañada, apartada y repuesta antes,
- * con el dato de la recuperación. Un error al pedir el turno (carpeta de solo lectura) sale como ese error
- * (`read-only`) sin tocar la base: no se pudo apartar, y arreglando el permiso el próximo `save` la repone.
+ * Cambia la base por la ya armada en `temporary`: aparta la actual (con su `-journal`) a su reserva y pone la nueva.
+ * Si no se puede apartar, no se toca nada; si no se puede poner la nueva, la apartada vuelve a su lugar. La ventana
+ * sin base es solo la de mover y poner: lo lento (armar la nueva) ya pasó.
+ */
+export async function swapIn(
+  spec: DatabaseSpec,
+  aside: string,
+  temporary: string,
+  busyReason: LocalDataErrorReason,
+): Promise<void> {
+  try {
+    await moveAside(spec.file, aside, busyReason);
+  } catch (error) {
+    removeTemporary(temporary);
+    throw error;
+  }
+
+  try {
+    publishBuilt(spec, temporary);
+  } catch (error) {
+    putBack(aside, spec.file);
+    throw error;
+  }
+}
+
+/**
+ * Para `save`: la base abierta y verificada como `openOrCreateDatabase`, y si está dañada (o falta y hay copias o una
+ * apartada), repuesta antes, con el dato de la recuperación. Un error al pedir el turno (carpeta de solo lectura)
+ * sale como ese error (`read-only`) sin tocar la base: no se pudo apartar, y arreglando el permiso el próximo `save`
+ * la repone.
  */
 export async function openRecoveringDatabase(
   driver: SqliteDriver,
   spec: DatabaseSpec,
   context: MigrationContext,
 ): Promise<{ readonly connection: SqliteConnection; readonly recovered?: LocalDataRecovery }> {
+  let recovered: LocalDataRecovery | undefined;
+
+  if (needsRebuild(spec)) {
+    recovered = await withLockOf(spec, () => (needsRebuild(spec) ? rebuildMissing(driver, spec, context) : undefined));
+  }
+
   try {
-    return { connection: await openOrCreateDatabase(driver, spec, context) };
+    const connection = await openOrCreateDatabase(driver, spec, context);
+
+    return recovered === undefined ? { connection } : { connection, recovered };
   } catch (error) {
     if (!(error instanceof LocalDataError) || error.reason !== 'damaged') {
       throw error;
     }
   }
 
-  const recovered = await withLockOf(spec, () => recoverWithLock(driver, spec, context));
+  recovered = await withLockOf(spec, () => recoverWithLock(driver, spec, context));
+
   const connection = openVerified(driver, spec, context);
 
   return recovered === undefined ? { connection } : { connection, recovered };

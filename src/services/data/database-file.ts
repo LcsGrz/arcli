@@ -4,7 +4,7 @@ import { basename, dirname } from 'node:path';
 import { LocalDataError, type LocalDataErrorReason } from '../../modules/local-data/local-data-error';
 import { restrictFolderToOwner } from '../files/restrict-to-owner';
 
-import { type BackupTarget, writeBackup } from './backup-files';
+import { type BackupTarget, discardBackup, pruneMigrationBackups, writeBackup } from './backup-files';
 import { withDatabaseLock } from './database-lock';
 import { createTemporaryFile, publishTemporary, removeStaleTemporaries, removeTemporary } from './database-temporary';
 import {
@@ -12,6 +12,7 @@ import {
   inImmediateTransaction,
   latestVersion,
   migrate,
+  type MigrationBackup,
   type MigrationContext,
   readUserVersion,
   schemaMajor,
@@ -82,7 +83,7 @@ export function toLocalDataError(error: unknown): unknown {
   return reason === undefined ? error : new LocalDataError(reason, (error as Error).message, { cause: error });
 }
 
-function checkPathLength(file: string): void {
+export function checkPathLength(file: string): void {
   if (process.platform === 'win32' && file.length > WINDOWS_MAX_DATABASE_PATH) {
     throw new LocalDataError(
       'path-too-long',
@@ -275,6 +276,25 @@ function backupBeforeMigration(connection: SqliteConnection, spec: DatabaseSpec,
   }
 }
 
+/** La copia de antes de migrar para `migrate`: hacerla, descartarla si otro migró en el medio y la retención. */
+function migrationBackup(connection: SqliteConnection, spec: DatabaseSpec, context: MigrationContext): MigrationBackup {
+  return {
+    discard: (copy) => discardBackup(spec.backups, copy),
+    settle() {
+      try {
+        const referenced = connection
+          .all('SELECT copia FROM migraciones WHERE copia IS NOT NULL')
+          .map(({ copia }) => String(copia));
+
+        pruneMigrationBackups(spec.backups, new Set(referenced), new Date(context.now));
+      } catch {
+        // La retención nunca hace fallar la operación: queda una copia de más hasta la próxima migración.
+      }
+    },
+    take: () => backupBeforeMigration(connection, spec, context),
+  };
+}
+
 /**
  * Abre una base que existe, en orden: cabecera (lo hizo `databaseExists`), versión y dueño sin escribir nada, pragmas,
  * `quick_check`, `metadatos` y, si hace falta, la copia de antes de migrar y la migración. La conexión es normal y no
@@ -288,7 +308,7 @@ export function openVerified(driver: SqliteDriver, spec: DatabaseSpec, context: 
     checkVersionAndOwner(connection, spec);
     connection.exec(CONNECTION_PRAGMAS);
     checkHealthAndIdentity(connection, spec);
-    migrate(connection, spec.migrations, context, () => backupBeforeMigration(connection, spec, context));
+    migrate(connection, spec.migrations, context, migrationBackup(connection, spec, context));
 
     return connection;
   } catch (error) {
@@ -340,14 +360,14 @@ export function ensureFolders(spec: DatabaseSpec): void {
 }
 
 /**
- * Pone en el lugar de la base lo que `build` armó en un temporal nuevo de la misma carpeta (vacío y solo para el
- * dueño): nadie ve una base a medias. El temporal se borra siempre. Las carpetas ya tienen que estar.
+ * Un temporal nuevo en la carpeta de la base (vacío y solo para el dueño) que `build` llena: la base que va a ir en su
+ * lugar, todavía sin ponerla. Si `build` falla, el temporal se borra. Las carpetas ya tienen que estar.
  */
-export function publishBuiltDatabase(
+export function buildTemporary(
   spec: DatabaseSpec,
   context: MigrationContext,
   build: (temporary: string) => void,
-): void {
+): string {
   try {
     removeStaleTemporaries(spec.file, Date.parse(context.now));
 
@@ -355,45 +375,67 @@ export function publishBuiltDatabase(
 
     try {
       build(temporary);
-      publishTemporary(temporary, spec.file);
-    } finally {
+
+      return temporary;
+    } catch (error) {
       removeTemporary(temporary);
+      throw error;
     }
   } catch (error) {
     throw toLocalDataError(error);
   }
 }
 
+/** Pone el temporal armado en el lugar de la base sin pisar otra (`publishTemporary`) y lo borra. */
+export function publishBuilt(spec: DatabaseSpec, temporary: string): void {
+  try {
+    publishTemporary(temporary, spec.file);
+  } catch (error) {
+    throw toLocalDataError(error);
+  } finally {
+    removeTemporary(temporary);
+  }
+}
+
 /**
- * Crea la base entera (esquema, `application_id` y `metadatos` en una transacción, más lo que sume `extra` en la
- * misma) en un temporal y recién ahí la pone en su lugar. Las carpetas ya tienen que estar (`ensureFolders`).
+ * Llena `temporary` con la base entera vacía: esquema, `application_id` y `metadatos` en una transacción, más lo que
+ * sume `extra` en la misma.
  */
-export function createDatabase(
+export function buildEmptyDatabase(
   driver: SqliteDriver,
   spec: DatabaseSpec,
   context: MigrationContext,
+  temporary: string,
   extra?: (connection: SqliteConnection) => void,
 ): void {
   const creationMetadata = { creada_el: context.now, creada_por_version: context.version };
+  const connection = openWritableConnection(driver, temporary, spec);
 
-  publishBuiltDatabase(spec, context, (temporary) => {
-    const connection = openWritableConnection(driver, temporary, spec);
+  try {
+    inImmediateTransaction(connection, () => {
+      applyMigrations(connection, spec.migrations, 0, context);
+      connection.exec(`PRAGMA application_id = ${ARCLI_APPLICATION_ID}`);
 
-    try {
-      inImmediateTransaction(connection, () => {
-        applyMigrations(connection, spec.migrations, 0, context);
-        connection.exec(`PRAGMA application_id = ${ARCLI_APPLICATION_ID}`);
+      for (const [clave, valor] of Object.entries({ ...spec.identity, ...creationMetadata })) {
+        connection.run('INSERT INTO metadatos (clave, valor) VALUES (:clave, :valor)', { clave, valor });
+      }
 
-        for (const [clave, valor] of Object.entries({ ...spec.identity, ...creationMetadata })) {
-          connection.run('INSERT INTO metadatos (clave, valor) VALUES (:clave, :valor)', { clave, valor });
-        }
+      extra?.(connection);
+    });
+  } finally {
+    connection.close();
+  }
+}
 
-        extra?.(connection);
-      });
-    } finally {
-      connection.close();
-    }
-  });
+/**
+ * Crea la base entera en un temporal y recién ahí la pone en su lugar: nadie ve una base a medias. Las carpetas ya
+ * tienen que estar (`ensureFolders`).
+ */
+function createDatabase(driver: SqliteDriver, spec: DatabaseSpec, context: MigrationContext): void {
+  publishBuilt(
+    spec,
+    buildTemporary(spec, context, (temporary) => buildEmptyDatabase(driver, spec, context, temporary)),
+  );
 }
 
 /** Para leer: la base abierta y verificada, o `undefined` si no está (y no se crea nada). */
@@ -437,10 +479,24 @@ function fileIdentity(file: string): string | undefined {
 
 /**
  * No se pudo abrir porque el archivo ya no es el que se miró: otro proceso lo movió en el medio (apartó la dañada o
- * restauró una copia). Se vuelve a mirar y vale la que puso el otro (crear espera su turno).
+ * restauró una copia). Se vuelve a mirar y vale la que puso el otro (crear espera su turno). En una ruta UNC de
+ * Windows, que se abre sin `mustExist`, SQLite crea en ese hueco un archivo vacío y lo que se ve es `mismatch` sobre un
+ * archivo nuevo de menos de 512 bytes: también se vuelve a mirar (esa carrera en UNC no está probada).
  */
 function vanished(error: unknown, file: string, before: string | undefined): boolean {
-  return error instanceof LocalDataError && error.reason === 'unavailable' && fileIdentity(file) !== before;
+  if (!(error instanceof LocalDataError) || fileIdentity(file) === before) {
+    return false;
+  }
+
+  return error.reason === 'unavailable' || (error.reason === 'mismatch' && fileSize(file) < SQLITE_MIN_SIZE);
+}
+
+function fileSize(file: string): number {
+  try {
+    return statSync(file).size;
+  } catch {
+    return 0;
+  }
 }
 
 /**

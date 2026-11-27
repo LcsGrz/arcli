@@ -205,9 +205,22 @@ export interface Recovery {
   readonly restoredFrom?: string;
 }
 
-/** La recuperación que informó `save`, si la hubo. */
+/**
+ * La recuperación que informó `save`, si la hubo. Los tests de una base dañada siempre la apartan: sin `setAside`
+ * (una base que faltaba) no es la de este tipo y falla.
+ */
 export function recoveryOf(outcome: SaveOutcome): Recovery | undefined {
-  return outcome.recovered;
+  const { recovered } = outcome;
+
+  if (recovered === undefined) {
+    return undefined;
+  }
+
+  const { restoredFrom, setAside } = recovered;
+
+  expect(setAside).toEqual(expect.any(String));
+
+  return { setAside: String(setAside), ...(restoredFrom === undefined ? {} : { restoredFrom }) };
 }
 
 /** `datos/<CUIT>/<entorno>/copias/`. */

@@ -265,6 +265,18 @@ describe('datos locales con procesos reales (ARQ-12 PR 4a)', () => {
 
     expect(health(file)).toEqual({ integrity: 'ok', version: 1001 });
     expect(count(file)).toBe(7);
+
+    // Revisión de #318: cada copia de antes de migrar es de antes (v1) y la anotada en migraciones está.
+    const copies = backupNames(dataDirectory).filter((name) => name.includes('-antes-de-1001'));
+    const recorded = inspect(file, (database) =>
+      scalar(database, 'SELECT copia FROM migraciones WHERE esquema = 1001'),
+    );
+
+    expect(copies).toContain(String(recorded));
+
+    for (const name of copies) {
+      expect(health(join(backupsFolder(dataDirectory), name)).version).toBe(SCHEMA_V1);
+    }
   });
 
   // Node 22 avisa "SQLite is an experimental feature" al cargarlo: se oculta ese y solo ese. 24 y 26 no avisan.
@@ -356,6 +368,20 @@ describe('copias y base dañada con procesos reales (ARQ-12 PR 4b)', () => {
       expect(count(file)).toBe(2);
     },
   );
+
+  // Revisión de #318: con tres o más, uno suelta el turno, otro lo toma y un tercero mira en el medio; nunca dos lo
+  // tienen a la vez, así que hay una sola apartada.
+  it('4 procesos encuentran la base cortada a la vez: exactamente una apartada y todos guardan', async () => {
+    const { dataDirectory, file } = await damagedBaseWith('mitad');
+    const children = await together([101, 102, 103, 104].map((numero) => ['guardar-uno', dataDirectory, numero]));
+    const results = await Promise.all(children.map(result));
+
+    expect(results).toEqual(Array.from({ length: 4 }, () => ({ outcome: expect.objectContaining({ kind: 'saved' }) })));
+    expect(results.filter(({ outcome }) => (outcome as { recovered?: unknown }).recovered)).toHaveLength(1);
+    expect(setAsideNames(file)).toHaveLength(1);
+    expect(health(file)).toEqual({ integrity: 'ok', version: SCHEMA_V1 });
+    expect(count(file)).toBe(4);
+  });
 
   // En Windows SQLite abre la base sin dejar que otro la mueva: el que la encuentra dañada no puede apartarla.
   it.runIf(process.platform === 'win32')(

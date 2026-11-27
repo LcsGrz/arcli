@@ -62,10 +62,16 @@ interface SaveSideEffects {
   readonly backupFailed?: { readonly reason: LocalDataErrorReason };
 }
 
-/** Una base dañada que se apartó y se repuso (ARQ-12 PR 4b). Nada se borra. */
+/**
+ * Una base dañada que se apartó y se repuso, o una que faltaba y se repuso porque había copias o una apartada al lado
+ * (ARQ-12 PR 4b). Nada se borra.
+ */
 export interface LocalDataRecovery {
-  /** Donde quedó la dañada: `comprobantes.danada-<día>-<hora>.db`, en la carpeta de la base (con su `-journal`). */
-  readonly setAside: string;
+  /**
+   * Donde quedó la dañada: `comprobantes.danada-<día>-<hora>.db`, en la carpeta de la base (con su `-journal`). Si la
+   * base faltaba, la apartada más nueva que había; sin ninguna, no está.
+   */
+  readonly setAside?: string;
   /** La copia desde la que se repuso (queda donde estaba); sin copia sana, no está y la base nueva salió vacía. */
   readonly restoredFrom?: string;
 }

@@ -1,4 +1,4 @@
-import { renameSync, statSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import { basename } from 'node:path';
 
 import type { Clock } from '../../lib/time/clock';
@@ -6,9 +6,19 @@ import type { ArcliEnvironment } from '../../modules/config/config.schemas';
 import { LocalDataError } from '../../modules/local-data/local-data-error';
 
 import { type BackupKind, listBackupFiles } from './backup-files';
-import { publishFromCopy, setAside } from './damaged';
-import { ensureFolders, openVerifiedCopy, withLockOf } from './database-file';
-import { loadSqliteDriver } from './sqlite-driver';
+import { buildFromCopy, swapIn, withSetAside } from './damaged';
+import {
+  checkPathLength,
+  databaseExists,
+  type DatabaseSpec,
+  ensureFolders,
+  openVerifiedCopy,
+  openWritableConnection,
+  publishBuilt,
+  toLocalDataError,
+  withLockOf,
+} from './database-file';
+import { loadSqliteDriver, type SqliteConnection, type SqliteDriver } from './sqlite-driver';
 import { vouchersDatabaseSpec } from './sqlite-voucher-record-store';
 
 /**
@@ -77,7 +87,9 @@ function hasCurrentDatabase(file: string): boolean {
  * dañada da `damaged`; de otra base, CUIT o entorno, `mismatch`; de un ARCLI más nuevo, `newer-version`: en todos los
  * casos sin tocar nada. Con la base abierta por otro programa (Windows), `locked`. Nada se borra.
  *
- * Lo que otro ARCLI guarde mientras se restaura puede quedar en la reemplazada: DATOS-1 lo tiene que avisar.
+ * Antes de apartar la actual se espera a que termine la escritura de otro ARCLI que esté en curso (`BEGIN EXCLUSIVE`).
+ * Un ARCLI que ya la tenía abierta y escribe después puede dejar eso en la reemplazada: DATOS-1 tiene que pedir
+ * restaurar sin otros ARCLI abiertos.
  *
  * @internal Lo conecta DATOS-1.
  */
@@ -86,37 +98,73 @@ export async function restoreVoucherBackup(
   backup: string,
 ): Promise<RestoredVoucherBackup> {
   const spec = vouchersDatabaseSpec(options);
+
+  checkPathLength(spec.file);
+
   const driver = await loadSqliteDriver();
   const now = options.clock.now();
   const context = { now: now.toISOString(), version: options.version };
+  /** La base nueva desde la copia, armada en un temporal y todavía sin ponerla. */
+  const build = (datos: Record<string, string>) => {
+    const source = openVerifiedCopy(driver, spec, backup);
+
+    try {
+      return buildFromCopy(driver, spec, context, source, { ...datos, copia: basename(backup) });
+    } finally {
+      source.close();
+    }
+  };
 
   // Antes de tocar nada, la copia tiene que servir.
   openVerifiedCopy(driver, spec, backup).close();
   ensureFolders(spec);
 
   return withLockOf(spec, async () => {
-    const replaced = hasCurrentDatabase(spec.file)
-      ? await setAside(spec.file, 'reemplazada', now, 'locked')
-      : undefined;
+    if (!hasCurrentDatabase(spec.file)) {
+      publishBuilt(spec, build({}));
 
-    try {
-      publishFromCopy(driver, spec, context, backup, {
-        copia: basename(backup),
-        ...(replaced === undefined ? {} : { reemplazada: basename(replaced) }),
-      });
-    } catch (error) {
-      if (replaced !== undefined) {
-        try {
-          // No se pudo reponer: la que estaba vuelve a su lugar.
-          renameSync(replaced, spec.file);
-        } catch {
-          // Queda como reemplazada: no se borra nada.
-        }
-      }
-
-      throw error;
+      return { restoredFrom: backup };
     }
 
-    return replaced === undefined ? { restoredFrom: backup } : { replaced, restoredFrom: backup };
+    waitForWriters(driver, spec);
+
+    return withSetAside(spec.file, 'reemplazada', now, 'locked', async (aside) => {
+      await swapIn(spec, aside, build({ reemplazada: basename(aside) }), 'locked');
+
+      return { replaced: aside, restoredFrom: backup };
+    });
   });
+}
+
+/**
+ * Espera a que termine la escritura en curso de otro ARCLI (`BEGIN EXCLUSIVE` y suelta enseguida). Una base que no se
+ * puede abrir (dañada) no tiene a nadie escribiendo: se sigue. Tomada más que la espera, `locked`.
+ */
+function waitForWriters(driver: SqliteDriver, spec: DatabaseSpec): void {
+  let connection: SqliteConnection;
+
+  try {
+    // Una que ni tiene la cabecera de SQLite no se abre: SQLite podría deshacer (y borrar) su -journal, que se aparta
+    // con ella byte a byte.
+    if (!databaseExists(spec.file)) {
+      return;
+    }
+
+    connection = openWritableConnection(driver, spec.file, spec);
+  } catch {
+    return;
+  }
+
+  try {
+    connection.exec('BEGIN EXCLUSIVE');
+    connection.exec('ROLLBACK');
+  } catch (error) {
+    const mapped = toLocalDataError(error);
+
+    if (mapped instanceof LocalDataError && mapped.reason === 'locked') {
+      throw mapped;
+    }
+  } finally {
+    connection.close();
+  }
 }

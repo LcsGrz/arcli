@@ -276,6 +276,33 @@ describe('copia diaria (ARQ-12 PR 4b)', () => {
     expect(backupNames(dataDirectory)).toEqual([expect.stringMatching(/^comprobantes-2026-11-26/)]);
   });
 
+  // Revisión de #318: un archivo sin la hora en el nombre no es una copia de ARCLI, y una con fecha posterior a hoy
+  // (el reloj volvió atrás) no cuenta: ninguno se borra.
+  it('la retención no cuenta ni borra un nombre sin hora ni una copia con fecha futura', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const clock = movableClock(NOW);
+    const store = openStore(dataDirectory, { backups: ON, clock });
+    const folder = backupsFolder(dataDirectory);
+
+    await store.save(record(100));
+    writeFileSync(join(folder, 'comprobantes-2026-11-20.db'), 'de quien usa la carpeta');
+    copyFileSync(
+      copyOf(dataDirectory, backupNames(dataDirectory)[0] ?? ''),
+      join(folder, 'comprobantes-2027-06-01-120000.db'),
+    );
+
+    for (let day = 1; day <= 9; day += 1) {
+      clock.set(`2026-12-${String(day).padStart(2, '0')}T15:00:00.000Z`);
+      await store.save(record(day));
+    }
+
+    const names = backupNames(dataDirectory);
+
+    expect(names).toContain('comprobantes-2026-11-20.db');
+    expect(names).toContain('comprobantes-2027-06-01-120000.db');
+    expect(names.filter((name) => name.startsWith('comprobantes-2026-12-'))).toHaveLength(7);
+  });
+
   it('quedan las 7 diarias más nuevas', async () => {
     const dataDirectory = temporaryDataDirectory();
     const clock = movableClock(NOW);
