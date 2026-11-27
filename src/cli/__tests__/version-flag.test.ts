@@ -1,7 +1,10 @@
+import { CommanderError } from 'commander';
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { stripAnsi } from '../../ui';
+import { handleCommanderExit } from '../error-output';
+import { createProgram } from '../program';
 import { CLI_VERSION } from '../version';
 
 import { configPath, runCli, saveFullConfig, useConfigKeysFixture } from './config-keys.fixture';
@@ -91,7 +94,8 @@ describe('una opción corta desconocida entre los argumentos sugiere `--`', () =
       expect(JSON.parse(stderr)).toMatchObject({
         codigo: 'INPUT_VALIDATION_ERROR',
         error: `opción desconocida \`${alias}\``,
-        sugerencia: expect.stringContaining(`arcli config establecer -- cuenta ${CBU} ${alias}`),
+        // El `--json` que se usó va antes del `--`.
+        sugerencia: expect.stringContaining(`arcli config establecer --json -- cuenta ${CBU} ${alias}`),
       });
       expect(code).toBe(1);
       expect(stored()).not.toHaveProperty('cbu');
@@ -121,5 +125,80 @@ describe('después de `--`', () => {
 
     expect(code).toBe(0);
     expect(stored()).toMatchObject({ aliasCbu: '-Ventas.sa', cbu: CBU });
+  });
+});
+
+/** El comando que sugiere el error en `--json`, sin los backticks. */
+const suggestedCommand = (stderr: string): string => {
+  const { sugerencia } = JSON.parse(stderr) as { sugerencia: string };
+
+  return /`(arcli [^`]+ -- [^`]+)`/.exec(sugerencia)?.[1] ?? '';
+};
+
+describe('la sugerencia de `--`', () => {
+  it('conserva los flags que se usaron antes del `--`, y el comando sugerido guarda la cuenta', async () => {
+    const failed = await runCli('config', 'establecer', 'cuenta', CBU, '-Ventas.sa', '--json');
+    const suggested = suggestedCommand(failed.stderr);
+
+    expect(suggested).toBe(`arcli config establecer --json -- cuenta ${CBU} -Ventas.sa`);
+
+    const { code, stdout } = await runCli(...suggested.split(' ').slice(1));
+
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout)).toMatchObject({ aliasCbu: '-Ventas.sa', cbu: CBU });
+    expect(stored()).toMatchObject({ aliasCbu: '-Ventas.sa', cbu: CBU });
+  });
+
+  it('en Windows, el `--` va entre comillas: PowerShell no se lo queda', async () => {
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+
+    try {
+      const { stderr } = await runCli('config', 'establecer', 'cuenta', CBU, '-Ventas.sa', '--json');
+
+      expect(JSON.parse(stderr)).toMatchObject({
+        sugerencia: expect.stringContaining(`\`arcli config establecer --json '--' cuenta ${CBU} -Ventas.sa\``),
+      });
+    } finally {
+      if (platform) {
+        Object.defineProperty(process, 'platform', platform);
+      }
+    }
+  });
+
+  it('un flag mal escrito también manda a la ayuda del comando', async () => {
+    const { code, stderr } = await runCli('padron', '20333333334', '-j', '--json');
+
+    expect(JSON.parse(stderr)).toMatchObject({
+      codigo: 'INPUT_VALIDATION_ERROR',
+      error: 'opción desconocida `-j`',
+      sugerencia:
+        'Si `-j` es un valor, poné `--` antes de los valores: `arcli padron --json -- 20333333334 -j`. ' +
+        'Si es una opción, mirá `arcli padron --ayuda`.',
+    });
+    expect(code).toBe(1);
+  });
+});
+
+describe('`-V` con otro error antes', () => {
+  it.each([
+    [['fc', '-x', '-V', '--json'], 'opción desconocida `-x`'],
+    [['noexiste', '-V', '--json'], 'comando desconocido `noexiste`'],
+  ])('%j sale con ese error, no con la versión', async (argv, error) => {
+    const { code, stderr, stdout } = await runCli(...argv);
+
+    expect(stdout).toBe('');
+    expect(JSON.parse(stderr)).toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR', error });
+    expect(code).toBe(1);
+  });
+});
+
+describe('handleCommanderExit', () => {
+  it('no tira por `executeSubCommandAsync`, como el default de commander', () => {
+    const program = createProgram();
+    const error = new CommanderError(1, 'commander.executeSubCommandAsync', '(error)');
+
+    expect(() => handleCommanderExit(program, program, error)).not.toThrow();
   });
 });

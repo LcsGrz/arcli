@@ -16,7 +16,7 @@ import { registerParametersCommands } from './commands/parameters.command';
 import { registerPdfCommand } from './commands/pdf.command';
 import { registerStorybookCommand } from './commands/storybook.command';
 import { registerVoucherQueryCommands } from './commands/vouchers.command';
-import { configureUsageErrors, matchVersionByLongFlagOnly } from './error-output';
+import { configureCommandExits, configureUsageErrors, matchVersionByLongFlagOnly } from './error-output';
 import { registerGlobalOptions } from './global-options';
 import { configureSpanishHelp, createProgramHeader, createProgramHelp } from './help';
 import { warnAboutIgnoredGlobalOptions } from './ignored-global-options';
@@ -56,6 +56,7 @@ export function createProgram(): Command {
   registerParametersCommands(program);
   registerVoucherQueryCommands(program);
   registerStorybookCommand(program);
+  configureCommandExits(program);
 
   program.addHelpText('beforeAll', ({ command }) => (command === program ? createProgramHeader() : ''));
   program.addHelpText('afterAll', ({ command }) => (command === program ? createProgramHelp() : ''));

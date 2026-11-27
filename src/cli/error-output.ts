@@ -1,4 +1,4 @@
-import { type Command, CommanderError } from 'commander';
+import { type Command, CommanderError, type Option } from 'commander';
 import { ZodError } from 'zod';
 
 import { AppError, HELP_SUGGESTION, InputIssuesError } from '../lib/errors/app-error';
@@ -117,22 +117,26 @@ function toUsageError(error: CommanderError): AppError {
   });
 }
 
-/** El corto de `--version`. Commander no lo reconoce (ver `matchVersionByLongFlagOnly`): lo atiende `exitOverride`. */
-const VERSION_SHORT_FLAG = '-V';
-
 /**
  * `-V, --version` sigue en la ayuda y en el contrato, pero commander solo reconoce `--version`: con `-V` registrado,
  * toma `-Varios` o `-Ventas.sa` como `-V` seguido de otras letras e imprime la versión. El `-V` exacto llega como
- * opción desconocida y lo contesta `configureUsageErrors`, en cualquier lugar del comando.
- * Va después de `program.version(…)`.
+ * opción desconocida y lo contesta `handleCommanderExit`, en cualquier lugar del comando salvo que otro error salga
+ * antes. Va después de `program.version(…)`.
+ *
+ * `is` no está en los tipos de commander, pero es lo que usa `parseOptions` para reconocer una opción, también la
+ * primera letra de un grupo como `-Vx`. Si una versión de commander deja de usarlo, `-Varios` vuelve a mostrar la
+ * versión y lo detecta `version-flag.test.ts`.
  */
 export function matchVersionByLongFlagOnly(program: Command): void {
-  const versionOption = program.options.find((option) => option.long === '--version');
+  const versionOption = findVersionOption(program);
 
   if (versionOption) {
-    // `is` no está en los tipos de commander, pero es lo que usa para reconocer una opción en los argumentos.
     (versionOption as typeof versionOption & { is: (arg: string) => boolean }).is = (arg) => arg === versionOption.long;
   }
+}
+
+function findVersionOption(program: Command): Option | undefined {
+  return program.options.find((option) => option.long === '--version');
 }
 
 /** La opción desconocida de un error de commander, si es eso. */
@@ -140,53 +144,126 @@ function unknownOptionOf(error: CommanderError): string | undefined {
   return error.code === 'commander.unknownOption' ? /unknown option '([^']+)'/.exec(error.message)?.[1] : undefined;
 }
 
-/** `arcli config establecer -- cuenta <CBU> -Ventas.sa`: el comando con `--` antes de los valores. */
-function commandWithValues(command: Command): string {
-  const names: string[] = [];
+/** El comando y sus ancestros, desde el programa. */
+function commandChain(command: Command): Command[] {
+  const chain: Command[] = [];
 
-  for (let current: Command | null = command; current?.parent; current = current.parent) {
-    names.unshift(current.name());
+  for (let current: Command | null = command; current; current = current.parent) {
+    chain.unshift(current);
   }
 
-  return formatShellCommand(['arcli', ...names, '--', ...command.args], process.platform);
+  return chain;
+}
+
+/** `config establecer`: los nombres desde el programa hasta el comando. */
+function commandNames(command: Command): string[] {
+  return commandChain(command)
+    .slice(1)
+    .map((current) => current.name());
+}
+
+function isWritableValue(value: unknown): value is number | string {
+  return typeof value === 'string' || typeof value === 'number';
+}
+
+/** Una opción que vino de la línea de comandos, como se volvería a escribir: `--json`, `--pv 2`. */
+function optionArguments(command: Command, option: Option): string[] {
+  const flag = option.long ?? option.short;
+  const name = option.attributeName();
+
+  if (!flag || command.getOptionValueSource(name) !== 'cli') {
+    return [];
+  }
+
+  const value: unknown = command.getOptionValue(name);
+
+  if (typeof value === 'boolean') {
+    return [flag];
+  }
+
+  return (Array.isArray(value) ? value : [value]).filter(isWritableValue).flatMap((item) => [flag, String(item)]);
+}
+
+/** Los flags que se usaron, del programa al comando: van antes del `--`. */
+function usedFlags(command: Command): string[] {
+  return commandChain(command).flatMap((current) =>
+    current.options.flatMap((option) => optionArguments(current, option)),
+  );
+}
+
+/**
+ * `arcli config establecer --json -- cuenta <CBU> -Ventas.sa`: el comando con sus flags y `--` antes de los valores.
+ * En Windows va `'--'`: PowerShell se queda con un `--` sin comillas al llamar al script que instala npm.
+ */
+function commandWithValues(command: Command): string {
+  const { platform } = process;
+  const separator = platform === 'win32' ? "'--'" : '--';
+  const before = formatShellCommand(['arcli', ...commandNames(command), ...usedFlags(command)], platform);
+
+  return [before, separator, formatShellCommand(command.args, platform)].filter(Boolean).join(' ');
 }
 
 /**
  * Una opción desconocida de un solo guion en un comando que lleva argumentos (`-Ventas.sa` como alias) puede ser un
- * valor: la sugerencia lo dice con el comando armado.
+ * valor: la sugerencia lo dice con el comando armado y, por si era un flag mal escrito, manda a la ayuda del comando.
  */
 function valuesSuggestion(command: Command, flag: string): string | undefined {
   if (flag.startsWith('--') || command.registeredArguments.length === 0) {
     return undefined;
   }
 
-  return `Si \`${flag}\` es un valor, poné \`--\` antes de los valores: \`${commandWithValues(command)}\`.`;
+  const help = ['arcli', ...commandNames(command), '--ayuda'].join(' ');
+
+  return `Si \`${flag}\` es un valor, poné \`--\` antes de los valores: \`${commandWithValues(command)}\`. Si es una opción, mirá \`${help}\`.`;
+}
+
+/**
+ * Lo que hace ARCLI cuando commander corta en `command`: el `-V` exacto muestra la versión y una opción desconocida
+ * que puede ser un valor lleva su sugerencia. Como el default de commander, no tira por `executeSubCommandAsync`.
+ *
+ * @internal Exportado para los tests.
+ */
+export function handleCommanderExit(program: Command, command: Command, error: CommanderError): void {
+  if (error.code === 'commander.executeSubCommandAsync') {
+    return;
+  }
+
+  const flag = unknownOptionOf(error);
+
+  if (flag !== undefined && flag === findVersionOption(program)?.short) {
+    const version = program.version() ?? '';
+
+    process.stdout.write(`${version}\n`);
+    throw new CommanderError(0, 'commander.version', version);
+  }
+
+  const suggestion = flag === undefined ? undefined : valuesSuggestion(command, flag);
+
+  throw suggestion === undefined ? error : new UsageErrorWithSuggestion(error.code, error.message, suggestion);
+}
+
+/**
+ * Cada comando corta con `handleCommanderExit`, que necesita saber cuál falló: commander no se lo pasa al callback de
+ * `exitOverride`, así que cada uno lleva el suyo. Va después de registrar todos los comandos.
+ */
+export function configureCommandExits(program: Command): void {
+  const walk = (command: Command): void => {
+    command.exitOverride((error) => handleCommanderExit(program, command, error));
+    command.commands.forEach(walk);
+  };
+
+  walk(program);
 }
 
 /**
  * Commander tira los errores de uso en vez de cortar el proceso, para que `index.ts` los maneje como el resto: los
  * escribe `reportCliError`, en panel o en JSON, y commander se calla.
  * Va antes de registrar los comandos: los subcomandos copian esta config al crearse.
- *
- * Commander llama a `exitOverride` como método del comando que falló: `this` es ese comando.
  */
 export function configureUsageErrors(program: Command): void {
   let failing = false;
 
-  program.exitOverride(function (this: Command, error: CommanderError): never {
-    const flag = unknownOptionOf(error);
-
-    if (flag === VERSION_SHORT_FLAG) {
-      const version = program.version() ?? '';
-
-      process.stdout.write(`${version}\n`);
-      throw new CommanderError(0, 'commander.version', version);
-    }
-
-    const suggestion = flag === undefined ? undefined : valuesSuggestion(this, flag);
-
-    throw suggestion === undefined ? error : new UsageErrorWithSuggestion(error.code, error.message, suggestion);
-  });
+  program.exitOverride();
 
   program.configureOutput({
     outputError: () => {
