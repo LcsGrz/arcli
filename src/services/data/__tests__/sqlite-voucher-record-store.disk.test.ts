@@ -171,4 +171,18 @@ describe('SqliteVoucherRecordStore: rutas raras (ARQ-12)', () => {
     await expectLocalDataError(openStore(dataDirectory).save(voucherRecord()), 'path-too-long');
     expect(readdirSync(parent)).toEqual([]);
   });
+
+  // 251 a 258: la base abriría, pero su -journal (8 más) no (revisión del 27/11; medido: 250 abre y escribe).
+  it.runIf(process.platform === 'win32').each([251, 258])(
+    'en Windows, una base de %i caracteres da path-too-long',
+    async (length) => {
+      const parent = temporaryDataDirectory();
+      const tail = join('datos', CUIT, 'testing', 'comprobantes.db');
+      const dataDirectory = join(parent, 'x'.repeat(length - parent.length - tail.length - 2));
+
+      expect(vouchersFile(dataDirectory)).toHaveLength(length);
+      await expectLocalDataError(openStore(dataDirectory).save(voucherRecord()), 'path-too-long');
+      expect(readdirSync(parent)).toEqual([]);
+    },
+  );
 });

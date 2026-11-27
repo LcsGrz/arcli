@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
-import { chmodSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readdirSync, utimesSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { LocalDataError } from '../../../modules/local-data/local-data-error';
 import { toLocalDataError } from '../database-file';
@@ -11,6 +11,7 @@ import {
   expectLocalDataError,
   fingerprint,
   inspect,
+  NOW,
   openStore,
   scalar,
   SCHEMA_V1,
@@ -24,7 +25,13 @@ import {
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
 
-  return { ...actual, linkSync: vi.fn(actual.linkSync) };
+  return { ...actual, linkSync: vi.fn(actual.linkSync), rmSync: vi.fn(actual.rmSync) };
+});
+
+const actualFs = await vi.importActual<typeof import('node:fs')>('node:fs');
+
+afterEach(() => {
+  vi.mocked(fs.rmSync).mockImplementation(actualFs.rmSync);
 });
 
 /** Un archivo cualquiera donde va la base, en una carpeta de datos nueva. */
@@ -74,6 +81,37 @@ describe('abrir una base que no es de SQLite (ARQ-12): no se toca', () => {
     expect(fingerprint(file)).toEqual(before);
   });
 
+  // El application_id se mira antes que la versión: la base de otro programa con user_version 2000 no es "de un ARCLI
+  // más nuevo" (revisión del 27/11).
+  it('otro application_id con user_version 2000 da mismatch, no newer-version', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const file = vouchersFile(dataDirectory);
+
+    await openStore(dataDirectory).save(voucherRecord());
+    inspect(file, (database) => database.exec('PRAGMA application_id = 12345; PRAGMA user_version = 2000'));
+
+    const before = fingerprint(file);
+
+    await expectLocalDataError(openStore(dataDirectory).findByCae('76123456789012'), 'mismatch');
+    await expectLocalDataError(openStore(dataDirectory).save(voucherRecord({ numero: 2 })), 'mismatch');
+    expect(fingerprint(file)).toEqual(before);
+  });
+
+  // Sin permiso para leer el archivo no es una carpeta de solo lectura: es que no se puede abrir.
+  it.runIf(withPermissions)('una base sin permiso de lectura da unavailable', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const file = vouchersFile(dataDirectory);
+
+    await openStore(dataDirectory).save(voucherRecord());
+    chmodSync(file, 0o000);
+
+    try {
+      await expectLocalDataError(openStore(dataDirectory).findByCae('76123456789012'), 'unavailable');
+    } finally {
+      chmodSync(file, 0o600);
+    }
+  });
+
   it('una base de ARCLI sin metadatos da mismatch', async () => {
     const dataDirectory = temporaryDataDirectory();
     const store = openStore(dataDirectory);
@@ -111,6 +149,65 @@ describe('crear la base (ARQ-12)', () => {
 
     await expect(openStore(dataDirectory).save(voucherRecord())).rejects.toThrow('raro');
     expect(readdirSync(dirname(vouchersFile(dataDirectory)))).toEqual([]);
+  });
+
+  // La base ya está en su lugar: que no se pueda borrar el temporal (un antivirus en Windows) no hace fallar el guardado.
+  it('si borrar el temporal falla después de publicar, el save igual guarda', async () => {
+    vi.mocked(fs.rmSync).mockImplementation((path, options) => {
+      if (String(path).includes('.nueva-')) {
+        throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' });
+      }
+
+      actualFs.rmSync(path, options);
+    });
+
+    const dataDirectory = temporaryDataDirectory();
+
+    await expect(openStore(dataDirectory).save(voucherRecord())).resolves.toEqual({ kind: 'saved' });
+    expect(fs.linkSync).toHaveBeenCalled();
+    await expect(openStore(dataDirectory).findByCae('76123456789012')).resolves.toMatchObject({ numero: 1 });
+  });
+
+  // Un proceso que murió creando la base deja su temporal: el siguiente que crea lo limpia, sin tocar uno vivo.
+  it('al crear, borra los temporales viejos de esa base y deja los recientes', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const folder = dirname(vouchersFile(dataDirectory));
+    const old = join(folder, '.nueva-00000001');
+    const recent = join(folder, '.nueva-00000002');
+    const hourAgo = new Date(Date.parse(NOW) - 60 * 60 * 1000);
+    const minuteAgo = new Date(Date.parse(NOW) - 60 * 1000);
+
+    mkdirSync(folder, { recursive: true });
+
+    for (const [path, time] of [
+      [old, hourAgo],
+      [`${old}-journal`, hourAgo],
+      [recent, minuteAgo],
+    ] as const) {
+      writeFileSync(path, '');
+      utimesSync(path, time, time);
+    }
+
+    await openStore(dataDirectory).save(voucherRecord());
+
+    expect(readdirSync(folder).sort()).toEqual(['.nueva-00000002', 'comprobantes.db']);
+  });
+
+  it('el temporal tiene el mismo largo que la base, para el límite de Windows', async () => {
+    const created: string[] = [];
+
+    vi.mocked(fs.rmSync).mockImplementation((path, options) => {
+      created.push(String(path));
+      actualFs.rmSync(path, options);
+    });
+
+    const dataDirectory = temporaryDataDirectory();
+
+    await openStore(dataDirectory).save(voucherRecord());
+
+    const temporary = created.find((path) => /\.nueva-[0-9a-f]+$/.test(path)) ?? '';
+
+    expect(temporary.length).toBe(vouchersFile(dataDirectory).length);
   });
 
   it.runIf(withPermissions)('en una carpeta de datos de solo lectura da read-only sin crear nada', async () => {

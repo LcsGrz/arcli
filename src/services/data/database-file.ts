@@ -1,21 +1,10 @@
-import { randomBytes } from 'node:crypto';
-import {
-  closeSync,
-  constants,
-  copyFileSync,
-  fchmodSync,
-  fstatSync,
-  linkSync,
-  mkdirSync,
-  openSync,
-  readSync,
-  rmSync,
-} from 'node:fs';
-import { dirname, join } from 'node:path';
+import { closeSync, fstatSync, mkdirSync, openSync, readSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 import { LocalDataError, type LocalDataErrorReason } from '../../modules/local-data/local-data-error';
 import { restrictFolderToOwner } from '../files/restrict-to-owner';
 
+import { createTemporaryFile, publishTemporary, removeStaleTemporaries, removeTemporary } from './database-temporary';
 import {
   applyMigrations,
   inImmediateTransaction,
@@ -36,10 +25,12 @@ const ARCLI_APPLICATION_ID = 1634886508;
 export const DEFAULT_BUSY_TIMEOUT_MS = 5000;
 
 /**
- * En Windows SQLite no abre una base cuya ruta tenga 259 caracteres o más (medido en el CI del 25/11 con Node 22, 24
- * y 26: 250 abre, 259 da SQLITE_CANTOPEN). Se dice antes, sin crear carpetas.
+ * En Windows SQLite no abre rutas de 259 caracteres o más (medido en el CI del 25/11 con Node 22, 24 y 26: 250 abre y
+ * escribe, con un `-journal` de 258; 259 da SQLITE_CANTOPEN). La base tiene que dejar lugar a su `-journal` (8 más):
+ * 250 es lo medido. El temporal donde se arma tiene el mismo largo que la base (database-temporary.ts). Se dice
+ * antes, sin crear carpetas.
  */
-const WINDOWS_MAX_DATABASE_PATH = 258;
+const WINDOWS_MAX_DATABASE_PATH = 250;
 
 /** La cabecera de un archivo de SQLite (https://www.sqlite.org/fileformat.html#the_database_header). */
 const SQLITE_HEADER = Buffer.from('SQLite format 3\0', 'latin1');
@@ -91,7 +82,7 @@ function checkPathLength(file: string): void {
   if (process.platform === 'win32' && file.length > WINDOWS_MAX_DATABASE_PATH) {
     throw new LocalDataError(
       'path-too-long',
-      `La ruta de la base tiene ${file.length} caracteres: en Windows SQLite no abre rutas de 259 o más.`,
+      `La ruta de la base tiene ${file.length} caracteres: en Windows SQLite no la abre (con su -journal) si pasa de ${WINDOWS_MAX_DATABASE_PATH}.`,
     );
   }
 }
@@ -106,11 +97,16 @@ function databaseExists(file: string): boolean {
   try {
     descriptor = openSync(file, 'r');
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    const { code } = error as NodeJS.ErrnoException;
+
+    if (code === 'ENOENT') {
       return false;
     }
 
-    throw toLocalDataError(error);
+    // Sin permiso para leer la base no es que la carpeta sea de solo lectura: no se puede abrir.
+    throw code === 'EACCES' || code === 'EPERM'
+      ? new LocalDataError('unavailable', `No hay permiso para leer ${file}.`, { cause: error })
+      : toLocalDataError(error);
   }
 
   try {
@@ -156,12 +152,17 @@ function openConnection(driver: SqliteDriver, file: string, spec: DatabaseSpec):
 }
 
 /**
- * La versión y el dueño, antes de escribir nada (ni un pragma): una mayor desconocida es `newer-version`; otro
- * `application_id`, una versión que no es de ARCLI (0 a 999) o `metadatos` de otro CUIT o entorno, `mismatch`.
+ * El dueño y la versión, antes de escribir nada (ni un pragma). Primero el `application_id`: otro (o una versión de 0 a
+ * 999) es la base de otro programa, `mismatch`, aunque su versión sea alta. Si es de ARCLI, una mayor desconocida es
+ * `newer-version`. `metadatos` de otro CUIT o entorno se miran después (`checkHealthAndIdentity`).
  */
 function checkVersionAndOwner(connection: SqliteConnection, spec: DatabaseSpec): void {
-  const userVersion = readUserVersion(connection);
   const applicationId = Number(connection.get('PRAGMA application_id')?.application_id ?? 0);
+  const userVersion = readUserVersion(connection);
+
+  if (applicationId !== ARCLI_APPLICATION_ID) {
+    throw new LocalDataError('mismatch', `${spec.file} no es una base de ARCLI.`);
+  }
 
   if (schemaMajor(userVersion) > schemaMajor(latestVersion(spec.migrations))) {
     throw new LocalDataError(
@@ -170,8 +171,8 @@ function checkVersionAndOwner(connection: SqliteConnection, spec: DatabaseSpec):
     );
   }
 
-  if (applicationId !== ARCLI_APPLICATION_ID || schemaMajor(userVersion) < 1) {
-    throw new LocalDataError('mismatch', `${spec.file} no es una base de ARCLI.`);
+  if (schemaMajor(userVersion) < 1) {
+    throw new LocalDataError('mismatch', `${spec.file} tiene la versión ${userVersion}: no es una base de ARCLI.`);
   }
 }
 
@@ -217,62 +218,6 @@ function openVerified(driver: SqliteDriver, spec: DatabaseSpec, context: Migrati
   }
 }
 
-/** Un archivo nuevo solo para el dueño, con un nombre que no pisa a nadie y no es más largo que el de la base. */
-function createTemporaryFile(folder: string): string {
-  for (;;) {
-    const path = join(folder, `nueva${randomBytes(3).toString('hex')}`);
-
-    try {
-      const descriptor = openSync(path, 'wx', 0o600);
-
-      try {
-        if (process.platform !== 'win32') {
-          fchmodSync(descriptor, 0o600);
-        }
-      } finally {
-        closeSync(descriptor);
-      }
-
-      return path;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
-        throw error;
-      }
-    }
-  }
-}
-
-/** Los errores de `linkSync` que dicen que el sistema de archivos no tiene hard links (FAT, exFAT, algunos de red). */
-const NO_HARD_LINKS = new Set(['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'ENOSYS', 'EMLINK', 'EXDEV']);
-
-/**
- * Pone la base armada en su lugar sin pisar otra: un hard link falla si ya está (otro proceso la creó a la vez, y vale
- * esa). Sin hard links, una copia que también falla si ya está; mientras se copia, otro la vería cortada (`damaged`).
- */
-function publish(temporary: string, file: string): void {
-  try {
-    linkSync(temporary, file);
-  } catch (error) {
-    const { code = '' } = error as NodeJS.ErrnoException;
-
-    if (code === 'EEXIST') {
-      return;
-    }
-
-    if (!NO_HARD_LINKS.has(code)) {
-      throw error;
-    }
-
-    try {
-      copyFileSync(temporary, file, constants.COPYFILE_EXCL);
-    } catch (copyError) {
-      if ((copyError as NodeJS.ErrnoException).code !== 'EEXIST') {
-        throw copyError;
-      }
-    }
-  }
-}
-
 /**
  * Crea la base entera en un temporal de la misma carpeta (esquema, `application_id` y `metadatos` en una
  * transacción) y recién ahí la pone en su lugar: nadie ve una base a medias. Las carpetas quedan solo para el dueño.
@@ -288,8 +233,9 @@ function createDatabase(
   try {
     mkdirSync(folder, { mode: 0o700, recursive: true });
     spec.folders.forEach(restrictFolderToOwner);
+    removeStaleTemporaries(spec.file, Date.parse(context.now));
 
-    const temporary = createTemporaryFile(folder);
+    const temporary = createTemporaryFile(spec.file);
 
     try {
       const connection = openConnection(driver, temporary, spec);
@@ -308,10 +254,9 @@ function createDatabase(
         connection.close();
       }
 
-      publish(temporary, spec.file);
+      publishTemporary(temporary, spec.file);
     } finally {
-      rmSync(temporary, { force: true });
-      rmSync(`${temporary}-journal`, { force: true });
+      removeTemporary(temporary);
     }
   } catch (error) {
     throw toLocalDataError(error);
