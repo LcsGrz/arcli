@@ -1,5 +1,5 @@
 import * as fs from 'node:fs';
-import { readdirSync, truncateSync } from 'node:fs';
+import { readdirSync, truncateSync, writeFileSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -67,6 +67,28 @@ describe('en Windows, una dañada abierta por otro (ARQ-12 PR 4b)', () => {
       expect(setAsideNames(file)).toHaveLength(1);
     },
   );
+
+  // Un -journal suelto al lado de la base nueva la rompería: si no se puede mover con la dañada, la dañada vuelve.
+  it('si el -journal no se puede mover, la dañada vuelve a su lugar y da damaged', async () => {
+    const { dataDirectory, file } = await damagedBase((path) => truncateSync(path, 100));
+    const journal = `${file}-journal`;
+
+    writeFileSync(journal, Buffer.from('un journal ajeno '.repeat(64)));
+
+    const before = { base: fingerprint(file).hash, journal: fingerprint(journal).hash };
+
+    vi.mocked(fs.renameSync).mockImplementation((from, to) => {
+      if (String(from).endsWith('-journal')) {
+        throw Object.assign(new Error('EBUSY: resource busy or locked, rename'), { code: 'EBUSY' });
+      }
+
+      actualFs.renameSync(from, to);
+    });
+
+    await expectLocalDataError(openStore(dataDirectory, { backups: OFF }).save(NEXT), 'damaged');
+    expect({ base: fingerprint(file).hash, journal: fingerprint(journal).hash }).toEqual(before);
+    expect(setAsideNames(file)).toEqual([]);
+  });
 });
 
 /** Una conexión que, al guardar un comprobante, falla como SQLite sin lugar en el disco (SQLITE_FULL, 13). */

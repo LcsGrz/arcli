@@ -436,4 +436,39 @@ describe('restaurar una base desde una copia, para DATOS-1 (ARQ-12 PR 4b)', () =
     expect(fingerprint(file)).toEqual(before);
     expect(caes(file)).toEqual([cae(1), cae(2)]);
   });
+
+  // Otra computadora (o una carpeta de datos nueva) con la copia de la misma base: no hay nada que apartar.
+  it('sin base, la crea desde la copia y no hay reemplazada', async () => {
+    const { copy } = await withDailyCopy();
+    const fresh = temporaryDataDirectory();
+
+    const restored = await restoreVoucherBackup(backupOptions(fresh), copy);
+
+    expect(restored).toEqual({ restoredFrom: copy });
+    expect(caes(vouchersFile(fresh))).toEqual([cae(1)]);
+    expect(readdirSync(dirname(vouchersFile(fresh)))).toEqual(['comprobantes.db']);
+  });
+
+  it('una carpeta en el lugar de la base da unavailable y no se mueve', async () => {
+    const { copy } = await withDailyCopy();
+    const fresh = temporaryDataDirectory();
+    const file = vouchersFile(fresh);
+
+    mkdirSync(file, { recursive: true });
+
+    await expectLocalDataError(restoreVoucherBackup(backupOptions(fresh), copy), 'unavailable');
+    expect(readdirSync(dirname(file))).toEqual(['comprobantes.db']);
+    expect(readdirSync(file)).toEqual([]);
+  });
+
+  it('una copia que no está da unavailable y no toca la base', async () => {
+    const { dataDirectory, file } = await withDailyCopy();
+    const before = fingerprint(file);
+
+    await expectLocalDataError(
+      restoreVoucherBackup(backupOptions(dataDirectory), copyOf(dataDirectory, 'comprobantes-2026-01-01.db')),
+      'unavailable',
+    );
+    expect(fingerprint(file)).toEqual(before);
+  });
 });
