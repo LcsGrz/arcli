@@ -19,8 +19,10 @@ import { argentineStamp, listBackupFiles, vacuumInto } from './backup-files';
 import {
   buildEmptyDatabase,
   buildTemporary,
+  createDatabase,
   databaseExists,
   type DatabaseSpec,
+  fileIdentity,
   openOrCreateDatabase,
   openVerified,
   openVerifiedCopy,
@@ -54,16 +56,7 @@ const MOVE_PAUSE_MS = 100;
 const BUSY_CODES = new Set(['EBUSY', 'EPERM']);
 
 const journalOf = (file: string) => `${file}-journal`;
-
-function identityOf(path: string): string | undefined {
-  try {
-    const { dev, ino } = statSync(path);
-
-    return `${dev}:${ino}`;
-  } catch {
-    return undefined;
-  }
-}
+const identityOf = fileIdentity;
 
 /**
  * Los nombres donde va a quedar la base apartada y su `-journal`, tomados con `wx` (vacíos): nadie más los puede usar,
@@ -240,19 +233,25 @@ export function buildFromCopy(
     }
   });
 }
-
 /**
- * La base que va a reponer la que falta o está dañada, armada en un temporal: desde la copia más nueva que sea sana y
- * de esta base (una dañada, de otra base o de un ARCLI más nuevo se saltea, sin tocarla) o, sin ninguna, vacía. Un
- * error al armarla (sin lugar en el disco) sale: no se repone con una vacía por eso.
+ * La base que va a reponer la que falta o está dañada, armada en un temporal: desde `preferred` si sirve (la
+ * reemplazada de un restaurar que se cortó, que era la sana), o desde la copia más nueva que sea sana y de esta base
+ * (una dañada, de otra base o de un ARCLI más nuevo se saltea, sin tocarla) o, sin ninguna, vacía. Un error al armarla
+ * (sin lugar en el disco) sale: no se repone con una vacía por eso.
  */
 function buildReplacement(
   driver: SqliteDriver,
   spec: DatabaseSpec,
   context: MigrationContext,
   datos: Record<string, string>,
+  preferred?: string,
 ): { readonly temporary: string; readonly restoredFrom?: string } {
-  for (const { path } of listBackupFiles(spec.backups)) {
+  const candidates = [
+    ...(preferred === undefined ? [] : [preferred]),
+    ...listBackupFiles(spec.backups).map(({ path }) => path),
+  ];
+
+  for (const path of candidates) {
     let source: SqliteConnection;
 
     try {
@@ -280,25 +279,56 @@ function buildReplacement(
   };
 }
 
-/** La apartada más nueva de esta base, si hay. */
-function latestSetAside(file: string): string | undefined {
-  const pattern = new RegExp(`^${basename(file, '.db')}\\.danada-.+\\.db$`);
-
-  try {
-    return readdirSync(dirname(file))
-      .filter((name) => pattern.test(name))
-      .sort()
-      .map((name) => join(dirname(file), name))
-      .at(-1);
-  } catch {
-    return undefined;
-  }
+interface SetAsideFile {
+  readonly path: string;
+  readonly reason: 'danada' | 'reemplazada';
 }
 
 /**
- * Sin base, pero con copias o una apartada al lado: se perdió (la apartó otro que murió antes de reponerla, o se
- * borró). Se repone desde la última copia sana (o vacía), con el evento y el dato de la recuperación, en vez de crear
- * una vacía como la primera vez.
+ * La apartada más nueva de esta base (dañada o reemplazada al restaurar), por fecha y contador; las de 0 bytes (una
+ * reserva que quedó de un proceso muerto) no cuentan.
+ */
+function latestSetAside(file: string): SetAsideFile | undefined {
+  const pattern = new RegExp(
+    `^${basename(file, '.db')}\\.(danada|reemplazada)-(\\d{4}-\\d{2}-\\d{2}-\\d{6})(?:-(\\d+))?\\.db$`,
+  );
+  let names: string[];
+
+  try {
+    names = readdirSync(dirname(file));
+  } catch {
+    return undefined;
+  }
+
+  const found = names.flatMap((name) => {
+    const match = pattern.exec(name);
+    const path = join(dirname(file), name);
+
+    if (!match) {
+      return [];
+    }
+
+    try {
+      if (statSync(path).size === 0) {
+        return [];
+      }
+    } catch {
+      return [];
+    }
+
+    const [, reason = 'danada', stamp = '', counter = '1'] = match;
+
+    return [{ counter: Number(counter), path, reason: reason as SetAsideFile['reason'], stamp }];
+  });
+
+  const latest = found.sort((a, b) => a.stamp.localeCompare(b.stamp) || a.counter - b.counter).at(-1);
+
+  return latest === undefined ? undefined : { path: latest.path, reason: latest.reason };
+}
+
+/**
+ * Sin base, pero con copias o una apartada al lado: se perdió (la apartó otro que murió antes de reponerla, se cortó
+ * un restaurar, o se borró). Se repone en vez de crear una vacía como la primera vez.
  */
 function needsRebuild(spec: DatabaseSpec): boolean {
   return (
@@ -306,18 +336,80 @@ function needsRebuild(spec: DatabaseSpec): boolean {
   );
 }
 
-function rebuildMissing(driver: SqliteDriver, spec: DatabaseSpec, context: MigrationContext): LocalDataRecovery {
+/**
+ * Un `-journal` que quedó sin su base (la movió un proceso que murió antes de mover el journal) se reproduciría sobre
+ * la base nueva: se aparta antes, al lado de la apartada que le corresponde o, si esa ya tiene el suyo, solo, con
+ * nombre de dañada. Nunca se borra.
+ */
+async function setAsideOrphanJournal(file: string, setAside: SetAsideFile | undefined, now: Date): Promise<void> {
+  const journal = journalOf(file);
+
+  try {
+    if (statSync(journal).size === 0) {
+      return;
+    }
+  } catch {
+    return;
+  }
+
+  if (setAside !== undefined && !existsSync(journalOf(setAside.path))) {
+    moveWithoutClobbering(journal, journalOf(setAside.path));
+
+    return;
+  }
+
+  const reservation = reserve(file, 'danada', now);
+
+  try {
+    await moveToReserved(journal, journalOf(reservation.aside), 'damaged');
+  } finally {
+    dropPlaceholders(reservation);
+  }
+}
+
+/** Con el turno y sin base: la repone (desde la reemplazada de un restaurar cortado, una copia o vacía). */
+async function rebuildMissing(
+  driver: SqliteDriver,
+  spec: DatabaseSpec,
+  context: MigrationContext,
+): Promise<LocalDataRecovery> {
   const setAside = latestSetAside(spec.file);
   const { restoredFrom, temporary } = buildReplacement(
     driver,
     spec,
     context,
-    setAside === undefined ? {} : { apartada: basename(setAside) },
+    setAside === undefined ? {} : { apartada: basename(setAside.path) },
+    setAside?.reason === 'reemplazada' ? setAside.path : undefined,
   );
 
-  publishBuilt(spec, temporary);
+  try {
+    await setAsideOrphanJournal(spec.file, setAside, new Date(context.now));
+  } catch (error) {
+    removeTemporary(temporary);
+    throw error;
+  }
 
-  return { ...(restoredFrom === undefined ? {} : { restoredFrom }), ...(setAside === undefined ? {} : { setAside }) };
+  publishBuilt(spec, temporary, 'fail');
+
+  return {
+    ...(restoredFrom === undefined ? {} : { restoredFrom }),
+    ...(setAside === undefined ? {} : { setAside: setAside.path }),
+  };
+}
+
+/** Con el turno y sin base: la repone si se perdió, o la crea vacía si es la primera vez. */
+async function createOrRebuild(
+  driver: SqliteDriver,
+  spec: DatabaseSpec,
+  context: MigrationContext,
+): Promise<LocalDataRecovery | undefined> {
+  if (needsRebuild(spec)) {
+    return rebuildMissing(driver, spec, context);
+  }
+
+  createDatabase(driver, spec, context);
+
+  return undefined;
 }
 
 /** `damaged` si la base está dañada; `undefined` si está sana (y la deja como estaba) o si no está. */
@@ -358,7 +450,7 @@ async function recoverWithLock(
     const damage = damageOf(driver, spec, context);
 
     if (damage === undefined) {
-      return needsRebuild(spec) ? rebuildMissing(driver, spec, context) : undefined;
+      return databaseExists(spec.file) ? undefined : createOrRebuild(driver, spec, context);
     }
 
     if (hasLiveTemporary(spec.file, Date.now())) {
@@ -381,8 +473,9 @@ async function recoverWithLock(
 
 /**
  * Cambia la base por la ya armada en `temporary`: aparta la actual (con su `-journal`) a su reserva y pone la nueva.
- * Si no se puede apartar, no se toca nada; si no se puede poner la nueva, la apartada vuelve a su lugar. La ventana
- * sin base es solo la de mover y poner: lo lento (armar la nueva) ya pasó.
+ * Si no se puede apartar, no se toca nada; si no se puede poner la nueva (también si apareció otro archivo en su
+ * lugar: no se pisa), la apartada vuelve a su lugar si se puede y sale el error. La ventana sin base es solo la de
+ * mover y poner: lo lento (armar la nueva) ya pasó.
  */
 export async function swapIn(
   spec: DatabaseSpec,
@@ -398,7 +491,7 @@ export async function swapIn(
   }
 
   try {
-    publishBuilt(spec, temporary);
+    publishBuilt(spec, temporary, 'fail');
   } catch (error) {
     putBack(aside, spec.file);
     throw error;
@@ -407,9 +500,9 @@ export async function swapIn(
 
 /**
  * Para `save`: la base abierta y verificada como `openOrCreateDatabase`, y si está dañada (o falta y hay copias o una
- * apartada), repuesta antes, con el dato de la recuperación. Un error al pedir el turno (carpeta de solo lectura)
- * sale como ese error (`read-only`) sin tocar la base: no se pudo apartar, y arreglando el permiso el próximo `save`
- * la repone.
+ * apartada), repuesta antes, con el dato de la recuperación. Todo lo que cambia qué archivo es la base corre con el
+ * turno. Un error al pedir el turno (carpeta de solo lectura) sale como ese error (`read-only`) sin tocar la base: no
+ * se pudo apartar, y arreglando el permiso el próximo `save` la repone.
  */
 export async function openRecoveringDatabase(
   driver: SqliteDriver,
@@ -418,12 +511,10 @@ export async function openRecoveringDatabase(
 ): Promise<{ readonly connection: SqliteConnection; readonly recovered?: LocalDataRecovery }> {
   let recovered: LocalDataRecovery | undefined;
 
-  if (needsRebuild(spec)) {
-    recovered = await withLockOf(spec, () => (needsRebuild(spec) ? rebuildMissing(driver, spec, context) : undefined));
-  }
-
   try {
-    const connection = await openOrCreateDatabase(driver, spec, context);
+    const connection = await openOrCreateDatabase(driver, spec, context, async () => {
+      recovered = await createOrRebuild(driver, spec, context);
+    });
 
     return recovered === undefined ? { connection } : { connection, recovered };
   } catch (error) {
@@ -432,7 +523,7 @@ export async function openRecoveringDatabase(
     }
   }
 
-  recovered = await withLockOf(spec, () => recoverWithLock(driver, spec, context));
+  recovered = await withLockOf(driver, spec, () => recoverWithLock(driver, spec, context));
 
   const connection = openVerified(driver, spec, context);
 

@@ -243,6 +243,7 @@ export function vouchersDatabaseSpec(
 
   return {
     backups: { folder: files.backups, prefix: 'comprobantes' },
+    lock: join(options.dataDirectory, 'datos', `.turno-${basename(cuitFolder)}-${options.environment}-comprobantes.db`),
     busyTimeoutMs: options.busyTimeoutMs ?? DEFAULT_BUSY_TIMEOUT_MS,
     file: files.vouchers,
     folders: [join(options.dataDirectory, 'datos'), cuitFolder, files.folder],

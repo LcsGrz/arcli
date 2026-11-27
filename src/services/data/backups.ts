@@ -13,7 +13,6 @@ import {
   type DatabaseSpec,
   ensureFolders,
   openVerifiedCopy,
-  openWritableConnection,
   publishBuilt,
   toLocalDataError,
   withLockOf,
@@ -119,9 +118,9 @@ export async function restoreVoucherBackup(
   openVerifiedCopy(driver, spec, backup).close();
   ensureFolders(spec);
 
-  return withLockOf(spec, async () => {
+  return withLockOf(driver, spec, async () => {
     if (!hasCurrentDatabase(spec.file)) {
-      publishBuilt(spec, build({}));
+      publishBuilt(spec, build({}), 'fail');
 
       return { restoredFrom: backup };
     }
@@ -150,7 +149,8 @@ function waitForWriters(driver: SqliteDriver, spec: DatabaseSpec): void {
       return;
     }
 
-    connection = openWritableConnection(driver, spec.file, spec);
+    // Sin pragmas: es una base que no se verificó, y `journal_mode = DELETE` convertiría un WAL ajeno.
+    connection = driver.open(spec.file, { mustExist: true, timeoutMs: spec.busyTimeoutMs });
   } catch {
     return;
   }

@@ -51,6 +51,8 @@ export interface DatabaseSpec {
   readonly busyTimeoutMs: number;
   /** Dónde van sus copias: la de antes de migrar se hace siempre (ARQ-12 PR 4b). */
   readonly backups: BackupTarget;
+  /** El archivo del turno de la base (database-lock.ts), en `datos/`. */
+  readonly lock: string;
 }
 
 const ERRNO_REASONS: Readonly<Record<string, LocalDataErrorReason>> = {
@@ -341,9 +343,9 @@ export function openVerifiedCopy(driver: SqliteDriver, spec: DatabaseSpec, copy:
 }
 
 /** Corre `work` con el turno de la base (database-lock.ts); un error al pedirlo, como `LocalDataError` si dice algo. */
-export async function withLockOf<T>(spec: DatabaseSpec, work: () => Promise<T> | T): Promise<T> {
+export async function withLockOf<T>(driver: SqliteDriver, spec: DatabaseSpec, work: () => Promise<T> | T): Promise<T> {
   try {
-    return await withDatabaseLock(spec.file, work);
+    return await withDatabaseLock(driver, spec.lock, work);
   } catch (error) {
     throw toLocalDataError(error);
   }
@@ -387,10 +389,20 @@ export function buildTemporary(
 }
 
 /** Pone el temporal armado en el lugar de la base sin pisar otra (`publishTemporary`) y lo borra. */
-export function publishBuilt(spec: DatabaseSpec, temporary: string): void {
+export function publishBuilt(spec: DatabaseSpec, temporary: string, ifTaken: 'fail' | 'keep' = 'keep'): void {
   try {
-    publishTemporary(temporary, spec.file);
+    publishTemporary(temporary, spec.file, ifTaken);
   } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      throw new LocalDataError(
+        'unavailable',
+        `Apareció otro archivo en el lugar de ${spec.file} al reponerla: no se pisa.`,
+        {
+          cause: error,
+        },
+      );
+    }
+
     throw toLocalDataError(error);
   } finally {
     removeTemporary(temporary);
@@ -431,7 +443,7 @@ export function buildEmptyDatabase(
  * Crea la base entera en un temporal y recién ahí la pone en su lugar: nadie ve una base a medias. Las carpetas ya
  * tienen que estar (`ensureFolders`).
  */
-function createDatabase(driver: SqliteDriver, spec: DatabaseSpec, context: MigrationContext): void {
+export function createDatabase(driver: SqliteDriver, spec: DatabaseSpec, context: MigrationContext): void {
   publishBuilt(
     spec,
     buildTemporary(spec, context, (temporary) => buildEmptyDatabase(driver, spec, context, temporary)),
@@ -467,7 +479,7 @@ export function openExistingDatabase(
 const VANISHED_ATTEMPTS = 3;
 
 /** Qué archivo está en esa ruta (dispositivo e inodo); `undefined` si ninguno. */
-function fileIdentity(file: string): string | undefined {
+export function fileIdentity(file: string): string | undefined {
   try {
     const { dev, ino } = statSync(file);
 
@@ -501,21 +513,23 @@ function fileSize(file: string): number {
 
 /**
  * Para escribir: la abre o, si no está, la crea en la última versión, con `metadatos` y carpetas solo del dueño. Crear
- * es con el turno de la base: si otro la está creando o reponiendo, se espera y vale la suya.
+ * es con el turno de la base: si otro la está creando o reponiendo, se espera y vale la suya. Con el turno y sin base,
+ * `whenMissing` decide qué poner (por defecto, una vacía; `save` repone desde las copias si las hay).
  */
 export async function openOrCreateDatabase(
   driver: SqliteDriver,
   spec: DatabaseSpec,
   context: MigrationContext,
+  whenMissing: () => Promise<void> | void = () => createDatabase(driver, spec, context),
 ): Promise<SqliteConnection> {
   checkPathLength(spec.file);
 
   for (let attempt = 1; ; attempt += 1) {
     if (!databaseExists(spec.file)) {
       ensureFolders(spec);
-      await withLockOf(spec, () => {
+      await withLockOf(driver, spec, async () => {
         if (!databaseExists(spec.file)) {
-          createDatabase(driver, spec, context);
+          await whenMissing();
         }
       });
     }

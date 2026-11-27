@@ -138,13 +138,17 @@ export const NO_HARD_LINKS: ReadonlySet<string> = new Set([
  * esa). Sin hard links, una copia que también falla si ya está; mientras se copia, otro la vería cortada (`damaged`;
  * ver docs/architecture.md, "Datos locales").
  */
-export function publishTemporary(temporary: string, file: string): void {
+export function publishTemporary(temporary: string, file: string, ifTaken: 'fail' | 'keep' = 'keep'): void {
   try {
     linkSync(temporary, file);
   } catch (error) {
     const { code = '' } = error as NodeJS.ErrnoException;
 
     if (code === 'EEXIST') {
+      if (ifTaken === 'fail') {
+        throw error;
+      }
+
       return;
     }
 
@@ -155,7 +159,7 @@ export function publishTemporary(temporary: string, file: string): void {
     try {
       copyFileSync(temporary, file, constants.COPYFILE_EXCL);
     } catch (copyError) {
-      if ((copyError as NodeJS.ErrnoException).code !== 'EEXIST') {
+      if ((copyError as NodeJS.ErrnoException).code !== 'EEXIST' || ifTaken === 'fail') {
         throw copyError;
       }
     }
