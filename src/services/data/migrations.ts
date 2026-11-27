@@ -105,8 +105,16 @@ export function migrate(
   context: MigrationContext,
   backup: MigrationBackup,
 ): void {
-  for (let round = 1; readUserVersion(connection) < latestVersion(migrations); round += 1) {
+  for (let round = 1; ; round += 1) {
+    // Una sola lectura por vuelta (ARQ-29, CI de #319): con dos (una para ver si falta y otra para `from`), si otro
+    // migraba entre ellas `from` ya era la última, la copia salía del esquema nuevo, adentro no había paso que aplicar
+    // (pero la versión coincidía) y quedaba sin descartar como `-antes-de`.
     const from = readUserVersion(connection);
+
+    if (from >= latestVersion(migrations)) {
+      return;
+    }
+
     const copy = backup.take();
     const migrated = inImmediateTransaction(connection, () => {
       if (readUserVersion(connection) !== from) {

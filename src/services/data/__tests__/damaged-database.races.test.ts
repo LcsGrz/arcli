@@ -313,6 +313,61 @@ describe('varios migrando a la vez (revisión de #318)', () => {
     expect(backupNames(dataDirectory)).toEqual([]);
   });
 
+  // ARQ-29 (CI de #319, ubuntu con Node 26): otro migra justo después de que este leyó la versión para ver si faltaba
+  // migrar. Si la vuelve a leer para saber desde dónde, ya es la última: la copia sale del esquema nuevo, adentro de la
+  // transacción la versión coincide y no hay paso que aplicar, así que nadie la descartaba.
+  it('otro migra justo después de leer la versión: no queda una copia -antes-de del esquema nuevo', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const file = vouchersFile(dataDirectory);
+    let migratedByOther = false;
+
+    await openStore(dataDirectory, { backups: OFF }).save(record(1));
+
+    vi.mocked(loadSqliteDriver).mockImplementation(async () => {
+      const driver = await actualDriver.loadSqliteDriver();
+
+      return {
+        open(path, options) {
+          const connection = driver.open(path, options);
+          let checked = false;
+
+          return {
+            ...connection,
+            get(sql, parameters) {
+              const row = connection.get(sql, parameters);
+
+              // La primera lectura de la versión después de quick_check es la de `migrate`.
+              checked ||= path === file && sql === 'PRAGMA quick_check';
+
+              if (checked && !migratedByOther && sql === 'PRAGMA user_version') {
+                migratedByOther = true;
+                migrateAsOther(file);
+              }
+
+              return row;
+            },
+          };
+        },
+      };
+    });
+
+    await expect(
+      openStore(dataDirectory, {
+        backups: OFF,
+        extraMigrations: [
+          { up: (exec) => exec('ALTER TABLE comprobantes ADD COLUMN prueba_1001 TEXT'), version: 1001 },
+        ],
+      }).save(record(2)),
+    ).resolves.toEqual({ kind: 'saved' });
+
+    expect(migratedByOther).toBe(true);
+    expect(backupNames(dataDirectory)).toEqual([]);
+    expect(inspect(file, (database) => database.prepare('SELECT esquema, copia FROM migraciones').all())).toEqual([
+      expect.objectContaining({ esquema: 1000 }),
+      { copia: null, esquema: 1001 },
+    ]);
+  });
+
   // Sin hard links (FAT, exFAT) y con otro archivo que aparece en el nombre de la copia: no se pisa (segunda pasada).
   it('la copia no pisa un archivo que aparece en su nombre, tampoco sin hard links', async () => {
     const dataDirectory = temporaryDataDirectory();
