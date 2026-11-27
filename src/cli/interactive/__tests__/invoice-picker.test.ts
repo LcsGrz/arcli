@@ -834,3 +834,57 @@ describe('una nota sobre una A, B o C que existe y no se puede leer (ARQ-22)', (
     getSalesPoints.mockReset();
   });
 });
+
+/**
+ * ARQ-24: si ARCA contesta sin el último número, la lista no puede decir "No hay" (con eso se verifica una emisión):
+ * sale el error, como cualquier otro del último número, y no se pregunta nada.
+ */
+describe('el selector, si ARCA contesta sin el último número (ARQ-24)', () => {
+  function withoutLastNumber(session: InteractiveSession): InteractiveSession {
+    const real = new ArcaVoucherHistoryGateway({
+      electronicBillingService: { getLastVoucher: async () => ({}) },
+      genericService: { call: vi.fn() },
+    } as unknown as ArcaClient);
+
+    return { ...session, historyGateway: real };
+  }
+
+  const exportWithoutLastNumber = () =>
+    new ArcaExportGateway(
+      {
+        wsfexService: {
+          getCmp: vi.fn(),
+          getLastCmp: async () => ({
+            FEXGetLast_CMPResult: { FEXErr: { ErrCode: 0, ErrMsg: 'OK' }, FEXResult_LastCMP: {} },
+          }),
+        },
+      } as unknown as ArcaClient,
+      async () => ({ Cuit: 1, Sign: 'firma', Token: 'token' }),
+    );
+
+  // Tests primero (ARQ-24): pasa a it() al implementarlo.
+  it.fails.each([
+    ['pickInvoice', pickInvoice],
+    ['pickNoteInvoice', pickNoteInvoice],
+  ] as const)('%s: ARCA_LAST_VOUCHER_ERROR sin decir que no hay', async (_name, pick) => {
+    script = createScript([]);
+
+    const error: unknown = await pick(withoutLastNumber(createSession([])), options).catch((reason: unknown) => reason);
+
+    expect(error).toMatchObject({ code: 'ARCA_LAST_VOUCHER_ERROR', details: { errores: [] } });
+    expect(stripAnsi(output)).not.toContain('No hay');
+  });
+
+  // Tests primero (ARQ-24): pasa a it() al implementarlo.
+  it.fails('pickExportVoucher: ARCA_EXPORT_ERROR sin decir que no hay', async () => {
+    script = createScript([]);
+
+    const error: unknown = await pickExportVoucher(createSession([]), exportWithoutLastNumber(), {
+      ...options,
+      voucherKind: EXPORT_VOUCHER_KIND,
+    }).catch((reason: unknown) => reason);
+
+    expect(error).toMatchObject({ code: 'ARCA_EXPORT_ERROR', details: { errores: [] } });
+    expect(stripAnsi(output)).not.toContain('No hay');
+  });
+});

@@ -8,6 +8,8 @@ import {
   type VoucherHistoryGateway,
   VoucherQueryError,
 } from '../../../modules/vouchers/voucher-history';
+import type { ArcaClient } from '../../../services/arca/arca-client.factory';
+import { ArcaVoucherHistoryGateway } from '../../../services/arca/arca-voucher-history.gateway';
 import { systemClock } from '../../../services/time/system-clock';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
@@ -574,4 +576,39 @@ describe('repetir un comprobante con datos que ya no valen', () => {
 
     expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({ totalAmount: 100 });
   });
+});
+
+/** ARQ-24: sin el último número no se sabe qué hay para repetir; no se ofrece "No hay" ni se llega a emitir. */
+describe('repetir, si ARCA contesta sin el último número (ARQ-24)', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.mocked(previewAndEmit).mockClear();
+    expect(script.remaining()).toBe(0);
+  });
+
+  // Tests primero (ARQ-24): pasa a it() al implementarlo.
+  it.fails.each(['Factura A', 'Factura B', 'Factura C', 'Recibo C'])(
+    '%s: ARCA_LAST_VOUCHER_ERROR y no hay vista previa',
+    async (kind) => {
+      const session: InteractiveSession = {
+        ...createSession(),
+        historyGateway: new ArcaVoucherHistoryGateway({
+          electronicBillingService: { getLastVoucher: async () => ({}) },
+          genericService: { call: vi.fn() },
+        } as unknown as ArcaClient),
+      };
+
+      script = createScript([[/comprobante querés repetir/, kind]]);
+
+      const error: unknown = await runRepeatFlow(session).catch((reason: unknown) => reason);
+
+      expect(error).toMatchObject({ code: 'ARCA_LAST_VOUCHER_ERROR', details: { errores: [] } });
+      expect(printed()).not.toContain('No hay');
+      expect(previewAndEmit).not.toHaveBeenCalled();
+    },
+  );
 });

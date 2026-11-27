@@ -1,6 +1,7 @@
 import type { Arca } from '@arcasdk/core';
 import { describe, expect, it, vi } from 'vitest';
 
+import { ARCA_QUERY_ERROR_SUGGESTION } from '../../../lib/errors/query-error';
 import { ArcaExportGateway } from '../arca-export.gateway';
 
 const EMPTY_RESULT = { FEXErr: { ErrCode: 0, ErrMsg: '' }, FEXEvents: { EventCode: 0, EventMsg: '' } };
@@ -35,6 +36,75 @@ describe('ArcaExportGateway.getLastVoucherNumber', () => {
     }));
 
     await expect(createGateway({ getLastCmp }).getLastVoucherNumber(19, 0)).rejects.toThrow(/Pto_venta invalido/);
+  });
+
+  it('un número como texto se lee como número', async () => {
+    const getLastCmp = vi.fn(async () => ({
+      FEXGetLast_CMPResult: { ...EMPTY_RESULT, FEXResult_LastCMP: { Cbte_nro: '7' } },
+    }));
+
+    await expect(createGateway({ getLastCmp }).getLastVoucherNumber(19, 3)).resolves.toBe(7);
+  });
+
+  /**
+   * ARQ-24: el WSDL hace obligatorio `Cbte_nro`. Sin un entero >= 0 no se sabe cuál es el último: al emitir, pedir el 1
+   * lo rechaza ARCA; al consultar, decir "No hay" empuja a reemitir.
+   */
+  describe('ARCA contesta sin el último número (ARQ-24)', () => {
+    const UNREADABLE: ReadonlyArray<[string, Record<string, unknown> | undefined]> = [
+      ['sin FEXResult_LastCMP', undefined],
+      ['sin Cbte_nro', { Cbte_fecha: '20261109' }],
+      ['Cbte_nro vacío', { Cbte_nro: '' }],
+      ['Cbte_nro negativo', { Cbte_nro: -2 }],
+      ['Cbte_nro decimal', { Cbte_nro: 7.5 }],
+      ['Cbte_nro que no es un número', { Cbte_nro: 'siete' }],
+    ];
+
+    const answering = (lastCmp: Record<string, unknown> | undefined) =>
+      vi.fn(async () => ({
+        FEXGetLast_CMPResult: { ...EMPTY_RESULT, ...(lastCmp ? { FEXResult_LastCMP: lastCmp } : {}) },
+      }));
+
+    // Tests primero (ARQ-24): pasa a it() al implementarlo.
+    it.fails.each(UNREADABLE)('%s, al emitir: ARCA_EXPORT_ERROR sin errores de ARCA', async (_name, lastCmp) => {
+      const error = await createGateway({ getLastCmp: answering(lastCmp) })
+        .getLastVoucherNumber(19, 4, 'emitir')
+        .then(
+          (number) => ({ resolved: number }),
+          (caught: unknown) => caught,
+        );
+
+      expect(error).toMatchObject({
+        code: 'ARCA_EXPORT_ERROR',
+        details: { errores: [] },
+        message: expect.stringMatching(
+          /^ARCA contestó sin el último número de .+ del punto de venta 4 \(sin errores\)\.$/,
+        ),
+        suggestion: 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.',
+      });
+    });
+
+    // Tests primero (ARQ-24): pasa a it() al implementarlo.
+    it.fails.each(UNREADABLE)(
+      '%s, al consultar: ARCA_EXPORT_ERROR con la sugerencia de consultar',
+      async (_name, lastCmp) => {
+        const error = await createGateway({ getLastCmp: answering(lastCmp) })
+          .getLastVoucherNumber(19, 4)
+          .then(
+            (number) => ({ resolved: number }),
+            (caught: unknown) => caught,
+          );
+
+        expect(error).toMatchObject({
+          code: 'ARCA_EXPORT_ERROR',
+          details: { errores: [] },
+          message: expect.stringMatching(
+            /^ARCA contestó sin el último número de .+ del punto de venta 4 \(sin errores\)\.$/,
+          ),
+          suggestion: ARCA_QUERY_ERROR_SUGGESTION,
+        });
+      },
+    );
   });
 });
 
