@@ -120,7 +120,8 @@ const health = (file: string) =>
   }));
 
 describe('datos locales con procesos reales (ARQ-12 PR 4a)', () => {
-  // Con DELETE y carga continua, Windows da "database is locked" aun con 5 s (CI del 25/11): el reintento lo cubre.
+  // Con DELETE y carga continua, Windows da "database is locked" aun con 5 s (CI del 25/11): el reintento, con su pausa
+  // al azar (26/11), lo cubre.
   it.each([
     [2, 300],
     [8, 100],
