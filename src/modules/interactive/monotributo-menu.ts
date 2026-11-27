@@ -56,11 +56,14 @@ export function monotributoCategoryChoices(
 
 /**
  * La ayuda de teclas de "Ver todas las columnas": `[tecla, accion]`. Con `columns` (un bloque no entra y va por
- * ventana), ←/→ tambien corren las columnas.
+ * ventana), ←/→ corren las columnas y, pasada la ultima (o antes de la primera), cambian de bloque.
  */
 export function monotributoBlockKeys({ columns = false } = {}): ReadonlyArray<readonly [string, string]> {
   return [
-    [`${uiSymbol('moreLeft')}${uiSymbol('moreRight')}`, columns ? 'ver las otras columnas' : 'cambiar de bloque'],
+    [
+      `${uiSymbol('moreLeft')}${uiSymbol('moreRight')}`,
+      columns ? 'mover columnas; después de la última, cambiar de bloque' : 'cambiar de bloque',
+    ],
     [uiSymbol('keyEnter'), 'volver al menú'],
   ];
 }
