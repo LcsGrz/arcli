@@ -49,6 +49,9 @@ const testable = existing.filter((file) => TESTABLE.test(file));
 const failures = [
   lintable.length > 0 && check('ESLint', 'eslint', ['--fix', ...lintable]),
   check('typecheck', 'tsc', ['--project', 'tsconfig.typecheck.json', '--pretty', 'false']),
+  // Lo mismo que el segundo paso de `yarn typecheck` (ARQ-15, transitorio); una rama vieja puede no tenerlo.
+  existsSync(join(root, 'tsconfig.indices.json')) &&
+    check('typecheck (índices)', 'tsc', ['--project', 'tsconfig.indices.json', '--pretty', 'false']),
   testable.length > 0 && check('tests relacionados', 'vitest', ['related', '--run', '--passWithNoTests', ...testable]),
 ].filter(Boolean);
 

@@ -59,7 +59,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "typecheck": "tsc --project tsconfig.typecheck.json",
+    "typecheck": "tsc --project tsconfig.typecheck.json && tsc --project tsconfig.indices.json",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:arca": "vitest run --config vitest.arca.config.ts",
     "docs:comprobantes": "tsx scripts/docs/generar-comprobantes.ts",
