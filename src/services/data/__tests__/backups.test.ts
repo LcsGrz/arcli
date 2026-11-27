@@ -504,6 +504,24 @@ describe('restaurar una base desde una copia, para DATOS-1 (ARQ-12 PR 4b)', () =
     expect(JSON.parse(datos)).toEqual({ copia: basename(copy), reemplazada: basename(replaced) });
   });
 
+  // Restaurar donde falta la base pero quedó su -journal: se aparta antes, si no se reproduciría sobre la restaurada.
+  it('sin base pero con un -journal suelto, el journal se aparta y la restaurada sale sana', async () => {
+    const { copy } = await withDailyCopy();
+    const fresh = temporaryDataDirectory();
+    const file = vouchersFile(fresh);
+
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(`${file}-journal`, 'journal suelto');
+
+    await restoreVoucherBackup(backupOptions(fresh), copy);
+
+    const journals = readdirSync(dirname(file)).filter((name) => name.endsWith('-journal'));
+
+    expect(journals).toEqual([expect.stringMatching(/^comprobantes\.danada-.*\.db-journal$/)]);
+    expect(readFileSync(join(dirname(file), journals[0] ?? ''), 'utf8')).toBe('journal suelto');
+    expect(health(file)).toEqual({ applicationId: APPLICATION_ID, check: 'ok', version: SCHEMA_V1 });
+  });
+
   it('una copia dañada en una carpeta de datos nueva no crea nada', async () => {
     const { copy } = await withDailyCopy();
     const fresh = temporaryDataDirectory();
