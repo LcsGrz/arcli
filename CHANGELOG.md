@@ -56,6 +56,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - `Ctrl+C` o `SIGTERM` con un comprobante ya enviado a ARCA esperan la respuesta, antes cortaban sin salida. Un lote cortado así sale con `BATCH_EMISSION_ERROR` y exit code `1`, con `codigoCausa` `CANCELLED`, código nuevo. Dos señales cortan, después de escribir lo que se sabe.
 > - `Ctrl+C` o `SIGTERM` mientras se genera el PDF de algo emitido: el resultado sale completo, con `PDF_GENERATION_ERROR` en `pdf.error`, y el exit code de siempre; antes, `130` sin salida con `Ctrl+C`. Dos señales cortan, después de escribirlo.
 > - Si ARCA no contesta un pedido a tiempo (30 segundos una consulta, 60 el login en WSAA), sale `UNEXPECTED_ERROR` y, en `estado`, `ARCA_UNAVAILABLE`; una emisión sin respuesta en 120, o un login de esa misma llamada, `EMISSION_UNCERTAIN`. Antes esperaba sin límite.
+> - Un argumento que empieza con `-V` y sigue con otras letras (`-Vx`) sale con `INPUT_VALIDATION_ERROR` y exit code `1`; antes mostraba la versión con `0`. `-V` suelto, no como valor de un flag, sigue mostrándola.
+> - Un valor que empieza con `-V` después de un flag que pide valor (`--descripcion -Varios`, también `-V`) ahora llega al flag y el comando corre: con `--emitir` o `emitir true`, emite. Antes salía la versión con `0` sin hacer nada.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
 
@@ -220,6 +222,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Factura E:** sin autorización de WSFEX, o si ARCA no tiene el asociado, qué hacer va en `sugerencia`, como A, B y C (#290).
 - **Factura E:** un error de ARCA al pedir el ID de solicitud dice que no se emitió nada (#290).
 - **Errores:** `--testing` con `--produccion` da `INPUT_VALIDATION_ERROR` en todos los comandos (#290).
+- **Errores:** un valor que empieza con `-V`, como `--descripcion -Varios`, ya no muestra la versión: llega al flag o es una opción desconocida (#313).
 
 <details><summary>Detalle</summary>
 
@@ -296,6 +299,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **`Ctrl+C` mientras se genera el PDF.** Con `--json`, el comprobante ya emitido salía recién con su PDF: cortar mientras se generaba terminaba sin ninguna salida y el CAE no se veía. Ahora la primera señal deja de esperar el PDF, o la instalación del plugin, y el resultado sale completo, con `PDF_GENERATION_ERROR` ("Se cortó antes de generar el PDF.") en los que faltaban y el exit code de siempre. La segunda termina por la señal, después de escribirlo (si nadie lee la salida, espera hasta dos segundos). El navegador se cierra y no queda un PDF a medio escribir. Por `npx`, la señal repetida no cuenta. Si se corta la instalación del plugin, no pasa por instalado y la próxima empieza de cero.
 
 **Si ARCA no contesta.** Un pedido sin respuesta, o con una que no terminaba de llegar, dejaba el comando esperando sin límite. Ahora cada pedido tiene un plazo total: 30 segundos las consultas, 60 el login en WSAA y 120 la emisión. Una consulta o un login previo vencidos salen con `UNEXPECTED_ERROR` ("ARCA no contestó en 30 segundos.") y `estado` con `ARCA_UNAVAILABLE`. Una emisión vencida sale con `EMISSION_UNCERTAIN` y su número, porque ARCA pudo autorizarla igual: verificala antes de repetirla. ARCLI no reintenta nada. Las consultas que solo avisan si falla la red (el régimen FCE, el permiso de embarque, el rango de la cotización y una tabla de la `E` que no hace falta para emitir) avisan igual; una tabla obligatoria, o dos consultas de la `E` vencidas, cortan antes de emitir. Si vence el login que va en la misma llamada que emite (el ticket venció justo antes), sale `EMISSION_UNCERTAIN`. Los plazos son fijos, y lo que contesta a tiempo no cambia.
+
+**Valores que empiezan con `-V`.** ARCLI tomaba cualquier argumento que empezara con `-V` como `-V` y mostraba la versión con exit code `0`: `--descripcion -Varios` o `monotributo --categoria -Varios` no llegaban al flag, y `config establecer cuenta <CBU> -Ventas.sa` salía sin guardar nada. Ahora el valor llega al flag que lo pide, y un argumento suelto como `-Vx` o `-Ventas.sa` es una opción desconocida (`INPUT_VALIDATION_ERROR`, exit code `1`). Si el comando lleva argumentos, la `sugerencia` muestra el comando armado, con los flags que usaste y `--` antes de los valores, como `arcli config establecer --json -- cuenta <CBU> -Ventas.sa` (en Windows, `'--'`), y la ayuda del comando por si era un flag mal escrito. `-V` suelto y `--version` siguen mostrando la versión en cualquier lugar del comando, salvo que otro error salga antes: `arcli fc -x -V` da opción desconocida `-x` y `arcli noexiste -V`, comando desconocido. Como valor de un flag (`--descripcion -V`), `-V` ahora llega al flag.
 
 </details>
 
