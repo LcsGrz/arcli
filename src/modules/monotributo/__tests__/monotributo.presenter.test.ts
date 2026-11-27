@@ -86,8 +86,11 @@ describe('formatMonotributoSummaryAsText', () => {
     const text = plain(formatMonotributoSummaryAsText(report(), { hints: true, width: 86 }));
 
     expect(text).toContain('CATEGORÍAS DEL MONOTRIBUTO · DESDE EL 01/08/2026');
-    expect(text).toContain('CAT.  INGRESOS ANUALES HASTA  CUOTA SERVICIOS  CUOTA VENTAS');
-    expect(text).toMatch(/❯ E +\$ 36\.028\.231,33 +\$ 119\.811,45 +\$ 108\.267,51 +tu categoría/);
+    // TUI-27: el espacio entre columnas cambia con el ancho y "tu categoría" pasa a la leyenda (ver
+    // monotributo.tables.test.ts); aca, solo que las columnas y la marca estan.
+    expect(text).toMatch(/CAT\. +INGRESOS ANUALES HASTA +CUOTA SERVICIOS +CUOTA VENTAS/);
+    expect(text).toMatch(/❯ E +\$ 36\.028\.231,33 +\$ 119\.811,45 +\$ 108\.267,51/);
+    expect(text).toContain('tu categoría');
     expect(text).toMatch(/ {3}A +\$ 12\.009\.410,45 +\$ 49\.527,18 +\$ 49\.527,18\s/);
     expect(text).toContain('La cuota es mensual: impuesto integrado, aporte jubilatorio (SIPA) y obra social.');
     expect(text).toContain('Tabla de ARCA, consultada el 18/11/2026.');
@@ -132,7 +135,8 @@ describe('formatMonotributoSummaryAsText', () => {
     const text = plain(formatMonotributoSummaryAsText(report(), { width: 66 }));
 
     expect(text).toMatch(/❯ E +\$ 36\.028\.231,33/);
-    expect(text).toContain('❯ tu categoría.');
+    // TUI-27: la leyenda dice "❯ tu categoría" siempre, con o sin punto final.
+    expect(text).toMatch(/❯ tu categoría/);
   });
 
   it('se lee en ASCII', () => {

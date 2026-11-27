@@ -45,6 +45,18 @@ describe('storybook.showcase', () => {
     expect(output).toContain('00003-00001234');
   });
 
+  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
+  it.fails('shows the monotributo table with the own category explained once per table, below it', () => {
+    const output = stripAnsi(renderStorybookShowcase('consultas'));
+    const lines = output.split('\n');
+
+    // Dos resumenes: el de 92 columnas y el de 40, con la K.
+    expect(lines.filter((line) => line.includes('tu categoría')).map((line) => line.trim())).toEqual([
+      '❯ tu categoría',
+      '❯ tu categoría',
+    ]);
+  });
+
   it('renders the certificates scene', () => {
     expect(renderStorybookShowcase('certificados')).toContain('CERTIFICADOS');
   });

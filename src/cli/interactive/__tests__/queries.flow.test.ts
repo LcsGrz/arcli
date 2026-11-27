@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BACK } from '../../../modules/interactive/wizard';
 import type { Taxpayer } from '../../../modules/padron/padron';
 import type { ParameterEntry } from '../../../modules/parameters/parameters';
+import { legendLines, listingPanels, offCenter, plainText } from '../../../testing/terminal-layout';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { runHistoryFlow } from '../history.flow';
@@ -339,6 +340,30 @@ describe('Consultas del modo interactivo', () => {
       expect(text).toMatch(/CÓDIGO\s+CONCEPTO/);
       expect(text).toContain('`--concepto` va con el nombre');
       expect(filterLists).toHaveLength(0);
+    });
+
+    // Tests primero (TUI-27/28): pasa a it() al implementarlo.
+    it.fails('la ayuda de la tabla corta va afuera del panel, centrada, sin el divisor ═ de adentro', async () => {
+      listTable.mockResolvedValueOnce([
+        { description: 'Productos', id: '1' },
+        { description: 'Servicios', id: '2' },
+      ]);
+      script = createScript([
+        [/consultar/, 'Tablas de ARCA'],
+        [/tabla/, 'Conceptos'],
+        [/tabla/, BACK],
+        [/consultar/, BACK],
+      ]);
+
+      await runQueriesMenu(createSession());
+
+      const panel = listingPanels(output).find((item) => item.inside.some((line) => line.includes('CONCEPTO')));
+      const legend = legendLines(panel ?? { after: [], inside: [], width: 0 }).map(plainText);
+      const help = '`--concepto` va con el nombre: `productos`, `servicios` o `productos-servicios`.';
+
+      expect((panel?.inside ?? []).map(plainText).join('\n')).not.toMatch(/═|--concepto/);
+      expect(legend.map((line) => line.trim())).toEqual([help]);
+      expect(offCenter(legend[0] ?? '', panel?.width ?? 0)).toBeLessThanOrEqual(0.5);
     });
 
     it('una tabla que no entra en una página (`filasPorLista`) va en la lista filtrable', async () => {
