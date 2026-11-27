@@ -57,7 +57,7 @@ export type SaveOutcome = (
  * - `recovered`: la base estaba dañada; se apartó y se repuso antes de guardar.
  * - `backupFailed`: lo guardado quedó, pero la copia diaria no se pudo hacer (`reason`, la de `LocalDataError`).
  */
-export interface SaveSideEffects {
+interface SaveSideEffects {
   readonly recovered?: LocalDataRecovery;
   readonly backupFailed?: { readonly reason: LocalDataErrorReason };
 }

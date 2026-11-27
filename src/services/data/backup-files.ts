@@ -32,7 +32,7 @@ export interface BackupTarget {
 export type BackupKind = 'daily' | 'migration';
 
 /** Retención decidida el 26/11: 7 diarias y 2 de migración; la de unas no borra las otras. */
-export const KEPT_BACKUPS: Readonly<Record<BackupKind, number>> = { daily: 7, migration: 2 };
+const KEPT_BACKUPS: Readonly<Record<BackupKind, number>> = { daily: 7, migration: 2 };
 
 export interface BackupFile {
   readonly kind: BackupKind;
