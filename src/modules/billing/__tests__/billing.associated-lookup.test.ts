@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ArcaClient } from '../../../services/arca/arca-client.factory';
 import { ArcaVoucherHistoryGateway } from '../../../services/arca/arca-voucher-history.gateway';
+import { missingLastNumberError } from '../../../services/arca/last-voucher';
 import { systemClock } from '../../../services/time/system-clock';
 import type { FceRegistryState } from '../../fce/fce-registry';
 import type { IssuedVoucher } from '../../vouchers/voucher-history';
@@ -9,6 +10,7 @@ import {
   assertCreditNoteWithinAssociated,
   checkAssociatedInArca,
   checkFceCancellationInRegistry,
+  classifyAssociatedPointOfSale,
 } from '../billing.associated-lookup';
 import type { BillingCommandInput } from '../billing.schemas';
 import { BillingService } from '../billing.service';
@@ -724,5 +726,41 @@ describe('un asociado que existe y ARCLI no pudo leer (ARQ-22)', () => {
       message: `${FCEA}: no se puede tomar su fecha.`,
       suggestion: 'Pasá la fecha del asociado con `--afecha <fecha>`.',
     });
+  });
+});
+
+/**
+ * ARQ-24: sin el ultimo numero no se sabe si el punto de venta del asociado es de web service. Antes se tomaba como 0 y,
+ * con la lista de puntos de venta vacia (testing), el aviso decia "no es de web service".
+ */
+describe('classifyAssociatedPointOfSale, si ARCA contesta sin el último número (ARQ-24)', () => {
+  const salesPoints = { getSalesPoints: vi.fn(async () => []) };
+
+  it('el error del último número: no se sabe (unknown)', async () => {
+    const history = {
+      getLastNumber: vi.fn(async () => {
+        throw missingLastNumberError({
+          arcaType: 11,
+          code: 'ARCA_LAST_VOUCHER_ERROR',
+          pointOfSale: 50,
+          purpose: 'consultar',
+        });
+      }),
+    };
+
+    await expect(
+      classifyAssociatedPointOfSale({ history, pointOfSale: 50, salesPoints, voucherType: 11 }),
+    ).resolves.toBe('unknown');
+  });
+
+  it('con el gateway real y ARCA contestando sin cbteNro: unknown, no other', async () => {
+    const history = new ArcaVoucherHistoryGateway({
+      electronicBillingService: { getLastVoucher: async () => ({}) },
+      genericService: { call: vi.fn() },
+    } as unknown as ArcaClient);
+
+    await expect(
+      classifyAssociatedPointOfSale({ history, pointOfSale: 50, salesPoints, voucherType: 11 }),
+    ).resolves.toBe('unknown');
   });
 });

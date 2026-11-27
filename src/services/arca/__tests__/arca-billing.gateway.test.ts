@@ -17,12 +17,11 @@ describe('ArcaBillingGateway', () => {
     expect(getLastVoucher).toHaveBeenCalledWith(3, 11);
   });
 
+  // ARQ-24: sin `cbteNro` ya no es "no hay comprobantes" (ver el describe de abajo); solo el 0 lo es.
   it('starts at 1 when the sales point has no vouchers yet', async () => {
     const empty = createGateway({ getLastVoucher: vi.fn(async () => ({ cbteNro: 0 })) });
-    const missing = createGateway({ getLastVoucher: vi.fn(async () => ({})) });
 
     await expect(empty.getNextVoucherNumber(3, 11)).resolves.toBe(1);
-    await expect(missing.getNextVoucherNumber(3, 11)).resolves.toBe(1);
   });
 
   it('translates a certificate not authorized for wsfe, the usual first error, instead of an unexpected one', async () => {
@@ -177,5 +176,49 @@ describe('ArcaBillingGateway', () => {
       });
       expect(empty).toHaveBeenCalledTimes(7);
     });
+  });
+});
+
+/**
+ * ARQ-24: el WSDL hace obligatorio `CbteNro`. Si ARCA contesta sin un entero >= 0 no se sabe cuál es el último: pedir
+ * el 1 lo rechaza ARCA, y un número inventado puede chocar con uno emitido. Se corta antes de emitir.
+ */
+describe('ArcaBillingGateway.getNextVoucherNumber: ARCA contesta sin el último número (ARQ-24)', () => {
+  const UNREADABLE: ReadonlyArray<[string, Record<string, unknown>]> = [
+    ['sin cbteNro', {}],
+    ['null', { cbteNro: null }],
+    ['negativo', { cbteNro: -1 }],
+    ['decimal', { cbteNro: 41.5 }],
+    ['NaN', { cbteNro: Number.NaN }],
+    ['texto vacío', { cbteNro: '' }],
+    ['texto que no es un número', { cbteNro: 'cuarenta' }],
+  ];
+
+  it.each(UNREADABLE)('%s: ARCA_LAST_VOUCHER_ERROR sin errores de ARCA, antes de emitir', async (_name, answer) => {
+    const gateway = createGateway({ getLastVoucher: vi.fn(async () => answer) });
+
+    const error = await gateway.getNextVoucherNumber(3, 11).then(
+      (number) => ({ resolved: number }),
+      (caught: unknown) => caught,
+    );
+
+    expect(error).toMatchObject({
+      code: 'ARCA_LAST_VOUCHER_ERROR',
+      details: { errores: [] },
+      message: expect.stringMatching(
+        /^ARCA contestó sin el último número de .+ del punto de venta 3 \(sin errores\)\.$/,
+      ),
+      suggestion:
+        'No se emitió nada. ARCA no informó el último número: puede ser un problema pasajero de ARCA; reintentá en unos minutos.',
+    });
+  });
+
+  it.each<[string, unknown, number]>([
+    ['41', '41', 42],
+    ['0', '0', 1],
+  ])('un número como texto ("%s") se lee como número', async (_name, cbteNro, next) => {
+    const gateway = createGateway({ getLastVoucher: vi.fn(async () => ({ cbteNro })) });
+
+    await expect(gateway.getNextVoucherNumber(3, 11)).resolves.toBe(next);
   });
 });

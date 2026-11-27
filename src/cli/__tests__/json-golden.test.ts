@@ -4257,3 +4257,263 @@ describe('los mismos datos en los errores de todas las familias (REV-58)', () =>
     });
   });
 });
+
+/**
+ * ARQ-24: ARCA contesta sin el último número (el WSDL lo hace obligatorio) o con algo que no es un entero >= 0. Hoy se
+ * toma como 0: al emitir se pide el 1, y al consultar dice que no hay comprobantes, lo que empuja a reemitir. Se corta
+ * con exit 1, sin llamar a emitir, en wsfe (`ARCA_LAST_VOUCHER_ERROR`) y en wsfex (`ARCA_EXPORT_ERROR`).
+ */
+describe('ARCA contesta sin el último número (ARQ-24)', () => {
+  const RC = ['rc', '-m', '1000', '--cs', '--cfinal'];
+  const NCEA = [
+    ...['ncea', '-m', '1000000', '--cs', '--cuit', String(CLIENT_CUIT), '--ir-ri'],
+    ...['--ac', 'fcea', '--apv', '3', '--ar', '12'],
+  ];
+  const FE_APPROVABLE = [...FE, '--cuit-pais', '55000002126', '--pv', '4'];
+  const EMIT_SUGGESTION =
+    'No se emitió nada. ARCA no informó el último número: puede ser un problema pasajero de ARCA; reintentá en unos minutos.';
+  const message = (pointOfSale: number) =>
+    expect.stringMatching(
+      new RegExp(`^ARCA contestó sin el último número de .+ del punto de venta ${pointOfSale} \\(sin errores\\)\\.$`),
+    ) as unknown;
+  const querySuggestion = expect.stringContaining('no la reintentes hasta saber si el comprobante existe') as unknown;
+
+  async function failure(args: readonly string[]): Promise<Record<string, unknown>> {
+    prepareConfig({});
+
+    const result = await runCli([...args, '--json']);
+
+    expect(result).toMatchObject({ code: 1, stdout: '' });
+
+    return JSON.parse(result.stderr) as Record<string, unknown>;
+  }
+
+  const withoutWsfeNumber = () => sdk.wsfe.getLastVoucher.mockResolvedValue({});
+  const withoutWsfexNumber = () =>
+    sdk.wsfex.getLastCmp.mockResolvedValue({ FEXGetLast_CMPResult: { ...NO_FEX_ERROR, FEXResult_LastCMP: {} } });
+
+  const WSFE_EMISSIONS: ReadonlyArray<[string, string[]]> = [
+    ['fa', FA],
+    ['fb', FB],
+    ['fc', FC],
+    ['fcea', FCEA],
+    ['rc', RC],
+    ['ncc', NCC],
+    ['ndc', ['ndc', ...NCC.slice(1)]],
+    ['ncea', NCEA],
+  ];
+
+  it.each(WSFE_EMISSIONS)('%s --emitir: ARCA_LAST_VOUCHER_ERROR, exit 1 y no se emite', async (shortcut, args) => {
+    withoutWsfeNumber();
+    sdk.generic.call.mockImplementation(
+      consulting(issuedVoucher(shortcut === 'ncea' ? { DocNro: CLIENT_CUIT, DocTipo: 80, ImpTotal: 5000000 } : {})),
+    );
+
+    expect(await failure([...args, '--emitir'])).toEqual({
+      codigo: 'ARCA_LAST_VOUCHER_ERROR',
+      detalles: { errores: [] },
+      error: message(3),
+      sugerencia: EMIT_SUGGESTION,
+    });
+    expect(sdk.wsfe.createVoucher).not.toHaveBeenCalled();
+  });
+
+  it.each<[string, Record<string, unknown>]>([
+    ['negativo', { cbteNro: -1 }],
+    ['decimal', { cbteNro: 41.5 }],
+    ['texto vacío', { cbteNro: '' }],
+  ])('fc --emitir con un último número %s: el mismo error', async (_name, answer) => {
+    sdk.wsfe.getLastVoucher.mockResolvedValue(answer);
+
+    expect(await failure([...FC, '--emitir'])).toMatchObject({ codigo: 'ARCA_LAST_VOUCHER_ERROR', error: message(3) });
+    expect(sdk.wsfe.createVoucher).not.toHaveBeenCalled();
+  });
+
+  const WSFEX_EMISSIONS: ReadonlyArray<[string, string[]]> = [
+    ['fe', FE_APPROVABLE],
+    ['nce', NCE],
+    ['nde', ['nde', ...NCE.slice(1)]],
+  ];
+
+  it.each(WSFEX_EMISSIONS)('%s --emitir: ARCA_EXPORT_ERROR, exit 1 y no se emite', async (_shortcut, args) => {
+    withoutWsfexNumber();
+
+    expect(await failure([...args, '--emitir'])).toEqual({
+      codigo: 'ARCA_EXPORT_ERROR',
+      detalles: { errores: [] },
+      error: message(4),
+      sugerencia: EMIT_SUGGESTION,
+    });
+    expect(sdk.wsfex.authorize).not.toHaveBeenCalled();
+  });
+
+  it.each<[string, Record<string, unknown>]>([
+    ['vacío', { Cbte_nro: '' }],
+    ['negativo', { Cbte_nro: -2 }],
+    ['decimal', { Cbte_nro: 7.5 }],
+  ])('fe --emitir con Cbte_nro %s: el mismo error', async (_name, lastCmp) => {
+    sdk.wsfex.getLastCmp.mockResolvedValue({ FEXGetLast_CMPResult: { ...NO_FEX_ERROR, FEXResult_LastCMP: lastCmp } });
+
+    expect(await failure([...FE_APPROVABLE, '--emitir'])).toMatchObject({
+      codigo: 'ARCA_EXPORT_ERROR',
+      error: message(4),
+    });
+    expect(sdk.wsfex.authorize).not.toHaveBeenCalled();
+  });
+
+  // La vista previa de la E muestra el número que va a llevar: sin el último, no hay cuál mostrar.
+  it('fe --previsualizar: el mismo error, sin un número inventado', async () => {
+    withoutWsfexNumber();
+
+    expect(await failure([...FE_APPROVABLE, '--previsualizar'])).toMatchObject({
+      codigo: 'ARCA_EXPORT_ERROR',
+      detalles: { errores: [] },
+      error: message(4),
+    });
+  });
+
+  it.each(['fa', 'fb', 'fc', 'fcea', 'rc', 'ncc'])(
+    'ultimos %s: ARCA_LAST_VOUCHER_ERROR con la sugerencia de consultar, no "no hay"',
+    async (shortcut) => {
+      withoutWsfeNumber();
+
+      expect(await failure(['ultimos', shortcut])).toEqual({
+        codigo: 'ARCA_LAST_VOUCHER_ERROR',
+        detalles: { errores: [] },
+        error: message(3),
+        sugerencia: querySuggestion,
+      });
+    },
+  );
+
+  it.each(['fe', 'nce', 'nde'])(
+    'ultimos %s: ARCA_EXPORT_ERROR con la sugerencia de consultar, no "no hay"',
+    async (shortcut) => {
+      withoutWsfexNumber();
+
+      expect(await failure(['ultimos', shortcut, '--pv', '4'])).toEqual({
+        codigo: 'ARCA_EXPORT_ERROR',
+        detalles: { errores: [] },
+        error: message(4),
+        sugerencia: querySuggestion,
+      });
+      expect(sdk.wsfex.getCmp).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each<[string, string[], () => void]>([
+    ['fc', ['ultimos', 'fc'], withoutWsfeNumber],
+    ['fe', ['ultimos', 'fe', '--pv', '4'], withoutWsfexNumber],
+  ])('ultimos %s en la terminal: exit 1 y el error, sin decir que no hay', async (_name, args, answer) => {
+    answer();
+    prepareConfig({});
+
+    const result = await runCli(args);
+
+    expect(result.code).toBe(1);
+    expect(result.stderr.replace(/[│┃\s]+/g, ' ')).toContain('ARCA contestó sin el último número');
+    expect(result.stdout + result.stderr).not.toMatch(/No hay|No se emitió/);
+  });
+
+  // Bordes que ya andan: el 0 es "no hay" y no corta (los dorados `ultimos-*-vacio` fijan la salida entera).
+  it.each<[string, string[], () => void]>([
+    ['fc', ['ultimos', 'fc'], () => sdk.wsfe.getLastVoucher.mockResolvedValue({ cbteNro: 0 })],
+    [
+      'fe',
+      ['ultimos', 'fe', '--pv', '4'],
+      () =>
+        sdk.wsfex.getLastCmp.mockResolvedValue({
+          FEXGetLast_CMPResult: { ...NO_FEX_ERROR, FEXResult_LastCMP: { Cbte_nro: 0 } },
+        }),
+    ],
+  ])('ultimos %s con 0: lista vacía y exit 0', async (_name, args, answer) => {
+    answer();
+    prepareConfig({});
+
+    const result = await runCli([...args, '--json']);
+
+    expect(result).toMatchObject({ code: 0, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({ comprobantes: [] });
+  });
+
+  it('fe --emitir con Cbte_nro como texto: emite el siguiente', async () => {
+    sdk.wsfex.getLastCmp.mockResolvedValue({
+      FEXGetLast_CMPResult: { ...NO_FEX_ERROR, FEXResult_LastCMP: { Cbte_nro: '7' } },
+    });
+    prepareConfig({});
+
+    const result = await runCli([...FE_APPROVABLE, '--emitir', '--json']);
+
+    expect(result.code).toBe(0);
+    expect(sdk.wsfex.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ Cmp: expect.objectContaining({ Cbte_nro: 8 }) }),
+    );
+  });
+
+  it('fc --emitir con CbteNro como texto: emite el siguiente, no un número pegado', async () => {
+    sdk.wsfe.getLastVoucher.mockResolvedValue({ cbteNro: '41' });
+    prepareConfig({});
+
+    const result = await runCli([...FC, '--emitir', '--json']);
+
+    expect(result.code).toBe(0);
+    expect(sdk.wsfe.createVoucher).toHaveBeenCalledWith(expect.objectContaining({ CbteDesde: 42, CbteHasta: 42 }));
+  });
+
+  // `consultar` va directo al comprobante pedido: no lee el último número, así que no cambia.
+  it('consultar fc no depende del último número', async () => {
+    withoutWsfeNumber();
+    prepareConfig({});
+
+    const result = await runCli(['consultar', 'fc', '12', '--json']);
+
+    expect(result).toMatchObject({ code: 0, stderr: '' });
+    expect(sdk.wsfe.getLastVoucher).not.toHaveBeenCalled();
+  });
+
+  it('en un lote, el segundo sin último número corta ahí y el primero queda con su CAE', async () => {
+    sdk.wsfe.getLastVoucher.mockResolvedValueOnce({ cbteNro: 41 }).mockResolvedValueOnce({});
+    prepareConfig({});
+
+    const result = await runCli([
+      ...['fc', '--cargar', writeInput('lote.json', [batchItem(1000), batchItem(2000)]), '--emitir', '--json'],
+    ]);
+
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.stdout)).toEqual([expect.objectContaining({ cae: expect.any(String), numero: 42 })]);
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      codigo: 'BATCH_EMISSION_ERROR',
+      detalles: { codigoCausa: 'ARCA_LAST_VOUCHER_ERROR', fallo: 2, procesados: 1, sinProcesar: [2], total: 2 },
+    });
+    expect(sdk.wsfe.createVoucher).toHaveBeenCalledTimes(1);
+  });
+
+  // El WSDL también hace obligatorio el `Id` de `FEXGetLast_ID`: sin él no se inventa el 1.
+  it.each<[string, Record<string, unknown>]>([
+    ['sin Id', {}],
+    ['con un Id negativo', { Id: -1 }],
+  ])('fe --emitir con FEXGetLast_ID %s: ARCA_EXPORT_ERROR, exit 1 y no se emite', async (_name, resultGet) => {
+    sdk.wsfex.getLastId.mockResolvedValue({ FEXGetLast_IDResult: { ...NO_FEX_ERROR, FEXResultGet: resultGet } });
+
+    expect(await failure([...FE_APPROVABLE, '--emitir'])).toEqual({
+      codigo: 'ARCA_EXPORT_ERROR',
+      detalles: { errores: [] },
+      error: 'ARCA contestó sin el último ID de solicitud de WSFEX (sin errores).',
+      sugerencia:
+        'No se emitió nada. ARCA no informó el último ID de solicitud: puede ser un problema pasajero de ARCA; reintentá en unos minutos.',
+    });
+    expect(sdk.wsfex.authorize).not.toHaveBeenCalled();
+  });
+
+  it('la salida entera al emitir (wsfe)', () => {
+    withoutWsfeNumber();
+
+    return golden('error-ultimo-numero-sin-numero', [...FC, '--emitir', '--json']);
+  });
+
+  it('la salida entera al consultar (wsfex)', () => {
+    withoutWsfexNumber();
+
+    return golden('error-ultimos-fe-sin-numero', ['ultimos', 'fe', '--pv', '4', '--json']);
+  });
+});

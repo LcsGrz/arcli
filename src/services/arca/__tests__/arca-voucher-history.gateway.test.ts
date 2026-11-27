@@ -1,6 +1,7 @@
 import type { Arca } from '@arcasdk/core';
 import { describe, expect, it, vi } from 'vitest';
 
+import { missingLastNumberSuggestion } from '../../../lib/errors/query-error';
 import { DEPRECATED_DETAILS_ERROR_KEYS } from '../../../lib/json/deprecations';
 import { ArcaVoucherHistoryGateway } from '../arca-voucher-history.gateway';
 
@@ -336,5 +337,43 @@ describe('ArcaVoucherHistoryGateway', () => {
     await expect(failing(new Error('ns1:cms.cert.notAuthorized')).getVoucher(1, 3, 11)).rejects.toMatchObject({
       code: 'WSFE_SERVICE_NOT_AUTHORIZED',
     });
+  });
+});
+
+/** ARQ-24: al consultar, sin el último número no se puede decir "No hay": con eso se verifica una emisión. */
+describe('ArcaVoucherHistoryGateway.getLastNumber: ARCA contesta sin el último número (ARQ-24)', () => {
+  it.each<[string, Record<string, unknown>]>([
+    ['sin cbteNro', {}],
+    ['negativo', { cbteNro: -3 }],
+    ['decimal', { cbteNro: 2.5 }],
+    ['texto vacío', { cbteNro: '' }],
+  ])('%s: ARCA_LAST_VOUCHER_ERROR con la sugerencia de consultar', async (_name, answer) => {
+    const gateway = createGateway({ getLastVoucher: vi.fn(async () => answer) });
+
+    const error = await gateway.getLastNumber(3, 11).then(
+      (number) => ({ resolved: number }),
+      (caught: unknown) => caught,
+    );
+
+    expect(error).toMatchObject({
+      code: 'ARCA_LAST_VOUCHER_ERROR',
+      details: { errores: [] },
+      message: expect.stringMatching(
+        /^ARCA contestó sin el último número de .+ del punto de venta 3 \(sin errores\)\.$/,
+      ),
+      suggestion: missingLastNumberSuggestion('consultar', 'el último número'),
+    });
+  });
+
+  it('el 0 sigue siendo "no hay comprobantes"', async () => {
+    const gateway = createGateway({ getLastVoucher: vi.fn(async () => ({ cbteNro: 0 })) });
+
+    await expect(gateway.getLastNumber(3, 11)).resolves.toBe(0);
+  });
+
+  it('un número como texto se lee como número', async () => {
+    const gateway = createGateway({ getLastVoucher: vi.fn(async () => ({ cbteNro: '42' })) });
+
+    await expect(gateway.getLastNumber(3, 11)).resolves.toBe(42);
   });
 });
