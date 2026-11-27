@@ -224,7 +224,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Facturas:** un CUIT mal escrito o un punto de venta inválido da error antes de consultar a ARCA (#272).
 - **Consultas:** con el certificado sin autorizar, `parametros` y `ultimos` de una `E` dicen qué autorizar (#272).
 - **Certificados:** `generar` ya no pisa un pedido pendiente que no puede leer por falta de permiso (#279).
-- **Config:** una carpeta de ARCLI que dejaste de solo lectura ya no vuelve a ser escribible: solo pierde los permisos de grupo y otros (#PR).
+- **Config:** una carpeta de ARCLI que dejaste de solo lectura ya no vuelve a ser escribible: solo pierde los permisos de grupo y otros (#319).
 - **Config:** con varios datos inválidos guardados, `config establecer` y `config eliminar` los arreglan de a uno y avisan cuáles quedan (#279).
 - **Config:** un dato inválido guardado dice que está en la configuración, con qué clave y cómo arreglarlo (#276).
 - **Errores:** si no se puede leer o escribir un archivo, el error dice cuál, por qué y qué hacer, en castellano (#276).
