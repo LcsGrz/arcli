@@ -2,6 +2,7 @@ import {
   closeSync,
   existsSync,
   fsyncSync,
+  linkSync,
   mkdirSync,
   openSync,
   readdirSync,
@@ -13,7 +14,7 @@ import { join } from 'node:path';
 
 import { restrictFolderToOwner } from '../files/restrict-to-owner';
 
-import { createTemporaryFile, removeStaleTemporaries, removeTemporary } from './database-temporary';
+import { createTemporaryFile, NO_HARD_LINKS, removeStaleTemporaries, removeTemporary } from './database-temporary';
 import type { SqliteConnection } from './sqlite-driver';
 
 /**
@@ -200,16 +201,13 @@ export function writeBackup(
   restrictFolderToOwner(target.folder);
   removeStaleTemporaries(join(target.folder, `${target.prefix}.db`), now.getTime());
 
-  const path = freePath(
-    target.folder,
-    `${target.prefix}-${argentineStamp(now)}${kind === 'migration' ? `-antes-de-${String(schema)}` : ''}`,
-    '.db',
-  );
-  const temporary = createTemporaryFile(path);
+  const base = `${target.prefix}-${argentineStamp(now)}${kind === 'migration' ? `-antes-de-${String(schema)}` : ''}`;
+  const temporary = createTemporaryFile(join(target.folder, `${base}.db`));
+  let path: string;
 
   try {
     vacuumInto(connection, temporary);
-    renameSync(temporary, path);
+    path = claimName(temporary, target.folder, base);
   } finally {
     removeTemporary(temporary);
   }
@@ -217,6 +215,34 @@ export function writeBackup(
   pruneBackups(target, kind);
 
   return path;
+}
+
+/**
+ * Le pone a la copia terminada un nombre libre sin pisar otra: con un hard link, que falla si otro proceso tomó ese
+ * nombre en el mismo segundo (varios migran a la vez), y se prueba el siguiente (`-2`, `-3`). Sin hard links, rename.
+ */
+function claimName(temporary: string, folder: string, base: string): string {
+  for (;;) {
+    const path = freePath(folder, base, '.db');
+
+    try {
+      linkSync(temporary, path);
+
+      return path;
+    } catch (error) {
+      const { code = '' } = error as NodeJS.ErrnoException;
+
+      if (NO_HARD_LINKS.has(code)) {
+        renameSync(temporary, path);
+
+        return path;
+      }
+
+      if (code !== 'EEXIST') {
+        throw error;
+      }
+    }
+  }
 }
 
 /** Si ya hay una copia diaria del día argentino de `now`. */

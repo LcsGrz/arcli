@@ -149,7 +149,8 @@ const CONNECTION_PRAGMAS = [
 
 function openConnection(driver: SqliteDriver, file: string, spec: DatabaseSpec, readOnly = false): SqliteConnection {
   try {
-    return driver.open(file, { readOnly, timeoutMs: spec.busyTimeoutMs });
+    // Siempre un archivo que ya está (la base, su temporal creado con `wx`, una copia): SQLite no crea ninguno.
+    return driver.open(file, { mustExist: true, readOnly, timeoutMs: spec.busyTimeoutMs });
   } catch (error) {
     throw toLocalDataError(error);
   }
@@ -266,9 +267,11 @@ function backupBeforeMigration(connection: SqliteConnection, spec: DatabaseSpec,
       throw mapped;
     }
 
-    throw new LocalDataError('unavailable', `No se pudo copiar ${spec.file} antes de migrarla: no se migra.`, {
-      cause: error,
-    });
+    throw new LocalDataError(
+      'unavailable',
+      `No se pudo copiar ${spec.file} antes de migrarla (${String((error as Error | undefined)?.message)}): no se migra.`,
+      { cause: error },
+    );
   }
 }
 

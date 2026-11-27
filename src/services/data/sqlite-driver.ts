@@ -2,6 +2,7 @@
  * El único archivo que carga `node:sqlite` (ARQ-12): con `await import` y el aviso experimental de Node 22 oculto
  * solo mientras carga, `Database ?? DatabaseSync`. Lo demás de src/services/data habla con la base por acá.
  */
+import { pathToFileURL } from 'node:url';
 
 /** Lo que se puede pasar como parámetro. `undefined` no: en Node 26 no lanza y se guardaría NULL sin avisar. */
 type SqliteValue = bigint | number | string | Uint8Array | null;
@@ -26,6 +27,27 @@ export interface SqliteConnectionOptions {
   readonly timeoutMs: number;
   /** Solo para leer una copia (nunca la base): no deshace un `-journal` ni cambia nada del archivo. */
   readonly readOnly?: boolean;
+  /**
+   * Que no la cree si no está (`SQLITE_CANTOPEN`). Sin esto SQLite crea un archivo vacío: si otro proceso movió la
+   * base entre que se miró y se abrió (apartar una dañada), quedaría una vacía en su lugar.
+   */
+  readonly mustExist?: boolean;
+}
+
+/**
+ * Con `mustExist`, la ruta va como URI `file:` con `mode=rw` (o `ro`), que SQLite abre sin crear. Una ruta UNC de
+ * Windows (`\\servidor\carpeta`) queda como ruta: en una URI de SQLite no puede llevar servidor.
+ */
+function locationOf(path: string, { mustExist = false, readOnly = false }: SqliteConnectionOptions): string {
+  if (!mustExist || path.startsWith('\\\\')) {
+    return path;
+  }
+
+  const url = pathToFileURL(path);
+
+  url.searchParams.set('mode', readOnly ? 'ro' : 'rw');
+
+  return url.href;
 }
 
 /** Abre conexiones sin esperar: el módulo ya está cargado. */
@@ -132,8 +154,14 @@ export function loadSqliteDriver(): Promise<SqliteDriver> {
       const Database = sqlite.Database ?? sqlite.DatabaseSync;
 
       return {
-        open: (path, { readOnly = false, timeoutMs }) =>
-          connectionOver(new Database(path, { defensive: true, readOnly, timeout: timeoutMs })),
+        open: (path, options) =>
+          connectionOver(
+            new Database(locationOf(path, options), {
+              defensive: true,
+              readOnly: options.readOnly ?? false,
+              timeout: options.timeoutMs,
+            }),
+          ),
       };
     },
     (error: unknown) => {

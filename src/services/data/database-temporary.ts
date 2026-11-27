@@ -124,7 +124,14 @@ export function createTemporaryFile(file: string): string {
 }
 
 /** Los errores de `linkSync` que dicen que el sistema de archivos no tiene hard links (FAT, exFAT, algunos de red). */
-const NO_HARD_LINKS = new Set(['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'ENOSYS', 'EMLINK', 'EXDEV']);
+export const NO_HARD_LINKS: ReadonlySet<string> = new Set([
+  'EPERM',
+  'ENOTSUP',
+  'EOPNOTSUPP',
+  'ENOSYS',
+  'EMLINK',
+  'EXDEV',
+]);
 
 /**
  * Pone la base armada en su lugar sin pisar otra: un hard link falla si ya está (otro proceso la creó a la vez, y vale
