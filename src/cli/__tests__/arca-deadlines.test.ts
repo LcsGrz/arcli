@@ -404,7 +404,8 @@ describe('con Ctrl+C', () => {
   async function interrupt(times: number): Promise<void> {
     await vi.waitFor(() => expect(requested('FECAESolicitar')).toBe(1), { interval: 5, timeout: 10_000 });
 
-    const now = performance.now();
+    // Entero: con decimales, `(now + 500) - now` puede dar 499,99… y la segunda sería el eco de la primera (ARQ-23).
+    const now = Math.floor(performance.now());
     const clock = vi.spyOn(performance, 'now');
 
     for (let sent = 0; sent < times; sent += 1) {
