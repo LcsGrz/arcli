@@ -61,7 +61,15 @@ export interface ListingOptions {
    * línea: va afuera del panel, debajo del borde, centrada y atenuada. Un `''` deja una línea en blanco.
    */
   readonly legend?: readonly string[];
+  /**
+   * Columnas para el contenido, si no son las de la terminal (el storybook arma una terminal angosta): el panel y su
+   * leyenda miden eso más los bordes y el margen.
+   */
+  readonly contentWidth?: number;
 }
+
+/** Bordes y margen de dos espacios de cada lado: lo que el panel suma al contenido. */
+const PANEL_FRAME_WIDTH = 6;
 
 /** Las líneas de la leyenda, cada una partida al ancho del panel y centrada en él. */
 function renderLegend(legend: readonly string[], width: number): string[] {
@@ -71,8 +79,20 @@ function renderLegend(legend: readonly string[], width: number): string[] {
 }
 
 /** Listado en tabla, como los últimos comprobantes. Sin color en el borde; la leyenda va debajo, afuera. */
-export function listingPanel(title: string, content: PanelContent, { legend = [] }: ListingOptions = {}): string {
-  const panel = renderPanel({ borderType: 'listing', content, contentAlign: 'left', title, width: 'wide' });
+export function listingPanel(
+  title: string,
+  content: PanelContent,
+  { contentWidth, legend = [] }: ListingOptions = {},
+): string {
+  const panelWidth = contentWidth === undefined ? 'wide' : contentWidth + PANEL_FRAME_WIDTH;
+  const panel = renderPanel({
+    borderType: 'listing',
+    content,
+    contentAlign: 'left',
+    maxWidth: panelWidth,
+    title,
+    width: panelWidth,
+  });
 
   if (legend.length === 0) {
     return panel;
