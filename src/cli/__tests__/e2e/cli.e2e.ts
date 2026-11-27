@@ -68,6 +68,25 @@ describe('arcli compilado', () => {
     expect(result.stdout.trim()).toBe(VERSION);
   });
 
+  it('-V imprime la versión también después de un subcomando', () => {
+    const result = run('config', '-V');
+
+    expect(result).toMatchObject({ code: 0, stderr: '' });
+    expect(result.stdout.trim()).toBe(VERSION);
+  });
+
+  // Tests primero (ERR-23): pasa a it() al implementarlo.
+  it.fails('un valor que empieza con -V es una opción desconocida, no la versión (exit 1)', () => {
+    const result = run('config', 'establecer', 'cuenta', '0110599520000012345678', '-Ventas.sa', '--json');
+
+    expect(result.stdout).toBe('');
+    expect(json(result.stderr)).toMatchObject({
+      codigo: 'INPUT_VALIDATION_ERROR',
+      error: 'opción desconocida `-Ventas.sa`',
+    });
+    expect(result.code).toBe(1);
+  });
+
   it('--ayuda muestra la tabla de comprobantes, con las E', () => {
     const result = run('--ayuda');
 
