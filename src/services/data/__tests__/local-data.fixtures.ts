@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { closeSync, fstatSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { afterEach, expect } from 'vitest';
 
@@ -153,22 +153,31 @@ export function inMemory<T>(ddl: string, use: (database: DatabaseSync) => T): T 
 
 /** Contenido (hash) y fecha de modificación: lo que cambia si alguien escribió el archivo. */
 export function fingerprint(file: string): { readonly hash: string; readonly mtimeMs: number; readonly size: number } {
-  const stats = statSync(file);
+  // Por el descriptor: el contenido y la fecha son del mismo archivo abierto, no de dos miradas a la ruta.
+  const descriptor = openSync(file, 'r');
 
-  return {
-    hash: createHash('sha256').update(readFileSync(file)).digest('hex'),
-    mtimeMs: stats.mtimeMs,
-    size: stats.size,
-  };
+  try {
+    const stats = fstatSync(descriptor);
+
+    return {
+      hash: createHash('sha256').update(readFileSync(descriptor)).digest('hex'),
+      mtimeMs: stats.mtimeMs,
+      size: stats.size,
+    };
+  } finally {
+    closeSync(descriptor);
+  }
 }
 
 export function permissions(path: string): number {
   return statSync(path).mode & 0o777;
 }
 
-/** Lo que dejó SQLite al lado de la base: `-journal`, `-wal`, `-shm`. */
+/** Lo que dejó SQLite al lado de la base: `-journal`, `-wal`, `-shm`, listando la carpeta. */
 export function companions(file: string): string[] {
-  return ['-journal', '-wal', '-shm'].filter((suffix) => existsSync(`${file}${suffix}`));
+  const names = new Set(readdirSync(dirname(file)));
+
+  return ['-journal', '-wal', '-shm'].filter((suffix) => names.has(`${basename(file)}${suffix}`));
 }
 
 /** La promesa rechaza con `LocalDataError` y esa razón. */

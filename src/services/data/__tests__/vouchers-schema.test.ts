@@ -30,6 +30,12 @@ const CLIENTS_DDL = readFileSync(new URL('fixtures/clientes-v1.sql', import.meta
 const normalize = (sql: unknown) => String(sql).replace(/\s+/g, ' ').trim().toLowerCase();
 
 /**
+ * El SQL con que se creó cada objeto, sin comentarios `--` y con los espacios colapsados: un CHECK o un DEFAULT
+ * cambiado no se ve en los pragmas, y acá sí (revisión del 27/11).
+ */
+const definition = (sql: unknown) => normalize(String(sql).replace(/--[^\n]*/g, ''));
+
+/**
  * Tablas, columnas, claves e índices (con su `WHERE` si es parcial), en un orden fijo. Las columnas van por nombre: el
  * código nunca depende de su posición. Los CHECK se prueban aparte, por lo que dejan entrar.
  */
@@ -50,7 +56,7 @@ function structure(database: DatabaseSync) {
         .prepare(`SELECT "table", "from", "to" FROM pragma_foreign_key_list('${name}') ORDER BY "from"`)
         .all();
 
-      return { columns, foreignKeys, name, strict, type };
+      return { columns, definition: definition(sql), foreignKeys, name, strict, type };
     }
 
     const index = database
@@ -59,7 +65,7 @@ function structure(database: DatabaseSync) {
     const columns = database.prepare(`SELECT name FROM pragma_index_info('${name}') ORDER BY seqno`).all();
     const where = /\bwhere\b(.*)$/i.exec(normalize(sql))?.[1]?.trim();
 
-    return { columns, index, name, tableName, type, where };
+    return { columns, definition: definition(sql), index, name, tableName, type, where };
   });
 }
 

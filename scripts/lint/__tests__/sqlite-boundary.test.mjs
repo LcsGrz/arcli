@@ -99,6 +99,9 @@ describe('reglas del SQL desde el día 1 (ARQ-12, diseno-arq-12-esquema.md)', ()
     ['vistas', /create\s+view/i],
     ['columnas generadas', /generated\s+always/i],
     ['AUTOINCREMENT', /autoincrement/i],
+    ['DROP TABLE', /drop\s+table/i],
+    ['DROP COLUMN', /drop\s+column/i],
+    ['ON CONFLICT DO NOTHING', /do\s+nothing/i],
   ];
 
   /** El código sin comentarios: un comentario que dice "nunca INSERT OR REPLACE" no es usarlo. */
