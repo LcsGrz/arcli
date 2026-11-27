@@ -88,9 +88,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **PDF:** en el asistente, la condición de venta se elige o se escribe en la misma lista, sin la pregunta aparte de "Otra" (#257).
 - **Factura E:** en el asistente, la actividad de WSFEX y la forma de pago se eligen de una lista donde también podés escribir (#261).
 - **Config:** en "Modificar configuración", la moneda y la actividad de exportación se eligen de una lista donde también podés escribir (#261).
-- **Config:** `arcli config` y "Modificar configuración" muestran cada dato igual; sin nada guardado, el valor por defecto con "(por defecto)".
-- **Config:** en "Modificar configuración", borrar dice si vuelve al valor por defecto o queda sin configurar, y las carpetas se arrastran como carpetas.
-- **Config:** el autocompletado de `config establecer` ofrece `si` y `no` también para `emitir`, `json` y `bruto`.
+- **Config:** `arcli config` y "Modificar configuración" muestran cada dato igual; sin nada guardado, el valor por defecto con "(por defecto)" (#316).
+- **Config:** en "Modificar configuración", borrar dice si vuelve al valor por defecto o queda sin configurar, y las carpetas se arrastran como carpetas (#316).
+- **Config:** el autocompletado de `config establecer` ofrece `si` y `no` también para `emitir`, `json` y `bruto` (#316).
 - **FCE:** el error de un alias del CBU inválido dice lo mismo en los flags, `--cargar`, la config y el asistente (#262).
 - **Facturas:** un flag que cambia a quién, qué comprobante o qué moneda descarta del JSON de `--cargar` lo que dependía del anterior (#282).
 - **FCE:** el alias guardado va solo con su CBU, y el asistente siempre pide el alias si pide el CBU (#282).
