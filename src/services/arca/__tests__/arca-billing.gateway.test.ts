@@ -208,7 +208,8 @@ describe('ArcaBillingGateway.getNextVoucherNumber: ARCA contesta sin el último 
       message: expect.stringMatching(
         /^ARCA contestó sin el último número de .+ del punto de venta 3 \(sin errores\)\.$/,
       ),
-      suggestion: 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.',
+      suggestion:
+        'No se emitió nada. ARCA no informó el último número: puede ser un problema pasajero de ARCA; reintentá en unos minutos.',
     });
   });
 

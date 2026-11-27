@@ -1,9 +1,10 @@
 import type { Arca } from '@arcasdk/core';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ARCA_QUERY_ERROR_SUGGESTION } from '../../../lib/errors/query-error';
+import { missingLastNumberSuggestion } from '../../../lib/errors/query-error';
 import { ArcaExportGateway } from '../arca-export.gateway';
 
+const QUERY_SUGGESTION = missingLastNumberSuggestion('consultar', 'el último número');
 const EMPTY_RESULT = { FEXErr: { ErrCode: 0, ErrMsg: '' }, FEXEvents: { EventCode: 0, EventMsg: '' } };
 
 function createGateway(service: Record<string, unknown>): ArcaExportGateway {
@@ -79,7 +80,8 @@ describe('ArcaExportGateway.getLastVoucherNumber', () => {
         message: expect.stringMatching(
           /^ARCA contestó sin el último número de .+ del punto de venta 4 \(sin errores\)\.$/,
         ),
-        suggestion: 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.',
+        suggestion:
+          'No se emitió nada. ARCA no informó el último número: puede ser un problema pasajero de ARCA; reintentá en unos minutos.',
       });
     });
 
@@ -99,7 +101,7 @@ describe('ArcaExportGateway.getLastVoucherNumber', () => {
           message: expect.stringMatching(
             /^ARCA contestó sin el último número de .+ del punto de venta 4 \(sin errores\)\.$/,
           ),
-          suggestion: ARCA_QUERY_ERROR_SUGGESTION,
+          suggestion: QUERY_SUGGESTION,
         });
       },
     );
@@ -384,12 +386,40 @@ describe('ArcaExportGateway', () => {
     ]);
   });
 
-  it('lee el ultimo ID de solicitud, con 0 si ARCA no informa nada', async () => {
+  // ARQ-24: hasta aca, sin `Id` daba 0 y se pedia el 1. El WSDL lo hace obligatorio (minOccurs="1"), como `Cbte_nro`.
+  it.each<[string, unknown, number]>([
+    ['0', 0, 0],
+    ['un número', 41, 41],
+    ['un número como texto', '41', 41],
+  ])('lee el ultimo ID de solicitud: %s', async (_name, Id, expected) => {
     const gateway = createGateway({
-      getLastId: vi.fn(async () => ({ FEXGetLast_IDResult: { ...EMPTY_RESULT, FEXResultGet: {} } })),
+      getLastId: vi.fn(async () => ({ FEXGetLast_IDResult: { ...EMPTY_RESULT, FEXResultGet: { Id } } })),
     });
 
-    await expect(gateway.getLastRequestId()).resolves.toBe(0);
+    await expect(gateway.getLastRequestId()).resolves.toBe(expected);
+  });
+
+  it.each<[string, Record<string, unknown> | undefined]>([
+    ['sin FEXResultGet', undefined],
+    ['sin Id', {}],
+    ['Id vacío', { Id: '' }],
+    ['Id negativo', { Id: -1 }],
+    ['Id decimal', { Id: 7.5 }],
+    ['Id que no es un número', { Id: 'siete' }],
+  ])('%s: ARCA_EXPORT_ERROR sin errores de ARCA, antes de emitir (ARQ-24)', async (_name, resultGet) => {
+    const gateway = createGateway({
+      getLastId: vi.fn(async () => ({
+        FEXGetLast_IDResult: { ...EMPTY_RESULT, ...(resultGet ? { FEXResultGet: resultGet } : {}) },
+      })),
+    });
+
+    await expect(gateway.getLastRequestId()).rejects.toMatchObject({
+      code: 'ARCA_EXPORT_ERROR',
+      details: { errores: [] },
+      message: 'ARCA contestó sin el último ID de solicitud de WSFEX (sin errores).',
+      suggestion:
+        'No se emitió nada. ARCA no informó el último ID de solicitud: puede ser un problema pasajero de ARCA; reintentá en unos minutos.',
+    });
   });
 
   it('explica que el certificado no esta autorizado a wsfex', async () => {

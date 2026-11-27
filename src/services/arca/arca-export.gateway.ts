@@ -4,9 +4,7 @@ import { AppError } from '../../lib/errors/app-error';
 import { lastNumberErrorSuggestion, type LastNumberPurpose } from '../../lib/errors/query-error';
 import type { AuthorizationAnswer } from '../../modules/billing/authorization-answer';
 import { readRejectedCae } from '../../modules/billing/emission-response';
-import { formatVoucherLabel } from '../../modules/billing/voucher-names';
 import type { ExportGateway } from '../../modules/export/export.gateway';
-import { getExportVoucherKindByArcaType } from '../../modules/export/export.kinds';
 import {
   DEFAULT_EXPORT_UNIT_CODE,
   type ExportActivity,
@@ -26,7 +24,7 @@ import {
 
 import type { Arca, IFEXAuthorizeInput, IFEXGetLast_CMPInput } from './arca-sdk.types';
 import { readExportAnswer } from './authorization-answer';
-import { missingLastNumberError } from './last-voucher';
+import { missingLastNumberError, missingLastRequestIdError } from './last-voucher';
 import { AUTHORIZE_SERVICE_SUGGESTION, isNotAuthorized, notAuthorizedTitle } from './not-authorized';
 import type { SdkRequest } from './sdk-request';
 import { readLastNumber, readNumber, readOptionalText, readText } from './soap-values';
@@ -423,14 +421,7 @@ export class ArcaExportGateway implements ExportGateway {
     const last = readLastNumber(data?.FEXResult_LastCMP?.Cbte_nro);
 
     if (last === undefined) {
-      const kind = getExportVoucherKindByArcaType(arcaType);
-
-      throw missingLastNumberError({
-        code: 'ARCA_EXPORT_ERROR',
-        pointOfSale,
-        purpose,
-        voucherName: kind ? formatVoucherLabel(kind) : `comprobante tipo ${arcaType}`,
-      });
+      throw missingLastNumberError({ arcaType, code: 'ARCA_EXPORT_ERROR', pointOfSale, purpose });
     }
 
     return last;
@@ -442,7 +433,15 @@ export class ArcaExportGateway implements ExportGateway {
     // Solo se pide al facturar.
     assertNoError(data, 'el último ID de solicitud', lastNumberErrorSuggestion('emitir'));
 
-    return Number(data?.FEXResultGet?.Id) || 0;
+    // El WSDL hace obligatorio `Id` (`ClsFEXResponse_LastID`, minOccurs="1"), como `Cbte_nro`: sin el, o ilegible, no se
+    // inventa el 1 (ARQ-24). El 0 vale: un CUIT que todavia no pidio ninguno.
+    const last = readLastNumber(data?.FEXResultGet?.Id);
+
+    if (last === undefined) {
+      throw missingLastRequestIdError();
+    }
+
+    return last;
   }
 
   /**

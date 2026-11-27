@@ -10,6 +10,6 @@ exit: 1
     "errores": []
   },
   "error": "ARCA contestó sin el último número de factura C del punto de venta 3 (sin errores).",
-  "sugerencia": "No se emitió nada. Revisá el mensaje de ARCA y reintentá."
+  "sugerencia": "No se emitió nada. ARCA no informó el último número: puede ser un problema pasajero de ARCA; reintentá en unos minutos."
 }
 

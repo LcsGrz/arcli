@@ -10,6 +10,6 @@ exit: 1
     "errores": []
   },
   "error": "ARCA contestó sin el último número de factura de exportación E del punto de venta 4 (sin errores).",
-  "sugerencia": "Revisá el mensaje de ARCA: si es pasajero, volvé a consultar en unos minutos; si no, corregí lo que dice. Si se repite, no insistas. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe."
+  "sugerencia": "ARCA no informó el último número: puede ser un problema pasajero de ARCA; volvé a consultar en unos minutos. Si se repite, no insistas. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe."
 }
 

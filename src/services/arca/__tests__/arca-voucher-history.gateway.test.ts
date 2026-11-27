@@ -1,7 +1,7 @@
 import type { Arca } from '@arcasdk/core';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ARCA_QUERY_ERROR_SUGGESTION } from '../../../lib/errors/query-error';
+import { missingLastNumberSuggestion } from '../../../lib/errors/query-error';
 import { DEPRECATED_DETAILS_ERROR_KEYS } from '../../../lib/json/deprecations';
 import { ArcaVoucherHistoryGateway } from '../arca-voucher-history.gateway';
 
@@ -361,7 +361,7 @@ describe('ArcaVoucherHistoryGateway.getLastNumber: ARCA contesta sin el último 
       message: expect.stringMatching(
         /^ARCA contestó sin el último número de .+ del punto de venta 3 \(sin errores\)\.$/,
       ),
-      suggestion: ARCA_QUERY_ERROR_SUGGESTION,
+      suggestion: missingLastNumberSuggestion('consultar', 'el último número'),
     });
   });
 

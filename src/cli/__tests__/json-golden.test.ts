@@ -4270,7 +4270,8 @@ describe('ARCA contesta sin el último número (ARQ-24)', () => {
     ...['--ac', 'fcea', '--apv', '3', '--ar', '12'],
   ];
   const FE_APPROVABLE = [...FE, '--cuit-pais', '55000002126', '--pv', '4'];
-  const EMIT_SUGGESTION = 'No se emitió nada. Revisá el mensaje de ARCA y reintentá.';
+  const EMIT_SUGGESTION =
+    'No se emitió nada. ARCA no informó el último número: puede ser un problema pasajero de ARCA; reintentá en unos minutos.';
   const message = (pointOfSale: number) =>
     expect.stringMatching(
       new RegExp(`^ARCA contestó sin el último número de .+ del punto de venta ${pointOfSale} \\(sin errores\\)\\.$`),
@@ -4468,6 +4469,40 @@ describe('ARCA contesta sin el último número (ARQ-24)', () => {
 
     expect(result).toMatchObject({ code: 0, stderr: '' });
     expect(sdk.wsfe.getLastVoucher).not.toHaveBeenCalled();
+  });
+
+  it('en un lote, el segundo sin último número corta ahí y el primero queda con su CAE', async () => {
+    sdk.wsfe.getLastVoucher.mockResolvedValueOnce({ cbteNro: 41 }).mockResolvedValueOnce({});
+    prepareConfig({});
+
+    const result = await runCli([
+      ...['fc', '--cargar', writeInput('lote.json', [batchItem(1000), batchItem(2000)]), '--emitir', '--json'],
+    ]);
+
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.stdout)).toEqual([expect.objectContaining({ cae: expect.any(String), numero: 42 })]);
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      codigo: 'BATCH_EMISSION_ERROR',
+      detalles: { codigoCausa: 'ARCA_LAST_VOUCHER_ERROR', fallo: 2, procesados: 1, sinProcesar: [2], total: 2 },
+    });
+    expect(sdk.wsfe.createVoucher).toHaveBeenCalledTimes(1);
+  });
+
+  // El WSDL también hace obligatorio el `Id` de `FEXGetLast_ID`: sin él no se inventa el 1.
+  it.each<[string, Record<string, unknown>]>([
+    ['sin Id', {}],
+    ['con un Id negativo', { Id: -1 }],
+  ])('fe --emitir con FEXGetLast_ID %s: ARCA_EXPORT_ERROR, exit 1 y no se emite', async (_name, resultGet) => {
+    sdk.wsfex.getLastId.mockResolvedValue({ FEXGetLast_IDResult: { ...NO_FEX_ERROR, FEXResultGet: resultGet } });
+
+    expect(await failure([...FE_APPROVABLE, '--emitir'])).toEqual({
+      codigo: 'ARCA_EXPORT_ERROR',
+      detalles: { errores: [] },
+      error: 'ARCA contestó sin el último ID de solicitud de WSFEX (sin errores).',
+      sugerencia:
+        'No se emitió nada. ARCA no informó el último ID de solicitud: puede ser un problema pasajero de ARCA; reintentá en unos minutos.',
+    });
+    expect(sdk.wsfex.authorize).not.toHaveBeenCalled();
   });
 
   it('la salida entera al emitir (wsfe)', () => {
