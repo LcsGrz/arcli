@@ -96,6 +96,44 @@ describe('blockPager', () => {
     // Al cerrarse queda solo la pregunta, sin el bloque.
     expect(frames.at(-1)).not.toContain('[dos]');
   });
+
+  it('con vistas, las flechas recorren el bloque por dentro antes de pasar al otro', async () => {
+    // Cada bloque con dos vistas (1 y 2): se entra por la del lado del que se viene.
+    const { answer, frames } = await drive(
+      (context) =>
+        blockPager<string, number>(
+          {
+            blocks: ['uno', 'dos'],
+            help: '←→ mover',
+            message: 'Monotributo',
+            render: (block, view) => `[${block} ${view}]`,
+            theme: { style: { message: (text: string) => text } },
+            views: {
+              enter: (_block, side) => (side === 'left' ? 1 : 2),
+              move: (_block, view, direction) => {
+                const next = view + (direction === 'right' ? 1 : -1);
+
+                return next >= 1 && next <= 2 ? next : undefined;
+              },
+            },
+          },
+          context,
+        ),
+      [RIGHT, RIGHT, RIGHT, RIGHT, LEFT, LEFT, RIGHT, ENTER],
+    );
+
+    expect(frames[0]).toContain('[uno 1]');
+    expect(frames[1]).toContain('[uno 2]');
+    expect(frames[2]).toContain('[dos 1]');
+    expect(frames[3]).toContain('[dos 2]');
+    // En la última vista del último bloque, no se vuelve a dibujar.
+    expect(frames[4]).toBe('');
+    expect(frames[5]).toContain('[dos 1]');
+    // Volviendo al bloque de la izquierda, por su última vista.
+    expect(frames[6]).toContain('[uno 2]');
+    expect(frames[7]).toContain('[dos 1]');
+    expect(answer).toBe('dos');
+  });
 });
 
 describe('listSelect', () => {

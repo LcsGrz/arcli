@@ -393,7 +393,7 @@ Consultan a ARCA sin emitir nada. Usan el entorno y el punto de venta de la conf
 | `arcli parametros cotizacion <moneda>` | Cotización oficial de ARCA, por ejemplo `USD`                                                                                 |
 
 - Las tablas muestran solo los valores vigentes hoy, salvo `puntos-venta`, que también lista los bloqueados o dados de baja, con su estado.
-- En texto, cada tabla tiene una fila de encabezado (`CÓDIGO`, o `NÚMERO` en `puntos-venta`, la descripción y, en `iva-receptor` y `puntos-venta`, una tercera columna) y al pie para qué sirve el código en ARCLI, por ejemplo que `--moneda` acepta el código o el ISO. El `--json` no cambia.
+- En texto, cada tabla tiene una fila de encabezado (`CÓDIGO`, o `NÚMERO` en `puntos-venta`, la descripción y, en `iva-receptor` y `puntos-venta`, una tercera columna) y, debajo de la tabla, para qué sirve el código en ARCLI, por ejemplo que `--moneda` acepta el código o el ISO. El `--json` no cambia.
 - **Puntos de venta en testing:** ARCA no los informa, así que `parametros puntos-venta` sale vacío y `estado` no puede verificar el punto de venta. En testing cualquier número sirve.
 - En producción, `estado` avisa si el punto de venta configurado no existe para tu CUIT, está bloqueado o dado de baja.
 - `estado` con `listo: false` sale con exit code `0`: es un diagnóstico, no un error. Si ARCA no responde, el error es `ARCA_UNAVAILABLE`.
@@ -879,7 +879,7 @@ Para no consultarlo: `arcli config establecer consultarPadron false`. El modo in
 
 ## Categorías del monotributo
 
-`arcli monotributo` muestra las 11 categorías (A a K) con el tope de ingresos anuales y la cuota mensual de servicios y de ventas. Si el CUIT de la config es monotributista, su fila sale marcada con `❯` y "tu categoría".
+`arcli monotributo` muestra las 11 categorías (A a K) con el tope de ingresos anuales y la cuota mensual de servicios y de ventas. La tabla ocupa el ancho de la terminal. Si el CUIT de la config es monotributista, su fila sale marcada con `❯` y, con color, resaltada de punta a punta; debajo de la tabla, `❯ tu categoría` lo explica junto con qué incluye la cuota, de dónde salió la tabla y los comandos para ver más.
 
 ```bash
 arcli monotributo
