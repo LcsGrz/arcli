@@ -144,6 +144,15 @@ describe('arcli __completar sin candidatos', () => {
     expect((await run(['__completar', '--', 'fc', '--zzz'])).stdout).toBe('');
   });
 
+  it.each([['verificarFce'], ['consultarPadron']])('la clave de sí o no %s ofrece si y no', async (key) => {
+    expect(await complete('config', 'establecer', key, '')).toEqual(['si', 'no']);
+  });
+
+  // Tests primero (REV-78): pasa a it() al implementarlo.
+  it.fails.each([['emitir'], ['json'], ['bruto']])('la clave de sí o no %s también ofrece si y no', async (key) => {
+    expect(await complete('config', 'establecer', key, '')).toEqual(['si', 'no']);
+  });
+
   it('una clave de config sin valores fijos no ofrece valores', async () => {
     expect(await complete('config', 'establecer', 'cuit', '')).toEqual([]);
   });
