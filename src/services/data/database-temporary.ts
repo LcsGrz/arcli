@@ -28,7 +28,7 @@ const TEMPORARY_NAME = /^\.nueva-[0-9a-f]+$/;
 const STALE_TEMPORARY_MS = 10 * 60 * 1000;
 
 /** Borra sin fallar: la limpieza nunca hace fallar un guardado ni tapa el error que importa. */
-function removeQuietly(path: string): void {
+export function removeQuietly(path: string): void {
   try {
     rmSync(path, { force: true, maxRetries: 3 });
   } catch {

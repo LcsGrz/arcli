@@ -4,7 +4,7 @@
 // Uso: node data-child.mjs <modo> <carpeta de datos o archivo> ...
 // Entorno: ARCLI_TEST_DIST (la carpeta dist/), ARCLI_TEST_BARRIER (si está, espera a que exista ese archivo).
 /* global process, setTimeout */
-import { existsSync, writeSync } from 'node:fs';
+import { closeSync, existsSync, openSync, rmSync, writeSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -24,6 +24,9 @@ function waitForBarrier() {
 
   while (!existsSync(barrier)) sleep(2);
 }
+
+/** Un módulo de src/services/data compilado en dist/. */
+const importDist = (name) => import(pathToFileURL(join(process.env.ARCLI_TEST_DIST, 'services', 'data', name)).href);
 
 async function openStore(options = {}) {
   const url = pathToFileURL(join(process.env.ARCLI_TEST_DIST, 'services', 'data', 'sqlite-voucher-record-store.js'));
@@ -202,6 +205,47 @@ const modes = {
     sleep(Number(args[0]));
     database.close();
     say('cerrado');
+  },
+
+  /**
+   * turno <archivo del turno> <veces> <marca>: toma el turno de la base (el de dist/) `veces` veces; adentro crea la
+   * marca con `wx` (si ya está, otro tiene el turno a la vez), espera un poco y la borra. Dice cuántas veces se
+   * encontró con otro adentro (revisión de #318).
+   */
+  async turno() {
+    const [times, marker] = [Number(args[0]), args[1]];
+    const { withDatabaseLock } = await importDist('database-lock.js');
+    const { loadSqliteDriver } = await importDist('sqlite-driver.js');
+    const driver = await loadSqliteDriver();
+    let overlaps = 0;
+
+    waitForBarrier();
+
+    for (let index = 0; index < times; index += 1) {
+      await withDatabaseLock(driver, target, () => {
+        try {
+          closeSync(openSync(marker, 'wx'));
+        } catch {
+          overlaps += 1;
+        }
+
+        sleep(5);
+        rmSync(marker, { force: true });
+      });
+    }
+
+    say({ overlaps });
+  },
+
+  /** tener-turno <archivo del turno>: toma el turno, avisa y no lo suelta nunca (lo matan). */
+  async 'tener-turno'() {
+    const { withDatabaseLock } = await importDist('database-lock.js');
+    const { loadSqliteDriver } = await importDist('sqlite-driver.js');
+
+    await withDatabaseLock(await loadSqliteDriver(), target, () => {
+      say('tomado');
+      sleep(120_000);
+    });
   },
 
   /** sostener <archivo> <ms>: toma la base con BEGIN IMMEDIATE, avisa y la suelta a los ms. */

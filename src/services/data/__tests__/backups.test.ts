@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest';
 import type { ArcliEnvironment } from '../../../modules/config/config.schemas';
 import { listVoucherBackups, restoreVoucherBackup } from '../backups';
 import type { SqliteMigration } from '../migrations';
+import { openSqliteConnection } from '../sqlite-driver';
 
 import {
   APPLICATION_ID,
@@ -486,6 +487,29 @@ describe('restaurar una base desde una copia, para DATOS-1 (ARQ-12 PR 4b)', () =
     await expectLocalDataError(restoreVoucherBackup(backupOptions(fresh), copy), 'unavailable');
     expect(readdirSync(dirname(file))).toEqual(['comprobantes.db']);
     expect(readdirSync(file)).toEqual([]);
+  });
+
+  // Revisión de #318: antes de apartar la actual se espera la escritura en curso de otro; si dura más que la espera,
+  // locked y no se aparta nada.
+  it('con otro escribiendo más que la espera, da locked y no aparta la actual', async () => {
+    const { copy, dataDirectory, file } = await withDailyCopy();
+    const before = fingerprint(file).hash;
+    const holder = await openSqliteConnection(file, { timeoutMs: 100 });
+
+    holder.exec('BEGIN IMMEDIATE');
+
+    try {
+      await expectLocalDataError(
+        restoreVoucherBackup({ ...backupOptions(dataDirectory), busyTimeoutMs: 100 }, copy),
+        'locked',
+      );
+    } finally {
+      holder.exec('ROLLBACK');
+      holder.close();
+    }
+
+    expect(fingerprint(file).hash).toBe(before);
+    expect(readdirSync(dirname(file)).filter((name) => name.includes('reemplazada'))).toEqual([]);
   });
 
   it('una copia que no está da unavailable y no toca la base', async () => {

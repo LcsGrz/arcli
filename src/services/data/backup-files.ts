@@ -1,20 +1,9 @@
-import {
-  closeSync,
-  existsSync,
-  fsyncSync,
-  linkSync,
-  mkdirSync,
-  openSync,
-  readdirSync,
-  renameSync,
-  rmSync,
-  statSync,
-} from 'node:fs';
+import { closeSync, fsyncSync, mkdirSync, openSync, readdirSync, renameSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
 import { restrictFolderToOwner } from '../files/restrict-to-owner';
 
-import { createTemporaryFile, NO_HARD_LINKS, removeStaleTemporaries, removeTemporary } from './database-temporary';
+import { createTemporaryFile, removeQuietly, removeStaleTemporaries, removeTemporary } from './database-temporary';
 import type { SqliteConnection } from './sqlite-driver';
 
 /**
@@ -69,17 +58,6 @@ export function argentineStamp(now: Date): string {
   ) as Record<string, string>;
 
   return `${parts.year}-${parts.month}-${parts.day}-${parts.hour}${parts.minute}${parts.second}`;
-}
-
-/** Un nombre libre en la carpeta: `<base><sufijo>` o, si ya está (o su `-journal`), `<base>-2<sufijo>`, `-3`... */
-function freePath(folder: string, base: string, suffix: string): string {
-  for (let counter = 1; ; counter += 1) {
-    const path = join(folder, `${base}${counter === 1 ? '' : `-${counter}`}${suffix}`);
-
-    if (!existsSync(path) && !existsSync(`${path}-journal`)) {
-      return path;
-    }
-  }
 }
 
 function namePattern(prefix: string): RegExp {
@@ -149,14 +127,6 @@ export function listBackupFiles(target: BackupTarget): BackupFile[] {
 }
 
 /** Borra sin fallar: la retención nunca hace fallar un guardado. */
-function removeQuietly(path: string): void {
-  try {
-    rmSync(path, { force: true, maxRetries: 3 });
-  } catch {
-    // En Windows un antivirus puede tenerla abierta: queda para la próxima.
-  }
-}
-
 /** Deja las `KEPT_BACKUPS[kind]` más nuevas de ese tipo; las del otro tipo no se tocan. */
 function pruneBackups(
   target: BackupTarget,
@@ -169,9 +139,14 @@ function pruneBackups(
     (candidate) => candidate.kind === kind && Date.parse(candidate.createdAt) <= now.getTime(),
   );
   const kept = candidates.filter(({ path }) => keep(path)).slice(0, KEPT_BACKUPS[kind]);
+  // Una que no cuenta pero es más nueva que la más nueva que queda puede ser la de otro proceso en vuelo (hizo su copia
+  // y todavía no migró): no se borra; si no le sirve, la descarta él.
+  const newestKept = kept[0]?.createdAt ?? '';
 
   for (const backup of candidates.filter((candidate) => !kept.includes(candidate))) {
-    removeQuietly(backup.path);
+    if (keep(backup.path) || backup.createdAt < newestKept) {
+      removeQuietly(backup.path);
+    }
   }
 }
 
@@ -244,30 +219,32 @@ export function writeBackup(
 }
 
 /**
- * Le pone a la copia terminada un nombre libre sin pisar otra: con un hard link, que falla si otro proceso tomó ese
- * nombre en el mismo segundo (varios migran a la vez), y se prueba el siguiente (`-2`, `-3`). Sin hard links, rename.
+ * Le pone a la copia terminada un nombre libre sin pisar otra: el nombre se reserva con `wx`, que falla si otro
+ * proceso lo tomó en el mismo segundo (varios migran a la vez), y se prueba el siguiente (`-2`, `-3`). El rename
+ * reemplaza solo esa reserva vacía, también en sistemas sin hard links.
  */
 function claimName(temporary: string, folder: string, base: string): string {
-  for (;;) {
-    const path = freePath(folder, base, '.db');
+  for (let counter = 1; ; counter += 1) {
+    const path = join(folder, `${base}${counter === 1 ? '' : `-${counter}`}.db`);
 
     try {
-      linkSync(temporary, path);
-
-      return path;
+      closeSync(openSync(path, 'wx', 0o600));
     } catch (error) {
-      const { code = '' } = error as NodeJS.ErrnoException;
-
-      if (NO_HARD_LINKS.has(code)) {
-        renameSync(temporary, path);
-
-        return path;
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+        continue;
       }
 
-      if (code !== 'EEXIST') {
-        throw error;
-      }
+      throw error;
     }
+
+    try {
+      renameSync(temporary, path);
+    } catch (error) {
+      removeQuietly(path);
+      throw error;
+    }
+
+    return path;
   }
 }
 

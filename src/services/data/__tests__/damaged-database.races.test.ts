@@ -79,6 +79,61 @@ describe('apartar no pisa nada (revisión de #318)', () => {
   });
 });
 
+describe('segunda pasada de #318', () => {
+  // Otro archivo aparece en el lugar de la base entre apartar y poner la nueva: no se pisa ni se informa una
+  // recuperación que no pasó.
+  it('si al poner la nueva ya hay otro archivo en su lugar, sale el error y la apartada queda', async () => {
+    const { dataDirectory, file } = await damagedBase((path) => truncateSync(path, 100));
+
+    vi.mocked(fs.linkSync).mockImplementation((from, to) => {
+      if (basename(String(from)).startsWith('.nueva-') && basename(String(to)) === 'comprobantes.db') {
+        writeFileSync(to, 'de otro');
+        throw Object.assign(new Error('file already exists, link'), { code: 'EEXIST' });
+      }
+
+      actualFs.linkSync(from, to);
+    });
+
+    await expectLocalDataError(openStore(dataDirectory, { backups: OFF }).save(NEXT), 'unavailable');
+    expect(actualFs.readFileSync(file, 'utf8')).toBe('de otro');
+    expect(namesWith(file, 'danada')).toHaveLength(1);
+  });
+
+  // La base se perdió entre que se la miró (estaba) y se la abrió: la decisión con el turno es la misma que reponer.
+  it('si la base desaparece entre mirarla y abrirla, con copias, se repone desde la copia', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const file = vouchersFile(dataDirectory);
+    const aside = join(dirname(file), 'comprobantes.danada-2026-11-26-120000.db');
+    let moved = false;
+
+    await openStore(dataDirectory, { backups: { enabled: true } }).save(record(1));
+
+    vi.mocked(loadSqliteDriver).mockImplementation(async () => {
+      const driver = await actualDriver.loadSqliteDriver();
+
+      return {
+        open(path, options) {
+          if (!moved && path === file) {
+            moved = true;
+            actualFs.renameSync(file, aside);
+          }
+
+          return driver.open(path, options);
+        },
+      };
+    });
+
+    const outcome = await openStore(dataDirectory, { backups: OFF }).save(NEXT);
+
+    expect(moved).toBe(true);
+    expect(outcome).toMatchObject({
+      kind: 'saved',
+      recovered: { restoredFrom: expect.stringMatching(/copias/), setAside: aside },
+    });
+    expect(caes(file)).toEqual([cae(1), NEXT.cae]);
+  });
+});
+
 describe('si poner la base nueva falla, la apartada vuelve (revisión de #318)', () => {
   it('la dañada vuelve a su lugar con su -journal, byte a byte, y el siguiente save la aparta', async () => {
     const { dataDirectory, file } = await damagedBase((path) => truncateSync(path, 100));
@@ -248,5 +303,27 @@ describe('varios migrando a la vez (revisión de #318)', () => {
 
     expect(migratedByOther).toBe(true);
     expect(backupNames(dataDirectory)).toEqual([]);
+  });
+
+  // Sin hard links (FAT, exFAT) y con otro archivo que aparece en el nombre de la copia: no se pisa (segunda pasada).
+  it('la copia no pisa un archivo que aparece en su nombre, tampoco sin hard links', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const taken = join(backupsFolder(dataDirectory), 'comprobantes-2026-11-26-120000-antes-de-1001.db');
+
+    await openStore(dataDirectory, { backups: OFF }).save(record(1));
+    actualFs.mkdirSync(backupsFolder(dataDirectory), { recursive: true });
+    writeFileSync(taken, 'de otro');
+    vi.mocked(fs.existsSync).mockImplementation((path) => (String(path) === taken ? false : actualFs.existsSync(path)));
+    vi.mocked(fs.linkSync).mockImplementation(() => {
+      throw Object.assign(new Error('operation not permitted, link'), { code: 'EPERM' });
+    });
+
+    await openStore(dataDirectory, {
+      backups: OFF,
+      extraMigrations: [{ up: (exec) => exec('ALTER TABLE comprobantes ADD COLUMN prueba_1001 TEXT'), version: 1001 }],
+    }).save(record(2));
+
+    expect(actualFs.readFileSync(taken, 'utf8')).toBe('de otro');
+    expect(backupNames(dataDirectory)).toContain('comprobantes-2026-11-26-120000-antes-de-1001-2.db');
   });
 });

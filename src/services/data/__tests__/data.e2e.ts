@@ -1,6 +1,6 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { existsSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { setTimeout as pause } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
@@ -407,4 +407,55 @@ describe('copias y base dañada con procesos reales (ARQ-12 PR 4b)', () => {
       expect(count(file)).toBe(1);
     },
   );
+});
+
+describe('el turno de la base con procesos reales (ARQ-12 PR 4b, revisión de #318)', () => {
+  it('4 procesos que piden el turno a la vez nunca lo tienen dos juntos', async () => {
+    const folder = temporaryDataDirectory('arcli-e2e-turno-');
+    const lock = join(folder, '.turno-comprobantes.db');
+    const marker = join(folder, 'adentro');
+    const children = await together([1, 2, 3, 4].map(() => ['turno', lock, 25, marker]));
+
+    for (const child of children) {
+      expect(await result(child)).toEqual({ overlaps: 0 });
+    }
+  });
+
+  // El bloqueo es del sistema: al morir el proceso se suelta, sin esperar a que el turno "se vuelva viejo".
+  it('un proceso que muere con el turno lo suelta enseguida', async () => {
+    const folder = temporaryDataDirectory('arcli-e2e-turno-');
+    const lock = join(folder, '.turno-comprobantes.db');
+    const holder = start(['tener-turno', lock]);
+
+    await untilSays(holder, 'tomado');
+    await kill(holder);
+
+    const started = Date.now();
+
+    expect(await result(start(['turno', lock, 1, join(folder, 'adentro')]))).toEqual({ overlaps: 0 });
+    expect(Date.now() - started).toBeLessThan(10_000);
+  });
+
+  // Uno movió la base y murió antes de mover su -journal caliente: el journal no se reproduce sobre la base nueva.
+  it('un -journal caliente que quedó sin su base se aparta con ella antes de reponer', async () => {
+    const { dataDirectory, file } = await baseWith(3);
+    const victim = start(['victima', file]);
+
+    await untilSays(victim, 'medio');
+    await kill(victim);
+
+    const journal = `${file}-journal`;
+    const hot = fingerprint(journal);
+    const aside = join(dirname(file), 'comprobantes.danada-2026-11-26-120000.db');
+
+    renameSync(file, aside);
+
+    const saved = await result(start(['guardar-uno', dataDirectory, 101]));
+
+    expect(saved).toMatchObject({ outcome: { kind: 'saved', recovered: { setAside: aside } } });
+    expect(existsSync(journal)).toBe(false);
+    expect(fingerprint(`${aside}-journal`).hash).toBe(hot.hash);
+    expect(health(file)).toEqual({ integrity: 'ok', version: SCHEMA_V1 });
+    expect(count(file)).toBe(1);
+  });
 });

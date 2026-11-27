@@ -319,6 +319,38 @@ describe('una base que falta con copias o una apartada al lado (ARQ-12 PR 4b)', 
     expect(caes(file)).toEqual([cae(1), NEXT.cae]);
   });
 
+  // Un restaurar que murió después de apartar la actual: la reemplazada era la sana y es más nueva que la copia.
+  it('si la apartada más nueva es una reemplazada, repone desde ella y no desde la copia vieja', async () => {
+    const { dataDirectory, file } = await withCopy();
+    const replaced = join(dirname(file), 'comprobantes.reemplazada-2026-11-26-120000.db');
+
+    renameSync(file, replaced);
+
+    const outcome = await openStore(dataDirectory, { backups: OFF }).save(NEXT);
+
+    expect(outcome).toMatchObject({ kind: 'saved', recovered: { restoredFrom: replaced, setAside: replaced } });
+    expect(caes(file)).toEqual([cae(1), cae(2), NEXT.cae]);
+    expect(caes(replaced)).toEqual([cae(1), cae(2)]);
+  });
+
+  // Por fecha y contador numérico (`-10` es después de `-2`); una reserva de 0 bytes de un proceso muerto no cuenta.
+  it('la apartada más nueva sale por fecha y contador, sin contar las reservas vacías', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const folder = dirname(vouchersFile(dataDirectory));
+
+    mkdirSync(folder, { recursive: true });
+
+    for (const name of ['', '-2', '-10']) {
+      writeFileSync(join(folder, `comprobantes.danada-2026-11-26-120000${name}.db`), 'dañada');
+    }
+
+    writeFileSync(join(folder, 'comprobantes.danada-2026-11-26-130000.db'), '');
+
+    const outcome = await openStore(dataDirectory, { backups: OFF }).save(NEXT);
+
+    expect(basename(recoveryOf(outcome)?.setAside ?? '')).toBe('comprobantes.danada-2026-11-26-120000-10.db');
+  });
+
   it('la primera vez, sin copias ni apartadas, la crea vacía sin dato de recuperación', async () => {
     await expect(openStore(temporaryDataDirectory(), { backups: OFF }).save(NEXT)).resolves.toEqual({ kind: 'saved' });
   });

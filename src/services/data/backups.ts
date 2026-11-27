@@ -40,6 +40,8 @@ export interface VoucherBackupsOptions {
   readonly dataDirectory: string;
   readonly environment: ArcliEnvironment;
   readonly version: string;
+  /** @internal Solo tests: la espera de SQLite por intento, en ms (por defecto 5000). */
+  readonly busyTimeoutMs?: number;
 }
 
 export interface RestoredVoucherBackup {
