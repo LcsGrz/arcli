@@ -93,23 +93,51 @@ export function applyMigrations(
  * Lleva la base a la última versión de los pasos, en un `BEGIN IMMEDIATE` y con la versión releída adentro: si otro
  * proceso migró mientras se esperaba, no se repite nada. Una base más nueva (otra menor) no se baja.
  *
- * Antes, `backup` hace la copia de la base como está (`VACUUM INTO` no corre adentro de una transacción) y devuelve
- * cómo se llama, para `migraciones.copia`. Si la copia falla, lanza y no se migra. Si otro proceso migró entre la copia
- * y la transacción, la copia queda igual (la limpia la retención).
+ * Antes, `backup.take` hace la copia de la base como está (`VACUUM INTO` no corre adentro de una transacción) y
+ * devuelve cómo se llama, para `migraciones.copia`. Si la copia falla, lanza y no se migra. Si adentro de la
+ * transacción la versión ya no es la de la copia (otro proceso migró en el medio), esa copia puede ser del esquema
+ * nuevo: se descarta (`backup.discard`) y, si falta algún paso, se vuelve a empezar. Quien migra aplica la retención
+ * después (`backup.settle`), sabiendo cuál es la suya.
  */
 export function migrate(
   connection: SqliteConnection,
   migrations: readonly SqliteMigration[],
   context: MigrationContext,
-  backup: () => string,
+  backup: MigrationBackup,
 ): void {
-  if (readUserVersion(connection) >= latestVersion(migrations)) {
-    return;
+  for (let round = 1; readUserVersion(connection) < latestVersion(migrations); round += 1) {
+    const from = readUserVersion(connection);
+    const copy = backup.take();
+    const migrated = inImmediateTransaction(connection, () => {
+      if (readUserVersion(connection) !== from) {
+        return false;
+      }
+
+      applyMigrations(connection, migrations, from, context, copy);
+
+      return true;
+    });
+
+    if (migrated) {
+      backup.settle();
+
+      return;
+    }
+
+    backup.discard(copy);
+
+    if (round >= MIGRATION_ROUNDS) {
+      return;
+    }
   }
+}
 
-  const copy = backup();
+/** Las vueltas de `migrate` si otros procesos migran en el medio: cada una avanza la versión, así que alcanzan pocas. */
+const MIGRATION_ROUNDS = 3;
 
-  inImmediateTransaction(connection, () =>
-    applyMigrations(connection, migrations, readUserVersion(connection), context, copy),
-  );
+/** La copia de antes de migrar: hacerla, descartarla si no sirvió y aplicar la retención. */
+export interface MigrationBackup {
+  take(): string;
+  discard(copy: string): void;
+  settle(): void;
 }
