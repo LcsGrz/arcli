@@ -183,6 +183,8 @@ describe('crear la base (ARQ-12)', () => {
       [old, hourAgo],
       [`${old}-journal`, hourAgo],
       [recent, minuteAgo],
+      [join(folder, 'notas.txt'), hourAgo],
+      [join(folder, '.nueva-ver.txt'), hourAgo],
     ] as const) {
       writeFileSync(path, '');
       utimesSync(path, time, time);
@@ -190,7 +192,8 @@ describe('crear la base (ARQ-12)', () => {
 
     await openStore(dataDirectory).save(voucherRecord());
 
-    expect(readdirSync(folder).sort()).toEqual(['.nueva-00000002', 'comprobantes.db']);
+    // Solo los temporales de la base (`.nueva-` y hex): lo demás de la carpeta no se toca, aunque sea viejo.
+    expect(readdirSync(folder).sort()).toEqual(['.nueva-00000002', '.nueva-ver.txt', 'comprobantes.db', 'notas.txt']);
   });
 
   it('el temporal tiene el mismo largo que la base, para el límite de Windows', async () => {
@@ -208,6 +211,22 @@ describe('crear la base (ARQ-12)', () => {
     const temporary = created.find((path) => /\.nueva-[0-9a-f]+$/.test(path)) ?? '';
 
     expect(temporary.length).toBe(vouchersFile(dataDirectory).length);
+  });
+
+  // Otro proceso la publicó entre que este armó la suya y la quiso poner: vale la del otro (sin hard links, igual).
+  it.each([
+    ['con hard link', 'EEXIST'],
+    ['sin hard links', 'EPERM'],
+  ])('%s, si otro la creó a la vez, vale la del otro', async (_name, code) => {
+    vi.mocked(fs.linkSync).mockImplementationOnce((temporary, file) => {
+      actualFs.copyFileSync(temporary, file);
+      throw Object.assign(new Error(code), { code });
+    });
+
+    const dataDirectory = temporaryDataDirectory();
+
+    await expect(openStore(dataDirectory).save(voucherRecord())).resolves.toEqual({ kind: 'saved' });
+    expect(readdirSync(dirname(vouchersFile(dataDirectory)))).toEqual(['comprobantes.db']);
   });
 
   it.runIf(withPermissions)('en una carpeta de datos de solo lectura da read-only sin crear nada', async () => {
@@ -245,8 +264,10 @@ describe('toLocalDataError (ARQ-12)', () => {
     ['ENOENT', 'unavailable'],
     ['ENOTDIR', 'unavailable'],
     ['EISDIR', 'unavailable'],
-  ])('un error del disco %s es %s', (code, reason) => {
-    expect(toLocalDataError(errno(code))).toMatchObject({ name: 'LocalDataError', reason });
+  ])('un error del disco %s es %s, con su causa', (code, reason) => {
+    const error = errno(code);
+
+    expect(toLocalDataError(error)).toMatchObject({ cause: error, name: 'LocalDataError', reason });
   });
 
   it('una violación de unicidad o un error que no es de la base salen como vinieron', () => {

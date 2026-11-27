@@ -32,9 +32,16 @@ describe('resolveLocalDataFiles (ARQ-12)', () => {
   // Un CUIT que no es un CUIT no puede llegar a una ruta: `../x` saldría de la carpeta de datos.
   it.each(['../x', '2011111111', '20111111113', '', '20111111112/..'])('el CUIT %j lanza', (cuit) => {
     expect(() => resolveLocalDataFiles(DATA, cuit, 'testing')).toThrow(/CUIT/);
+    // Lo inválido va en los detalles, que es lo que sale en `detalles` del `--json` si llega a la salida.
+    expect(() => resolveLocalDataFiles(DATA, cuit, 'testing')).toThrow(
+      expect.objectContaining({ code: 'CONFIGURATION_ERROR', details: { cuit } }),
+    );
   });
 
   it.each(['homologacion', '../testing', '', 'Testing'])('el entorno %j lanza', (environment) => {
     expect(() => resolveLocalDataFiles(DATA, CUIT, environment as ArcliEnvironment)).toThrow(/entorno/);
+    expect(() => resolveLocalDataFiles(DATA, CUIT, environment as ArcliEnvironment)).toThrow(
+      expect.objectContaining({ code: 'CONFIGURATION_ERROR', details: { entorno: environment } }),
+    );
   });
 });

@@ -39,6 +39,11 @@ describe('classifySqliteError (ARQ-12): por el código base, no el extendido', (
     expect(classifySqliteError(Object.assign(new Error('fs'), { code: 'EACCES', errno: -13 }))).toBeUndefined();
     expect(classifySqliteError('texto')).toBeUndefined();
     expect(classifySqliteError(undefined)).toBeUndefined();
+    // Un `errcode` suelto no alcanza: tiene que ser un error de node:sqlite, con el código como número.
+    expect(classifySqliteError(Object.assign(new Error('otro'), { errcode: 5 }))).toBeUndefined();
+    expect(classifySqliteError(Object.assign(new Error('otro'), { code: 'ERR_SQLITE_ERROR', errcode: '5' }))).toBe(
+      undefined,
+    );
   });
 
   it('un código de SQLite fuera de la lista no se clasifica', () => {
