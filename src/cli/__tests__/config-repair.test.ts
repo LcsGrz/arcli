@@ -1,5 +1,5 @@
 import Conf from 'conf';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -332,15 +332,45 @@ describe('certificado generar con el pedido pendiente ilegible (ERR-21)', () => 
     },
   );
 
+  // ARQ-27: la única reparación de permisos que queda es esta, explícita, de `generar --reemplazar`.
   it.runIf(withPermissions)('con --reemplazar repone el permiso de la carpeta y lo descarta', async () => {
     chmodSync(folder(), 0o000);
 
     const result = await run('certificado', 'generar', '--reemplazar');
+    const modeAfter = mode(folder());
 
     chmodSync(folder(), 0o700);
     expect(result.exitCode, result.stderr).toBe(0);
+    expect(modeAfter).toBe(0o700);
     expect(readFileSync(key(), 'utf8')).toContain('PRIVATE KEY');
   });
+
+  // ARQ-27: sin `--reemplazar`, una carpeta que la persona dejó de solo lectura no gana escritura.
+  it.runIf(withPermissions)(
+    'con la carpeta del CUIT de solo lectura, no le da escritura para crear el pedido',
+    async () => {
+      rmSync(key());
+      rmSync(request());
+      chmodSync(folder(), 0o500);
+
+      let error: CliError;
+      let modeAfter: number;
+
+      try {
+        error = await runError('certificado', 'generar');
+        modeAfter = mode(folder());
+      } finally {
+        chmodSync(folder(), 0o700);
+      }
+
+      expect(error).toMatchObject({
+        codigo: 'UNEXPECTED_ERROR',
+        error: expect.stringMatching(/testing\.nueva\.key: no tenés permiso\.$/),
+      });
+      expect(modeAfter).toBe(0o500);
+      expect(readdirSync(folder())).toEqual([]);
+    },
+  );
 
   it('con un pedido legible, CERTIFICATE_REQUEST_PENDING; sin pedido, lo arma', async () => {
     expect((await runError('certificado', 'generar')).codigo).toBe('CERTIFICATE_REQUEST_PENDING');

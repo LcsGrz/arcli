@@ -123,7 +123,8 @@ export class CertificateService {
     const alias = options.alias?.trim() || DEFAULT_CERTIFICATE_ALIAS;
     const request = createCertificateRequest({ alias, cuit, organization: config.emisor.razonSocial });
 
-    this.store.ensureFolder(files);
+    // Con `--reemplazar` se repone el permiso de la carpeta del CUIT; sin él, una carpeta de solo lectura frena.
+    this.store.ensureFolder(files, { restoreAccess: options.replace === true });
     this.store.writePrivate(files.pendingKey, request.privateKeyPem);
     this.store.write(files.pendingRequest, request.csrPem);
 
