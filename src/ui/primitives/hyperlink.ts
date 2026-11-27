@@ -67,5 +67,8 @@ export function isTrustedHyperlink(sequence: string): boolean {
   // eslint-disable-next-line no-control-regex
   const match = /^\u001B\]8;[^;]*;(.*?)(?:\u0007|\u001B\\)$/.exec(sequence);
 
-  return match !== null && (match[1] === '' || trustedUrls.has(match[1]));
+  // El grupo es obligatorio en la regex: con `match` siempre hay URL, aunque sea ''.
+  const url = match?.[1];
+
+  return url !== undefined && (url === '' || trustedUrls.has(url));
 }

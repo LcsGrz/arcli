@@ -87,7 +87,8 @@ export function parseArgentineDateInputAsArcaDate(value: string, now: Date): str
     throw new InputValidationError(`La fecha "${value}" no es válida. ${dateInputHint()}`);
   }
 
-  const [, rawDay, , rawMonth, explicitYear] = dateMatch;
+  // El grupo del dia es obligatorio en la regex: el default '' nunca se usa, solo le dice al tipo que hay string.
+  const [, rawDay = '', , rawMonth, explicitYear] = dateMatch;
   const today = toArgentineCalendarDate(now);
   const day = rawDay.padStart(2, '0');
   const month = (rawMonth ?? String(today.month)).padStart(2, '0');
@@ -103,7 +104,8 @@ export function parseFullArgentineDateAsArcaDate(value: string): string | undefi
     return undefined;
   }
 
-  const [, day, , month, year] = match;
+  // Los tres grupos son obligatorios en la regex: los defaults '' nunca se usan, solo le dicen al tipo que hay string.
+  const [, day = '', , month = '', year = ''] = match;
 
   return toValidArcaDate(value, day.padStart(2, '0'), month.padStart(2, '0'), toFullYear(year));
 }

@@ -82,7 +82,8 @@ function changeLead(bullet: string): Pick<ChangelogChange, 'text' | 'topic'> {
     return { text: shorten(plainText(firstSentence(bullet))) };
   }
 
-  const [, title, rest] = bold;
+  // Los dos grupos son obligatorios en la regex: los defaults '' nunca se usan, solo le dicen al tipo que hay string.
+  const [, title = '', rest = ''] = bold;
   const isCategory = title.endsWith(':') && title.split(/\s+/).length <= 2 && rest.trim() !== '';
 
   if (isCategory) {
@@ -137,7 +138,8 @@ export function extractChangelog(markdown: string, currentVersion: string, lates
     const heading = VERSION_HEADING.exec(line);
 
     if (heading) {
-      const [, version, date, name] = heading;
+      // La version es obligatoria en la regex: el default '' nunca se usa. La fecha y el nombre pueden faltar.
+      const [, version = '', date, name] = heading;
       const inRange = isNewerVersion(version, currentVersion) && !isNewerVersion(version, latestVersion);
 
       current = inRange ? { changes: [], date, name, version } : undefined;
@@ -179,7 +181,10 @@ export function extractChangelog(markdown: string, currentVersion: string, lates
     const bullet = /^(\s*)- (.+)$/.exec(line);
 
     if (bullet) {
-      current.changes.push({ kind: kind ?? 'otro', nested: bullet[1].length > 0, ...changeLead(bullet[2]) });
+      // Los dos grupos son obligatorios en la regex: los defaults '' nunca se usan.
+      const [, indent = '', text = ''] = bullet;
+
+      current.changes.push({ kind: kind ?? 'otro', nested: indent.length > 0, ...changeLead(text) });
     } else if (!kind && line.trim() && !current.summary) {
       current.summary = plainText(firstSentence(line));
     }
