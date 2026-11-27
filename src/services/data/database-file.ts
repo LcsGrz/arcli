@@ -1,4 +1,4 @@
-import { closeSync, fstatSync, mkdirSync, openSync, readSync } from 'node:fs';
+import { closeSync, fstatSync, mkdirSync, openSync, readSync, statSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 
 import { LocalDataError, type LocalDataErrorReason } from '../../modules/local-data/local-data-error';
@@ -404,7 +404,43 @@ export function openExistingDatabase(
 ): SqliteConnection | undefined {
   checkPathLength(spec.file);
 
-  return databaseExists(spec.file) ? openVerified(driver, spec, context) : undefined;
+  for (let attempt = 1; ; attempt += 1) {
+    const before = fileIdentity(spec.file);
+
+    if (!databaseExists(spec.file)) {
+      return undefined;
+    }
+
+    try {
+      return openVerified(driver, spec, context);
+    } catch (error) {
+      if (attempt >= VANISHED_ATTEMPTS || !vanished(error, spec.file, before)) {
+        throw error;
+      }
+    }
+  }
+}
+
+/** Cuántas veces se vuelve a mirar una base que otro movió entre que se miró y se abrió. */
+const VANISHED_ATTEMPTS = 3;
+
+/** Qué archivo está en esa ruta (dispositivo e inodo); `undefined` si ninguno. */
+function fileIdentity(file: string): string | undefined {
+  try {
+    const { dev, ino } = statSync(file);
+
+    return `${dev}:${ino}`;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * No se pudo abrir porque el archivo ya no es el que se miró: otro proceso lo movió en el medio (apartó la dañada o
+ * restauró una copia). Se vuelve a mirar y vale la que puso el otro (crear espera su turno).
+ */
+function vanished(error: unknown, file: string, before: string | undefined): boolean {
+  return error instanceof LocalDataError && error.reason === 'unavailable' && fileIdentity(file) !== before;
 }
 
 /**
@@ -418,14 +454,24 @@ export async function openOrCreateDatabase(
 ): Promise<SqliteConnection> {
   checkPathLength(spec.file);
 
-  if (!databaseExists(spec.file)) {
-    ensureFolders(spec);
-    await withLockOf(spec, () => {
-      if (!databaseExists(spec.file)) {
-        createDatabase(driver, spec, context);
-      }
-    });
-  }
+  for (let attempt = 1; ; attempt += 1) {
+    if (!databaseExists(spec.file)) {
+      ensureFolders(spec);
+      await withLockOf(spec, () => {
+        if (!databaseExists(spec.file)) {
+          createDatabase(driver, spec, context);
+        }
+      });
+    }
 
-  return openVerified(driver, spec, context);
+    const before = fileIdentity(spec.file);
+
+    try {
+      return openVerified(driver, spec, context);
+    } catch (error) {
+      if (attempt >= VANISHED_ATTEMPTS || !vanished(error, spec.file, before)) {
+        throw error;
+      }
+    }
+  }
 }

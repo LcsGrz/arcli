@@ -127,6 +127,43 @@ describe('un disco lleno no es una base dañada (ARQ-12 PR 4b)', () => {
   });
 });
 
+describe('una base que otro proceso movió entre mirarla y abrirla (ARQ-12 PR 4b)', () => {
+  // Visto en el CI de #318: uno aparta la dañada justo cuando el otro la abre. SQLite no crea una vacía (mustExist) y
+  // se vuelve a mirar: vale la que puso el otro.
+  it.each([
+    ['save', (dataDirectory: string) => openStore(dataDirectory, { backups: OFF }).save(NEXT), { kind: 'saved' }],
+    ['findByCae', (dataDirectory: string) => openStore(dataDirectory).findByCae(cae(1)), { numero: 1 }],
+  ] as const)('%s la vuelve a mirar y usa la que quedó', async (_name, operation, expected) => {
+    const { dataDirectory, file } = await damagedBase(() => undefined);
+    let moved = false;
+
+    vi.mocked(loadSqliteDriver).mockImplementation(async () => {
+      const driver = await actualDriver.loadSqliteDriver();
+
+      return {
+        open(path, options) {
+          if (moved || path !== file) {
+            return driver.open(path, options);
+          }
+
+          moved = true;
+          actualFs.renameSync(file, `${file}.otro`);
+
+          try {
+            return driver.open(path, options);
+          } finally {
+            // El otro pone la suya: otro archivo en la misma ruta.
+            actualFs.copyFileSync(`${file}.otro`, file);
+          }
+        },
+      };
+    });
+
+    await expect(operation(dataDirectory)).resolves.toMatchObject(expected);
+    expect(moved).toBe(true);
+  });
+});
+
 /** Sobre el archivo `ino`, la cabecera como la leyó SQLite en una base cortada (CI de #318, Linux con Node 22.22.1). */
 function headerlessConnection(connection: SqliteConnection, path: string, ino: number): SqliteConnection {
   const blind = actualFs.statSync(path).ino === ino;
