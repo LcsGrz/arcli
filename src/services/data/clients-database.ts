@@ -26,7 +26,7 @@ export async function ensureClientsDatabase(options: ClientsDatabaseOptions): Pr
   const cuitFolder = dirname(file);
   const driver = await loadSqliteDriver();
 
-  withWriteRetry(() =>
+  await withWriteRetry(() =>
     openOrCreateDatabase(
       driver,
       {
