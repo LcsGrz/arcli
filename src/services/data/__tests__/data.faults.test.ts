@@ -325,8 +325,9 @@ describe('una base que cambia entre mirarla y abrirla (ARQ-12 PR 4b)', () => {
         open(path, options) {
           if (!replaced && path === file) {
             replaced = true;
-            rmSync(file);
-            writeFileSync(file, '');
+            // Otro archivo (otro inodo seguro: se crea mientras el viejo todavía está) en su lugar.
+            writeFileSync(`${file}.vacio`, '');
+            renameSync(`${file}.vacio`, file);
 
             return driver.open(path, options);
           }

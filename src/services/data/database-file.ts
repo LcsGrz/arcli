@@ -478,12 +478,13 @@ export function openExistingDatabase(
 /** Cuántas veces se vuelve a mirar una base que otro movió entre que se miró y se abrió. */
 const VANISHED_ATTEMPTS = 3;
 
-/** Qué archivo está en esa ruta (dispositivo e inodo); `undefined` si ninguno. */
+/** Qué archivo está en esa ruta (dispositivo, inodo y fecha de creación); `undefined` si ninguno. */
 export function fileIdentity(file: string): string | undefined {
   try {
-    const { dev, ino } = statSync(file);
+    const { birthtimeMs, dev, ino } = statSync(file);
 
-    return `${dev}:${ino}`;
+    // Con la fecha de creación: en Linux el inodo de un archivo recién borrado se reusa enseguida (CI de #318).
+    return `${dev}:${ino}:${birthtimeMs}`;
   } catch {
     return undefined;
   }
