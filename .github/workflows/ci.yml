@@ -55,8 +55,9 @@ jobs:
       - name: Typecheck
         run: yarn typecheck
 
+      # En Windows el runner a veces se frena unos 5 s y varios tests cortan juntos por el límite (ARQ-23): ahí, 15 s.
       - name: Test with coverage
-        run: yarn test:coverage
+        run: yarn test:coverage ${{ runner.os == 'Windows' && '--testTimeout=15000' || '' }}
 
       - name: Build
         run: yarn build
