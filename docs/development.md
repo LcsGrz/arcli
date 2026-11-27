@@ -84,6 +84,14 @@ Los `*.property.test.ts` usan [fast-check](https://fast-check.dev) para probar i
 
 Sirven para lo que los tests unitarios no ven: el empaquetado de ESM, los errores de uso de commander, que nada escriba texto alrededor del JSON. Lo que necesita a ARCA (emitir, consultar) sigue en los unitarios, con ARCA simulado, salvo `closed-output.e2e.ts`: prueba que cortar la salida (`| head`) o no poder escribirla (disco lleno) no corta una emisión, con un certificado autofirmado, las llamadas a ARCA reemplazadas en el proceso y la red bloqueada.
 
+### Datos locales
+
+Los datos locales en SQLite (ARQ-12) tienen su propio job en el CI, `datos-locales`: `node:sqlite` cambia entre versiones de Node y el bloqueo de archivos entre sistemas, así que corre en Linux, macOS y Windows con Node 22.22.1 (el mínimo de `engines`), 22, 24 y 26, con `check-latest`. Hace `yarn build`, los unitarios de `src/services/data` y `src/modules/local-data`, y `src/services/data/__tests__/data.e2e.ts`, que lanza procesos reales sobre `dist/` (fixtures/data-child.mjs): varios guardando a la vez, uno que muere con SIGKILL en medio de una escritura o de una migración, y el aviso de Node 22. `validate` espera a este job y a `test`. En local:
+
+```bash
+yarn build && yarn vitest run --config vitest.e2e.config.ts src/services/data
+```
+
 ### Contra ARCA testing
 
 `src/cli/__tests__/e2e/*.arca.ts` corre el `arcli` compilado contra ARCA testing, con tu config y tu certificado: `estado`, una tabla de `parametros`, `padron` y `fce-obligado` con los CUITs de prueba, una vista previa y una Factura C de prueba que después busca con `consultar`. Todo va con `--testing`, que el helper agrega siempre, así que no puede tocar producción. Los comprobantes de testing no tienen validez fiscal.
