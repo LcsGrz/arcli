@@ -56,12 +56,12 @@ describe('abrir una base que no es de SQLite (ARQ-12): no se toca', () => {
     ['de un byte', 'x'],
     ['un JSON', JSON.stringify({ relleno: 'x'.repeat(600) })],
     ['con la cabecera rota', Buffer.concat([Buffer.from('SQLite format 2\0'), Buffer.alloc(4096)])],
-  ])('%s: save y findByCae dan damaged', async (_name, content) => {
+  ])('%s: findByCae da damaged', async (_name, content) => {
     const { dataDirectory, file } = withFileInPlace(content);
     const before = fingerprint(file);
     const store = openStore(dataDirectory);
 
-    await expectLocalDataError(store.save(voucherRecord()), 'damaged');
+    // Leer no aparta ni repone: eso lo hace save (damaged-database.test.ts, ARQ-12 PR 4b).
     await expectLocalDataError(store.findByCae('76123456789012'), 'damaged');
     expect(fingerprint(file)).toEqual(before);
     expect(readdirSync(dirname(file))).toEqual(['comprobantes.db']);

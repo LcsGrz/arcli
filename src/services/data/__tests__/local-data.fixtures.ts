@@ -1,5 +1,17 @@
 import { createHash } from 'node:crypto';
-import { closeSync, fstatSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  fstatSync,
+  ftruncateSync,
+  mkdtempSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
@@ -7,7 +19,7 @@ import { afterEach, expect } from 'vitest';
 
 import type { Clock } from '../../../lib/time/clock';
 import type { ArcliEnvironment } from '../../../modules/config/config.schemas';
-import type { VoucherRecord, VoucherRecordStore } from '../../../modules/vouchers/voucher-record-store';
+import type { SaveOutcome, VoucherRecord, VoucherRecordStore } from '../../../modules/vouchers/voucher-record-store';
 import { openSqliteVoucherRecordStore, type SqliteVoucherRecordStoreOptions } from '../sqlite-voucher-record-store';
 
 /**
@@ -183,4 +195,73 @@ export function companions(file: string): string[] {
 /** La promesa rechaza con `LocalDataError` y esa razón. */
 export async function expectLocalDataError(promise: Promise<unknown>, reason: string): Promise<void> {
   await expect(promise).rejects.toMatchObject({ name: 'LocalDataError', reason });
+}
+
+/** Lo que `save` devuelve además cuando tuvo que apartar una base dañada y reponerla (ARQ-12 PR 4b). */
+export interface Recovery {
+  /** Donde quedó la dañada: `comprobantes.danada-<fecha>.db`, en la carpeta de la base. */
+  readonly setAside: string;
+  /** La copia desde la que se repuso; sin copia sana, `undefined` (base vacía v1). */
+  readonly restoredFrom?: string;
+}
+
+/** La recuperación que informó `save`, si la hubo. */
+export function recoveryOf(outcome: SaveOutcome): Recovery | undefined {
+  return (outcome as SaveOutcome & { readonly recovered?: Recovery }).recovered;
+}
+
+/** `datos/<CUIT>/<entorno>/copias/`. */
+export function backupsFolder(dataDirectory: string): string {
+  return join(dirname(vouchersFile(dataDirectory)), 'copias');
+}
+
+/** Los archivos de la carpeta de copias, ordenados; sin carpeta, ninguno. */
+export function backupNames(dataDirectory: string): string[] {
+  const folder = backupsFolder(dataDirectory);
+
+  return existsSync(folder) ? readdirSync(folder).sort() : [];
+}
+
+/** Una copia diaria (`comprobantes-<día argentino>….db`) o la de antes de migrar (`…antes-de….db`). */
+export const DAILY_BACKUP = /^comprobantes-\d{4}-\d{2}-\d{2}(?!.*antes-de).*\.db$/;
+export const MIGRATION_BACKUP = /^comprobantes-\d{4}-\d{2}-\d{2}.*antes-de.*\.db$/;
+
+/**
+ * La fecha de modificación una hora antes de `NOW`: una base que nadie está creando (ni otro proceso sin hard links).
+ * Una hora antes del reloj fijo de los tests también es pasado para el reloj real.
+ */
+export function makeOld(path: string): void {
+  const hourAgo = new Date(Date.parse(NOW) - 60 * 60 * 1000);
+
+  utimesSync(path, hourAgo, hourAgo);
+}
+
+/** Corta el archivo al largo que da `size` según el actual, sobre el mismo descriptor (sin mirar la ruta dos veces). */
+export function cutFile(path: string, size: (current: number) => number): void {
+  const descriptor = openSync(path, 'r+');
+
+  try {
+    ftruncateSync(descriptor, size(fstatSync(descriptor).size));
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
+/** Salud de una base, mirada con SQLite crudo. */
+export function health(file: string): { applicationId: unknown; check: unknown; version: unknown } {
+  return inspect(file, (database) => ({
+    applicationId: scalar(database, 'PRAGMA application_id'),
+    check: scalar(database, 'PRAGMA quick_check'),
+    version: scalar(database, 'PRAGMA user_version'),
+  }));
+}
+
+/** Los CAE guardados en una base, ordenados. */
+export function caes(file: string): string[] {
+  return inspect(file, (database) =>
+    database
+      .prepare('SELECT cae FROM comprobantes ORDER BY cae')
+      .all()
+      .map(({ cae }) => String(cae)),
+  );
 }

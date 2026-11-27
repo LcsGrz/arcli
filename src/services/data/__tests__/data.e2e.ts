@@ -6,7 +6,18 @@ import { setTimeout as pause } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { inspect, scalar, SCHEMA_V1, temporaryDataDirectory, vouchersFile } from './local-data.fixtures';
+import {
+  backupNames,
+  backupsFolder,
+  cutFile,
+  fingerprint,
+  inspect,
+  makeOld,
+  scalar,
+  SCHEMA_V1,
+  temporaryDataDirectory,
+  vouchersFile,
+} from './local-data.fixtures';
 
 /**
  * Los datos locales con procesos reales sobre el adaptador compilado (ARQ-12 PR 4a): varios ARCLI a la vez, uno que
@@ -275,4 +286,102 @@ describe('datos locales con procesos reales (ARQ-12 PR 4a)', () => {
     expect(child.output.stderr).toContain('Warning: aviso común');
     expect(child.output.stderr).not.toContain('SQLite is an experimental feature');
   });
+});
+
+/** Los nombres de la carpeta de la base que son una dañada apartada. */
+const setAsideNames = (file: string) => readdirSync(dirname(file)).filter((name) => name.includes('danada'));
+
+/** Una base v1 con 3 comprobantes, cortada (a 100 bytes o a la mitad) y con fecha vieja: nadie la está creando. */
+async function damagedBaseWith(cut: 'mitad' | '100 bytes'): Promise<{ dataDirectory: string; file: string }> {
+  const base = await baseWith(3);
+
+  cutFile(base.file, (size) => (cut === 'mitad' ? Math.floor(size / 2) : 100));
+  makeOld(base.file);
+
+  return base;
+}
+
+describe('copias y base dañada con procesos reales (ARQ-12 PR 4b)', () => {
+  // VACUUM INTO lee en una transacción: la copia es una foto entera aunque otro escriba en el medio.
+  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
+  it.fails('las copias diarias salen sanas mientras otro proceso guarda cada 1 ms', async () => {
+    const { dataDirectory, file } = await baseWith(50);
+    const writer = start(['escritor', dataDirectory, 1000]);
+
+    for (const deadline = Date.now() + HANG_MS; lines(writer).length < 20; await pause(2)) {
+      if (exited(writer) || Date.now() > deadline) {
+        throw new Error(`El escritor no guardó: ${writer.output.stderr.slice(-800)}`);
+      }
+    }
+
+    const copied = await result(start(['copiar', dataDirectory, 7, 500]));
+
+    expect(exited(writer)).toBe(false);
+    await kill(writer);
+
+    expect(copied).toMatchObject({ errors: [], outcomes: { saved: 7 } });
+
+    // Solo las 7 copias: ningún temporal de VACUUM INTO quedó en la carpeta.
+    const names = backupNames(dataDirectory);
+
+    expect(names).toHaveLength(7);
+
+    for (const name of names) {
+      const copy = join(backupsFolder(dataDirectory), name);
+
+      expect(health(copy)).toEqual({ integrity: 'ok', version: SCHEMA_V1 });
+      expect(count(copy)).toBeGreaterThanOrEqual(50);
+    }
+
+    expect(health(file)).toEqual({ integrity: 'ok', version: SCHEMA_V1 });
+  });
+
+  // Los dos la ven dañada; uno la aparta y repone, y el otro no aparta la nueva (que está sana): abre esa y guarda.
+  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
+  it.fails.each(['100 bytes', 'mitad'] as const)(
+    'dos procesos encuentran la base cortada (%s) a la vez: uno la aparta y el otro abre la nueva',
+    async (cut) => {
+      const { dataDirectory, file } = await damagedBaseWith(cut);
+      const children = await together([
+        ['guardar-uno', dataDirectory, 101],
+        ['guardar-uno', dataDirectory, 102],
+      ]);
+      const results = await Promise.all(children.map(result));
+
+      expect(results).toEqual([
+        { outcome: expect.objectContaining({ kind: 'saved' }) },
+        { outcome: expect.objectContaining({ kind: 'saved' }) },
+      ]);
+      expect(results.filter(({ outcome }) => (outcome as { recovered?: unknown }).recovered)).toHaveLength(1);
+      expect(setAsideNames(file)).toHaveLength(1);
+      expect(health(file)).toEqual({ integrity: 'ok', version: SCHEMA_V1 });
+      expect(count(file)).toBe(2);
+    },
+  );
+
+  // En Windows SQLite abre la base sin dejar que otro la mueva: el que la encuentra dañada no puede apartarla.
+  // Tests primero (ARQ-12 PR 4b): pasa a it() al implementarlo.
+  it.runIf(process.platform === 'win32').fails(
+    'Windows: una dañada abierta por otro da damaged sin tocar, y cuando la cierra el siguiente la aparta',
+    async () => {
+      const { dataDirectory, file } = await damagedBaseWith('mitad');
+      const holder = start(['abrir', file, HANG_MS]);
+
+      await untilSays(holder, 'abierto');
+
+      const before = fingerprint(file);
+
+      expect(await result(start(['guardar-uno', dataDirectory, 101]))).toMatchObject({ error: { reason: 'damaged' } });
+      expect(fingerprint(file)).toEqual(before);
+      expect(setAsideNames(file)).toEqual([]);
+
+      await kill(holder);
+
+      expect(await result(start(['guardar-uno', dataDirectory, 102]))).toMatchObject({
+        outcome: { kind: 'saved', recovered: { setAside: expect.stringMatching(/danada/) } },
+      });
+      expect(setAsideNames(file)).toHaveLength(1);
+      expect(count(file)).toBe(1);
+    },
+  );
 });

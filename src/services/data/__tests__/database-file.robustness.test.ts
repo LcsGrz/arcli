@@ -102,43 +102,39 @@ describe('base tomada por otro (ARQ-12)', () => {
 });
 
 describe('una base dañada por dentro (ARQ-12)', () => {
-  // La cabecera está bien y una consulta suelta anda, pero quick_check ve la página rota: no se escribe encima.
-  it(
-    'una página de un índice rota: damaged al leer y al guardar, sin tocar el archivo',
-    { timeout: 30_000 },
-    async () => {
-      const { dataDirectory, file } = await savedBase();
+  // La cabecera está bien y una consulta suelta anda, pero quick_check ve la página rota: leer no escribe encima.
+  it('una página de un índice rota: damaged al leer, sin tocar el archivo', { timeout: 30_000 }, async () => {
+    const { dataDirectory, file } = await savedBase();
 
-      inspect(file, (database) => {
-        const insert = database.prepare(
-          "INSERT INTO eventos (tipo, ocurrido_el, version_arcli, datos) VALUES ('relleno', :ahora, 'x', NULL)",
-        );
+    inspect(file, (database) => {
+      const insert = database.prepare(
+        "INSERT INTO eventos (tipo, ocurrido_el, version_arcli, datos) VALUES ('relleno', :ahora, 'x', NULL)",
+      );
 
-        // En una transacción: 3000 fsync sueltos tardan segundos en un disco ocupado.
-        database.exec('BEGIN IMMEDIATE');
+      // En una transacción: 3000 fsync sueltos tardan segundos en un disco ocupado.
+      database.exec('BEGIN IMMEDIATE');
 
-        for (let index = 0; index < 3000; index += 1) {
-          insert.run({ ahora: `2026-11-26T15:${String(index % 60).padStart(2, '0')}:00.000Z` });
-        }
+      for (let index = 0; index < 3000; index += 1) {
+        insert.run({ ahora: `2026-11-26T15:${String(index % 60).padStart(2, '0')}:00.000Z` });
+      }
 
-        database.exec('COMMIT');
-      });
+      database.exec('COMMIT');
+    });
 
-      const pageSize = Number(inspect(file, (database) => scalar(database, 'PRAGMA page_size')));
-      // El tamaño del mismo archivo abierto: `statSync` de la ruta y después abrirla es una carrera para CodeQL.
-      const descriptor = openSync(file, 'r+');
-      const pages = fstatSync(descriptor).size / pageSize;
+    const pageSize = Number(inspect(file, (database) => scalar(database, 'PRAGMA page_size')));
+    // El tamaño del mismo archivo abierto: `statSync` de la ruta y después abrirla es una carrera para CodeQL.
+    const descriptor = openSync(file, 'r+');
+    const pages = fstatSync(descriptor).size / pageSize;
 
-      writeSync(descriptor, Buffer.alloc(pageSize, 0x41), 0, pageSize, pageSize * (pages - 3));
-      closeSync(descriptor);
+    writeSync(descriptor, Buffer.alloc(pageSize, 0x41), 0, pageSize, pageSize * (pages - 3));
+    closeSync(descriptor);
 
-      const before = fingerprint(file);
+    const before = fingerprint(file);
 
-      await expectLocalDataError(openStore(dataDirectory).findByCae('76123456789012'), 'damaged');
-      await expectLocalDataError(openStore(dataDirectory).save(voucherRecord({ numero: 2 })), 'damaged');
-      expect(fingerprint(file)).toEqual(before);
-    },
-  );
+    // Leer no aparta ni repone: eso lo hace save (damaged-database.test.ts, ARQ-12 PR 4b).
+    await expectLocalDataError(openStore(dataDirectory).findByCae('76123456789012'), 'damaged');
+    expect(fingerprint(file)).toEqual(before);
+  });
 });
 
 describe('versiones (ARQ-12)', () => {

@@ -34,6 +34,13 @@ export interface SqliteVoucherRecordStoreOptions {
   readonly environment: ArcliEnvironment;
   /** La versión de ARCLI que escribe, para `metadatos`, `migraciones` y cada fila. */
   readonly version: string;
+  /**
+   * Las copias diarias (la primera escritura de cada día argentino). La de antes de migrar se hace siempre, aunque
+   * `enabled` sea `false`. La clave de config `copias` la conecta LIBRO-1.
+   *
+   * Stub de Tests primero (ARQ-12 PR 4b), lo implementa nucleo: hoy no se usa.
+   */
+  readonly backups?: { readonly enabled: boolean };
   /** @internal Solo tests: la espera de SQLite por intento, en ms (por defecto 5000). */
   readonly busyTimeoutMs?: number;
   /** @internal Solo tests: pasos que se corren después del esquema v1 (una "menor" de prueba). */

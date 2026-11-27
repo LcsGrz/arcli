@@ -139,6 +139,71 @@ const modes = {
     say('ok');
   },
 
+  /** escritor <carpeta> <desde>: guarda sin parar, con 1 ms entre uno y otro, hasta que lo matan (ARQ-12 PR 4b). */
+  async escritor() {
+    const store = await openStore({ backups: { enabled: false } });
+
+    for (let numero = Number(args[0]); ; numero += 1) {
+      await store.save(record(numero));
+      say(String(numero));
+      sleep(1);
+    }
+  },
+
+  /**
+   * copiar <carpeta> <días> <desde>: un guardado por día, desde el 1/1/2030, con las copias diarias prendidas: cada uno
+   * hace la copia de su día (ARQ-12 PR 4b).
+   */
+  async copiar() {
+    const [days, from] = args.map(Number);
+    let now = new Date('2030-01-01T15:00:00.000Z');
+    const store = await openStore({ backups: { enabled: true }, clock: { now: () => new Date(now) } });
+    const result = { errors: [], outcomes: {} };
+
+    for (let day = 0; day < days; day += 1) {
+      now = new Date(Date.parse('2030-01-01T15:00:00.000Z') + day * 24 * 60 * 60 * 1000);
+
+      try {
+        const { kind } = await store.save(record(from + day));
+
+        result.outcomes[kind] = (result.outcomes[kind] ?? 0) + 1;
+      } catch (error) {
+        result.errors.push(describeError(error));
+      }
+    }
+
+    say(result);
+  },
+
+  /** guardar-uno <carpeta> <número>: guarda uno y dice lo que devolvió entero, o el error (ARQ-12 PR 4b). */
+  async 'guardar-uno'() {
+    const store = await openStore({ backups: { enabled: false } });
+
+    waitForBarrier();
+
+    try {
+      say({ outcome: await store.save(record(Number(args[0]))) });
+    } catch (error) {
+      say({ error: describeError(error) });
+    }
+  },
+
+  /** abrir <archivo> <ms>: abre la base con SQLite (en Windows, sin dejar moverla), avisa y la cierra a los ms. */
+  abrir() {
+    const database = rawDatabase(target);
+
+    try {
+      database.exec('PRAGMA schema_version');
+    } catch {
+      // Dañada: igual queda abierta, que es lo que importa.
+    }
+
+    say('abierto');
+    sleep(Number(args[0]));
+    database.close();
+    say('cerrado');
+  },
+
   /** sostener <archivo> <ms>: toma la base con BEGIN IMMEDIATE, avisa y la suelta a los ms. */
   sostener() {
     const database = rawDatabase(target);
