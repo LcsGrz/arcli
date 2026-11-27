@@ -58,31 +58,41 @@ describe('el turno de la base con otros procesos en el medio (revisión de #318)
     await released;
   });
 
-  // Uno viejo se saca, pero si en el medio otro lo soltó y tomó uno nuevo, ese no se toca.
-  it('al sacar uno viejo, si en el medio hay uno nuevo de otro, se le devuelve y se espera', async () => {
-    const { file, lock } = lockedFolder();
-    const old = new Date(Date.now() - 60_000);
-    let othersTurn = false;
+  // Uno viejo se saca, pero si en el medio otro lo soltó y tomó uno nuevo, ese no se toca. En Linux el nuevo puede
+  // tener el mismo inodo que el viejo (se reusa enseguida, CI de #318): acá es el mismo archivo, con otra marca.
+  it.each([
+    ['otro inodo', true],
+    ['el mismo inodo reusado', false],
+  ])(
+    'al sacar uno viejo, si en el medio hay uno nuevo de otro (%s), se le devuelve y se espera',
+    async (_name, newInode) => {
+      const { file, lock } = lockedFolder();
+      const old = new Date(Date.now() - 60_000);
+      let othersTurn = false;
 
-    actualFs.utimesSync(lock, old, old);
-    vi.mocked(fs.renameSync).mockImplementationOnce((from, to) => {
-      actualFs.rmSync(lock);
-      actualFs.writeFileSync(lock, 'nuevo');
-      othersTurn = true;
-      actualFs.renameSync(from, to);
-    });
+      actualFs.utimesSync(lock, old, old);
+      vi.mocked(fs.renameSync).mockImplementationOnce((from, to) => {
+        if (newInode) {
+          actualFs.rmSync(lock);
+        }
 
-    const released = setTimeout(300).then(() => {
-      expect(actualFs.readFileSync(lock, 'utf8')).toBe('nuevo');
-      othersTurn = false;
-      actualFs.rmSync(lock);
-    });
+        actualFs.writeFileSync(lock, 'nuevo');
+        othersTurn = true;
+        actualFs.renameSync(from, to);
+      });
 
-    await withDatabaseLock(file, () => {
-      expect(othersTurn).toBe(false);
-    });
-    await released;
-  });
+      const released = setTimeout(300).then(() => {
+        expect(actualFs.readFileSync(lock, 'utf8')).toBe('nuevo');
+        othersTurn = false;
+        actualFs.rmSync(lock);
+      });
+
+      await withDatabaseLock(file, () => {
+        expect(othersTurn).toBe(false);
+      });
+      await released;
+    },
+  );
 
   // Al soltar no se borra uno que no es el propio (se lo sacaron por viejo y otro tomó el suyo).
   it('al soltar, uno que no es el propio queda', async () => {

@@ -61,12 +61,26 @@ function tryCreate(lock: string, token: string): boolean {
   return true;
 }
 
-/** Dispositivo, inodo y antigüedad del turno; `undefined` si no está (lo soltó el otro mientras se miraba). */
-function lockState(lock: string): { readonly identity: string; readonly stale: boolean } | undefined {
+/**
+ * Qué turno es: dispositivo, inodo, fecha de modificación y la marca de adentro. El inodo solo no alcanza: en Linux el
+ * de un turno recién borrado se reusa enseguida para el siguiente (CI de #318). `undefined` si no está.
+ */
+function identityOf(path: string): string | undefined {
   try {
-    const { dev, ino, mtimeMs } = statSync(lock);
+    const { dev, ino, mtimeMs } = statSync(path);
 
-    return { identity: `${dev}:${ino}`, stale: Date.now() - mtimeMs > STALE_LOCK_MS };
+    return `${dev}:${ino}:${mtimeMs}:${readFileSync(path, 'utf8')}`;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Qué turno es y si es viejo; `undefined` si no está (lo soltó el otro mientras se miraba). */
+function lockState(lock: string): { readonly identity: string; readonly stale: boolean } | undefined {
+  let mtimeMs: number;
+
+  try {
+    ({ mtimeMs } = statSync(lock));
   } catch (error) {
     if (errorCode(error) === 'ENOENT') {
       return undefined;
@@ -74,16 +88,10 @@ function lockState(lock: string): { readonly identity: string; readonly stale: b
 
     throw error;
   }
-}
 
-function identityOf(path: string): string | undefined {
-  try {
-    const { dev, ino } = statSync(path);
+  const identity = identityOf(lock);
 
-    return `${dev}:${ino}`;
-  } catch {
-    return undefined;
-  }
+  return identity === undefined ? undefined : { identity, stale: Date.now() - mtimeMs > STALE_LOCK_MS };
 }
 
 function removeQuietly(path: string): void {
