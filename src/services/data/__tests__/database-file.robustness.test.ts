@@ -1,4 +1,4 @@
-import { chmodSync, closeSync, mkdirSync, openSync, readdirSync, statSync, writeSync } from 'node:fs';
+import { chmodSync, closeSync, fstatSync, mkdirSync, openSync, readdirSync, statSync, writeSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -125,8 +125,9 @@ describe('una base dañada por dentro (ARQ-12)', () => {
       });
 
       const pageSize = Number(inspect(file, (database) => scalar(database, 'PRAGMA page_size')));
-      const pages = statSync(file).size / pageSize;
+      // El tamaño del mismo archivo abierto: `statSync` de la ruta y después abrirla es una carrera para CodeQL.
       const descriptor = openSync(file, 'r+');
+      const pages = fstatSync(descriptor).size / pageSize;
 
       writeSync(descriptor, Buffer.alloc(pageSize, 0x41), 0, pageSize, pageSize * (pages - 3));
       closeSync(descriptor);
