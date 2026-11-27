@@ -332,28 +332,20 @@ describe('certificado generar con el pedido pendiente ilegible (ERR-21)', () => 
     },
   );
 
-  // ARQ-27: el permiso que la persona le sacó a la carpeta no se repone; frena con el error de permiso de siempre.
-  it.runIf(withPermissions)('con --reemplazar y la carpeta del CUIT sin permiso, frena sin reponerlo', async () => {
+  // ARQ-27: la única reparación de permisos que queda es esta, explícita, de `generar --reemplazar`.
+  it.runIf(withPermissions)('con --reemplazar repone el permiso de la carpeta y lo descarta', async () => {
     chmodSync(folder(), 0o000);
 
-    let error: CliError;
-    let modeAfter: number;
+    const result = await run('certificado', 'generar', '--reemplazar');
+    const modeAfter = mode(folder());
 
-    try {
-      error = await runError('certificado', 'generar', '--reemplazar');
-      modeAfter = mode(folder());
-    } finally {
-      chmodSync(folder(), 0o700);
-    }
-
-    expect(error).toMatchObject({
-      codigo: 'UNEXPECTED_ERROR',
-      error: expect.stringMatching(/^No se pudo abrir .*testing\.nueva\.key: no tenés permiso\.$/),
-    });
-    expect(modeAfter).toBe(0);
-    expect(readFileSync(key(), 'utf8')).toBe('CLAVE');
+    chmodSync(folder(), 0o700);
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(modeAfter).toBe(0o700);
+    expect(readFileSync(key(), 'utf8')).toContain('PRIVATE KEY');
   });
 
+  // ARQ-27: sin `--reemplazar`, una carpeta que la persona dejó de solo lectura no gana escritura.
   it.runIf(withPermissions)(
     'con la carpeta del CUIT de solo lectura, no le da escritura para crear el pedido',
     async () => {

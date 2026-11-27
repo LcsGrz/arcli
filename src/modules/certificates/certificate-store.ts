@@ -43,8 +43,12 @@ export function resolveCertificateFiles(
  * con la ruta del archivo.
  */
 export interface CertificateStore {
-  /** Crea la carpeta del CUIT solo para el dueño, también si ya existía abierta. */
-  ensureFolder(files: Pick<CertificateFiles, 'folder'>): void;
+  /**
+   * Crea la carpeta del CUIT solo para el dueño y, si ya existía, le saca grupo y otros sin devolverle al dueño lo que
+   * se sacó (ARQ-27). Con `restoreAccess` (lo pide `generar --reemplazar`) también le repone al dueño lectura,
+   * escritura y entrada: la deja en `0700`.
+   */
+  ensureFolder(files: Pick<CertificateFiles, 'folder'>, options?: { readonly restoreAccess?: boolean }): void;
   /** El CSR y el certificado: no son secretos. */
   write(path: string, content: string): void;
   /** La clave privada: solo para el dueño desde que nace. */
