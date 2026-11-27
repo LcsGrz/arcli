@@ -26,9 +26,9 @@ Ticket de Acceso. Credencial temporal que devuelve WSAA y que habilita a operar 
 
 Base de datos de ARCA con la situación fiscal de cada CUIT. Un comprobante puede aprobarse pero igual traer una observación de padrón (por ejemplo `10217` o `10017`) según la condición del receptor, sin que eso implique un error del CLI.
 
-### wsfe / wsfex / wsfecred / ws_sr_constancia_inscripcion
+### wsfe / wsfex / wsfecred / ws_sr_constancia_inscripcion / wscdc
 
-Servicios web de ARCA que usa ARCLI: `wsfe` emite las facturas, notas y recibos A, B y C; `wsfex`, la factura de exportación E; `wsfecred` consulta el régimen FCE del receptor y el estado de una FCE en el Registro; `ws_sr_constancia_inscripcion` es el padrón (`arcli padron` y el IVA receptor desde el padrón). Cada uno se autoriza aparte en ARCA. Ver [Qué servicios autorizar](certificado-testing.md#qué-servicios-autorizar).
+Servicios web de ARCA que usa ARCLI: `wsfe` emite las facturas, notas y recibos A, B y C; `wsfex`, la factura de exportación E; `wsfecred` consulta el régimen FCE del receptor y el estado de una FCE en el Registro; `ws_sr_constancia_inscripcion` es el padrón (`arcli padron` y el IVA receptor desde el padrón). `wscdc` constata comprobantes recibidos (`arcli constatar`). Cada uno se autoriza aparte en ARCA. Ver [Qué servicios autorizar](certificado-testing.md#qué-servicios-autorizar).
 
 ### CSR y alias
 

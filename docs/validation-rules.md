@@ -26,6 +26,7 @@ Cuando ARCA testing acepta lo que ARCLI bloquea, la regla figura como propia y d
 | WSFEv1   | [RG 4291, Proyecto FE v4.7](https://www.afip.gob.ar/ws/documentacion/manuales/manual-desarrollador-ARCA-COMPG.pdf), revisión del 1/9/2026         |
 | WSFEX    | [Factura de exportación v3.1.0](https://www.afip.gob.ar/ws/documentacion/manuales/WSFEX-Manualparaeldesarrollador_V3.1.1_ARCA.pdf), del 18/8/2025 |
 | WSFECred | Ninguna regla copiada: ARCLI solo lo consulta (régimen FCE del receptor y estado del asociado de una anulación)                                   |
+| WSCDC    | [Manual del desarrollador WSCDC v0.4](https://www.afip.gob.ar/ws/WSCDCV1/WSCDC-manual-desarrollador-v4.pdf), del 1/12/2025 (`arcli constatar`)    |
 
 Las reglas que cruzan dos datos (el orden de las fechas, el vencimiento contra la fecha del comprobante, el exento y el no gravado contra el total, el período y el asociado contra la fecha de la nota, el receptor contra el CUIT emisor, el tope de consumidor final, la fecha y la cotización de la `E`) están una sola vez, en dos listas: `BILLING_RULES` (`src/modules/billing/billing.rules.ts`) para A, B, C, FCE y recibos, y `EXPORT_RULES` (`src/modules/export/export.rules.ts`) para la `E`. Las usan los flags, `--cargar` y el [modo interactivo](modo-interactivo.md#opcionales), que las controla al preguntar cada dato: los tres rechazan lo mismo. En el asistente el mensaje nombra la pregunta en lugar del flag. La excepción es el tope de consumidor final: necesita la cotización ya resuelta, que el asistente no sabe al preguntar el monto, así que ahí no corre; el documento lo pide el asistente como paso propio cuando el total en pesos llega al tope (antes de los opcionales si ya se sabe, o después).
 
@@ -409,6 +410,25 @@ Cada recibo usa las mismas validaciones y el mismo armado que la factura de su l
 | C      | `rc`  | 15        | Factura `C` | Cualquier receptor; sin IVA                                                         |
 
 Cada uno puede ser el asociado de una nota de crédito o débito de su letra (`--ac ra`, `--ac rb`, `--ac rc`, o `--at 4`, `9` o `15`). ARCA es quien acepta o rechaza el tipo según el punto de venta y la condición del emisor: el A y el B los emite un responsable inscripto, y el C un monotributista o exento.
+
+### Constatación (`constatar`)
+
+`arcli constatar` corta antes de ir a ARCA lo que WSCDC rechazaría por formato. Las reglas salen del manual de WSCDC v0.4 (§2.2.4) y valen igual con los datos y con `--qr`, salvo las del receptor; en el código llevan el comentario `WSCDC v0.4`.
+
+| Dato                           | Regla                                                                                                             | Origen                  |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| Tipo                           | Atajo de ARCLI o código de ARCA de hasta 3 dígitos; cuál existe lo dice ARCA                                      | ARCA 4                  |
+| Punto de venta                 | De 1 a 99998                                                                                                      | ARCA 3                  |
+| Número                         | De 1 a 99999999                                                                                                   | ARCA 5                  |
+| `--emisor`, `--cuit`, `--cuil` | 11 dígitos con el verificador                                                                                     | ARCA 2 (emisor); propia |
+| `--dni`                        | De 6 a 8 dígitos, como al emitir                                                                                  | Propia                  |
+| `-m`                           | 0 o más (al emitir, mayor a 0)                                                                                    | ARCA 7                  |
+| `--cae`, `--caea`              | 14 dígitos; uno de los dos                                                                                        | ARCA 10                 |
+| Receptor en A y FCE A          | Obligatorio y con `--cuit`                                                                                        | ARCA obs. 113 y 114     |
+| Receptor en B y C              | Obligatorio si el importe supera $ 10.000.000 (más que el tope, no "desde" como el de consumidor final al emitir) | ARCA obs. 115 y 116     |
+| Receptor                       | Un solo documento; tipo y número van juntos                                                                       | ARCA obs. 117; propia   |
+
+El receptor se controla solo en los tipos que ARCLI emite: en la M, la `E` y los demás lo decide ARCA, que contesta con la observación. Con `--qr` tampoco, porque no se le puede agregar: si falta, sale no constatado con el motivo de ARCA. Que el comprobante exista y coincida (observaciones 100 a 112) es la consulta misma.
 
 ## 3. Restricciones y errores de ARCA
 

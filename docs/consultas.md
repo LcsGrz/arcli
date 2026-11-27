@@ -31,3 +31,12 @@ arcli fce-obligado 30546689979    # si está obligado a recibir FCE y desde qué
 ```
 
 Los dos necesitan autorizar servicios aparte de `wsfe` ([cuáles](certificado-testing.md#qué-servicios-autorizar)). Detalle: [padrón](cli-reference.md#consultar-el-padrón) y [régimen FCE](cli-reference.md#consultar-el-régimen-fce).
+
+## Un comprobante que recibiste
+
+```bash
+arcli constatar fa 3-1234 --emisor 30709965812 -f 10/11/2026 -m 12.100 --cae 76463926585341 --cuit 20111111112
+arcli constatar --qr "https://www.arca.gob.ar/fe/qr/?p=…"   # con la dirección que trae su QR
+```
+
+ARCA dice si existe y coincide con lo que te entregaron: sale `0` si está constatado y `2` si no. Necesita autorizar `wscdc` ([cuáles](certificado-testing.md#qué-servicios-autorizar)). Detalle: [constatar](cli-reference.md#constatar-un-comprobante-recibido).

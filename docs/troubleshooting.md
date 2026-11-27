@@ -337,6 +337,14 @@ arcli fc ayuda
 - **Solución:** crear la autorización para `wsfecred` igual que la de `wsfe`, en WSASS (testing) o en el Administrador de Relaciones (producción). Si no la necesitás, desactivá el chequeo con `arcli config eliminar verificarFce`.
 - **Documentación relacionada:** [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web)
 
+### `wscdc` no autorizado
+
+- **Severidad:** frecuente, la primera vez que usás `arcli constatar`
+- **Síntoma:** `arcli constatar` falla con `WSCDC_SERVICE_NOT_AUTHORIZED` (`El certificado no está autorizado para el servicio wscdc ...`). Puede venir de WSAA (`coe.notAuthorized`) o de WSCDC, con el error `600` o `601` en `detalles.errores`.
+- **Causa:** el certificado solo tiene autorizado `wsfe`. La constatación usa otro servicio.
+- **Solución:** crear la autorización para `wscdc` igual que la de `wsfe`, en WSASS (testing) o en el Administrador de Relaciones (producción), con tu CUIT como representado: se constata con tu certificado, no con el del emisor.
+- **Documentación relacionada:** [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web)
+
 ### `ws_sr_constancia_inscripcion` no autorizado
 
 - **Severidad:** frecuente, si usás `arcli padron` o facturás con `--cuit` sin `--ir`

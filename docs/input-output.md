@@ -714,6 +714,54 @@ Si el CUIT no figura, es el error `TAXPAYER_NOT_FOUND` (ver [códigos](#códigos
 | `obligado`   | `boolean` | `true` si el receptor está obligado a recibir FCE en esa fecha |
 | `entorno`    | `string`  | `testing` o `produccion`                                       |
 
+## Constatación (`constatar`)
+
+`arcli constatar … --json` devuelve lo que se constató, tal como se mandó a ARCA (servicio WSCDC), y lo que contestó:
+
+```json
+{
+  "atajo": "fa",
+  "codigoAutorizacion": "76463926585341",
+  "constatado": true,
+  "emisor": "30709965812",
+  "entorno": "testing",
+  "errores": [],
+  "eventos": [],
+  "fecha": "20261110",
+  "fechaProceso": "20261117120000",
+  "importeTotal": 12100,
+  "modo": "CAE",
+  "numero": 1234,
+  "observaciones": [],
+  "puntoVenta": 3,
+  "receptor": { "numero": "20111111112", "tipoDocumento": 80 },
+  "resultado": "A",
+  "tipoArca": 1
+}
+```
+
+| Campo                | Tipo             | Descripción                                                                                                                                    |
+| -------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `constatado`         | `boolean`        | `true` si ARCA lo constató (`resultado` `A`): existe y coincide con los datos                                                                  |
+| `resultado`          | `string`         | `A` (constatado) o `R` (no constatado) de ARCA                                                                                                 |
+| `atajo`              | `string \| null` | El atajo de ARCLI (`fa`, `ncb`…); `null` si es un tipo que ARCLI no emite, como la M                                                           |
+| `tipoArca`           | `number`         | El código del tipo de comprobante en ARCA                                                                                                      |
+| `emisor`             | `string`         | CUIT de quien emitió el comprobante                                                                                                            |
+| `puntoVenta`         | `number`         | Punto de venta del comprobante                                                                                                                 |
+| `numero`             | `number`         | Número del comprobante                                                                                                                         |
+| `fecha`              | `string`         | Fecha del comprobante, formato ARCA `yyyymmdd`                                                                                                 |
+| `importeTotal`       | `number`         | Importe total que se constató                                                                                                                  |
+| `modo`               | `string`         | `CAE` o `CAEA`                                                                                                                                 |
+| `codigoAutorizacion` | `string`         | El CAE o CAEA, 14 dígitos                                                                                                                      |
+| `receptor`           | `object \| null` | `numero` (texto, solo dígitos) y `tipoDocumento` (80 CUIT, 86 CUIL, 96 DNI); `null` si no se mandó                                             |
+| `fechaProceso`       | `string \| null` | Cuándo lo procesó ARCA, `yyyymmddhhmmss`                                                                                                       |
+| `observaciones`      | `array`          | `{ "codigo", "mensaje" }` de ARCA: el motivo de un no constatado (por ejemplo `100`, el CAE no existe) o un aviso de uno constatado (`200`)    |
+| `eventos`            | `array`          | `{ "codigo", "mensaje" }`: avisos generales de ARCA                                                                                            |
+| `errores`            | `array`          | `{ "codigo", "mensaje" }`: errores que ARCA mandó junto a un constatado; con uno no constatado, un error corta como `ARCA_VOUCHER_CHECK_ERROR` |
+| `entorno`            | `string`         | `testing` o `produccion`                                                                                                                       |
+
+El código de salida dice el resultado: `0` constatado, `2` no constatado (el JSON sale igual, en stdout) y `1` un error (en stderr, como el resto: [códigos](#códigos-de-error)). Un error de ARCA, de autenticación o sin conexión nunca es un "no constatado": sin un `resultado` de ARCA no se sabe nada del comprobante.
+
 ## Estado de ARCA (`estado`)
 
 `arcli estado --json`:
@@ -1091,6 +1139,8 @@ Si no se puede escribir la salida por otro motivo, como el disco lleno, ARCLI ta
 | `WSFEX_SERVICE_NOT_AUTHORIZED`        | `fe`, `nce`, `nde`, `factura e`, `nota-credito e`, `nota-debito e`, `ultimos` y `consultar` con `fe`, `nce` o `nde` | El certificado no está autorizado para `wsfex`                                                                                                                                                                                                                                                                                                                                                                                                                | Autorizalo como `wsfe` ([certificados](obtencion-certificados.md)) o configurá `exportacion.cert.*`/`exportacion.key.*`                                                                                                                                                                                             |
 | `ARCA_EXPORT_ERROR`                   | `fe`, `nce`, `nde`, `factura e`, `nota-credito e`, `nota-debito e`, `ultimos` y `consultar` con `fe`, `nce` o `nde` | WSFEX devolvió un error al consultar una tabla, un número, un comprobante, el ID de solicitud o la cotización (`detalles.errores`), o contestó sin un último número o un ID de solicitud que se pueda leer (`detalles.errores` vacío)                                                                                                                                                                                                                         | Revisá el mensaje de ARCA. Al facturar sale antes de emitir: no se emitió nada. En `ultimos` y `consultar`, y por el asociado de una nota, no se sabe si el comprobante existe: si estabas verificando una emisión, no la reintentes hasta saberlo                                                                  |
 | `FCE_OBLIGATION_ERROR`                | `fce-obligado`                                                                                                      | ARCA no pudo informar si el receptor está obligado a FCE (`detalles.errores`)                                                                                                                                                                                                                                                                                                                                                                                 | Revisá el CUIT y la fecha; los códigos de ARCA vienen en el mensaje. Al facturar sale como aviso                                                                                                                                                                                                                    |
+| `WSCDC_SERVICE_NOT_AUTHORIZED`        | `constatar`                                                                                                         | El certificado no está autorizado para `wscdc` (WSAA lo rechaza, o WSCDC contesta 600 o 601, con `detalles.errores`)                                                                                                                                                                                                                                                                                                                                          | Autorizalo como `wsfe` ([certificados](obtencion-certificados.md))                                                                                                                                                                                                                                                  |
+| `ARCA_VOUCHER_CHECK_ERROR`            | `constatar`                                                                                                         | WSCDC contestó con un error (formato, CUIT no activa, error interno; `detalles.errores`) o sin decir si está constatado                                                                                                                                                                                                                                                                                                                                       | Revisá el mensaje de ARCA y el dato que nombra; si es pasajero, repetí en unos minutos. No es un "no constatado"                                                                                                                                                                                                    |
 | `CERTIFICATE_REQUEST_PENDING`         | `certificado generar`                                                                                               | Ya hay un pedido del entorno sin importar                                                                                                                                                                                                                                                                                                                                                                                                                     | Importá el certificado de ese pedido, o sumá `--reemplazar` para descartarlo y armar otro                                                                                                                                                                                                                           |
 | `CERTIFICATE_INVALID`                 | `certificado importar`                                                                                              | El archivo no tiene un certificado X.509                                                                                                                                                                                                                                                                                                                                                                                                                      | Usá el `.crt` que bajaste de ARCA, sin abrirlo ni guardarlo con otro programa                                                                                                                                                                                                                                       |
 | `CERTIFICATE_CUIT_MISMATCH`           | `certificado importar`                                                                                              | El certificado es de otro CUIT que el de la config                                                                                                                                                                                                                                                                                                                                                                                                            | Bajalo con la clave fiscal del CUIT configurado, o cambiá `cuit`                                                                                                                                                                                                                                                    |

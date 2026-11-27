@@ -26,14 +26,15 @@ Un atajo por comprobante: `arcli fc` es lo mismo que `arcli factura c`. Cada uno
 
 No emiten nada.
 
-| Comando                           | Qué hace                                             |
-| --------------------------------- | ---------------------------------------------------- |
-| `arcli ultimos <tipo>`            | Los últimos comprobantes emitidos en ARCA            |
-| `arcli consultar <tipo> <número>` | El detalle de un comprobante emitido                 |
-| `arcli padron <cuit>`             | Nombre, domicilio y condición IVA de un CUIT         |
-| `arcli fce-obligado <cuit>`       | Si un receptor está obligado a recibir FCE           |
-| `arcli estado`                    | Si ARCA responde y tu punto de venta está habilitado |
-| `arcli parametros [tabla]`        | Tablas de ARCA: puntos de venta, monedas, cotización |
+| Comando                              | Qué hace                                                  |
+| ------------------------------------ | --------------------------------------------------------- |
+| `arcli ultimos <tipo>`               | Los últimos comprobantes emitidos en ARCA                 |
+| `arcli consultar <tipo> <número>`    | El detalle de un comprobante emitido                      |
+| `arcli padron <cuit>`                | Nombre, domicilio y condición IVA de un CUIT              |
+| `arcli fce-obligado <cuit>`          | Si un receptor está obligado a recibir FCE                |
+| `arcli constatar <tipo> <pv-número>` | Si un comprobante que recibiste existe en ARCA y coincide |
+| `arcli estado`                       | Si ARCA responde y tu punto de venta está habilitado      |
+| `arcli parametros [tabla]`           | Tablas de ARCA: puntos de venta, monedas, cotización      |
 
 Con ejemplos, en [consultas sin emitir](consultas.md).
 

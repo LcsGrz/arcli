@@ -134,13 +134,13 @@ Hay varias combinaciones de flags que no podés usar juntas (entorno, modo de ej
 
 Usalos cuando necesitás controlar el entorno, la salida o el modo de inspección del resultado. Cada comando acepta solo los que usa:
 
-| Comando                                                                                 | Flags globales que acepta                        |
-| --------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| comprobantes (`fa`, `fc`, `nca`, `factura`, ...)                                        | `--testing`, `--produccion`, `--json`, `--bruto` |
-| `padron`, `fce-obligado`, `ultimos`, `consultar`, `parametros`, `estado`, `monotributo` | `--testing`, `--produccion`, `--json`            |
-| `certificado generar`, `certificado importar`                                           | `--testing`, `--produccion`, `--json`            |
-| `interactivo`                                                                           | `--testing`, `--produccion`                      |
-| `config` (y sus subcomandos), `pdf` (y sus subcomandos), `completado`, `acceso-directo` | `--json`                                         |
+| Comando                                                                                              | Flags globales que acepta                        |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| comprobantes (`fa`, `fc`, `nca`, `factura`, ...)                                                     | `--testing`, `--produccion`, `--json`, `--bruto` |
+| `padron`, `fce-obligado`, `constatar`, `ultimos`, `consultar`, `parametros`, `estado`, `monotributo` | `--testing`, `--produccion`, `--json`            |
+| `certificado generar`, `certificado importar`                                                        | `--testing`, `--produccion`, `--json`            |
+| `interactivo`                                                                                        | `--testing`, `--produccion`                      |
+| `config` (y sus subcomandos), `pdf` (y sus subcomandos), `completado`, `acceso-directo`              | `--json`                                         |
 
 ### Emisión en producción
 
@@ -876,6 +876,34 @@ Al facturar con `--cuit` sin `--ir` (ni `ivaReceptor` en el JSON), ARCLI consult
 | Lo mismo, sin `ivaReceptor` en la config        | Error `INPUT_VALIDATION_ERROR`: indicala con `--ir`         |
 
 Para no consultarlo: `arcli config establecer consultarPadron false`. El modo interactivo hace la misma consulta al cargar un CUIT y propone esa condición, marcada "(según el padrón)".
+
+## Constatar un comprobante recibido
+
+`arcli constatar` le pregunta a ARCA (servicio WSCDC) si un comprobante que te entregaron existe y coincide con lo que dice: emisor, tipo, número, fecha, importe y código de autorización. Sirve para cualquier comprobante, también los que ARCLI no emite, y se consulta con tu certificado: el del emisor no hace falta. Solo consulta; no emite ni modifica nada.
+
+```bash
+arcli constatar fa 3-1234 --emisor 30709965812 -f 10/11/2026 -m 12.100 --cae 76463926585341 --cuit 20111111112
+arcli constatar fb 00003-00001234 --emisor 30709965812 -f 10/11 -m 1.500,50 --cae 76463926585341
+arcli constatar --qr "https://www.arca.gob.ar/fe/qr/?p=eyJ2ZXIiOjEs…" --json
+```
+
+| Argumento o flag                      | Alias   | Descripción                                                                                                                                    |
+| ------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<tipo>`                              | ninguno | Atajo (`fa`, `fb`, `nca`, `fcea`, `fe`…) o código de ARCA (`1`, `6`, `51`…): también se constatan los que ARCLI no emite                       |
+| `<comprobante>`                       | ninguno | Punto de venta y número separados por un guion: `3-1234` o `00003-00001234`                                                                    |
+| `--emisor <cuit>`                     | ninguno | CUIT de quien emitió el comprobante                                                                                                            |
+| `--fecha <fecha>`                     | `-f`    | Fecha del comprobante; los mismos formatos que al emitir, también `hoy`, `ayer`, `+N` o `-N`                                                   |
+| `--monto <numero>`                    | `-m`    | Importe total, en formato argentino; acá vale `0`                                                                                              |
+| `--cae <codigo>`, `--caea <codigo>`   | ninguno | El código de autorización del comprobante, 14 dígitos: uno de los dos                                                                          |
+| `--cuit`, `--cuil`, `--dni <numero>`  | ninguno | Documento del receptor. En A y FCE A va siempre, y con `--cuit`; en B y C, solo si el importe supera $ 10.000.000                              |
+| `--qr <url>`                          | ninguno | La dirección que trae el QR del comprobante (`www.arca.gob.ar/fe/qr/` o `www.afip.gob.ar/fe/qr/`), en vez del tipo, el comprobante y los flags |
+| `--json`, `--testing`, `--produccion` | ninguno | Flags globales                                                                                                                                 |
+
+El punto de venta es el del comprobante que recibiste: no sale de la config. Con `--qr` no se pasa nada más; si el QR es de un consumidor final (documento 99 y número 0), se constata sin receptor.
+
+El resultado tiene su código de salida: `0` constatado, `2` no constatado (no existe o no coincide; el motivo de ARCA sale en las observaciones) y `1` un error. Un error nunca es un "no constatado": si el certificado no está autorizado es `WSCDC_SERVICE_NOT_AUTHORIZED`, y si ARCA contesta con un error, `ARCA_VOUCHER_CHECK_ERROR`. Un CAEA que el emisor todavía no rindió sale constatado, con la observación `200` de aviso. El JSON está en [Entrada y salida](input-output.md#constatación-constatar).
+
+Usa el servicio `wscdc`, que hay que autorizar aparte de `wsfe`. Ver [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web).
 
 ## Categorías del monotributo
 
