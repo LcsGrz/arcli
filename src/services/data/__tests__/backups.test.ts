@@ -1,4 +1,13 @@
-import { copyFileSync, existsSync, mkdirSync, statSync, truncateSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  truncateSync,
+  writeFileSync,
+} from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -303,6 +312,26 @@ describe('copia diaria (ARQ-12 PR 4b)', () => {
 
     expect(names.filter((name) => DAILY_BACKUP.test(name))).toHaveLength(7);
     expect(names.filter((name) => MIGRATION_BACKUP.test(name))).toHaveLength(1);
+  });
+
+  // Decidido el 27/11: la diaria es después del COMMIT; si falla, lo guardado vale y save lo dice como dato (LIBRO-1
+  // avisa). El siguiente guardado del día la vuelve a intentar.
+  it('si la copia diaria falla, lo guardado queda y save devuelve backupFailed con la razón', async () => {
+    const { dataDirectory, file } = await baseWith([1]);
+
+    writeFileSync(backupsFolder(dataDirectory), 'no es una carpeta');
+
+    await expect(openStore(dataDirectory, { backups: ON }).save(record(2))).resolves.toEqual({
+      backupFailed: { reason: 'unavailable' },
+      kind: 'saved',
+    });
+    expect(caes(file)).toEqual([cae(1), cae(2)]);
+    expect(readdirSync(dirname(file)).sort()).toEqual(['comprobantes.db', 'copias']);
+
+    rmSync(backupsFolder(dataDirectory));
+
+    await expect(openStore(dataDirectory, { backups: ON }).save(record(3))).resolves.toEqual({ kind: 'saved' });
+    expect(backupNames(dataDirectory)).toEqual([expect.stringMatching(DAILY_BACKUP)]);
   });
 });
 

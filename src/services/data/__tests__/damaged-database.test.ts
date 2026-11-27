@@ -1,5 +1,15 @@
-import { chmodSync, existsSync, mkdirSync, readdirSync, truncateSync, utimesSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  truncateSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { basename, dirname, join } from 'node:path';
+import { setTimeout } from 'node:timers/promises';
 import { describe, expect, it } from 'vitest';
 
 import type { SaveOutcome } from '../../../modules/vouchers/voucher-record-store';
@@ -239,5 +249,61 @@ describe('lo que no es daño no se aparta (ARQ-12 PR 4b)', () => {
 
     expect(fingerprint(file)).toEqual(before);
     expect(setAsideNames(file)).toEqual([]);
+  });
+
+  // Decidido el 27/11: dañada y sin poder apartarla porque la carpeta es de solo lectura, se dice `read-only` (lo que
+  // hay que arreglar) y no se toca nada; con el permiso de vuelta, el siguiente save la aparta y la repone.
+  it.runIf(withPermissions)('dañada en una carpeta de solo lectura da read-only, sin tocar nada', async () => {
+    const { dataDirectory, file } = await damagedBase((path) => truncateSync(path, 100));
+    const before = fingerprint(file);
+
+    chmodSync(dirname(file), 0o500);
+
+    try {
+      await expectLocalDataError(openStore(dataDirectory, { backups: OFF }).save(NEXT), 'read-only');
+    } finally {
+      chmodSync(dirname(file), 0o700);
+    }
+
+    expect(fingerprint(file)).toEqual(before);
+    expect(readdirSync(dirname(file))).toEqual(['comprobantes.db']);
+
+    const outcome = await openStore(dataDirectory, { backups: OFF }).save(NEXT);
+
+    expect(basename(recoveryOf(outcome)?.setAside ?? '')).toMatch(DAMAGED_NAME);
+  });
+});
+
+/**
+ * Sin hard links, otro proceso puede estar copiando la base a su lugar y borrar su temporal justo antes de terminar
+ * (decidido el 27/11): una base cortada con menos de 10 s se vuelve a mirar unos segundos antes de apartarla.
+ */
+describe('una base cortada muy reciente (ARQ-12 PR 4b)', () => {
+  it('si en la espera queda entera, no se aparta y guarda en ella', { timeout: 20_000 }, async () => {
+    const { dataDirectory, file } = await damagedBase(() => undefined);
+    const whole = readFileSync(file);
+
+    truncateSync(file, 100);
+
+    const finished = setTimeout(500).then(() => writeFileSync(file, whole));
+    const outcome = await openStore(dataDirectory, { backups: OFF }).save(NEXT);
+
+    await finished;
+    expect(outcome).toEqual({ kind: 'saved' });
+    expect(setAsideNames(file)).toEqual([]);
+    expect(caes(file)).toEqual([cae(1), cae(2), NEXT.cae]);
+  });
+
+  it('si sigue cortada después de la espera, la aparta', { timeout: 20_000 }, async () => {
+    const { dataDirectory, file } = await damagedBase(() => undefined);
+
+    truncateSync(file, 100);
+
+    const started = Date.now();
+    const outcome = await openStore(dataDirectory, { backups: OFF }).save(NEXT);
+
+    expect(Date.now() - started).toBeGreaterThanOrEqual(2500);
+    expect(basename(recoveryOf(outcome)?.setAside ?? '')).toMatch(DAMAGED_NAME);
+    expect(caes(file)).toEqual([NEXT.cae]);
   });
 });
