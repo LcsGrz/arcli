@@ -43,44 +43,64 @@ export function windowColumns<T>(items: readonly T[], first: number, last: numbe
   return [...items.slice(0, 1), ...items.slice(first, last + 1)];
 }
 
-/** Si las columnas de `first` a `last` entran en `width`, con `minimumGap` entre cada una. */
-function fits(widths: readonly number[], [first, last]: readonly [number, number], width: number, gap: number) {
+/**
+ * Si las columnas de datos de `first` a `last` entran con la de categoria en `width`: con 3 espacios entre cada una
+ * o, si es una sola, con 2.
+ */
+function windowFits(widths: readonly number[], first: number, last: number, width: number): boolean {
+  const gap = first === last ? NARROW_GAP : WIDE_GAP;
+
   return columnGaps(windowColumns(widths, first, last), width, gap) !== undefined;
 }
 
 /**
+ * Si un bloque de columnas de `widths` (la primera, la de categoria) va por ventana en `width`: no entra entero ni
+ * con 2 espacios y cada columna de datos, sola con la de categoria, si entra. Si alguna no entra, el bloque va
+ * apilado, entrando por cualquier lado.
+ */
+function usesWindow(widths: readonly number[], width: number): boolean {
+  if (columnGaps(widths, width) !== undefined) return false;
+
+  return widths.slice(1).every((_, index) => windowFits(widths, index + 1, index + 1, width));
+}
+
+/** La ventana que termina en `last`, con todas las columnas que entran hacia la izquierda. */
+function endingAt(widths: readonly number[], last: number, width: number): ColumnWindow {
+  let first = last;
+
+  while (first > 1 && windowFits(widths, first - 1, last, width)) first -= 1;
+
+  return { first, last, total: widths.length - 1 };
+}
+
+/** La ventana que empieza en `first`, con todas las columnas que entran hacia la derecha. */
+function startingAt(widths: readonly number[], first: number, width: number): ColumnWindow {
+  const total = widths.length - 1;
+  let last = first;
+
+  while (last < total && windowFits(widths, first, last + 1, width)) last += 1;
+
+  return { first, last, total };
+}
+
+/**
  * La ventana con la que se entra a un bloque de columnas de `widths` (la primera, la de categoria): desde la primera
- * de datos (`side` `left`, entrando desde el bloque de la izquierda) o hasta la ultima (`right`), con todas las que
- * entran con 3 espacios entre cada una. `undefined` si el bloque entra entero (no hace falta ventana) o si no entra
- * ni una columna (va apilado).
+ * de datos (`side` `left`, entrando desde el bloque de la izquierda) o hasta la ultima (`right`), siempre con todas
+ * las que entran. `undefined` si el bloque no va por ventana (ver `usesWindow`).
  */
 export function enterColumnWindow(
   widths: readonly number[],
   side: 'left' | 'right',
   width: number,
 ): ColumnWindow | undefined {
-  const total = widths.length - 1;
+  if (!usesWindow(widths, width)) return undefined;
 
-  if (fits(widths, [1, total], width, NARROW_GAP)) return undefined;
-
-  if (side === 'left') {
-    let last = 0;
-
-    while (last < total && fits(widths, [1, last + 1], width, WIDE_GAP)) last += 1;
-
-    return last === 0 ? undefined : { first: 1, last, total };
-  }
-
-  let first = total + 1;
-
-  while (first > 1 && fits(widths, [first - 1, total], width, WIDE_GAP)) first -= 1;
-
-  return first > total ? undefined : { first, last: total, total };
+  return side === 'left' ? startingAt(widths, 1, width) : endingAt(widths, widths.length - 1, width);
 }
 
 /**
- * La ventana corrida una columna hacia `direction`: la nueva entra pegada a ese lado y del otro sale una (o las que
- * hagan falta para que entre). `undefined` si ya no hay columnas de ese lado.
+ * La ventana corrida una columna hacia `direction`: la nueva queda pegada a ese lado y la ventana se completa hacia
+ * el otro con todas las que entran, asi que puede crecer o achicarse. `undefined` si ya no hay columnas de ese lado.
  */
 export function moveColumnWindow(
   widths: readonly number[],
@@ -89,22 +109,8 @@ export function moveColumnWindow(
   width: number,
 ): ColumnWindow | undefined {
   if (direction === 'right') {
-    if (window.last >= window.total) return undefined;
-
-    const last = window.last + 1;
-    let first = Math.min(window.first + 1, last);
-
-    while (first < last && !fits(widths, [first, last], width, WIDE_GAP)) first += 1;
-
-    return { first, last, total: window.total };
+    return window.last < window.total ? endingAt(widths, window.last + 1, width) : undefined;
   }
 
-  if (window.first <= 1) return undefined;
-
-  const first = window.first - 1;
-  let last = Math.max(window.last - 1, first);
-
-  while (last > first && !fits(widths, [first, last], width, WIDE_GAP)) last -= 1;
-
-  return { first, last, total: window.total };
+  return window.first > 1 ? startingAt(widths, window.first - 1, width) : undefined;
 }

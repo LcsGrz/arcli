@@ -251,7 +251,7 @@ export function formatMonotributoSummaryAsText(
     `Monotributo ${separator} ${sinceLabel(report)}`,
   );
 
-  return listingPanel(title, table, { legend: [...notes, ...hints] });
+  return listingPanel(title, table, { contentWidth: options.width, legend: [...notes, ...hints] });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -398,10 +398,12 @@ function stackedBlock(columns: readonly Column[], report: MonotributoReport, wid
     const isOwn = category.letter === report.ownCategory;
     const rows = data.map((column) => [column.header.toLowerCase(), column.value(category)] as const);
 
+    // La propia, con el fondo en la letra y en cada dato, como el resumen en dos lineas.
     return [
       ...(index > 0 ? [''] : []),
-      emphasize(`${rowPrefix(isOwn)}${category.letter}`, isOwn, width),
-      ...renderKeyValueRows(rows, { indent: 4, labelTone: 'muted' }),
+      ...[`${rowPrefix(isOwn)}${category.letter}`, ...renderKeyValueRows(rows, { indent: 4, labelTone: 'muted' })].map(
+        (line) => emphasize(line, isOwn, width),
+      ),
     ];
   });
 }
@@ -418,7 +420,10 @@ function formatColumnWindow({ first, last, total }: MonotributoColumnWindow): st
   ].join('');
 }
 
-/** La ventana con la que se entra a `block` desde `side`; `undefined` si entra entero o no entra ni una columna. */
+/**
+ * La ventana con la que se entra a `block` desde `side`; `undefined` si entra entero o si alguna columna no entra ni
+ * sola (va apilado, entrando por cualquier lado).
+ */
 export function enterMonotributoColumnWindow(
   report: MonotributoReport,
   block: MonotributoBlock,
@@ -457,11 +462,13 @@ export function formatMonotributoBlockAsText(
   },
 ): string {
   const width = options.width ?? panelContentWidth('wide');
-  const { window } = options;
-  const columns = window ? windowColumns(BLOCK_COLUMNS[block], window.first, window.last) : BLOCK_COLUMNS[block];
-  const lines =
-    renderColumns(columns, report.table.categories, report.ownCategory, width) ??
-    stackedBlock(BLOCK_COLUMNS[block], report, width);
+  const columns = options.window
+    ? windowColumns(BLOCK_COLUMNS[block], options.window.first, options.window.last)
+    : BLOCK_COLUMNS[block];
+  const table = renderColumns(columns, report.table.categories, report.ownCategory, width);
+  // Si la ventana ya no entra (la terminal se achico), apilado y sin el indicador de columnas.
+  const window = table ? options.window : undefined;
+  const lines = table ?? stackedBlock(BLOCK_COLUMNS[block], report, width);
 
   const separator = uiSymbol('separator');
   const title = panelTitle(
@@ -478,7 +485,7 @@ export function formatMonotributoBlockAsText(
       ...lines,
       ...(window ? ['', colorize(formatColumnWindow(window), 'muted')] : []),
     ],
-    { legend: block === 'cuota' ? [formatMonotributoSource(report)] : [] },
+    { contentWidth: options.width, legend: block === 'cuota' ? [formatMonotributoSource(report)] : [] },
   );
 }
 

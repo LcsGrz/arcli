@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { plainText } from '../../../testing/terminal-layout';
+import { inverseColumns, plainText } from '../../../testing/terminal-layout';
 import { BUNDLED_MONOTRIBUTO_TABLE } from '../monotributo.bundled';
 import {
   enterMonotributoColumnWindow,
@@ -59,6 +59,35 @@ describe('ventana de columnas', () => {
     expect(moved).toEqual({ first: 1, last: 2, total: 5 });
   });
 
+  it('siempre con todas las que entran: → desde 2 a 4 crece a 2 a 5 si entra', () => {
+    expect(
+      moveMonotributoColumnWindow(REPORT, 'limites', { first: 2, last: 4, total: 5 }, 'right', { width: WIDTH }),
+    ).toEqual({ first: 2, last: 5, total: 5 });
+    // ← igual al revés: la nueva a la izquierda y todas las que entran hacia la derecha.
+    expect(
+      moveMonotributoColumnWindow(REPORT, 'limites', { first: 3, last: 4, total: 5 }, 'left', { width: WIDTH }),
+    ).toEqual({ first: 2, last: 5, total: 5 });
+  });
+
+  it('si una columna sola no entra, el bloque va apilado entrando por cualquier lado', () => {
+    // 23 de contenido: INGRESOS ($ 126.610.838,75) no entra ni sola con CAT.; las demás sí.
+    expect(enterMonotributoColumnWindow(REPORT, 'limites', 'left', { width: 23 })).toBeUndefined();
+    expect(enterMonotributoColumnWindow(REPORT, 'limites', 'right', { width: 23 })).toBeUndefined();
+  });
+
+  it('si la ventana ya no entra (la terminal se achicó), va apilado y sin el indicador', () => {
+    const text = plainText(
+      formatMonotributoBlockAsText(REPORT, 'limites', {
+        navigation: 'flechas',
+        width: 34,
+        window: { first: 1, last: 3, total: 5 },
+      }),
+    );
+
+    expect(text).toMatch(/❯ E\s*\n +ingresos +\$ 36\.028\.231,33/);
+    expect(text).not.toMatch(/columnas \d+ a \d+ de \d+/);
+  });
+
   it('el bloque con ventana dice qué columnas se ven y no se apila', () => {
     const text = plainText(
       formatMonotributoBlockAsText(REPORT, 'limites', {
@@ -71,5 +100,23 @@ describe('ventana de columnas', () => {
     expect(text).toMatch(/CAT\. +SUPERFICIE +ENERGÍA +ALQUILERES\s/);
     expect(text).not.toContain('INGRESOS');
     expect(text).toContain('←  columnas 2 a 4 de 5  →');
+  });
+});
+
+describe('--completa apilado', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('con color, la categoría propia lleva el fondo en la letra y en cada dato', () => {
+    vi.stubEnv('FORCE_COLOR', '1');
+
+    const lines = formatMonotributoBlockAsText(REPORT, 'limites', { navigation: 'apilados', width: 34 }).split('\n');
+    const start = lines.findIndex((line) => /❯ E/.test(plainText(line)));
+    const marked = lines.flatMap((line, index) => (inverseColumns(line).length > 0 ? [index] : []));
+
+    // La letra y sus cinco datos, seguidos; nada más.
+    expect(marked).toEqual([start, start + 1, start + 2, start + 3, start + 4, start + 5]);
+    expect(plainText(lines[start + 1] ?? '')).toMatch(/ingresos +\$ 36\.028\.231,33/);
   });
 });
