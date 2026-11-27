@@ -7,16 +7,14 @@ import { colorize, type UiTextColor } from '../text';
  * terminal. Tiene que apagarse al final de la linea: si quedara prendido, pintaria todo lo que sigue.
  */
 
-// `mark` todavia no es un color del tema: el cast deja escribir el test antes.
-const MARK = 'mark' as UiTextColor;
+const MARK: UiTextColor = 'mark';
 
 describe('colorize con mark', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('prende el video inverso y lo apaga al final de cada línea', () => {
+  it('prende el video inverso y lo apaga al final de cada línea', () => {
     vi.stubEnv('FORCE_COLOR', '1');
 
     const lines = colorize('A\nB', MARK).split('\n');

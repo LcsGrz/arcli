@@ -61,7 +61,7 @@ export function formatParameterEntriesAsText(
   return listingPanel(
     `${PARAMETER_TABLES[table]} ${uiSymbol('separator')} ${formatEnvironmentLabel(environment)}`,
     [bold(header), ...rows],
-    { footer: PARAMETER_TABLE_HELP[table], footerTone: 'muted' },
+    { legend: PARAMETER_TABLE_LEGEND[table] },
   );
 }
 
@@ -78,19 +78,32 @@ const PARAMETER_TABLE_COLUMNS: Record<ParameterTable, readonly [id: string, desc
   tributos: ['CÓDIGO', 'TRIBUTO'],
 };
 
-/** Para que sirve el codigo de cada tabla en ARCLI: va al pie del listado y en la ayuda del asistente. */
-export const PARAMETER_TABLE_HELP: Record<ParameterTable, string> = {
-  alicuotas: '`--alicuota` va con la tasa (`21`, `10.5`), no con el código.',
-  comprobantes: 'ARCLI los elige por atajo (`fc`, `nca`); el código es el de `--at`, el tipo del asociado.',
-  conceptos: '`--concepto` va con el nombre: `productos`, `servicios` o `productos-servicios`.',
-  documentos: 'El documento del receptor: en ARCLI va con `--cuit`, `--cuil`, `--dni` o `--cfinal`.',
-  'iva-receptor':
-    '`--ir` va con el nombre (`responsable-inscripto`) o un atajo (`--ir-ri`). Comprobantes: las letras que la admiten.',
-  monedas: '`--moneda` acepta este código o el ISO: `060` o `EUR`.',
-  opcionales: 'Datos que ARCA acepta además de los básicos. ARCLI completa solo los que usa, como el CBU de la FCE.',
-  'puntos-venta': 'El número va en `--pv` o en la config (`puntoVenta`). Solo sirven los de web service.',
-  tributos: 'ARCLI todavía no informa tributos, como las percepciones de IIBB.',
+/**
+ * Para que sirve el codigo de cada tabla en ARCLI, una idea por linea: va en la leyenda, debajo del listado. La
+ * ayuda del asistente las junta en una (`PARAMETER_TABLE_HELP`).
+ */
+export const PARAMETER_TABLE_LEGEND: Record<ParameterTable, readonly string[]> = {
+  alicuotas: ['`--alicuota` va con la tasa (`21`, `10.5`), no con el código.'],
+  comprobantes: ['ARCLI los elige por atajo (`fc`, `nca`); el código es el de `--at`, el tipo del asociado.'],
+  conceptos: ['`--concepto` va con el nombre: `productos`, `servicios` o `productos-servicios`.'],
+  documentos: ['El documento del receptor: en ARCLI va con `--cuit`, `--cuil`, `--dni` o `--cfinal`.'],
+  'iva-receptor': [
+    '`--ir` va con el nombre (`responsable-inscripto`) o un atajo (`--ir-ri`).',
+    'Comprobantes: las letras que la admiten.',
+  ],
+  monedas: ['`--moneda` acepta este código o el ISO: `060` o `EUR`.'],
+  opcionales: [
+    'Datos que ARCA acepta además de los básicos.',
+    'ARCLI completa solo los que usa, como el CBU de la FCE.',
+  ],
+  'puntos-venta': ['El número va en `--pv` o en la config (`puntoVenta`). Solo sirven los de web service.'],
+  tributos: ['ARCLI todavía no informa tributos, como las percepciones de IIBB.'],
 };
+
+/** La leyenda de cada tabla en una linea: la descripcion de cada tabla en el asistente y la ayuda de su lista. */
+export const PARAMETER_TABLE_HELP = Object.fromEntries(
+  Object.entries(PARAMETER_TABLE_LEGEND).map(([table, legend]) => [table, legend.join(' ')]),
+) as Record<ParameterTable, string>;
 
 /**
  * Filas alineadas de una tabla de ARCA con su encabezado: codigo, descripcion y, si la tabla lo tiene, el detalle.

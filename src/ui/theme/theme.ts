@@ -57,6 +57,7 @@ export type UiColorToken =
   | 'highlight'
   | 'info'
   | 'logo'
+  | 'mark'
   | 'muted'
   | 'neutral'
   | 'production'
@@ -303,6 +304,9 @@ export const UI_THEME: UiTheme = {
     info: '\u001B[36m',
     // El celeste de la bandera (color de 24 bits): solo el logo.
     logo: '\u001B[38;2;116;172;223m',
+    // El fondo de una fila marcada, como la categoria propia del monotributo: video inverso, que se lee en cualquier
+    // fondo de terminal (con temas, pasa a ser un fondo del tema, como base02). Va con `markRow`.
+    mark: '\u001B[7m',
     muted: '\u001B[2m',
     // Color por defecto de la terminal: claro en fondos oscuros y oscuro en fondos claros.
     // Un blanco fijo (\u001B[37m) casi no se leia en terminales con fondo claro.

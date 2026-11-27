@@ -77,8 +77,7 @@ const TABLES = Object.keys(LEGENDS) as ParameterTable[];
 const trimmed = (lines: readonly string[]) => lines.map((line) => plainText(line).trim());
 
 describe('arcli parametros: la leyenda va afuera de la tabla (TUI-28)', () => {
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails.each(TABLES)('%s, en 92 columnas: debajo del borde, tras una línea en blanco, centrada', (table) => {
+  it.each(TABLES)('%s, en 92 columnas: debajo del borde, tras una línea en blanco, centrada', (table) => {
     terminal.set({ columns: 92 });
 
     const text = formatParameterEntriesAsText(table, ENTRIES[table], 'testing');
@@ -95,8 +94,7 @@ describe('arcli parametros: la leyenda va afuera de la tabla (TUI-28)', () => {
     }
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('la ayuda de iva-receptor va en dos frases, una por línea', () => {
+  it('la ayuda de iva-receptor va en dos frases, una por línea', () => {
     terminal.set({ columns: 92 });
 
     const [panel] = listingPanels(formatParameterEntriesAsText('iva-receptor', ENTRIES['iva-receptor'], 'testing'));
@@ -104,8 +102,7 @@ describe('arcli parametros: la leyenda va afuera de la tabla (TUI-28)', () => {
     expect(trimmed(legendLines(panel ?? { after: [], inside: [], width: 0 }))).toEqual(LEGENDS['iva-receptor']);
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails.each(TABLES)('%s: adentro no queda el divisor ═ corto', (table) => {
+  it.each(TABLES)('%s: adentro no queda el divisor ═ corto', (table) => {
     terminal.set({ columns: 92 });
 
     const [panel] = listingPanels(formatParameterEntriesAsText(table, ENTRIES[table], 'testing'));
@@ -115,8 +112,7 @@ describe('arcli parametros: la leyenda va afuera de la tabla (TUI-28)', () => {
     expect(trimmed(legendLines(panel ?? { after: [], inside: [], width: 0 })).join(' ')).toContain(LEGENDS[table][0]);
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails.each([40, 72])('en %s columnas lo que no entra se parte, y cada pedazo va centrado', (columns) => {
+  it.each([40, 72])('en %s columnas lo que no entra se parte, y cada pedazo va centrado', (columns) => {
     terminal.set({ columns });
 
     const [panel] = listingPanels(formatParameterEntriesAsText('iva-receptor', ENTRIES['iva-receptor'], 'testing'));
@@ -133,8 +129,7 @@ describe('arcli parametros: la leyenda va afuera de la tabla (TUI-28)', () => {
     }
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('con color, la leyenda va atenuada', () => {
+  it('con color, la leyenda va atenuada', () => {
     terminal.set({ color: 'forzado', columns: 92 });
 
     const [panel] = listingPanels(formatParameterEntriesAsText('monedas', ENTRIES.monedas, 'testing'));
@@ -150,8 +145,7 @@ describe('arcli parametros: la leyenda va afuera de la tabla (TUI-28)', () => {
     expect(formatParameterEntriesAsText('monedas', ENTRIES.monedas, 'testing')).not.toContain('\u001B[');
   });
 
-  // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-  it.fails('en ASCII la leyenda también va debajo del borde', () => {
+  it('en ASCII la leyenda también va debajo del borde', () => {
     terminal.set({ ascii: true, columns: 92 });
 
     const lines = plainText(formatParameterEntriesAsText('monedas', ENTRIES.monedas, 'testing')).split('\n');

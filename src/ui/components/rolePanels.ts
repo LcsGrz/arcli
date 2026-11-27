@@ -1,5 +1,5 @@
 import { renderPanel } from '../primitives/renderPanel';
-import type { UiTextColor } from '../primitives/text';
+import { centerText, colorize, type UiTextColor, visibleWidth, wrapPlainText } from '../primitives/text';
 import type { UiBorderType, UiWidthPreset } from '../theme/theme';
 
 // Un panel por rol (docs/design-system.md, "Paneles"): cada uno fija su borde, ancho y color, asi el mismo
@@ -54,9 +54,33 @@ export function checklistPanel(title: string, content: PanelContent, status: Pan
   return statusPanelFor('checklist', 'wide', title, content, status);
 }
 
-/** Listado en tabla, como los últimos comprobantes. Sin color. */
-export function listingPanel(title: string, content: PanelContent, status?: PanelStatus): string {
-  return statusPanelFor('listing', 'wide', title, content, status);
+/** Lo que acompaña a un listado. */
+export interface ListingOptions {
+  /**
+   * Lo que explica la tabla (qué marca la fila resaltada, de dónde salen los datos, qué comando sigue), una idea por
+   * línea: va afuera del panel, debajo del borde, centrada y atenuada. Un `''` deja una línea en blanco.
+   */
+  readonly legend?: readonly string[];
+}
+
+/** Las líneas de la leyenda, cada una partida al ancho del panel y centrada en él. */
+function renderLegend(legend: readonly string[], width: number): string[] {
+  return legend.flatMap((item) =>
+    item === '' ? [''] : wrapPlainText(item, width).map((line) => centerText(colorize(line, 'muted'), width)),
+  );
+}
+
+/** Listado en tabla, como los últimos comprobantes. Sin color en el borde; la leyenda va debajo, afuera. */
+export function listingPanel(title: string, content: PanelContent, { legend = [] }: ListingOptions = {}): string {
+  const panel = renderPanel({ borderType: 'listing', content, contentAlign: 'left', title, width: 'wide' });
+
+  if (legend.length === 0) {
+    return panel;
+  }
+
+  const width = visibleWidth(panel.slice(panel.lastIndexOf('\n') + 1));
+
+  return [panel, '', ...renderLegend(legend, width)].join('\n');
 }
 
 /** Observaciones y avisos. */

@@ -342,8 +342,7 @@ describe('Consultas del modo interactivo', () => {
       expect(filterLists).toHaveLength(0);
     });
 
-    // Tests primero (TUI-27/28): pasa a it() al implementarlo.
-    it.fails('la ayuda de la tabla corta va afuera del panel, centrada, sin el divisor ═ de adentro', async () => {
+    it('la ayuda de la tabla corta va afuera del panel, centrada, sin el divisor ═ de adentro', async () => {
       listTable.mockResolvedValueOnce([
         { description: 'Productos', id: '1' },
         { description: 'Servicios', id: '2' },
