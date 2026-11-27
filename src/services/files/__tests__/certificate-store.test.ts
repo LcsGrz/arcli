@@ -77,6 +77,25 @@ describe.skipIf(process.platform === 'win32')('certificate-store: permisos de la
 
     expect(permissions(files.folder)).toBe(0o700);
   });
+
+  // ARQ-27: una carpeta de solo lectura no gana escritura, salvo con la reparación explícita de `--reemplazar`.
+  it.each([
+    [false, '0500'],
+    [true, '0700'],
+  ])('con restoreAccess %s, la carpeta del CUIT en 0500 queda en %s', (restoreAccess, expected) => {
+    const files = resolveCertificateFiles(temporaryFolder(), '20123456786', 'testing');
+
+    mkdirSync(files.folder, { recursive: true });
+    chmodSync(files.folder, 0o500);
+
+    try {
+      ensureCertificateFolder(files, { restoreAccess });
+
+      expect(permissions(files.folder)).toBe(Number.parseInt(expected, 8));
+    } finally {
+      chmodSync(files.folder, 0o700);
+    }
+  });
 });
 
 // Caracterización antes de ARQ-12: estas operaciones pasan al adaptador de `CertificateStore` (services/files). Si se

@@ -197,7 +197,7 @@ arcli config establecer ticketPath /ruta/que/prefieras
 arcli config eliminar ticketPath
 ```
 
-El ticket permite operar en ARCA como tu CUIT mientras dure, así que ARCLI deja la carpeta en `0700` (solo tu usuario). Si elegís otra ubicación, que no sea una carpeta compartida.
+El ticket permite operar en ARCA como tu CUIT mientras dure, así que ARCLI le saca a la carpeta los permisos de grupo y otros (`0755` pasa a `0700`, solo tu usuario). Los tuyos no los toca: una carpeta que dejaste de solo lectura sigue así. Si elegís otra ubicación, que no sea una carpeta compartida.
 
 ### PDF y datos del emisor
 
