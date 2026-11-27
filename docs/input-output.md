@@ -1149,7 +1149,7 @@ Si el archivo de `--cargar` no es un JSON válido, `detalles.cause` trae el moti
 
 ### Errores JSON de uso
 
-Una opción desconocida, un valor faltante o un comando que no existe también sale en JSON cuando corresponde (`--json` o `json=true` en la config), con exit code `1`. El mensaje es el de commander traducido al español, en una sola línea. `--ayuda` y `--version` no son errores.
+Una opción desconocida, un valor faltante o un comando que no existe también sale en JSON cuando corresponde (`--json` o `json=true` en la config), con exit code `1`. El mensaje es el de commander traducido al español, en una sola línea. `--ayuda` y `--version` no son errores; `-V` tampoco, pero solo así, exacto: un argumento como `-Vx` o `-Ventas.sa` es una opción desconocida. Si el comando lleva argumentos y uno empieza con `-` (un alias como `-Ventas.sa`), poné `--` antes de los valores: `arcli config establecer -- cuenta <CBU> -Ventas.sa`. La `sugerencia` del error trae ese comando armado.
 
 ```json
 {
