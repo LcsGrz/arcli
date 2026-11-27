@@ -14,13 +14,13 @@ import { temporaryDataDirectory } from './local-data.fixtures';
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
 
-  return { ...actual, renameSync: vi.fn(actual.renameSync), statSync: vi.fn(actual.statSync) };
+  return { ...actual, openSync: vi.fn(actual.openSync), renameSync: vi.fn(actual.renameSync) };
 });
 
 const actualFs = await vi.importActual<typeof import('node:fs')>('node:fs');
 
 afterEach(() => {
-  vi.mocked(fs.statSync).mockImplementation(actualFs.statSync);
+  vi.mocked(fs.openSync).mockImplementation(actualFs.openSync);
   vi.mocked(fs.renameSync).mockImplementation(actualFs.renameSync);
 });
 
@@ -39,12 +39,20 @@ describe('el turno de la base con otros procesos en el medio (revisión de #318)
     const { file, lock } = lockedFolder();
     let othersTurn = false;
 
-    vi.mocked(fs.statSync).mockImplementationOnce(((path: fs.PathLike) => {
-      actualFs.rmSync(lock);
-      actualFs.writeFileSync(lock, 'W2');
-      othersTurn = true;
-      throw Object.assign(new Error(`ENOENT: no such file or directory, stat '${String(path)}'`), { code: 'ENOENT' });
-    }) as typeof fs.statSync);
+    let looked = false;
+
+    // La primera vez que mira el turno (abrirlo para leer), el de H ya no está y W2 toma el suyo.
+    vi.mocked(fs.openSync).mockImplementation(((path: fs.PathLike, flags?: fs.OpenMode, mode?: fs.Mode) => {
+      if (!looked && flags === 'r' && String(path) === lock) {
+        looked = true;
+        actualFs.rmSync(lock);
+        actualFs.writeFileSync(lock, 'W2');
+        othersTurn = true;
+        throw Object.assign(new Error(`ENOENT: no such file or directory, open '${String(path)}'`), { code: 'ENOENT' });
+      }
+
+      return actualFs.openSync(path, flags ?? 'r', mode);
+    }) as typeof fs.openSync);
 
     const released = setTimeout(300).then(() => {
       expect(actualFs.readFileSync(lock, 'utf8')).toBe('W2');

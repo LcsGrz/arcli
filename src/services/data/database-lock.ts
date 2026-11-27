@@ -1,12 +1,12 @@
 import { randomBytes } from 'node:crypto';
 import {
   closeSync,
+  fstatSync,
   linkSync,
   openSync,
   readFileSync,
   renameSync,
   rmSync,
-  statSync,
   utimesSync,
   writeSync,
 } from 'node:fs';
@@ -65,22 +65,11 @@ function tryCreate(lock: string, token: string): boolean {
  * Qué turno es: dispositivo, inodo, fecha de modificación y la marca de adentro. El inodo solo no alcanza: en Linux el
  * de un turno recién borrado se reusa enseguida para el siguiente (CI de #318). `undefined` si no está.
  */
-function identityOf(path: string): string | undefined {
-  try {
-    const { dev, ino, mtimeMs } = statSync(path);
-
-    return `${dev}:${ino}:${mtimeMs}:${readFileSync(path, 'utf8')}`;
-  } catch {
-    return undefined;
-  }
-}
-
-/** Qué turno es y si es viejo; `undefined` si no está (lo soltó el otro mientras se miraba). */
-function lockState(lock: string): { readonly identity: string; readonly stale: boolean } | undefined {
-  let mtimeMs: number;
+function readLock(path: string): { readonly identity: string; readonly mtimeMs: number } | undefined {
+  let descriptor: number;
 
   try {
-    ({ mtimeMs } = statSync(lock));
+    descriptor = openSync(path, 'r');
   } catch (error) {
     if (errorCode(error) === 'ENOENT') {
       return undefined;
@@ -89,9 +78,31 @@ function lockState(lock: string): { readonly identity: string; readonly stale: b
     throw error;
   }
 
-  const identity = identityOf(lock);
+  // Todo del mismo archivo abierto: mirar la ruta dos veces sería una carrera.
+  try {
+    const { dev, ino, mtimeMs } = fstatSync(descriptor);
 
-  return identity === undefined ? undefined : { identity, stale: Date.now() - mtimeMs > STALE_LOCK_MS };
+    return { identity: `${dev}:${ino}:${mtimeMs}:${readFileSync(descriptor, 'utf8')}`, mtimeMs };
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
+function identityOf(path: string): string | undefined {
+  try {
+    return readLock(path)?.identity;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Qué turno es y si es viejo; `undefined` si no está (lo soltó el otro mientras se miraba). */
+function lockState(lock: string): { readonly identity: string; readonly stale: boolean } | undefined {
+  const state = readLock(lock);
+
+  return state === undefined
+    ? undefined
+    : { identity: state.identity, stale: Date.now() - state.mtimeMs > STALE_LOCK_MS };
 }
 
 function removeQuietly(path: string): void {
