@@ -40,7 +40,17 @@ export interface SqliteVoucherRecordStoreOptions {
 }
 
 /** Las columnas que lee el puerto, siempre nombradas. */
-const RECORD_COLUMNS = 'cae, servicio, tipo_arca, punto_venta, numero, fecha, fuente, total_centavos, guardado_el';
+const RECORD_COLUMNS = [
+  'cae',
+  'servicio',
+  'tipo_arca',
+  'punto_venta',
+  'numero',
+  'fecha',
+  'fuente',
+  'total_centavos',
+  'guardado_el',
+].join(', ');
 
 /** Tolerante: una columna de más (una menor nueva) no molesta; una que falta o con otro tipo es una base dañada. */
 const storedRowSchema = z.object({

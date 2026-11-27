@@ -81,6 +81,8 @@ describe('textos en voseo y con tildes', () => {
         .map((match) => humanText(match[1] ?? match[2] ?? ''))
         // Un template anidado en otro corta mal el literal y deja codigo: se descarta.
         .filter((text) => text.includes(' ') && !text.includes('=>'))
+        // El SQL de src/services/data (columnas como `numero`) no es texto para quien usa el CLI.
+        .filter((text) => !/\b(SELECT|INSERT INTO|UPDATE|CREATE (UNIQUE )?(TABLE|INDEX))\s/.test(text))
         .flatMap((text) => {
           const found = words.exec(text)?.[1];
 

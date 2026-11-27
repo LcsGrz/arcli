@@ -60,7 +60,7 @@ interface NativeSqliteModule {
  * El aviso de Node 22 al cargar `node:sqlite` ("SQLite is an experimental feature…"), en las dos formas de
  * `emitWarning`: con el tipo como texto o en las opciones. Cualquier otro aviso sale.
  */
-export function isSqliteExperimentalWarning(warning: unknown, typeOrOptions: unknown): boolean {
+function isSqliteExperimentalWarning(warning: unknown, typeOrOptions: unknown): boolean {
   const type =
     typeof typeOrOptions === 'string'
       ? typeOrOptions
