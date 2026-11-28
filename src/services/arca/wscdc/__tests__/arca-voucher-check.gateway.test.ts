@@ -148,6 +148,62 @@ describe('readConstatarAnswer', () => {
     ).toMatchObject({ result: 'R' });
   });
 
+  it('conserva los mensajes que dicen algo: el código 0 con texto y un código sin texto; descarta el que no trae código', () => {
+    expect(
+      readConstatarAnswer(
+        { Events: { Evt: [{ Code: 0, Msg: 'Aviso del día.' }, { Code: 5 }, { Msg: 'Sin código.' }] }, Resultado: 'A' },
+        REQUEST,
+      ),
+    ).toMatchObject({
+      events: [
+        { code: 0, message: 'Aviso del día.' },
+        { code: 5, message: '' },
+      ],
+    });
+  });
+
+  it('el error de entrada nombra el comprobante consultado', () => {
+    expect(failure({ Errors: { Err: { Code: 2, Msg: 'Formato.' } }, Resultado: 'R' })).toMatchObject({
+      message: expect.stringContaining('el comprobante 00003-00001234'),
+    });
+  });
+
+  it.each([600, 601])('sin autorización (%i): el mensaje trae lo que dijo ARCA', (code) => {
+    expect(failure({ Errors: { Err: { Code: code, Msg: 'CUIT representada no incluida en Token.' } } })).toMatchObject({
+      code: 'WSCDC_SERVICE_NOT_AUTHORIZED',
+      message: expect.stringContaining(`ARCA dice: ${code} CUIT representada no incluida en Token.`),
+    });
+  });
+
+  it.each([113, 150])('un A es constatado aunque traiga la observación %i, que con R corta', (code) => {
+    expect(
+      readConstatarAnswer({ Observaciones: { Obs: { Code: code, Msg: 'Observación.' } }, Resultado: 'A' }, REQUEST),
+    ).toMatchObject({ observations: [{ code, message: 'Observación.' }], result: 'A' });
+  });
+
+  it.each([113, 150])(
+    'un R con un error de ARCA (500) y la observación %i: ARCA_VOUCHER_CHECK_ERROR con el error, no un error de entrada',
+    (code) => {
+      expect(
+        failure({
+          Errors: { Err: { Code: 500, Msg: 'Error interno de aplicación.' } },
+          Observaciones: { Obs: { Code: code, Msg: 'Observación.' } },
+          Resultado: 'R',
+        }),
+      ).toMatchObject({
+        code: 'ARCA_VOUCHER_CHECK_ERROR',
+        details: { errores: [{ codigo: 500, mensaje: 'Error interno de aplicación.' }] },
+      });
+    },
+  );
+
+  it('sin Resultado ni errores, el mensaje dice que ARCA no contestó si está constatado', () => {
+    expect(failure({})).toMatchObject({
+      message:
+        'ARCA devolvió una respuesta inesperada al constatar el comprobante 00003-00001234: no dice si está constatado.',
+    });
+  });
+
   it('un constatado con errores los conserva en errors', () => {
     expect(
       readConstatarAnswer({ Errors: { Err: [{ Code: 1, Msg: 'Aviso.' }] }, Resultado: 'A' }, REQUEST),
