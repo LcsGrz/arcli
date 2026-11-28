@@ -4,6 +4,7 @@ import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { creditNoteOverTotalHint, isCreditNoteOverTotal } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
+import type { ExportPreview } from '../../modules/export/export.emission';
 import type { ExportGateway } from '../../modules/export/export.gateway';
 import {
   EXPORT_CREDIT_NOTE_KIND,
@@ -329,8 +330,10 @@ export async function runExportNoteFlow(
   const gateway = createExportVoucherGateway(session.runtime);
   const state = await runWizard(exportNoteSteps(kind, gateway, pointOfSale), { associatedKind }, undefined, {
     // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15).
-    confirm: emissionStep<ExportNoteState>((answered) =>
-      emitExportVoucher(session, gateway, buildExportNoteInput(answered, { kind }), { associated: answered.invoice }),
+    confirm: emissionStep<ExportNoteState, ExportPreview>((answered, context) =>
+      emitExportVoucher(session, gateway, buildExportNoteInput(answered, { kind }), context, {
+        associated: answered.invoice,
+      }),
     ).confirm,
     // Las reglas sobre la nota final: si una falla, vuelve a la pregunta que escribe el campo.
     finalize: exportNoteFinalize(noteRuleEnv(kind)),

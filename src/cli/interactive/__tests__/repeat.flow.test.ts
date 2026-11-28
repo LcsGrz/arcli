@@ -484,6 +484,9 @@ describe('runRepeatFlow', () => {
     expect(previewAndEmit).toHaveBeenCalledWith(
       expect.objectContaining({ typedPointOfSale: 3 }),
       expect.objectContaining({ shortcut: 'fc', totalAmount: 121 }),
+      undefined,
+      // El contexto de `confirm`, para "No, editar datos" (TUI-29).
+      expect.objectContaining({ editable: [] }),
     );
   });
 

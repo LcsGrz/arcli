@@ -294,6 +294,8 @@ describe('runNoteFlow', () => {
       expect.objectContaining({ shortcut: 'ncb', totalAmount: 121 }),
       // El elegido, para no consultarlo de nuevo.
       expect.objectContaining({ arcaType: 6, number: 14, pointOfSale: 3, voucher: invoice() }),
+      // El contexto de `confirm`, para "No, editar datos" (TUI-29).
+      expect.objectContaining({ editable: [] }),
     );
   });
 

@@ -4,7 +4,7 @@ import type { EmissionInterruption } from '../../modules/billing/emission-interr
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import { isEquivalentCommandShown } from '../../modules/config/config.schemas';
 import { isAuthorized } from '../../modules/interactive/steps/config-offer';
-import { BACK, type Back } from '../../modules/interactive/wizard';
+import { BACK, type Back, type WizardConfirmContext, type WizardEditable } from '../../modules/interactive/wizard';
 import {
   type EmissionChoice,
   type EmissionConfirmationPlan,
@@ -18,8 +18,9 @@ import { formatEmissionQuestion, NOTHING_EMITTED_NOTICE } from '../emission-text
 import type { DeliveryInterruption } from '../interruption';
 
 import { emitWaitingForArca } from './arca-wait';
-import { askEmission } from './emission-prompt';
+import { askEmission, EDIT_DATA, type EditData } from './emission-prompt';
 import { assertOutputVisible } from './output-guard';
+import { chooseManyStep } from './prompts';
 import { showAssistantError } from './show-assistant-error';
 
 /**
@@ -31,14 +32,79 @@ import { showAssistantError } from './show-assistant-error';
 async function confirmEmission(
   question: string,
   plan: EmissionConfirmationPlan,
-): Promise<Back | EmissionChoice | false> {
-  const answer = await askEmission(question, plan, 'volver');
+  editable: boolean,
+): Promise<Back | EditData | EmissionChoice | false> {
+  const answer = await askEmission(question, plan, 'volver', { editable });
 
   if (answer === false) {
     writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
   }
 
   return answer;
+}
+
+/** Debajo de la lista de datos: lo que no se edita desde "¿Emitimos?". */
+const EDIT_DATA_HINT =
+  'El tipo de comprobante no se cambia acá: para otro, elegí "No, dejar sin emitir" y empezá de nuevo.';
+
+/**
+ * "¿Qué datos cambiamos?", con el valor actual de cada dato. Lo marcado, en el orden de la lista; Esc (BACK) o Enter
+ * sin marcar nada, una lista vacia.
+ */
+async function chooseDataToEdit(
+  editable: readonly WizardEditable[],
+  marked: readonly string[],
+): Promise<readonly string[]> {
+  const answer = await chooseManyStep(
+    '¿Qué datos cambiamos?',
+    editable.map(({ id, label, value }) => ({
+      description: colorize(EDIT_DATA_HINT, 'muted'),
+      name: `${label} — ${value}`,
+      short: label,
+      value: id,
+    })),
+    marked,
+  );
+
+  return answer === BACK ? [] : answer;
+}
+
+/**
+ * "¿Emitimos?" hasta que se decide algo que no es "No, editar datos": con eso se abre la lista de datos, y si no se
+ * marca nada (o Esc) se vuelve a preguntar. Con `reopen`, arranca por la lista con lo que estaba marcado, y si se
+ * vuelve de ahi a "¿Emitimos?", antes corre `onReopenReturn`: abajo quedaron las preguntas que se descartaron.
+ */
+async function decideEmission(
+  question: string,
+  plan: EmissionConfirmationPlan,
+  context: WizardConfirmContext,
+  onReopenReturn: () => void,
+): Promise<Back | EmissionChoice | false | { readonly edit: readonly string[] }> {
+  let marking = context.reopen?.marked;
+  let reopened = marking !== undefined;
+
+  for (;;) {
+    if (marking) {
+      const marked = await chooseDataToEdit(context.editable, marking);
+
+      if (marked.length > 0) {
+        return { edit: marked };
+      }
+
+      if (reopened) {
+        reopened = false;
+        onReopenReturn();
+      }
+    }
+
+    const choice = await confirmEmission(question, plan, context.editable.length > 0);
+
+    if (choice !== EDIT_DATA) {
+      return choice;
+    }
+
+    marking = [];
+  }
 }
 
 function formatEquivalentCommand(command: string): string {
@@ -96,6 +162,24 @@ interface ClosingResult {
   readonly voucherKind: Parameters<typeof formatVoucherWithArticle>[0];
 }
 
+/**
+ * El contexto de `confirm` de `runWizard` (`WizardConfirmContext`), con la vista previa que ya se mostro para ese mismo
+ * estado. Lo arma `emissionStep`, que la guarda entre llamadas: con `reopen`, el cierre reabre la lista sin consultar
+ * ARCA de nuevo (TUI-29).
+ */
+export interface EmissionContext<P> extends WizardConfirmContext {
+  /** Con `reopen`, la vista previa de la llamada anterior, si fue para el mismo estado. */
+  readonly previewed?: P;
+  /** Guarda la vista previa recien hecha, para reusarla si se vuelve con `reopen`. */
+  readonly keepPreview?: (previewed: P) => void;
+}
+
+/**
+ * Sin datos editables ni vista previa guardada: el cierre de siempre, sin "No, editar datos". Sirve como
+ * `EmissionContext` de cualquier vista previa, porque no trae ni guarda ninguna.
+ */
+export const WITHOUT_EDIT: WizardConfirmContext = { editable: [] };
+
 /** Lo propio de cada familia en el cierre de un flujo. `P` es la vista previa, con lo que se va a emitir. */
 export interface EmissionClosing<R extends ClosingResult, P extends { readonly preview: R }> {
   /**
@@ -126,30 +210,48 @@ export interface EmissionClosing<R extends ClosingResult, P extends { readonly p
  * que se ofrece guardar en la config solo se ofrece entonces. Con Esc en "¿Emitimos?", o si la vista previa rechaza
  * la entrada (`rejectedAsBack`), devuelve BACK sin emitir: el flujo lo corre como `confirm` de `runWizard`, que vuelve
  * a la ultima pregunta (TUI-15).
+ *
+ * Con datos editables (`context.editable`), "¿Emitimos?" ofrece "No, editar datos": lo marcado en la lista vuelve como
+ * `{ edit }`, para que `runWizard` pregunte solo eso. Esc o Enter sin marcar nada vuelven a "¿Emitimos?" con la misma
+ * vista previa. Con `context.reopen` (Esc en la primera pregunta editada), la lista se abre de nuevo con lo marcado y
+ * la vista previa de antes (`context.previewed`), sin consultar ARCA (TUI-29).
  */
 export async function closeWithEmission<R extends ClosingResult, P extends { readonly preview: R }>(
   closing: EmissionClosing<R, P>,
-): Promise<Back | boolean> {
+  context: EmissionContext<P> = WITHOUT_EDIT,
+): Promise<Back | boolean | { readonly edit: readonly string[] }> {
   const { pdf, queryErrors = false, runtime } = closing;
-  const previewed = await rejectedAsBack(closing.preview, { queryErrors });
+  // Lo guarda `emissionStep` solo si el estado es el mismo objeto: es la vista previa de esta misma entrada.
+  const kept = context.reopen ? context.previewed : undefined;
+  const previewed = kept ?? (await rejectedAsBack(closing.preview, { queryErrors }));
 
   if (previewed === BACK) {
     return BACK;
   }
 
-  writeTerminalOutput(closing.format(previewed.preview, { previewShown: false }));
+  const showPreview = (): void => {
+    writeTerminalOutput(closing.format(previewed.preview, { previewShown: false }));
 
-  if (isEquivalentCommandShown(runtime.config)) {
-    writeTerminalOutput(formatEquivalentCommand(closing.equivalentCommand()));
+    if (isEquivalentCommandShown(runtime.config)) {
+      writeTerminalOutput(formatEquivalentCommand(closing.equivalentCommand()));
+    }
+  };
+
+  if (!kept) {
+    context.keepPreview?.(previewed);
+    showPreview();
   }
 
   const label = formatVoucherWithArticle(previewed.preview.voucherKind);
-  const choice = await confirmEmission(
+  const choice = await decideEmission(
     formatEmissionQuestion(label, runtime.environment),
     planEmissionConfirmation({ flags: [pdf], mode: runtime.config.pdf }),
+    context,
+    // Con la vista previa guardada, se vuelve a mostrar (sin consultar ARCA): lo ultimo en pantalla es lo que se emite.
+    kept ? showPreview : () => undefined,
   );
 
-  if (choice === BACK || !choice) {
+  if (choice === BACK || typeof choice === 'object' || !choice) {
     return choice;
   }
 

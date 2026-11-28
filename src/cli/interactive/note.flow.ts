@@ -1,6 +1,7 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { creditNoteOverTotalHint, isCreditNoteOverTotal } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
+import type { BillingPreviewItem } from '../../modules/billing/billing.preview';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { discriminatesIva, isNote, isReceipt, noteSide } from '../../modules/billing/voucher-kind-map';
 import { formatVoucherLabel, formatVoucherWithArticle } from '../../modules/billing/voucher-names';
@@ -564,13 +565,14 @@ export async function runNoteFlow(baseSession: InteractiveSession, kind: NoteKin
     undefined,
     {
       // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15). La nota E ya paso por su propia vista previa.
-      confirm: emissionStep<NoteState>((state) =>
+      confirm: emissionStep<NoteState, BillingPreviewItem>((state, context) =>
         state.exported
           ? undefined
           : previewAndEmit(
               session,
               buildNoteInput(state, noteInputEnv(session, pointOfSale)),
               noteReadAssociated(state, noteInputEnv(session, pointOfSale)),
+              context,
             ),
       ).confirm,
       // Las reglas sobre la nota final: si una falla, vuelve a la pregunta que escribe el campo.

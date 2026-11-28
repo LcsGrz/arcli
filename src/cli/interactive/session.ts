@@ -6,7 +6,7 @@ import { BillingService } from '../../modules/billing/billing.service';
 import type { BillingExecutionResult, BillingGateway } from '../../modules/billing/billing.types.internal';
 import { buildEquivalentCommand } from '../../modules/interactive/equivalent-command';
 import { validatePointOfSale } from '../../modules/interactive/validators';
-import { BACK, type Back } from '../../modules/interactive/wizard';
+import { BACK, type Back, type WizardConfirmContext, type WizardConfirmResult } from '../../modules/interactive/wizard';
 import type { VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { type ArcaClient, ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -20,7 +20,7 @@ import { recordEmission } from '../emitted-vouchers';
 import type { GlobalCliOptions } from '../types';
 
 import { waitForArca } from './arca-wait';
-import { closeWithEmission } from './emission-closing';
+import { closeWithEmission, type EmissionContext, WITHOUT_EDIT } from './emission-closing';
 import { offerPdf } from './pdf.flow';
 import { askTextStep } from './prompts';
 
@@ -93,24 +93,48 @@ export async function requirePointOfSale(session: InteractiveSession): Promise<S
 export interface EmissionStep<S> {
   /** Si ARCA autorizo lo emitido: aprobado u observado con CAE (`isAuthorized`). Antes de emitir o sin emitir, false. */
   readonly authorized: () => boolean;
-  readonly confirm: (state: S) => Promise<Back | void>;
+  /** El `confirm` de `runWizard`. Con `{ edit }` ("No, editar datos"), `runWizard` pregunta esos datos (TUI-29). */
+  readonly confirm: (state: S, context: WizardConfirmContext) => Promise<WizardConfirmResult>;
 }
 
 /**
  * El cierre de un flujo del asistente: `emit` hace la vista previa, pregunta "¿Emitimos?" y emite (`previewAndEmit` o
  * `emitExportVoucher`). Si devuelve BACK (Esc en "¿Emitimos?"), `runWizard` vuelve a la ultima pregunta con todo lo
  * respondido (TUI-15). Sin nada que emitir, `emit` devuelve `undefined`.
+ *
+ * `emit` recibe el contexto de `confirm` con la vista previa guardada (`EmissionContext`) y lo pasa al cierre. La
+ * vista previa se guarda aca, entre llamadas, porque el cierre corre de nuevo en cada una: con `reopen`, `runWizard`
+ * vuelve con el mismo objeto de estado, y entonces el cierre la reusa en vez de consultar ARCA (TUI-29).
  */
-export function emissionStep<S>(emit: (state: S) => Promise<Back | boolean> | undefined): EmissionStep<S> {
+export function emissionStep<S, P>(
+  emit: (
+    state: S,
+    context: EmissionContext<P>,
+  ) => Promise<Back | boolean | { readonly edit: readonly string[] }> | undefined,
+): EmissionStep<S> {
   let authorized = false;
+  let kept: { readonly previewed: P; readonly state: S } | undefined;
 
   return {
     authorized: () => authorized,
-    confirm: async (state) => {
-      const result = await emit(state);
+    confirm: async (state, context) => {
+      // Se reusa tantas veces como se vuelva con `reopen` al mismo estado; con otro estado, se descarta.
+      const previewed = context.reopen && kept?.state === state ? kept.previewed : undefined;
 
-      if (result === BACK) {
-        return BACK;
+      if (previewed === undefined) {
+        kept = undefined;
+      }
+
+      const result = await emit(state, {
+        ...context,
+        keepPreview: (preview) => {
+          kept = { previewed: preview, state };
+        },
+        ...(previewed === undefined ? {} : { previewed }),
+      });
+
+      if (result === BACK || typeof result === 'object') {
+        return result;
       }
 
       authorized = result ?? false;
@@ -124,65 +148,72 @@ const SINGLE = { inputIndexes: [1], invalidItems: [], isBatch: false, total: 1 }
 /**
  * El cierre de los flujos de A, B, C, FCE y recibos (`closeWithEmission`), con los casos de uso de los comandos con
  * flags: valida, avisa y emite exactamente lo mismo. Lo confirmado sale con lo que mostro la vista previa, sin armarlo
- * de nuevo (ARQ-21). `associated` es el asociado de una nota que el flujo ya leyo: no se consulta otra vez.
+ * de nuevo (ARQ-21). `associated` es el asociado de una nota que el flujo ya leyo: no se consulta otra vez. `context`
+ * es el de `emissionStep`, para "No, editar datos" (TUI-29).
  */
 export async function previewAndEmit(
   session: InteractiveSession,
   rawInput: BillingCommandInput,
   associated?: ReadAssociated,
-): Promise<Back | boolean> {
+  context: EmissionContext<BillingPreviewItem> = WITHOUT_EDIT,
+): Promise<Back | boolean | { readonly edit: readonly string[] }> {
   const { runtime } = session;
   const entry: BillingCommandInput = {
     ...rawInput,
     pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale,
   };
 
-  return closeWithEmission<BillingExecutionResult, BillingPreviewItem>({
-    emit: (item, interruption) =>
-      emitBilling({
-        ...interruption,
-        clock: systemClock,
-        gateway: session.billingGateway,
-        items: planBillingEmission([{ ...item, confirmed: true, input: { ...item.input, dryRun: false, emit: true } }]),
-        onEmitted: (result) => {
-          recordEmission(result);
-        },
-        runtime,
-        scope: SINGLE,
-      }),
-    // De la entrada y no de la preparada: sin lo que la vista previa completa (la cotizacion oficial, que pegado otro dia
-    // seria vieja). Lo que se emite sale de preparar esa misma entrada (REV-72).
-    equivalentCommand: () =>
-      buildEquivalentCommand(entry, {
-        defaultCurrency: runtime.config.monedaPorDefecto,
-        environment: runtime.environment,
-        issuerCuit: runtime.cuit,
-        platform: process.platform,
-      }),
-    format: (result, { previewShown }) =>
-      formatBillingOutputs([result], { environment: runtime.environment, previewShown, raw: false }),
-    generatePdf: (result, { input }, pdf, delivery) => offerPdf(runtime.config, { ...input, pdf }, result, delivery),
-    pdf: entry.pdf,
-    preview: async () => {
-      const [item] = await waitForArca(
-        'Consultando ARCA...',
-        () =>
-          previewBilling({
-            associated,
-            clock: systemClock,
-            gateways: {
-              ...createBillingGateways(session.arca),
-              billing: session.billingGateway,
-              history: session.historyGateway,
-            },
-            plan: { ...SINGLE, inputs: [entry] },
-            runtime,
-          }),
-        { pending: true },
-      );
+  return closeWithEmission<BillingExecutionResult, BillingPreviewItem>(
+    {
+      emit: (item, interruption) =>
+        emitBilling({
+          ...interruption,
+          clock: systemClock,
+          gateway: session.billingGateway,
+          items: planBillingEmission([
+            { ...item, confirmed: true, input: { ...item.input, dryRun: false, emit: true } },
+          ]),
+          onEmitted: (result) => {
+            recordEmission(result);
+          },
+          runtime,
+          scope: SINGLE,
+        }),
+      // De la entrada y no de la preparada: sin lo que la vista previa completa (la cotizacion oficial, que pegado otro dia
+      // seria vieja). Lo que se emite sale de preparar esa misma entrada (REV-72).
+      equivalentCommand: () =>
+        buildEquivalentCommand(entry, {
+          defaultCurrency: runtime.config.monedaPorDefecto,
+          environment: runtime.environment,
+          issuerCuit: runtime.cuit,
+          platform: process.platform,
+        }),
+      format: (result, { previewShown }) =>
+        formatBillingOutputs([result], { environment: runtime.environment, previewShown, raw: false }),
+      generatePdf: (result, { input }, pdf, delivery) => offerPdf(runtime.config, { ...input, pdf }, result, delivery),
+      pdf: entry.pdf,
+      preview: async () => {
+        const [item] = await waitForArca(
+          'Consultando ARCA...',
+          () =>
+            previewBilling({
+              associated,
+              clock: systemClock,
+              gateways: {
+                ...createBillingGateways(session.arca),
+                billing: session.billingGateway,
+                history: session.historyGateway,
+              },
+              plan: { ...SINGLE, inputs: [entry] },
+              runtime,
+            }),
+          { pending: true },
+        );
 
-      return item;
+        return item;
+      },
+      runtime,
     },
-    runtime,
-  });
+    context,
+  );
 }
