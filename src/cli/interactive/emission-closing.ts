@@ -71,14 +71,17 @@ async function chooseDataToEdit(
 
 /**
  * "¿Emitimos?" hasta que se decide algo que no es "No, editar datos": con eso se abre la lista de datos, y si no se
- * marca nada (o Esc) se vuelve a preguntar. Con `reopen`, arranca por la lista con lo que estaba marcado.
+ * marca nada (o Esc) se vuelve a preguntar. Con `reopen`, arranca por la lista con lo que estaba marcado, y si se
+ * vuelve de ahi a "¿Emitimos?", antes corre `onReopenReturn`: abajo quedaron las preguntas que se descartaron.
  */
 async function decideEmission(
   question: string,
   plan: EmissionConfirmationPlan,
   context: WizardConfirmContext,
+  onReopenReturn: () => void,
 ): Promise<Back | EmissionChoice | false | { readonly edit: readonly string[] }> {
   let marking = context.reopen?.marked;
+  let reopened = marking !== undefined;
 
   for (;;) {
     if (marking) {
@@ -86,6 +89,11 @@ async function decideEmission(
 
       if (marked.length > 0) {
         return { edit: marked };
+      }
+
+      if (reopened) {
+        reopened = false;
+        onReopenReturn();
       }
     }
 
@@ -159,15 +167,18 @@ interface ClosingResult {
  * estado. Lo arma `emissionStep`, que la guarda entre llamadas: con `reopen`, el cierre reabre la lista sin consultar
  * ARCA de nuevo (TUI-29).
  */
-export interface EmissionContext extends WizardConfirmContext {
+export interface EmissionContext<P> extends WizardConfirmContext {
   /** Con `reopen`, la vista previa de la llamada anterior, si fue para el mismo estado. */
-  readonly previewed?: unknown;
+  readonly previewed?: P;
   /** Guarda la vista previa recien hecha, para reusarla si se vuelve con `reopen`. */
-  readonly keepPreview?: (previewed: unknown) => void;
+  readonly keepPreview?: (previewed: P) => void;
 }
 
-/** Sin datos editables ni vista previa guardada: el cierre de siempre, sin "No, editar datos". */
-export const WITHOUT_EDIT: EmissionContext = { editable: [] };
+/**
+ * Sin datos editables ni vista previa guardada: el cierre de siempre, sin "No, editar datos". Sirve como
+ * `EmissionContext` de cualquier vista previa, porque no trae ni guarda ninguna.
+ */
+export const WITHOUT_EDIT: WizardConfirmContext = { editable: [] };
 
 /** Lo propio de cada familia en el cierre de un flujo. `P` es la vista previa, con lo que se va a emitir. */
 export interface EmissionClosing<R extends ClosingResult, P extends { readonly preview: R }> {
@@ -207,24 +218,28 @@ export interface EmissionClosing<R extends ClosingResult, P extends { readonly p
  */
 export async function closeWithEmission<R extends ClosingResult, P extends { readonly preview: R }>(
   closing: EmissionClosing<R, P>,
-  context: EmissionContext = WITHOUT_EDIT,
+  context: EmissionContext<P> = WITHOUT_EDIT,
 ): Promise<Back | boolean | { readonly edit: readonly string[] }> {
   const { pdf, queryErrors = false, runtime } = closing;
   // Lo guarda `emissionStep` solo si el estado es el mismo objeto: es la vista previa de esta misma entrada.
-  const kept = context.reopen ? (context.previewed as P | undefined) : undefined;
+  const kept = context.reopen ? context.previewed : undefined;
   const previewed = kept ?? (await rejectedAsBack(closing.preview, { queryErrors }));
 
   if (previewed === BACK) {
     return BACK;
   }
 
-  if (!kept) {
-    context.keepPreview?.(previewed);
+  const showPreview = (): void => {
     writeTerminalOutput(closing.format(previewed.preview, { previewShown: false }));
 
     if (isEquivalentCommandShown(runtime.config)) {
       writeTerminalOutput(formatEquivalentCommand(closing.equivalentCommand()));
     }
+  };
+
+  if (!kept) {
+    context.keepPreview?.(previewed);
+    showPreview();
   }
 
   const label = formatVoucherWithArticle(previewed.preview.voucherKind);
@@ -232,6 +247,8 @@ export async function closeWithEmission<R extends ClosingResult, P extends { rea
     formatEmissionQuestion(label, runtime.environment),
     planEmissionConfirmation({ flags: [pdf], mode: runtime.config.pdf }),
     context,
+    // Con la vista previa guardada, se vuelve a mostrar (sin consultar ARCA): lo ultimo en pantalla es lo que se emite.
+    kept ? showPreview : () => undefined,
   );
 
   if (choice === BACK || typeof choice === 'object' || !choice) {

@@ -1,7 +1,7 @@
 import { Separator } from '@inquirer/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { BACK, type Back } from '../../../modules/interactive/wizard';
+import { BACK, type Back, type WizardEditable } from '../../../modules/interactive/wizard';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { closeWithEmission, type EmissionClosing } from '../emission-closing';
 import * as emissionPrompt from '../emission-prompt';
@@ -15,9 +15,6 @@ import { emissionStep } from '../session';
  * cambiamos?" y la vuelta sin consultar ARCA de nuevo. Sin mockear `chooseOne` ni `chooseManyStep`, como
  * `session.production-confirm.test.ts`: solo las dos listas de abajo (`listSelect` y `multiSelect`), que eligen por texto
  * o devuelven lo marcado.
- *
- * El contexto y la respuesta `{ edit }` se tipan aca, como en el plan, y la llamada pasa por casts: asi el test no
- * depende de `EmissionContext` (`emission-closing.ts`), que suma la vista previa guardada a `WizardConfirmContext`.
  */
 
 vi.mock('../list-select', async (importOriginal) => ({
@@ -33,20 +30,7 @@ const multiSelectMock = vi.mocked(multiSelect);
 const EDIT_DATA_LABEL = 'No, editar datos';
 const EMIT_WITH_PDF_LABEL = 'Sí, emitir y generar el PDF';
 
-interface Editable {
-  readonly id: string;
-  readonly label: string;
-  readonly value: string;
-}
-
-interface ConfirmContext {
-  readonly editable: readonly Editable[];
-  readonly reopen?: { readonly marked: readonly string[] };
-}
-
-type ConfirmResult = Back | void | { readonly edit: readonly string[] };
-
-const EDITABLE: readonly Editable[] = [
+const EDITABLE: readonly WizardEditable[] = [
   { id: 'monto', label: 'Monto total', value: '$ 1.210' },
   { id: 'fecha', label: 'Fecha del comprobante', value: '27/11/2026' },
 ];
@@ -97,42 +81,43 @@ function markInList(...answers: Array<Back | string[]>): Array<{ readonly select
   return opened;
 }
 
-/** El cierre de un flujo con todo falso: cuenta las vistas previas y anota el orden de las preguntas. */
-function createClosing(pdf: 'nunca' | 'siempre' = 'nunca') {
-  const order: string[] = [];
-  const preview = vi.fn(async () => {
-    order.push('vista previa');
+/** Lo que el cierre usa de un resultado y de una vista previa, en cualquier familia. */
+type Closing = Parameters<typeof closeWithEmission>[0];
+type Result = Parameters<Closing['format']>[0];
+type Preview = Awaited<ReturnType<Closing['preview']>>;
 
-    return {
-      preview: {
-        dryRun: true,
-        response: { status: 'aprobado' },
-        voucherKind: { displayName: 'factura C', family: 'factura' },
-      },
-    };
-  });
-  const emit = vi.fn();
-  const closing = {
+/**
+ * El cierre de un flujo con todo falso: cuenta las vistas previas (cada una, un objeto nuevo) y lo que se muestra.
+ * `emit` emite lo que recibe, aprobado.
+ */
+function createClosing(pdf: 'nunca' | 'siempre' = 'nunca') {
+  const preview = vi.fn(async (): Promise<Preview> => ({
+    preview: {
+      dryRun: true,
+      response: { cae: null, status: 'aprobado' },
+      voucherKind: { displayName: 'factura C', family: 'factura' },
+    },
+  }));
+  const emit = vi.fn(async (previewed: Preview) => ({
+    results: [
+      { ...previewed.preview, dryRun: false, response: { cae: '12345678901234', status: 'aprobado' as const } },
+    ],
+  }));
+  const format = vi.fn((_result: Result, _options: { readonly previewShown: boolean }) => '');
+  const equivalentCommand = vi.fn(() => 'arcli fc --monto 1210');
+  const closing: EmissionClosing<Result, Preview> = {
     emit,
-    equivalentCommand: () => 'arcli fc --monto 1210',
-    format: () => '',
+    equivalentCommand,
+    format,
     generatePdf: vi.fn(async () => undefined),
     preview,
-    runtime: { config: { pdf }, environment: 'testing' } as unknown as Pick<CliArcaRuntime, 'config' | 'environment'>,
-  } as unknown as EmissionClosing<never, never>;
+    runtime: { config: { pdf } as CliArcaRuntime['config'], environment: 'testing' },
+  };
 
   // Como los flujos: el contexto que recibe `confirm` llega tal cual al cierre.
-  const close = closeWithEmission as unknown as (
-    closing: EmissionClosing<never, never>,
-    context: ConfirmContext,
-  ) => Promise<Back | boolean | { readonly edit: readonly string[] }>;
-  const step = (
-    emissionStep as unknown as (emit: (state: object, context: ConfirmContext) => ReturnType<typeof close>) => {
-      readonly confirm: (state: object, context: ConfirmContext) => Promise<ConfirmResult>;
-    }
-  )((_state, context) => close(closing, context));
+  const step = emissionStep<object, Preview>((_state, context) => closeWithEmission(closing, context));
 
-  return { confirm: step.confirm, emit, order, preview };
+  return { confirm: step.confirm, emit, equivalentCommand, format, preview };
 }
 
 describe('cierre del asistente: "No, editar datos" (TUI-29)', () => {
@@ -217,6 +202,71 @@ describe('cierre del asistente: "No, editar datos" (TUI-29)', () => {
     await confirm({}, { editable: EDITABLE, reopen: { marked: ['fecha'] } });
 
     expect(preview).toHaveBeenCalledTimes(2);
+  });
+
+  it('con `reopen`, volver a "¿Emitimos?" muestra de nuevo la vista previa guardada y el comando, sin consultar ARCA', async () => {
+    const { confirm, equivalentCommand, format, preview } = createClosing();
+    const state = {};
+
+    pickByName(EDIT_DATA_LABEL, DO_NOT_EMIT_LABEL);
+    markInList(['monto'], BACK);
+
+    await confirm(state, { editable: EDITABLE });
+    expect(format).toHaveBeenCalledTimes(1);
+    expect(equivalentCommand).toHaveBeenCalledTimes(1);
+
+    await confirm(state, { editable: EDITABLE, reopen: { marked: ['monto'] } });
+
+    expect(preview).toHaveBeenCalledTimes(1);
+    // La misma vista previa, sin marcarla como mostrada, entre la lista (Esc) y "¿Emitimos?".
+    expect(format).toHaveBeenCalledTimes(2);
+    expect(format.mock.calls[1]).toEqual([(await preview.mock.results[0]?.value)?.preview, { previewShown: false }]);
+    expect(equivalentCommand).toHaveBeenCalledTimes(2);
+    expect(format.mock.invocationCallOrder[1]).toBeGreaterThan(multiSelectMock.mock.invocationCallOrder[1] ?? Infinity);
+    expect(format.mock.invocationCallOrder[1]).toBeLessThan(selectMock.mock.invocationCallOrder[1] ?? -Infinity);
+  });
+
+  it('con `reopen`, si se marca algo en la lista no se vuelve a mostrar la vista previa', async () => {
+    const { confirm, format } = createClosing();
+    const state = {};
+
+    pickByName(EDIT_DATA_LABEL);
+    markInList(['monto'], ['fecha']);
+
+    await confirm(state, { editable: EDITABLE });
+    await confirm(state, { editable: EDITABLE, reopen: { marked: ['monto'] } });
+
+    expect(format).toHaveBeenCalledTimes(1);
+  });
+
+  it('con `reopen`, "Sí, emitir ahora" emite la vista previa de la primera vez', async () => {
+    const { confirm, emit, preview } = createClosing();
+    const state = {};
+
+    pickByName(EDIT_DATA_LABEL, EMIT_NOW_LABEL);
+    markInList(['monto'], BACK);
+
+    await confirm(state, { editable: EDITABLE });
+    await confirm(state, { editable: EDITABLE, reopen: { marked: ['monto'] } });
+
+    expect(preview).toHaveBeenCalledTimes(1);
+    expect(emit).toHaveBeenCalledTimes(1);
+    expect(emit.mock.calls[0]?.[0]).toBe(await preview.mock.results[0]?.value);
+  });
+
+  it('después de editar, con otro estado y sin `reopen`, emite la vista previa nueva', async () => {
+    const { confirm, emit, preview } = createClosing();
+
+    pickByName(EDIT_DATA_LABEL, EMIT_NOW_LABEL);
+    markInList(['monto']);
+
+    expect(await confirm({}, { editable: EDITABLE })).toEqual({ edit: ['monto'] });
+    await confirm({}, { editable: EDITABLE });
+
+    expect(preview).toHaveBeenCalledTimes(2);
+    expect(emit).toHaveBeenCalledTimes(1);
+    expect(emit.mock.calls[0]?.[0]).toBe(await preview.mock.results[1]?.value);
+    expect(emit.mock.calls[0]?.[0]).not.toBe(await preview.mock.results[0]?.value);
   });
 });
 

@@ -42,7 +42,8 @@ export async function askEmission(
   escape?: 'volver',
   options: { readonly editable: boolean } = { editable: false },
 ): Promise<Back | EditData | EmissionChoice | false> {
-  const editable = escape === 'volver' && options.editable;
+  // Los comandos con flags no pueden pasar `options` (la primera firma): ahi "No, editar datos" nunca se ofrece.
+  const { editable } = options;
 
   return chooseOne<Back | EditData | EmissionChoice | false>(
     question,

@@ -409,7 +409,7 @@ export async function emitExportVoucher(
   session: InteractiveSession,
   gateway: ExportGateway,
   rawInput: ExportVoucherInput,
-  context: EmissionContext = WITHOUT_EDIT,
+  context: EmissionContext<ExportPreview> = WITHOUT_EDIT,
   options: { readonly activity?: number; readonly associated?: ExportIssuedVoucher } = {},
 ): Promise<typeof BACK | boolean | { readonly edit: readonly string[] }> {
   const { runtime } = session;
@@ -460,7 +460,7 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
   const tables = await loadExportTables(gateway);
   const configuredActivity = config.exportacion?.actividad;
   // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15).
-  const emission = emissionStep<ExportFlowState>((state, context) => {
+  const emission = emissionStep<ExportFlowState, ExportPreview>((state, context) => {
     const input = buildExportInput(state, { configuredActivity });
 
     return emitExportVoucher(session, gateway, input, context, { activity: input.activity });

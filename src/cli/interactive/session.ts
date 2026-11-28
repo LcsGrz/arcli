@@ -106,14 +106,14 @@ export interface EmissionStep<S> {
  * vista previa se guarda aca, entre llamadas, porque el cierre corre de nuevo en cada una: con `reopen`, `runWizard`
  * vuelve con el mismo objeto de estado, y entonces el cierre la reusa en vez de consultar ARCA (TUI-29).
  */
-export function emissionStep<S>(
+export function emissionStep<S, P>(
   emit: (
     state: S,
-    context: EmissionContext,
+    context: EmissionContext<P>,
   ) => Promise<Back | boolean | { readonly edit: readonly string[] }> | undefined,
 ): EmissionStep<S> {
   let authorized = false;
-  let kept: { readonly previewed: unknown; readonly state: S } | undefined;
+  let kept: { readonly previewed: P; readonly state: S } | undefined;
 
   return {
     authorized: () => authorized,
@@ -155,7 +155,7 @@ export async function previewAndEmit(
   session: InteractiveSession,
   rawInput: BillingCommandInput,
   associated?: ReadAssociated,
-  context: EmissionContext = WITHOUT_EDIT,
+  context: EmissionContext<BillingPreviewItem> = WITHOUT_EDIT,
 ): Promise<Back | boolean | { readonly edit: readonly string[] }> {
   const { runtime } = session;
   const entry: BillingCommandInput = {
