@@ -167,7 +167,10 @@ export function pruneMigrationBackups(target: BackupTarget, referenced: Readonly
   pruneBackups(target, 'migration', now, (path) => referenced.has(basename(path)));
 }
 
-/** Descarta una copia de antes de migrar que no sirvió (otro migró en el medio): es propia y nadie la anotó. */
+/**
+ * Descarta una copia de antes de migrar que no sirvió (otro migró en el medio, o la migración falló y se deshizo): es
+ * propia y nadie la anotó.
+ */
 export function discardBackup(target: BackupTarget, name: string): void {
   removeQuietly(join(target.folder, name));
 }
