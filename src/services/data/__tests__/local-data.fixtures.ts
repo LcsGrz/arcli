@@ -110,7 +110,7 @@ type SqliteModule = typeof import('node:sqlite');
 let sqlite: SqliteModule | undefined;
 
 /** `node:sqlite` sin el aviso experimental de Node 22 en la salida de los tests. */
-function loadSqlite(): SqliteModule {
+export function loadSqlite(): SqliteModule {
   if (sqlite) {
     return sqlite;
   }

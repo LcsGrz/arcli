@@ -20,7 +20,10 @@ import { classifySqliteError } from './sqlite-errors';
 
 /** La espera del turno, en total: después, `LocalDataError('locked')`. */
 const LOCK_WAIT_MS = 40_000;
-/** Cada intento espera esto adentro de SQLite (síncrono): corto, para no bloquear el proceso. */
+/**
+ * Cada intento espera esto en el driver (síncrono, de a vueltas de `BUSY_SLICE_MS`): corto, para no bloquear el
+ * proceso.
+ */
 const LOCK_BUSY_TIMEOUT_MS = 50;
 const LOCK_POLL_MS = 50;
 

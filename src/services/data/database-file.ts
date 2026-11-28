@@ -151,7 +151,12 @@ const CONNECTION_PRAGMAS = [
   'PRAGMA fullfsync = 1',
   'PRAGMA trusted_schema = OFF',
   'PRAGMA foreign_keys = ON',
-].join('; ');
+];
+
+/** De a una: así, con la base tomada, cada una espera de a vueltas (`SqliteConnection.exec`, ARQ-30). */
+function applyConnectionPragmas(connection: SqliteConnection): void {
+  CONNECTION_PRAGMAS.forEach((pragma) => connection.exec(pragma));
+}
 
 function openConnection(driver: SqliteDriver, file: string, spec: DatabaseSpec, readOnly = false): SqliteConnection {
   try {
@@ -167,7 +172,7 @@ export function openWritableConnection(driver: SqliteDriver, file: string, spec:
   const connection = openConnection(driver, file, spec);
 
   try {
-    connection.exec(CONNECTION_PRAGMAS);
+    applyConnectionPragmas(connection);
 
     return connection;
   } catch (error) {
@@ -314,7 +319,7 @@ export function openVerified(driver: SqliteDriver, spec: DatabaseSpec, context: 
 
   try {
     checkVersionAndOwner(connection, spec);
-    connection.exec(CONNECTION_PRAGMAS);
+    applyConnectionPragmas(connection);
     checkHealthAndIdentity(connection, spec);
     migrate(connection, spec.migrations, context, migrationBackup(connection, spec, context));
 

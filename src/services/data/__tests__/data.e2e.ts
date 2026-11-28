@@ -137,8 +137,8 @@ const health = (file: string) =>
   }));
 
 describe('datos locales con procesos reales (ARQ-12 PR 4a)', () => {
-  // Con DELETE y carga continua, Windows da "database is locked" aun con 5 s (CI del 25/11): el reintento, con su pausa
-  // al azar (26/11), lo cubre.
+  // Con DELETE y carga continua, la espera de SQLite deja atrás al que espera hace rato: Windows daba "database is
+  // locked" aun con 5 s y 3 intentos (CI del 25/11 y del 27/11). Lo arregla esperar de a vueltas cortas (ARQ-30).
   it.each([
     [2, 300],
     [8, 100],
