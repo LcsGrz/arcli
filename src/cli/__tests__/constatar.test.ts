@@ -691,6 +691,18 @@ describe('arcli constatar: errores de ARCA', () => {
     expect(await failed(FA_TO_ME)).toMatchObject({ codigo: 'ARCA_VOUCHER_CHECK_ERROR' });
   });
 
+  it('una observación de entrada (113, falta el receptor): INPUT_VALIDATION_ERROR (exit 1), no un "no constatado"', async () => {
+    fake.answer.current = answer({
+      observations: [[113, 'El tipo de documento del receptor es obligatorio.']],
+      result: 'R',
+    });
+
+    expect(await failed(FA_TO_ME)).toMatchObject({
+      codigo: 'INPUT_VALIDATION_ERROR',
+      error: expect.stringContaining('113 El tipo de documento del receptor es obligatorio.'),
+    });
+  });
+
   it('la transacción activa (502) es pasajera: TRANSIENT_ERROR', async () => {
     fake.answer.current = answer({ errors: [[502, 'Transacción Activa']] });
 
@@ -776,6 +788,47 @@ describe('arcli constatar: entradas inválidas', () => {
       await expectInputError([kind, ...fb('10.000.000,01').slice(1)], /10\.000\.000/);
     },
   );
+
+  it('una fecha anterior al 1/1/2013 (observación 101)', async () => {
+    await expectInputError([...FA_TO_ME.slice(0, 4), '-f', '31/12/2012', ...FA_TO_ME.slice(6)], /01\/01\/2013/);
+  });
+
+  it('un comprobante T (195) con --cuil (observación 118)', async () => {
+    await expectInputError(['195', ...FA.slice(1), '--cuil', CUIT], /turismo/, /--cuil/);
+  });
+
+  it.each([49, 30])('el tipo %i de más de $ 10.000.000 sin receptor (observaciones 115 y 116)', async (type) => {
+    await expectInputError([String(type), ...fb('10.000.000,01').slice(1)], /10\.000\.000/);
+  });
+
+  it.each([
+    ['una A sin receptor', { nroDocRec: undefined, tipoDocRec: undefined }, /CUIT del receptor/],
+    ['una FCE B con DNI', { nroDocRec: 11111111, tipoCmp: 206, tipoDocRec: 96 }, /CUIT del receptor, no con DNI/],
+    [
+      'una B de más de $ 10.000.000 sin receptor',
+      { importe: 10_000_001, nroDocRec: 0, tipoCmp: 6, tipoDocRec: 99 },
+      /10\.000\.000/,
+    ],
+    [
+      'una B en dólares que supera el tope en pesos',
+      { ctz: 1000, importe: 10_001, moneda: 'DOL', nroDocRec: 0, tipoCmp: 6, tipoDocRec: 99 },
+      /10\.000\.000/,
+    ],
+    ['una fecha anterior a 2013', { fecha: '2012-12-31' }, /01\/01\/2013/],
+  ])('--qr de %s: corta antes, dice que el QR no alcanza y sugiere los datos', async (_name, change, pattern) => {
+    const error = await failed(['--qr', qr(change)]);
+
+    expect(error).toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR', error: expect.stringMatching(pattern) });
+    expect(fake.login).not.toHaveBeenCalled();
+    expect(fake.requests).toEqual([]);
+  });
+
+  it('--qr de un receptor faltante dice que se constate con los datos', async () => {
+    const error = await failed(['--qr', qr({ nroDocRec: undefined, tipoDocRec: undefined })]);
+
+    expect(error.error).toContain('Con lo que trae el QR no se puede constatar.');
+    expect(error.sugerencia).toContain('en vez de `--qr`');
+  });
 
   it('dos receptores a la vez', async () => {
     await expectInputError(fb('20.000.000', '--cuit', ISSUER, '--dni', '11111111'), /--cuit/, /--dni/);

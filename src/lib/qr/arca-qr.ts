@@ -26,11 +26,7 @@ interface ArcaQrReceiver {
   readonly documentType: number;
 }
 
-/**
- * Lo que trae el QR, ya como lo pide WSCDC: fecha `yyyymmdd`, `CAE` o `CAEA`, y el receptor solo si lo hay.
- *
- * @internal Exportado para los tests; quien llama lo recibe en `ArcaQrParseResult`.
- */
+/** Lo que trae el QR, ya como lo pide WSCDC: fecha `yyyymmdd`, `CAE` o `CAEA`, y el receptor solo si lo hay. */
 export interface ArcaQrValue {
   /** El CAE o CAEA (`codAut`), 14 dígitos como texto. */
   readonly authorizationCode: string;
@@ -38,6 +34,8 @@ export interface ArcaQrValue {
   readonly currency: string | null;
   /** `yyyymmdd`. */
   readonly date: string;
+  /** `ctz`, la cotización en pesos de `moneda` (1 en pesos); `null` si no viene o no es un número mayor a 0. */
+  readonly exchangeRate: number | null;
   /** 11 dígitos, con el verificador controlado. */
   readonly issuerCuit: string;
   readonly mode: 'CAE' | 'CAEA';
@@ -194,9 +192,18 @@ function readReceiver(json: Record<string, unknown>): ArcaQrReceiver | null {
   return { documentNumber, documentType };
 }
 
-/** `moneda` es obligatoria en la especificación, pero WSCDC no la recibe: solo sirve para mostrar el importe. */
+/**
+ * `moneda` y `ctz` son obligatorias en la especificación, pero WSCDC no las recibe: sirven para mostrar el importe y
+ * para pasarlo a pesos (el tope del receptor). Sin ellas el QR se constata igual.
+ */
 function readCurrency(value: unknown): string | null {
   return typeof value === 'string' && /^[A-Za-z0-9]{3}$/.test(value.trim()) ? value.trim().toUpperCase() : null;
+}
+
+function readExchangeRate(value: unknown): number | null {
+  const number = typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value) ? Number(value) : value;
+
+  return typeof number === 'number' && Number.isFinite(number) && number > 0 ? number : null;
 }
 
 function readValue(json: Record<string, unknown>): ArcaQrValue {
@@ -215,6 +222,7 @@ function readValue(json: Record<string, unknown>): ArcaQrValue {
     number: positiveInteger(required(json, 'nroCmp'), 'nroCmp', 8),
     pointOfSale: positiveInteger(required(json, 'ptoVta'), 'ptoVta', 5),
     currency: readCurrency(json.moneda),
+    exchangeRate: readExchangeRate(json.ctz),
     receiver: readReceiver(json),
     total: readTotal(required(json, 'importe')),
     voucherType: positiveInteger(required(json, 'tipoCmp'), 'tipoCmp', 3),

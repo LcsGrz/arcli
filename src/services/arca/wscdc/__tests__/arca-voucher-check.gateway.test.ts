@@ -92,6 +92,32 @@ describe('readConstatarAnswer', () => {
     ).toMatchObject({ events: [{ code: 1, message: 'Aviso.' }] });
   });
 
+  it.each([101, 113, 114, 115, 116, 117, 118, 150, 151, 152, 153])(
+    'la observación %i es de la consulta, no del comprobante: INPUT_VALIDATION_ERROR con el código y el mensaje',
+    (code) => {
+      const error = failure({
+        Observaciones: {
+          Obs: [
+            { Code: 100, Msg: 'No existe.' },
+            { Code: code, Msg: 'Falta un dato.' },
+          ],
+        },
+        Resultado: 'R',
+      });
+
+      expect(error).toMatchObject({
+        code: 'INPUT_VALIDATION_ERROR',
+        message: expect.stringContaining(`${code} Falta un dato.`),
+      });
+    },
+  );
+
+  it.each([100, 102, 105, 107, 110, 112])('la observación %i es un "no constatado"', (code) => {
+    expect(
+      readConstatarAnswer({ Observaciones: { Obs: { Code: code, Msg: 'No coincide.' } }, Resultado: 'R' }, REQUEST),
+    ).toMatchObject({ result: 'R' });
+  });
+
   it('un constatado con errores los conserva en errors', () => {
     expect(
       readConstatarAnswer({ Errors: { Err: [{ Code: 1, Msg: 'Aviso.' }] }, Resultado: 'A' }, REQUEST),

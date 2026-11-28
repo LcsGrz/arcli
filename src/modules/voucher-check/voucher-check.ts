@@ -1,9 +1,10 @@
+import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { parseDateInputAsArcaDate } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { parseDni } from '../../lib/identity/dni';
 import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
-import { parseArcaQrUrl } from '../../lib/qr/arca-qr';
-import { assertRules, type Rule } from '../../lib/rules/rules';
+import { type ArcaQrValue, parseArcaQrUrl } from '../../lib/qr/arca-qr';
+import { assertRules, findRuleFailure, type Rule } from '../../lib/rules/rules';
 import { documentTypeCode, documentTypeLabel } from '../billing/arca-codes';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import { getVoucherKindByArcaType, getVoucherKindByShortcut, VOUCHER_SHORTCUTS } from '../billing/voucher-kind-map';
@@ -197,36 +198,79 @@ function parseReceiverDni(raw: string): string {
 
 /** Lo que lee la regla del receptor. */
 interface VoucherCheckRuleInput {
-  /** `null`: un tipo que ARCLI no emite. */
-  readonly kind: VoucherKindDefinition | null;
   readonly receiver: VoucherCheckReceiver | null;
-  readonly total: number;
+  /** El importe en pesos; `null` si no se sabe (un QR en otra moneda sin cotización). */
+  readonly totalInPesos: number | null;
+  readonly voucherType: number;
 }
 
 /**
- * Clase A y FCE (A, B y C, la "MiPyME" del manual): el receptor va siempre y con CUIT (WSCDC v0.4 §2.2.4, observaciones
- * 113 y 114; en homologación, una `fceb` sin CUIT da R 113 y 114).
+ * Los tipos que el manual nombra por código en las observaciones 115 y 116 (además de B, C y "R"): el receptor solo
+ * desde el tope. Cuáles son "R" no lo dice: sin verificar, no se controla.
  */
-function requiresCuitReceiver(kind: VoucherKindDefinition): boolean {
-  return kind.letter === 'a' || kind.isElectronicCredit;
+const RECEIVER_ABOVE_THRESHOLD_TYPES: ReadonlySet<number> = new Set([30, 31, 37, 38, 41, 49]);
+
+/** Comprobantes de turismo, clase T (WSCDC v0.4 §2.2.4, observación 118). */
+const TOURISM_TYPES: ReadonlySet<number> = new Set([195, 196, 197]);
+
+/** Los documentos que acepta un comprobante T (observación 118): CUIT, CI extranjera, pasaporte y DNI. */
+const TOURISM_DOCUMENT_TYPES: ReadonlySet<number> = new Set([80, 91, 94, 96]);
+
+type ReceiverRequirement = 'above-threshold' | 'cuit' | 'tourism';
+
+/**
+ * Qué pide WSCDC del receptor según el tipo (WSCDC v0.4 §2.2.4):
+ * - `cuit`: clase A y FCE de cualquier letra (la "MiPyME" del manual), siempre y con CUIT (113 y 114; en homologación,
+ *   una `fceb` sin CUIT da R 113 y 114).
+ * - `above-threshold`: B y C comunes y los tipos 30, 31, 37, 38, 41 y 49, solo si el importe supera $ 10.000.000 (115
+ *   y 116).
+ * - `tourism`: T (195 a 197), si va, con CUIT, CI extranjera, pasaporte o DNI (118).
+ * Los demás (la M, la E, los que el manual no nombra) los decide ARCA.
+ */
+function receiverRequirement(voucherType: number): ReceiverRequirement | null {
+  const kind = getVoucherKindByArcaType(voucherType);
+
+  if (kind) {
+    return kind.letter === 'a' || kind.isElectronicCredit ? 'cuit' : 'above-threshold';
+  }
+
+  if (RECEIVER_ABOVE_THRESHOLD_TYPES.has(voucherType)) {
+    return 'above-threshold';
+  }
+
+  return TOURISM_TYPES.has(voucherType) ? 'tourism' : null;
+}
+
+/** `La factura A`; un tipo que ARCLI no emite, con su código: `El comprobante tipo 49`. */
+function voucherSubject(voucherType: number): string {
+  const kind = getVoucherKindByArcaType(voucherType);
+
+  return kind ? formatVoucherSubject(kind) : `El comprobante tipo ${voucherType}`;
+}
+
+/** El flag con el que se pasó ese documento: los flags solo dan 80, 86 y 96. */
+function documentFlag(documentType: number): string {
+  if (documentType === documentTypeCode('dni')) return '--dni';
+
+  return documentType === documentTypeCode('cuil') ? '--cuil' : '--cuit';
+}
+
+function documentName(documentType: number): string {
+  return documentTypeLabel(documentType) ?? `el documento ${documentType}`;
 }
 
 /**
  * El receptor que pide WSCDC según el comprobante, con el texto de los flags (`message`) y el de las preguntas
- * (`question`, REV-76). Solo para los tipos que ARCLI emite: en los demás (la M, la E y los que ARCLI no emite) decide
- * ARCA, que contesta con la observación que corresponda.
+ * (`question`, REV-76). Con `--qr` la usa `fromQr`, con el texto de las preguntas y qué hacer.
  *
  * @internal Exportada para los tests; la usa también el asistente (SDK-10, PR 2).
  */
 export const VOUCHER_CHECK_RECEIVER_RULE: Rule<VoucherCheckRuleInput, undefined> = {
-  check: ({ kind, receiver = null, total = 0 }) => {
-    if (!kind) {
-      return undefined;
-    }
+  check: ({ receiver = null, totalInPesos = null, voucherType = 0 }) => {
+    const requirement = receiverRequirement(voucherType);
+    const subject = voucherSubject(voucherType);
 
-    const subject = formatVoucherSubject(kind);
-
-    if (requiresCuitReceiver(kind)) {
+    if (requirement === 'cuit') {
       if (!receiver) {
         return {
           message: `${subject} se constata con el CUIT del receptor: agregá \`--cuit\`.`,
@@ -235,30 +279,51 @@ export const VOUCHER_CHECK_RECEIVER_RULE: Rule<VoucherCheckRuleInput, undefined>
       }
 
       if (receiver.documentType !== documentTypeCode('cuit')) {
-        const flag = receiver.documentType === documentTypeCode('dni') ? '--dni' : '--cuil';
-
         return {
-          message: `${subject} se constata con el CUIT del receptor: usá \`--cuit\` en vez de \`${flag}\`.`,
-          question: `${subject} se constata con el CUIT del receptor, no con ${documentTypeLabel(receiver.documentType) ?? 'otro documento'}.`,
+          message: `${subject} se constata con el CUIT del receptor: usá \`--cuit\` en vez de \`${documentFlag(receiver.documentType)}\`.`,
+          question: `${subject} se constata con el CUIT del receptor, no con ${documentName(receiver.documentType)}.`,
         };
       }
-
-      return undefined;
     }
 
-    if (!receiver && total > RECEIVER_REQUIRED_ABOVE) {
+    if (
+      requirement === 'above-threshold' &&
+      !receiver &&
+      totalInPesos !== null &&
+      totalInPesos > RECEIVER_REQUIRED_ABOVE
+    ) {
       const over = `${subject} de más de ${formatArgentineMoney(RECEIVER_REQUIRED_ABOVE)} se constata con el documento del receptor`;
 
       return { message: `${over}: agregá \`--cuit\`, \`--cuil\` o \`--dni\`.`, question: `${over}.` };
     }
 
+    if (requirement === 'tourism' && receiver && !TOURISM_DOCUMENT_TYPES.has(receiver.documentType)) {
+      const accepted = `${subject} (turismo) va con CUIT, CI extranjera, pasaporte o DNI del receptor`;
+
+      return {
+        message: `${accepted}: usá \`--cuit\` o \`--dni\` en vez de \`${documentFlag(receiver.documentType)}\`.`,
+        question: `${accepted}, no con ${documentName(receiver.documentType)}.`,
+      };
+    }
+
     return undefined;
   },
-  fields: ['receiver', 'total'],
+  fields: ['receiver', 'totalInPesos'],
   id: 'voucher-check-receiver',
 };
 
-/** El QR ya trae todo; acá van los límites de WSCDC que su especificación no pone. */
+/** WSCDC no constata comprobantes anteriores al 1/1/2013 (WSCDC v0.4 §2.2.4, observación 101). */
+const FIRST_CHECKABLE_DATE = '20130101';
+
+function assertCheckableDate(date: string): void {
+  if (date < FIRST_CHECKABLE_DATE) {
+    throw new InputValidationError(
+      `La fecha ${formatArcaDateAsArgentineDate(date)} es anterior al ${formatArcaDateAsArgentineDate(FIRST_CHECKABLE_DATE)}: ARCA no constata comprobantes de antes.`,
+    );
+  }
+}
+
+/** El QR ya trae todo; acá van los límites de WSCDC que su especificación no pone, y el receptor que pide el tipo. */
 function fromQr(text: string): VoucherCheckRequest {
   const parsed = parseArcaQrUrl(text);
 
@@ -272,7 +337,22 @@ function fromQr(text: string): VoucherCheckRequest {
     throw new InputValidationError(`El QR no se puede constatar: el punto de venta va de 1 a ${MAX_POINT_OF_SALE}.`);
   }
 
-  // El receptor no se controla: con el QR no se puede agregar, y si falta lo dice ARCA (observaciones 113 a 117).
+  assertCheckableDate(qr.date);
+
+  const failure = findRuleFailure(
+    [VOUCHER_CHECK_RECEIVER_RULE],
+    { receiver: qr.receiver, totalInPesos: qrTotalInPesos(qr), voucherType: qr.voucherType },
+    undefined,
+  );
+
+  if (failure) {
+    throw new InputValidationError(
+      `${failure.failure.question ?? failure.failure.message} Con lo que trae el QR no se puede constatar.`,
+      undefined,
+      'Constatá con los datos del comprobante (tipo, número, `--emisor`, `-f`, `-m`, `--cae` y el documento del receptor) en vez de `--qr`.',
+    );
+  }
+
   return {
     authorizationCode: qr.authorizationCode,
     currency: qr.currency,
@@ -286,6 +366,18 @@ function fromQr(text: string): VoucherCheckRequest {
     total: qr.total,
     voucherType: qr.voucherType,
   };
+}
+
+/**
+ * El importe del QR en pesos, para el tope del receptor (que el manual da "en pesos"): en pesos o sin moneda, tal cual;
+ * en otra, por la cotización del QR; sin cotización, no se sabe.
+ */
+function qrTotalInPesos(qr: ArcaQrValue): number | null {
+  if (qr.currency === null || qr.currency === 'PES') {
+    return qr.total;
+  }
+
+  return qr.exchangeRate === null ? null : qr.total * qr.exchangeRate;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -381,7 +473,13 @@ function fromFlags(input: VoucherCheckInput, now: Date): VoucherCheckRequest {
   const { code, mode } = authorizationFromFlags(input);
   const receiver = receiverFromFlags(input);
 
-  assertRules([VOUCHER_CHECK_RECEIVER_RULE], { kind: type.kind, receiver, total }, undefined);
+  assertCheckableDate(date);
+  // Con los flags no se sabe la moneda: el importe se toma en pesos (sin verificar para otra moneda).
+  assertRules(
+    [VOUCHER_CHECK_RECEIVER_RULE],
+    { receiver, totalInPesos: total, voucherType: type.voucherType },
+    undefined,
+  );
 
   return {
     authorizationCode: code,
