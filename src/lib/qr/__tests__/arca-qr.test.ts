@@ -146,17 +146,6 @@ describe('parseArcaQrUrl', () => {
     }
   });
 
-  it('rechaza la URL sin el parámetro p', () => {
-    expect(parseArcaQrUrl('https://www.arca.gob.ar/fe/qr/')).toEqual({
-      ok: false,
-      reason: expect.any(String),
-    });
-    expect(parseArcaQrUrl('https://www.arca.gob.ar/fe/qr/?p=')).toEqual({
-      ok: false,
-      reason: expect.any(String),
-    });
-  });
-
   it('rechaza un p que no es Base64 o no es un JSON', () => {
     for (const p of ['%%%no-es-base64%%%', base64('{"ver":1,"fecha":'), base64('[1,2,3]'), base64('hola')]) {
       expect(parseArcaQrUrl(`${ARCA_BASE}${p}`), p).toEqual({ ok: false, reason: expect.any(String) });
@@ -171,14 +160,152 @@ describe('parseArcaQrUrl', () => {
   });
 
   it.each(['ver', 'fecha', 'cuit', 'ptoVta', 'tipoCmp', 'nroCmp', 'importe', 'tipoCodAut', 'codAut'])(
-    'rechaza el QR sin %s, y nombra el campo',
+    'rechaza el QR sin %s, y dice que falta ese campo',
     (field) => {
-      expect(parseArcaQrUrl(qrUrl(without(field)))).toEqual({
+      expect(parseArcaQrUrl(qrUrl(without(field)))).toEqual({ ok: false, reason: `falta el campo ${field}` });
+    },
+  );
+
+  it.each([null, ''])('un campo obligatorio en %j es un campo que falta', (value) => {
+    expect(parseArcaQrUrl(qrUrl({ ...QR_JSON, fecha: value }))).toEqual({ ok: false, reason: 'falta el campo fecha' });
+  });
+
+  it.each(['cuit', 'ptoVta', 'tipoCmp', 'nroCmp', 'codAut', 'tipoDocRec', 'nroDocRec'])(
+    'un %s que no es un número entero: lo rechaza y nombra el campo',
+    (field) => {
+      expect(parseArcaQrUrl(qrUrl({ ...QR_JSON, [field]: 'x' }))).toEqual({
         ok: false,
-        reason: expect.stringContaining(field),
+        reason: expect.stringContaining(`el campo ${field} tiene que ser un número entero`),
       });
     },
   );
+
+  it('rechaza la URL http, aunque sea la de ARCA', () => {
+    expect(parseArcaQrUrl(qrUrl(QR_JSON, 'http://www.arca.gob.ar/fe/qr/?p='))).toEqual({
+      ok: false,
+      reason: expect.stringContaining('arca.gob.ar/fe/qr'),
+    });
+  });
+
+  it('dice que falta el parámetro p cuando no está o está vacío', () => {
+    for (const url of ['https://www.arca.gob.ar/fe/qr/', 'https://www.arca.gob.ar/fe/qr/?p=']) {
+      expect(parseArcaQrUrl(url), url).toEqual({
+        ok: false,
+        reason: 'le falta el parámetro p, con los datos del comprobante',
+      });
+    }
+  });
+
+  it.each([
+    ['con un caracter que no es de Base64 al final', `${base64(JSON.stringify(QR_JSON))}!`],
+    [
+      'con un caracter que no es de Base64 en el medio',
+      `${base64(JSON.stringify(QR_JSON)).slice(0, 8)}*${base64(JSON.stringify(QR_JSON)).slice(8)}`,
+    ],
+  ])('rechaza el p %s, aunque Node lo decodificaría', (_name, p) => {
+    expect(parseArcaQrUrl(`${ARCA_BASE}${p}`)).toEqual({
+      ok: false,
+      reason: 'el parámetro p no es un texto en Base64',
+    });
+  });
+
+  it.each(['null', '[1,2,3]', '7'])('un JSON que no es un objeto (%s) no trae los datos del comprobante', (json) => {
+    expect(parseArcaQrUrl(`${ARCA_BASE}${base64(json)}`)).toEqual({
+      ok: false,
+      reason: 'el contenido del parámetro p no es un JSON con los datos del comprobante',
+    });
+  });
+
+  describe('importe', () => {
+    it.each<[unknown, number]>([
+      ['12100', 12_100],
+      ['1500.50', 1500.5],
+      [0, 0],
+    ])('acepta %j como %d', (importe, total) => {
+      expect(parseArcaQrUrl(qrUrl({ ...QR_JSON, importe }))).toMatchObject({ ok: true, value: { total } });
+    });
+
+    it.each(['1e3', '1,5', true, '12.'])('rechaza %j', (importe) => {
+      expect(parseArcaQrUrl(qrUrl({ ...QR_JSON, importe }))).toEqual({
+        ok: false,
+        reason: 'el campo importe tiene que ser un número mayor o igual a 0',
+      });
+    });
+  });
+
+  describe('los numéricos', () => {
+    it.each<[string, unknown]>([
+      ['con decimales', 1.5],
+      ['con letras', '3a'],
+      ['en una lista', [3]],
+    ])('rechaza un punto de venta %s', (_name, ptoVta) => {
+      expect(parseArcaQrUrl(qrUrl({ ...QR_JSON, ptoVta }))).toEqual({
+        ok: false,
+        reason: 'el campo ptoVta tiene que ser un número entero de hasta 5 dígitos',
+      });
+    });
+
+    it('rechaza un nroDocRec numérico que ya perdió precisión (más de 15 dígitos)', () => {
+      expect(parseArcaQrUrl(qrUrl({ ...QR_JSON, nroDocRec: 2 ** 53 + 2 }))).toMatchObject({ ok: false });
+    });
+
+    it('acepta el nroDocRec largo escrito como texto', () => {
+      expect(parseArcaQrUrl(qrUrl({ ...QR_JSON, nroDocRec: '9007199254740994' }))).toMatchObject({
+        ok: true,
+        value: { receiver: { documentNumber: '9007199254740994', documentType: 80 } },
+      });
+    });
+  });
+
+  describe('fecha', () => {
+    it.each<[string, unknown]>([
+      ['con hora (date-time, no full-date)', '2026-11-10T00:00:00'],
+      ['con algo antes', 'x2026-11-10'],
+      ['en una lista', ['2026-11-10']],
+    ])('rechaza una fecha %s', (_name, fecha) => {
+      expect(parseArcaQrUrl(qrUrl({ ...QR_JSON, fecha }))).toEqual({
+        ok: false,
+        reason: 'el campo fecha tiene que ser una fecha AAAA-MM-DD',
+      });
+    });
+  });
+
+  describe('receptor', () => {
+    it('tipoDocRec y nroDocRec en null es lo mismo que sin receptor', () => {
+      expect(parseArcaQrUrl(qrUrl({ ...QR_JSON, nroDocRec: null, tipoDocRec: null }))).toMatchObject({
+        ok: true,
+        value: { receiver: null },
+      });
+    });
+
+    it.each<[string, Record<string, unknown>, string]>([
+      ['tipoDocRec sin nroDocRec', { nroDocRec: undefined }, 'trae tipoDocRec sin nroDocRec'],
+      ['nroDocRec sin tipoDocRec', { tipoDocRec: undefined }, 'trae nroDocRec sin tipoDocRec'],
+      ['tipoDocRec con nroDocRec en null', { nroDocRec: null }, 'trae tipoDocRec sin nroDocRec'],
+    ])('rechaza %s', (_name, change, reason) => {
+      expect(parseArcaQrUrl(qrUrl({ ...QR_JSON, ...change }))).toEqual({ ok: false, reason });
+    });
+
+    it.each<[string, Record<string, unknown>]>([
+      ['el 99 con un número', { nroDocRec: 12345, tipoDocRec: 99 }],
+      ['un DNI con el número 0', { nroDocRec: 0, tipoDocRec: 96 }],
+    ])('%s no es un receptor', (_name, change) => {
+      expect(parseArcaQrUrl(qrUrl({ ...QR_JSON, ...change }))).toMatchObject({ ok: true, value: { receiver: null } });
+    });
+  });
+
+  describe('moneda', () => {
+    it('la lee sin espacios y en mayúsculas', () => {
+      expect(parseArcaQrUrl(qrUrl({ ...QR_JSON, moneda: ' dol ' }))).toMatchObject({ value: { currency: 'DOL' } });
+    });
+
+    it.each(['PESOS', 'XPES', 'PE'])(
+      'una moneda que no tiene 3 caracteres (%s) es una moneda que no vino',
+      (moneda) => {
+        expect(parseArcaQrUrl(qrUrl({ ...QR_JSON, moneda }))).toMatchObject({ ok: true, value: { currency: null } });
+      },
+    );
+  });
 
   it.each<[string, Record<string, unknown>]>([
     ['una fecha que no es AAAA-MM-DD', { fecha: '10/11/2026' }],
