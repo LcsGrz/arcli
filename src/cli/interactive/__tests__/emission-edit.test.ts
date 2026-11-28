@@ -16,8 +16,8 @@ import { emissionStep } from '../session';
  * `session.production-confirm.test.ts`: solo las dos listas de abajo (`listSelect` y `multiSelect`), que eligen por texto
  * o devuelven lo marcado.
  *
- * La API todavia no existe: el contexto y la respuesta `{ edit }` se tipan aca, como en el plan. Al implementarla, se
- * pueden cambiar por los de `wizard.ts`.
+ * El contexto y la respuesta `{ edit }` se tipan aca, como en el plan, y la llamada pasa por casts: asi el test no
+ * depende de `EmissionContext` (`emission-closing.ts`), que suma la vista previa guardada a `WizardConfirmContext`.
  */
 
 vi.mock('../list-select', async (importOriginal) => ({
@@ -29,7 +29,7 @@ vi.mock('../multi-select', () => ({ multiSelect: vi.fn() }));
 const selectMock = vi.mocked(listSelect);
 const multiSelectMock = vi.mocked(multiSelect);
 
-/** El texto de la opcion nueva (`EDIT_DATA_LABEL` de `emission-prompt.ts`, que todavia no existe). */
+/** El texto de la opcion nueva, escrito aca para comparar con `EDIT_DATA_LABEL` de `emission-prompt.ts`. */
 const EDIT_DATA_LABEL = 'No, editar datos';
 const EMIT_WITH_PDF_LABEL = 'Sí, emitir y generar el PDF';
 
@@ -146,73 +146,78 @@ describe('cierre del asistente: "No, editar datos" (TUI-29)', () => {
     multiSelectMock.mockReset();
   });
 
-  // Tests primero (TUI-29): pasa a it() al implementarlo.
-  it.fails(
-    'criterio 11: con datos editables, la opcion va entre emitir con PDF y no emitir, y la inicial no cambia',
-    async () => {
-      const { confirm, emit } = createClosing('siempre');
-      const asked = pickByName(DO_NOT_EMIT_LABEL);
+  it('criterio 11: con datos editables, la opcion va entre emitir con PDF y no emitir, y la inicial no cambia', async () => {
+    const { confirm, emit } = createClosing('siempre');
+    const asked = pickByName(DO_NOT_EMIT_LABEL);
 
-      await confirm({}, { editable: EDITABLE });
+    await confirm({}, { editable: EDITABLE });
 
-      expect(asked).toEqual([
-        {
-          choices: [EMIT_NOW_LABEL, EMIT_WITH_PDF_LABEL, EDIT_DATA_LABEL, DO_NOT_EMIT_LABEL],
-          default: 'emitir-con-pdf',
-          message: '¿Emitimos la factura C en testing?',
-        },
-      ]);
-      expect(emit).not.toHaveBeenCalled();
-    },
-  );
+    expect(asked).toEqual([
+      {
+        choices: [EMIT_NOW_LABEL, EMIT_WITH_PDF_LABEL, EDIT_DATA_LABEL, DO_NOT_EMIT_LABEL],
+        default: 'emitir-con-pdf',
+        message: '¿Emitimos la factura C en testing?',
+      },
+    ]);
+    expect(emit).not.toHaveBeenCalled();
+  });
 
-  // Tests primero (TUI-29): pasa a it() al implementarlo.
-  it.fails(
-    'criterio 11: Esc o Enter sin marcar nada en la lista vuelven a "¿Emitimos?" sin otra vista previa',
-    async () => {
-      const { confirm, emit, preview } = createClosing();
-      const asked = pickByName(EDIT_DATA_LABEL, EDIT_DATA_LABEL, DO_NOT_EMIT_LABEL);
-      const opened = markInList(BACK, []);
+  it('criterio 11: Esc o Enter sin marcar nada en la lista vuelven a "¿Emitimos?" sin otra vista previa', async () => {
+    const { confirm, emit, preview } = createClosing();
+    const asked = pickByName(EDIT_DATA_LABEL, EDIT_DATA_LABEL, DO_NOT_EMIT_LABEL);
+    const opened = markInList(BACK, []);
 
-      const result = await confirm({}, { editable: EDITABLE });
+    const result = await confirm({}, { editable: EDITABLE });
 
-      expect(asked.map(({ message }) => message)).toEqual([
-        '¿Emitimos la factura C en testing?',
-        '¿Emitimos la factura C en testing?',
-        '¿Emitimos la factura C en testing?',
-      ]);
-      expect(opened).toHaveLength(2);
-      expect(preview).toHaveBeenCalledTimes(1);
-      expect(result).toBeUndefined();
-      expect(emit).not.toHaveBeenCalled();
-    },
-  );
+    expect(asked.map(({ message }) => message)).toEqual([
+      '¿Emitimos la factura C en testing?',
+      '¿Emitimos la factura C en testing?',
+      '¿Emitimos la factura C en testing?',
+    ]);
+    expect(opened).toHaveLength(2);
+    expect(preview).toHaveBeenCalledTimes(1);
+    expect(result).toBeUndefined();
+    expect(emit).not.toHaveBeenCalled();
+  });
 
-  // Tests primero (TUI-29): pasa a it() al implementarlo.
-  it.fails(
-    'criterio 11: lo marcado vuelve como `{ edit }`, y con `reopen` la lista abre con eso marcado, sin otra vista previa',
-    async () => {
-      const { confirm, emit, preview } = createClosing();
-      const state = {};
-      const asked = pickByName(EDIT_DATA_LABEL, DO_NOT_EMIT_LABEL);
-      const opened = markInList(['monto'], BACK);
+  it('criterio 11: lo marcado vuelve como `{ edit }`, y con `reopen` la lista abre con eso marcado, sin otra vista previa', async () => {
+    const { confirm, emit, preview } = createClosing();
+    const state = {};
+    const asked = pickByName(EDIT_DATA_LABEL, DO_NOT_EMIT_LABEL);
+    const opened = markInList(['monto'], BACK);
 
-      expect(await confirm(state, { editable: EDITABLE })).toEqual({ edit: ['monto'] });
+    expect(await confirm(state, { editable: EDITABLE })).toEqual({ edit: ['monto'] });
 
-      // Esc en la primera pregunta editada: el motor vuelve con el mismo estado y lo marcado.
-      const result = await confirm(state, { editable: EDITABLE, reopen: { marked: ['monto'] } });
+    // Esc en la primera pregunta editada: el motor vuelve con el mismo estado y lo marcado.
+    const result = await confirm(state, { editable: EDITABLE, reopen: { marked: ['monto'] } });
 
-      expect(opened).toEqual([{ selected: [] }, { selected: ['monto'] }]);
-      // La segunda vez, primero la lista (Esc) y despues "¿Emitimos?" con la vista previa de antes.
-      expect(asked).toHaveLength(2);
-      expect(selectMock.mock.invocationCallOrder[1]).toBeGreaterThan(
-        multiSelectMock.mock.invocationCallOrder[1] ?? Infinity,
-      );
-      expect(preview).toHaveBeenCalledTimes(1);
-      expect(result).toBeUndefined();
-      expect(emit).not.toHaveBeenCalled();
-    },
-  );
+    expect(opened).toEqual([{ selected: [] }, { selected: ['monto'] }]);
+    // La segunda vez, primero la lista (Esc) y despues "¿Emitimos?" con la vista previa de antes.
+    expect(asked).toHaveLength(2);
+    expect(selectMock.mock.invocationCallOrder[1]).toBeGreaterThan(
+      multiSelectMock.mock.invocationCallOrder[1] ?? Infinity,
+    );
+    expect(preview).toHaveBeenCalledTimes(1);
+    expect(result).toBeUndefined();
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('la vista previa guardada sirve para varios `reopen` del mismo estado, y no para otro estado', async () => {
+    const { confirm, preview } = createClosing();
+    const state = {};
+
+    pickByName(EDIT_DATA_LABEL, DO_NOT_EMIT_LABEL);
+    markInList(['monto'], ['fecha'], BACK);
+
+    expect(await confirm(state, { editable: EDITABLE })).toEqual({ edit: ['monto'] });
+    expect(await confirm(state, { editable: EDITABLE, reopen: { marked: ['monto'] } })).toEqual({ edit: ['fecha'] });
+    expect(preview).toHaveBeenCalledTimes(1);
+
+    // Otro estado con `reopen` (no deberia pasar): no se muestra una vista previa de otra entrada.
+    await confirm({}, { editable: EDITABLE, reopen: { marked: ['fecha'] } });
+
+    expect(preview).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('askEmission en los comandos con flags (TUI-29)', () => {
@@ -220,11 +225,10 @@ describe('askEmission en los comandos con flags (TUI-29)', () => {
     selectMock.mockReset();
   });
 
-  // Tests primero (TUI-29): pasa a it() al implementarlo.
-  it.fails('criterio 12: sin el modo del asistente no ofrece "No, editar datos"', async () => {
+  it('criterio 12: sin el modo del asistente no ofrece "No, editar datos"', async () => {
     const asked = pickByName(DO_NOT_EMIT_LABEL);
 
-    expect((emissionPrompt as { readonly EDIT_DATA_LABEL?: string }).EDIT_DATA_LABEL).toBe(EDIT_DATA_LABEL);
+    expect(emissionPrompt.EDIT_DATA_LABEL).toBe(EDIT_DATA_LABEL);
     expect(await askEmission('¿Emitimos la factura C en testing?', { initial: 'emitir', offerPdf: true })).toBe(false);
     expect(asked.map(({ choices }) => choices)).toEqual([[EMIT_NOW_LABEL, EMIT_WITH_PDF_LABEL, DO_NOT_EMIT_LABEL]]);
   });

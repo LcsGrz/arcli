@@ -140,10 +140,10 @@ export interface WizardOptions<S> {
 }
 
 /**
- * Un dato de "¿Qué datos cambiamos?": un `id` de `edit`, con su etiqueta y su valor actual. Se exporta cuando lo use el
- * cierre (TUI-29 PR 1, `emission-closing.ts`); mientras, `WizardConfirmContext["editable"]`.
+ * Un dato de "¿Qué datos cambiamos?": un `id` de `edit`, con su etiqueta y su valor actual. Lo muestra el cierre del
+ * asistente (`emission-closing.ts`, TUI-29).
  */
-interface WizardEditable {
+export interface WizardEditable {
   readonly id: string;
   readonly label: string;
   readonly value: string;

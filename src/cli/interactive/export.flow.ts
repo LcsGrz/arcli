@@ -41,7 +41,7 @@ import { createExportVoucherGateway } from '../export-voucher-gateway';
 import type { DeliveryInterruption } from '../interruption';
 
 import { waitForArca } from './arca-wait';
-import { closeWithEmission } from './emission-closing';
+import { closeWithEmission, type EmissionContext, WITHOUT_EDIT } from './emission-closing';
 import { askCountryCuit, askDestinationCountry, exportOptionalsStep, validateExportText } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
 import { exportExchangeRateLoader } from './official-exchange-rate';
@@ -409,41 +409,45 @@ export async function emitExportVoucher(
   session: InteractiveSession,
   gateway: ExportGateway,
   rawInput: ExportVoucherInput,
+  context: EmissionContext = WITHOUT_EDIT,
   options: { readonly activity?: number; readonly associated?: ExportIssuedVoucher } = {},
-): Promise<typeof BACK | boolean> {
+): Promise<typeof BACK | boolean | { readonly edit: readonly string[] }> {
   const { runtime } = session;
   const { activity, associated } = options;
   // ExportService toma el de la config: uno elegido en el asistente va en la entrada (y en el comando equivalente).
   const input: ExportVoucherInput = { ...rawInput, pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale };
 
-  return closeWithEmission<ExportExecutionResult, ExportPreview>({
-    emit: ({ resolved, warnings }, interruption) =>
-      emitExport({
-        ...interruption,
-        clock: systemClock,
-        gateway,
-        input: { emit: true },
-        onEmitted: (result) => {
-          recordExportEmission(result);
-        },
-        resolved,
-        runtime,
-        warnings,
-      }),
-    equivalentCommand: () =>
-      buildExportEquivalentCommand(input, { activity, environment: runtime.environment, platform: process.platform }),
-    format: (result, { previewShown }) =>
-      formatExportResultAsText(result, { environment: runtime.environment, previewShown, raw: false }),
-    generatePdf: (result, _previewed, pdf, delivery) =>
-      offerExportPdf(runtime.config, { ...input, pdf }, result, delivery),
-    pdf: input.pdf,
-    preview: () =>
-      waitForArca('Consultando WSFEX...', () =>
-        previewExport({ associated, clock: systemClock, gateway, input, runtime }),
-      ),
-    queryErrors: true,
-    runtime,
-  });
+  return closeWithEmission<ExportExecutionResult, ExportPreview>(
+    {
+      emit: ({ resolved, warnings }, interruption) =>
+        emitExport({
+          ...interruption,
+          clock: systemClock,
+          gateway,
+          input: { emit: true },
+          onEmitted: (result) => {
+            recordExportEmission(result);
+          },
+          resolved,
+          runtime,
+          warnings,
+        }),
+      equivalentCommand: () =>
+        buildExportEquivalentCommand(input, { activity, environment: runtime.environment, platform: process.platform }),
+      format: (result, { previewShown }) =>
+        formatExportResultAsText(result, { environment: runtime.environment, previewShown, raw: false }),
+      generatePdf: (result, _previewed, pdf, delivery) =>
+        offerExportPdf(runtime.config, { ...input, pdf }, result, delivery),
+      pdf: input.pdf,
+      preview: () =>
+        waitForArca('Consultando WSFEX...', () =>
+          previewExport({ associated, clock: systemClock, gateway, input, runtime }),
+        ),
+      queryErrors: true,
+      runtime,
+    },
+    context,
+  );
 }
 
 /**
@@ -456,10 +460,10 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
   const tables = await loadExportTables(gateway);
   const configuredActivity = config.exportacion?.actividad;
   // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15).
-  const emission = emissionStep<ExportFlowState>((state) => {
+  const emission = emissionStep<ExportFlowState>((state, context) => {
     const input = buildExportInput(state, { configuredActivity });
 
-    return emitExportVoucher(session, gateway, input, { activity: input.activity });
+    return emitExportVoucher(session, gateway, input, context, { activity: input.activity });
   });
   const state = await runWizard<ExportFlowState>(
     withFinalizeNotice(

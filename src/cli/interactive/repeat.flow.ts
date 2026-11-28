@@ -353,8 +353,8 @@ export async function runRepeatFlow(baseSession: InteractiveSession): Promise<vo
   const { pointOfSale, session } = ready;
   const retry = invoiceAmountRetry<RepeatState>();
   // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15). Repetir E ya paso por su propia vista previa.
-  const emission = emissionStep<RepeatState>((state) =>
-    state.exported ? undefined : previewAndEmit(session, buildInvoiceInput(state, session.runtime)),
+  const emission = emissionStep<RepeatState>((state, context) =>
+    state.exported ? undefined : previewAndEmit(session, buildInvoiceInput(state, session.runtime), undefined, context),
   );
   const state = await runWizard(
     repeatSteps(session, pointOfSale, new Date(), retry),

@@ -330,6 +330,9 @@ describe('runInvoiceFlow', () => {
     expect(previewAndEmit).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ documentNumber: 30709965812, ivaCondition: 'responsable-inscripto', shortcut: 'fa' }),
+      undefined,
+      // El contexto de `confirm`, para "No, editar datos" (TUI-29).
+      expect.objectContaining({ editable: [] }),
     );
   });
 

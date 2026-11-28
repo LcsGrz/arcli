@@ -231,9 +231,9 @@ export async function runInvoiceFlow(
 
   const { session } = ready;
   const retry = invoiceAmountRetry();
-  const emission = emissionStep<InvoiceState>((state) =>
+  const emission = emissionStep<InvoiceState>((state, context) =>
     // La E ya paso por su propia vista previa, adentro del primer paso.
-    state.exported ? undefined : previewAndEmit(session, buildInvoiceInput(state, session.runtime)),
+    state.exported ? undefined : previewAndEmit(session, buildInvoiceInput(state, session.runtime), undefined, context),
   );
   const state = await runWizard(
     invoiceSteps(session, retry),

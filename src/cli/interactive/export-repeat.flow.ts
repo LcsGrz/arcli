@@ -244,10 +244,10 @@ export async function runExportRepeatFlow(
   const tables = await loadExportTables(gateway);
   const configured = session.runtime.config.exportacion?.actividad;
   // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15).
-  const emission = emissionStep<ExportRepeatState>((answered) => {
+  const emission = emissionStep<ExportRepeatState>((answered, context) => {
     const input = buildExportRepeatInput(answered, { configuredActivity: configured });
 
-    return emitExportVoucher(session, gateway, input, { activity: input.activity });
+    return emitExportVoucher(session, gateway, input, context, { activity: input.activity });
   });
   const state = await runWizard<ExportRepeatState>(
     exportRepeatSteps(session, gateway, tables, pointOfSale),
