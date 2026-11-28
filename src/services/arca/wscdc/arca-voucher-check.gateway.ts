@@ -71,14 +71,19 @@ export function toCmpReq(request: VoucherCheckRequest): Record<string, number | 
   };
 }
 
+/**
+ * Los mensajes de una lista de WSCDC. El código 0 sin texto no dice nada y se descarta: en homologación ARCA lo manda
+ * siempre en `Events`.
+ */
 function readMessages(container: unknown, item: string): ArcaMessage[] {
   const list = (container as Record<string, unknown> | null | undefined)?.[item];
 
   return asArray(list as unknown).flatMap((entry) => {
     const { Code, Msg } = (entry ?? {}) as Record<string, unknown>;
     const code = readNumber(Code);
+    const message = readText(Msg);
 
-    return code === undefined ? [] : [{ code, message: readText(Msg) }];
+    return code === undefined || (code === 0 && !message) ? [] : [{ code, message }];
   });
 }
 

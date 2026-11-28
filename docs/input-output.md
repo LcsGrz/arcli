@@ -756,7 +756,7 @@ Si el CUIT no figura, es el error `TAXPAYER_NOT_FOUND` (ver [códigos](#códigos
 | `receptor`           | `object \| null` | `numero` (texto, solo dígitos) y `tipoDocumento` (80 CUIT, 86 CUIL, 96 DNI); `null` si no se mandó                                             |
 | `fechaProceso`       | `string \| null` | Cuándo lo procesó ARCA, `yyyymmddhhmmss`                                                                                                       |
 | `observaciones`      | `array`          | `{ "codigo", "mensaje" }` de ARCA: el motivo de un no constatado (por ejemplo `100`, el CAE no existe) o un aviso de uno constatado (`200`)    |
-| `eventos`            | `array`          | `{ "codigo", "mensaje" }`: avisos generales de ARCA                                                                                            |
+| `eventos`            | `array`          | `{ "codigo", "mensaje" }`: avisos generales de ARCA, sin el código 0 vacío que manda siempre                                                   |
 | `errores`            | `array`          | `{ "codigo", "mensaje" }`: errores que ARCA mandó junto a un constatado; con uno no constatado, un error corta como `ARCA_VOUCHER_CHECK_ERROR` |
 | `entorno`            | `string`         | `testing` o `produccion`                                                                                                                       |
 
@@ -1090,9 +1090,9 @@ Un comprobante **rechazado por ARCA no es un error del comando**: sale como resu
 
 | Exit code | Cuándo                                                                                                                                                                                             |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0`       | Todo bien: comprobantes aprobados (también `observado`, que tiene CAE) o vista previa                                                                                                              |
+| `0`       | Todo bien: comprobantes aprobados (también `observado`, que tiene CAE), vista previa o, en `constatar`, constatado                                                                                 |
 | `1`       | Error: entrada inválida, configuración, red, ARCA sin respuesta o un lote cortado con `Ctrl+C` con algo pendiente                                                                                  |
-| `2`       | ARCA rechazó al menos un comprobante. En un lote, revisá `estado` de cada uno                                                                                                                      |
+| `2`       | ARCA rechazó al menos un comprobante. En un lote, revisá `estado` de cada uno. En `constatar`, no constatado: el motivo va en `observaciones`                                                      |
 | Señal     | Segundo `Ctrl+C` (o `SIGTERM`) mientras se emite: escribe lo que se sabe y termina por la señal (`130` o `143` en la mayoría de las shells). Sin nada enviado, también con la primera y sin salida |
 
 Dos comandos de diagnóstico informan un problema sin que sea un error: `arcli config revisar` con `ok: false` y `arcli estado` con `listo: false` salen por stdout con exit code `0`. Para saber si está todo listo, leé `ok` o `listo` en el JSON, no el exit code.

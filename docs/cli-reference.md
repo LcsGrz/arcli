@@ -889,17 +889,17 @@ arcli constatar --qr "https://www.arca.gob.ar/fe/qr/?p=eyJ2ZXIiOjEs…" --json
 
 | Argumento o flag                      | Alias   | Descripción                                                                                                                                    |
 | ------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<tipo>`                              | ninguno | Atajo (`fa`, `fb`, `nca`, `fcea`, `fe`…) o código de ARCA (`1`, `6`, `51`…): también se constatan los que ARCLI no emite                       |
+| `<tipo>`                              | ninguno | Atajo (`fa`, `fb`, `nca`, `fcea`…) o código de ARCA (`1`, `6`, `51`…): también se constatan los que ARCLI no emite                             |
 | `<comprobante>`                       | ninguno | Punto de venta y número separados por un guion: `3-1234` o `00003-00001234`                                                                    |
 | `--emisor <cuit>`                     | ninguno | CUIT de quien emitió el comprobante                                                                                                            |
 | `--fecha <fecha>`                     | `-f`    | Fecha del comprobante; los mismos formatos que al emitir, también `hoy`, `ayer`, `+N` o `-N`                                                   |
-| `--monto <numero>`                    | `-m`    | Importe total, en formato argentino; acá vale `0`                                                                                              |
+| `--monto <numero>`                    | `-m`    | Importe total, en formato argentino; acá vale `0`. ARCA lo da por bueno si difiere hasta $ 1 o un 0,01 %                                       |
 | `--cae <codigo>`, `--caea <codigo>`   | ninguno | El código de autorización del comprobante, 14 dígitos: uno de los dos                                                                          |
-| `--cuit`, `--cuil`, `--dni <numero>`  | ninguno | Documento del receptor. En A y FCE A va siempre, y con `--cuit`; en B y C, solo si el importe supera $ 10.000.000                              |
+| `--cuit`, `--cuil`, `--dni <numero>`  | ninguno | Documento del receptor. En A y en FCE (A, B y C) va siempre, y con `--cuit`; en B y C comunes, solo si el importe supera $ 10.000.000          |
 | `--qr <url>`                          | ninguno | La dirección que trae el QR del comprobante (`www.arca.gob.ar/fe/qr/` o `www.afip.gob.ar/fe/qr/`), en vez del tipo, el comprobante y los flags |
 | `--json`, `--testing`, `--produccion` | ninguno | Flags globales                                                                                                                                 |
 
-El punto de venta es el del comprobante que recibiste: no sale de la config. Con `--qr` no se pasa nada más; si el QR es de un consumidor final (documento 99 y número 0), se constata sin receptor.
+El punto de venta es el del comprobante que recibiste: no sale de la config. Con `--qr` no se pasa nada más; si el QR es de un consumidor final (documento 99 y número 0), se constata sin receptor. La ficha muestra el importe en la moneda del QR; con los datos, solo el número.
 
 El resultado tiene su código de salida: `0` constatado, `2` no constatado (no existe o no coincide; el motivo de ARCA sale en las observaciones) y `1` un error. Un error nunca es un "no constatado": si el certificado no está autorizado es `WSCDC_SERVICE_NOT_AUTHORIZED`, y si ARCA contesta con un error, `ARCA_VOUCHER_CHECK_ERROR`. Un CAEA que el emisor todavía no rindió sale constatado, con la observación `200` de aviso. El JSON está en [Entrada y salida](input-output.md#constatación-constatar).
 

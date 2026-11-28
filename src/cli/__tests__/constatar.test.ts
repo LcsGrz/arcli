@@ -614,6 +614,26 @@ describe('arcli constatar: resultado', () => {
     expect(result.stdout).toContain('00003-00001234');
   });
 
+  it('el evento 0 sin texto que ARCA manda siempre no sale, ni en el JSON ni en el texto', async () => {
+    fake.answer.current = answer({ events: [[0, '']], result: 'A' });
+
+    expect(await checked(FA_TO_ME)).toMatchObject({ eventos: [] });
+
+    const result = await runCli(['constatar', ...FA_TO_ME]);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).not.toMatch(/EVENTOS DE ARCA/i);
+  });
+
+  it('no constatado sin motivo: el texto dice que ARCA no lo informó', async () => {
+    fake.answer.current = answer({ result: 'R' });
+
+    const result = await runCli(['constatar', ...FA_TO_ME]);
+
+    expect(result.code).toBe(2);
+    expect(result.stdout).toContain('ARCA no informó el motivo.');
+  });
+
   it('los eventos de ARCA salen en eventos', async () => {
     fake.answer.current = answer({ events: [[1, 'Mensaje de prueba de WSCDC.']], result: 'A' });
 
@@ -687,8 +707,8 @@ describe('arcli constatar: errores de ARCA', () => {
   it('sin conexión con WSCDC: error (exit 1), nunca un "no constatado"', async () => {
     fake.answer.current = () => new Error('connect ETIMEDOUT 127.0.0.1:443');
 
-    // "Como siempre": ARCA_UNAVAILABLE en `estado`, UNEXPECTED_ERROR en las consultas (ver json-golden.test.ts).
-    expect((await failed(FA_TO_ME)).codigo).toMatch(/^(?:ARCA_UNAVAILABLE|UNEXPECTED_ERROR)$/);
+    // Como las otras consultas sin conexión (ver json-golden.test.ts); `ARCA_UNAVAILABLE` es solo de `estado`.
+    expect((await failed(FA_TO_ME)).codigo).toBe('UNEXPECTED_ERROR');
   });
 });
 
@@ -733,7 +753,8 @@ describe('arcli constatar: entradas inválidas', () => {
     await expectInputError(['--qr', url], pattern);
   });
 
-  it.each(['fa', 'nca', 'nda', 'fcea', 'ncea', '1', '201'])(
+  // Clase A y FCE de cualquier letra (WSCDC v0.4, observación 113; en homologación, `fceb` sin CUIT da R 113 y 114).
+  it.each(['fa', 'nca', 'nda', 'fcea', 'ncea', 'fceb', 'fcec', 'ndeb', '1', '201', '206'])(
     'en %s el receptor es obligatorio, y el error dice que va --cuit',
     async (kind) => {
       await expectInputError([kind, ...FA.slice(1)], /--cuit/);
@@ -744,11 +765,12 @@ describe('arcli constatar: entradas inválidas', () => {
     ['fa', '--dni', '11111111'],
     ['fa', '--cuil', '20111111112'],
     ['fcea', '--dni', '11111111'],
+    ['fceb', '--dni', '11111111'],
   ])('en %s el receptor solo puede ser un CUIT: %s no', async (kind, flag, number) => {
     await expectInputError([kind, ...FA.slice(1), flag, number], /CUIT|--cuit/, new RegExp(flag));
   });
 
-  it.each(['fb', 'fc', 'ncb', 'fceb'])(
+  it.each(['fb', 'fc', 'ncb', 'rc'])(
     'en %s de más de $ 10.000.000 el receptor es obligatorio, y el error dice el tope',
     async (kind) => {
       await expectInputError([kind, ...fb('10.000.000,01').slice(1)], /10\.000\.000/);

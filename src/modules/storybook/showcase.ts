@@ -424,12 +424,14 @@ function createSampleMonotributoReport(partial: Partial<MonotributoReport> = {})
 function createSampleVoucherCheck(
   result: 'A' | 'R',
   observations: VoucherCheckAnswer['observations'],
+  currency: string | null = null,
 ): VoucherCheckReport {
   return {
     answer: { errors: [], events: [], observations, processedAt: '20261117120000', result },
     environment: 'testing',
     request: {
       authorizationCode: '76463926585341',
+      currency,
       date: '20261110',
       issuerCuit: '30709965812',
       mode: 'CAE',
@@ -537,13 +539,14 @@ function buildQueriesScene(): string {
       issueDate: '20261116',
       obligation: { minimumAmount: 3_958_316, obligated: true },
     }),
-    // `constatar`: constatado, y no constatado con el motivo de ARCA.
-    formatVoucherCheckAsText(createSampleVoucherCheck('A', [])),
+    // `constatar`: constatado (con `--qr`, que trae la moneda), no constatado con el motivo y sin él.
+    formatVoucherCheckAsText(createSampleVoucherCheck('A', [], 'PES')),
     formatVoucherCheckAsText(
       createSampleVoucherCheck('R', [
         { code: 100, message: 'El CAE informado no existe registrado y autorizado en las bases del organismo.' },
       ]),
     ),
+    formatVoucherCheckAsText(createSampleVoucherCheck('R', [])),
     formatParameterTablesAsText(),
     formatParameterEntriesAsText(
       'iva-receptor',

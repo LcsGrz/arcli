@@ -296,10 +296,14 @@ const EXPORT_INVOICE = {
   },
 };
 
-/** `ComprobanteConstatar`: el eco de lo pedido y el resultado, como lo lee node-soap. */
+/**
+ * `ComprobanteConstatar`: el eco de lo pedido y el resultado, como lo lee node-soap. Con el evento 0 sin texto que ARCA
+ * manda siempre (homologación, 27/11/2026), que no tiene que salir en `eventos`.
+ */
 function constatarAnswer(result: 'A' | 'R', observations: Obs = []) {
   return async ({ CmpReq }: { readonly CmpReq: Record<string, unknown> }) => ({
     CmpResp: CmpReq,
+    Events: { Evt: [{ Code: 0, Msg: '' }] },
     FchProceso: '20261117120000',
     ...(observations.length > 0 ? { Observaciones: { Obs: observations } } : {}),
     Resultado: result,

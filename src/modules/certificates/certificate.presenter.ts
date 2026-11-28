@@ -30,6 +30,7 @@ const SERVICES: ReadonlyArray<readonly [service: string, usage: string]> = [
   ['ws_sr_constancia_inscripcion', '`arcli padron` y el IVA del receptor'],
   ['wsfecred', '`arcli fce-obligado` y el aviso de FCE'],
   ['wsfex', '`arcli fe`, la factura de exportación E'],
+  ['wscdc', '`arcli constatar`, para constatar un comprobante recibido'],
 ];
 
 /** Lo que hay que hacer en ARCA con el CSR. Testing usa WSASS; producción, Administración de Certificados Digitales. */

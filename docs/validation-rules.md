@@ -415,20 +415,22 @@ Cada uno puede ser el asociado de una nota de crédito o débito de su letra (`-
 
 `arcli constatar` corta antes de ir a ARCA lo que WSCDC rechazaría por formato. Las reglas salen del manual de WSCDC v0.4 (§2.2.4) y valen igual con los datos y con `--qr`, salvo las del receptor; en el código llevan el comentario `WSCDC v0.4`.
 
-| Dato                           | Regla                                                                                                             | Origen                  |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- | ----------------------- |
-| Tipo                           | Atajo de ARCLI o código de ARCA de hasta 3 dígitos; cuál existe lo dice ARCA                                      | ARCA 4                  |
-| Punto de venta                 | De 1 a 99998                                                                                                      | ARCA 3                  |
-| Número                         | De 1 a 99999999                                                                                                   | ARCA 5                  |
-| `--emisor`, `--cuit`, `--cuil` | 11 dígitos con el verificador                                                                                     | ARCA 2 (emisor); propia |
-| `--dni`                        | De 6 a 8 dígitos, como al emitir                                                                                  | Propia                  |
-| `-m`                           | 0 o más (al emitir, mayor a 0)                                                                                    | ARCA 7                  |
-| `--cae`, `--caea`              | 14 dígitos; uno de los dos                                                                                        | ARCA 10                 |
-| Receptor en A y FCE A          | Obligatorio y con `--cuit`                                                                                        | ARCA obs. 113 y 114     |
-| Receptor en B y C              | Obligatorio si el importe supera $ 10.000.000 (más que el tope, no "desde" como el de consumidor final al emitir) | ARCA obs. 115 y 116     |
-| Receptor                       | Un solo documento; tipo y número van juntos                                                                       | ARCA obs. 117; propia   |
+| Dato                           | Regla                                                                                                                                 | Origen                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| Tipo                           | Atajo de ARCLI o código de ARCA de hasta 3 dígitos; cuál existe lo dice ARCA                                                          | ARCA 4                  |
+| Punto de venta                 | De 1 a 99998                                                                                                                          | ARCA 3                  |
+| Número                         | De 1 a 99999999                                                                                                                       | ARCA 5                  |
+| `--emisor`, `--cuit`, `--cuil` | 11 dígitos con el verificador                                                                                                         | ARCA 2 (emisor); propia |
+| `--dni`                        | De 6 a 8 dígitos, como al emitir                                                                                                      | Propia                  |
+| `-m`                           | 0 o más (al emitir, mayor a 0)                                                                                                        | ARCA 7                  |
+| `--cae`, `--caea`              | 14 dígitos; uno de los dos                                                                                                            | ARCA 10                 |
+| Receptor en A y en FCE         | Obligatorio y con `--cuit`, en la FCE de cualquier letra ("MiPyME" en el manual; en homologación, una `fceb` sin CUIT da R 113 y 114) | ARCA obs. 113 y 114     |
+| Receptor en B y C comunes      | Obligatorio si el importe supera $ 10.000.000 (más que el tope, no "desde" como el de consumidor final al emitir)                     | ARCA obs. 115 y 116     |
+| Receptor                       | Un solo documento; tipo y número van juntos                                                                                           | ARCA obs. 117; propia   |
 
-El receptor se controla solo en los tipos que ARCLI emite: en la M, la `E` y los demás lo decide ARCA, que contesta con la observación. Con `--qr` tampoco, porque no se le puede agregar: si falta, sale no constatado con el motivo de ARCA. Que el comprobante exista y coincida (observaciones 100 a 112) es la consulta misma.
+El receptor se controla solo en los tipos que ARCLI emite: en la M, la `E` y los demás lo decide ARCA, que contesta con la observación. Con `--qr` tampoco, porque no se le puede agregar: si falta, sale no constatado con el motivo de ARCA. Que el comprobante exista y coincida (observaciones 100 a 112) es la consulta misma. El importe coincide con un margen: error relativo de hasta 0,01 % o absoluto de hasta $ 1 (observación 110; en homologación, $ 999 contra $ 1000 da A y $ 990, R 110).
+
+La `E` (`fe`, tipos 19 a 21) se acepta, pero no se ofrece en la ayuda: en homologación WSCDC no encuentra las facturas E (R 100 con un CAE real) y en producción no está verificado.
 
 ## 3. Restricciones y errores de ARCA
 

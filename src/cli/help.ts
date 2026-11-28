@@ -459,7 +459,8 @@ export function createVoucherCheckHelp(): string {
       'Detalles',
       compactList([
         'El tipo es el atajo (fa, fb, fc, nca, fcea…) o el código de ARCA: también se constatan los que ARCLI no emite, como la M (51).',
-        'En A y FCE A va --cuit con el CUIT del receptor. En B y C, el documento del receptor solo si el importe supera $ 10.000.000.',
+        'En A y en FCE (A, B y C) va --cuit con el CUIT del receptor. En B y C comunes, el documento del receptor solo si el importe supera $ 10.000.000.',
+        'El importe coincide aunque difiera hasta $ 1 o un 0,01 %: ARCA tiene ese margen.',
         'Constatado: exit 0. No constatado (no existe o no coincide): exit 2, con el motivo de ARCA. Un error: exit 1.',
         'Solo consulta: no emite ni modifica nada.',
       ]),

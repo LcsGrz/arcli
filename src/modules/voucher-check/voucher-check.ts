@@ -2,17 +2,14 @@ import { parseDateInputAsArcaDate } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { parseDni } from '../../lib/identity/dni';
 import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
-import { type ArcaQrValue, parseArcaQrUrl } from '../../lib/qr/arca-qr';
-import { documentTypeCode } from '../billing/arca-codes';
+import { parseArcaQrUrl } from '../../lib/qr/arca-qr';
+import { assertRules, type Rule } from '../../lib/rules/rules';
+import { documentTypeCode, documentTypeLabel } from '../billing/arca-codes';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import { getVoucherKindByArcaType, getVoucherKindByShortcut, VOUCHER_SHORTCUTS } from '../billing/voucher-kind-map';
 import { formatVoucherSubject } from '../billing/voucher-names';
 import type { ArcliEnvironment } from '../config/config.schemas';
-import {
-  EXPORT_VOUCHER_KINDS,
-  getExportVoucherKindByArcaType,
-  getExportVoucherKindByShortcut,
-} from '../export/export.kinds';
+import { getExportVoucherKindByArcaType, getExportVoucherKindByShortcut } from '../export/export.kinds';
 
 /*
  * `arcli constatar` (SDK-10): constatar en WSCDC un comprobante que emitió otro. Los límites salen del manual del
@@ -30,8 +27,8 @@ const MAX_VOUCHER_TYPE = 999;
 const AUTHORIZATION_CODE = /^\d{14}$/;
 
 /**
- * Desde cuánto el receptor de una B o una C es obligatorio: si el importe lo supera (WSCDC v0.4 §2.2.4, observaciones
- * 115 y 116; el tope de la v0.3). Es "supera", no "desde": a diferencia de la RG 5700 al emitir
+ * Desde cuánto el receptor de una B o una C común es obligatorio: si el importe lo supera (WSCDC v0.4 §2.2.4,
+ * observaciones 115 y 116; el tope de la v0.3). Es "supera", no "desde": a diferencia de la RG 5700 al emitir
  * (`CONSUMER_IDENTIFICATION_THRESHOLD`, que es "o más"), el comprobante de $ 10.000.000 justos va sin receptor.
  */
 const RECEIVER_REQUIRED_ABOVE = 10_000_000;
@@ -48,6 +45,8 @@ export interface VoucherCheckReceiver {
 /** Lo que se manda a WSCDC, ya validado. */
 export interface VoucherCheckRequest {
   readonly authorizationCode: string;
+  /** La moneda del importe (`moneda` del QR, código de ARCA); `null` con los flags, que no la dicen. */
+  readonly currency: string | null;
   /** `yyyymmdd`. */
   readonly date: string;
   readonly issuerCuit: string;
@@ -104,21 +103,14 @@ export interface VoucherCheckInput {
   readonly voucher?: string;
 }
 
-/** Lo que no se puede usar junto con `--qr`, con el nombre que va en el error. */
-const QR_EXCLUSIVE: ReadonlyArray<readonly [keyof VoucherCheckInput, string]> = [
-  ['kind', 'el tipo ni el comprobante'],
-  ['voucher', 'el tipo ni el comprobante'],
-  ['issuer', '`--emisor`'],
-  ['date', '`-f`'],
-  ['amount', '`-m`'],
-  ['cae', '`--cae`'],
-  ['caea', '`--caea`'],
-  ['cuit', '`--cuit`'],
-  ['cuil', '`--cuil`'],
-  ['dni', '`--dni`'],
-];
+// ---------------------------------------------------------------------------------------------------------------
+// Los datos de a uno, con textos sin nombres de flags: los usan los flags y, en el PR 2 de SDK-10, las preguntas del
+// asistente. Lo que compara flags entre sí (los que faltan, `--cae` con `--caea`, dos documentos, `--qr` con datos) es
+// solo de los flags y va al final.
+// ---------------------------------------------------------------------------------------------------------------
 
-const TYPE_HINT = `Usá el atajo (${[...VOUCHER_SHORTCUTS, ...EXPORT_VOUCHER_KINDS.map((kind) => kind.shortcut)].join(', ')}) o el código de ARCA (1, 6, 11, 51…).`;
+/** Los atajos que se ofrecen. La E se acepta (`fe`, `19`) pero no se ofrece: ver `resolveType`. */
+const TYPE_HINT = `Usá el atajo (${VOUCHER_SHORTCUTS.join(', ')}) o el código de ARCA (1, 6, 11, 51…).`;
 
 interface ResolvedType {
   readonly kind: VoucherKindDefinition | null;
@@ -136,7 +128,10 @@ function fromArcaType(voucherType: number): ResolvedType {
   };
 }
 
-/** El atajo (`fa`, `FA`, `fe`) o el código de ARCA (`1`, `51`): se constatan también los que ARCLI no emite. */
+/**
+ * El atajo (`fa`, `FA`) o el código de ARCA (`1`, `51`): se constatan también los que ARCLI no emite. La E (`fe`,
+ * `19`) se acepta, pero en homologación WSCDC no la encuentra (R 100) y en producción no está verificado.
+ */
 function resolveType(raw: string): ResolvedType {
   const value = raw.trim().toLowerCase();
 
@@ -144,8 +139,7 @@ function resolveType(raw: string): ResolvedType {
     return fromArcaType(Number(value));
   }
 
-  const kind = getVoucherKindByShortcut(value);
-  const arcaType = kind?.arcaType ?? getExportVoucherKindByShortcut(value)?.arcaType;
+  const arcaType = getVoucherKindByShortcut(value)?.arcaType ?? getExportVoucherKindByShortcut(value)?.arcaType;
 
   if (arcaType === undefined) {
     throw new InputValidationError(`El tipo de comprobante "${raw}" no es válido. ${TYPE_HINT}`);
@@ -180,13 +174,148 @@ function parseVoucher(raw: string): { readonly number: number; readonly pointOfS
   return { number, pointOfSale };
 }
 
-function authorization(input: VoucherCheckInput): { readonly code: string; readonly mode: AuthorizationMode } {
+function parseAuthorizationCode(raw: string, mode: AuthorizationMode): string {
+  const code = raw.trim();
+
+  if (!AUTHORIZATION_CODE.test(code)) {
+    throw new InputValidationError(`El ${mode} "${code}" no es válido: tiene que tener 14 dígitos.`);
+  }
+
+  return code;
+}
+
+/** Propia, la misma que al emitir (`parseDni`): de 6 a 8 dígitos. */
+function parseReceiverDni(raw: string): string {
+  const dni = parseDni(raw);
+
+  if (!dni.ok) {
+    throw new InputValidationError(`El DNI "${raw}" no es válido: debe tener ${dni.reason}.`);
+  }
+
+  return dni.value;
+}
+
+/** Lo que lee la regla del receptor. */
+interface VoucherCheckRuleInput {
+  /** `null`: un tipo que ARCLI no emite. */
+  readonly kind: VoucherKindDefinition | null;
+  readonly receiver: VoucherCheckReceiver | null;
+  readonly total: number;
+}
+
+/**
+ * Clase A y FCE (A, B y C, la "MiPyME" del manual): el receptor va siempre y con CUIT (WSCDC v0.4 §2.2.4, observaciones
+ * 113 y 114; en homologación, una `fceb` sin CUIT da R 113 y 114).
+ */
+function requiresCuitReceiver(kind: VoucherKindDefinition): boolean {
+  return kind.letter === 'a' || kind.isElectronicCredit;
+}
+
+/**
+ * El receptor que pide WSCDC según el comprobante, con el texto de los flags (`message`) y el de las preguntas
+ * (`question`, REV-76). Solo para los tipos que ARCLI emite: en los demás (la M, la E y los que ARCLI no emite) decide
+ * ARCA, que contesta con la observación que corresponda.
+ *
+ * @internal Exportada para los tests; la usa también el asistente (SDK-10, PR 2).
+ */
+export const VOUCHER_CHECK_RECEIVER_RULE: Rule<VoucherCheckRuleInput, undefined> = {
+  check: ({ kind, receiver = null, total = 0 }) => {
+    if (!kind) {
+      return undefined;
+    }
+
+    const subject = formatVoucherSubject(kind);
+
+    if (requiresCuitReceiver(kind)) {
+      if (!receiver) {
+        return {
+          message: `${subject} se constata con el CUIT del receptor: agregá \`--cuit\`.`,
+          question: `${subject} se constata con el CUIT del receptor.`,
+        };
+      }
+
+      if (receiver.documentType !== documentTypeCode('cuit')) {
+        const flag = receiver.documentType === documentTypeCode('dni') ? '--dni' : '--cuil';
+
+        return {
+          message: `${subject} se constata con el CUIT del receptor: usá \`--cuit\` en vez de \`${flag}\`.`,
+          question: `${subject} se constata con el CUIT del receptor, no con ${documentTypeLabel(receiver.documentType) ?? 'otro documento'}.`,
+        };
+      }
+
+      return undefined;
+    }
+
+    if (!receiver && total > RECEIVER_REQUIRED_ABOVE) {
+      const over = `${subject} de más de ${formatArgentineMoney(RECEIVER_REQUIRED_ABOVE)} se constata con el documento del receptor`;
+
+      return { message: `${over}: agregá \`--cuit\`, \`--cuil\` o \`--dni\`.`, question: `${over}.` };
+    }
+
+    return undefined;
+  },
+  fields: ['receiver', 'total'],
+  id: 'voucher-check-receiver',
+};
+
+/** El QR ya trae todo; acá van los límites de WSCDC que su especificación no pone. */
+function fromQr(text: string): VoucherCheckRequest {
+  const parsed = parseArcaQrUrl(text);
+
+  if (!parsed.ok) {
+    throw new InputValidationError(`El QR no es válido: ${parsed.reason}.`);
+  }
+
+  const qr = parsed.value;
+
+  if (qr.pointOfSale > MAX_POINT_OF_SALE) {
+    throw new InputValidationError(`El QR no se puede constatar: el punto de venta va de 1 a ${MAX_POINT_OF_SALE}.`);
+  }
+
+  // El receptor no se controla: con el QR no se puede agregar, y si falta lo dice ARCA (observaciones 113 a 117).
+  return {
+    authorizationCode: qr.authorizationCode,
+    currency: qr.currency,
+    date: qr.date,
+    issuerCuit: qr.issuerCuit,
+    mode: qr.mode,
+    number: qr.number,
+    pointOfSale: qr.pointOfSale,
+    receiver: qr.receiver,
+    shortcut: fromArcaType(qr.voucherType).shortcut,
+    total: qr.total,
+    voucherType: qr.voucherType,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Solo de los flags: cuáles faltan y cuáles no van juntos.
+// ---------------------------------------------------------------------------------------------------------------
+
+/** Lo que no se puede usar junto con `--qr`, con el nombre que va en el error. */
+const QR_EXCLUSIVE: ReadonlyArray<readonly [keyof VoucherCheckInput, string]> = [
+  ['kind', 'el tipo ni el comprobante'],
+  ['voucher', 'el tipo ni el comprobante'],
+  ['issuer', '`--emisor`'],
+  ['date', '`-f`'],
+  ['amount', '`-m`'],
+  ['cae', '`--cae`'],
+  ['caea', '`--caea`'],
+  ['cuit', '`--cuit`'],
+  ['cuil', '`--cuil`'],
+  ['dni', '`--dni`'],
+];
+
+function authorizationFromFlags(input: VoucherCheckInput): {
+  readonly code: string;
+  readonly mode: AuthorizationMode;
+} {
   if (input.cae !== undefined && input.caea !== undefined) {
     throw new InputValidationError('Usá `--cae` o `--caea`, no los dos: el comprobante tiene uno solo.');
   }
 
-  const flag = input.caea === undefined ? '--cae' : '--caea';
-  const code = (input.caea ?? input.cae)?.trim();
+  const mode: AuthorizationMode = input.caea === undefined ? 'CAE' : 'CAEA';
+  const code = input.caea ?? input.cae;
 
   if (code === undefined) {
     throw new InputValidationError(
@@ -194,11 +323,7 @@ function authorization(input: VoucherCheckInput): { readonly code: string; reado
     );
   }
 
-  if (!AUTHORIZATION_CODE.test(code)) {
-    throw new InputValidationError(`\`${flag}\` "${code}" no es válido: tiene que tener 14 dígitos.`);
-  }
-
-  return { code, mode: input.caea === undefined ? 'CAE' : 'CAEA' };
+  return { code: parseAuthorizationCode(code, mode), mode };
 }
 
 /** El receptor de `--cuit`, `--cuil` o `--dni` (uno solo). Los CUIT y CUIL ya los validó su flag. */
@@ -225,60 +350,7 @@ function receiverFromFlags(input: VoucherCheckInput): VoucherCheckReceiver | nul
 
   const [flag, value = '', documentType] = entry;
 
-  if (flag === '--dni') {
-    const dni = parseDni(value);
-
-    if (!dni.ok) {
-      throw new InputValidationError(`\`--dni\` "${value}" no es válido: debe tener ${dni.reason}.`);
-    }
-
-    return { documentNumber: dni.value, documentType };
-  }
-
-  return { documentNumber: value, documentType };
-}
-
-/** Clase A (también la FCE A): el receptor va siempre y con CUIT (WSCDC v0.4 §2.2.4, observaciones 113 y 114). */
-function requiresCuitReceiver(kind: VoucherKindDefinition): boolean {
-  return kind.letter === 'a';
-}
-
-/**
- * El receptor que pide WSCDC según el comprobante. Solo para los tipos que ARCLI conoce: en los demás (la M, la E y
- * los que ARCLI no emite) decide ARCA, que contesta con la observación que corresponda.
- */
-function assertReceiver(type: ResolvedType, total: number, receiver: VoucherCheckReceiver | null): void {
-  const { kind } = type;
-
-  if (!kind) {
-    return;
-  }
-
-  const cuit = documentTypeCode('cuit');
-
-  if (requiresCuitReceiver(kind)) {
-    if (!receiver) {
-      throw new InputValidationError(
-        `${formatVoucherSubject(kind)} se constata con el CUIT del receptor: agregá \`--cuit\`.`,
-      );
-    }
-
-    if (receiver.documentType !== cuit) {
-      const flag = receiver.documentType === documentTypeCode('dni') ? '--dni' : '--cuil';
-
-      throw new InputValidationError(
-        `${formatVoucherSubject(kind)} se constata con el CUIT del receptor: usá \`--cuit\` en vez de \`${flag}\`.`,
-      );
-    }
-
-    return;
-  }
-
-  if (!receiver && total > RECEIVER_REQUIRED_ABOVE) {
-    throw new InputValidationError(
-      `${formatVoucherSubject(kind)} de más de ${formatArgentineMoney(RECEIVER_REQUIRED_ABOVE)} se constata con el documento del receptor: agregá \`--cuit\`, \`--cuil\` o \`--dni\`.`,
-    );
-  }
+  return { documentNumber: flag === '--dni' ? parseReceiverDni(value) : value, documentType };
 }
 
 function required<T>(value: T | undefined, message: string): T {
@@ -290,11 +362,12 @@ function required<T>(value: T | undefined, message: string): T {
 }
 
 function fromFlags(input: VoucherCheckInput, now: Date): VoucherCheckRequest {
-  const kind = required(
-    input.kind,
-    'Falta el tipo de comprobante y su número, como `arcli constatar fa 3-1234 …`, o `--qr` con la dirección del QR.',
+  const type = resolveType(
+    required(
+      input.kind,
+      'Falta el tipo de comprobante y su número, como `arcli constatar fa 3-1234 …`, o `--qr` con la dirección del QR.',
+    ),
   );
-  const type = resolveType(kind);
   const voucher = parseVoucher(
     required(input.voucher, 'Falta el comprobante: el punto de venta y el número, como `3-1234`.'),
   );
@@ -305,13 +378,14 @@ function fromFlags(input: VoucherCheckInput, now: Date): VoucherCheckRequest {
     now,
   );
   const total = required(input.amount, 'Falta `-m` (`--monto`): el importe total del comprobante.');
-  const { code, mode } = authorization(input);
+  const { code, mode } = authorizationFromFlags(input);
   const receiver = receiverFromFlags(input);
 
-  assertReceiver(type, total, receiver);
+  assertRules([VOUCHER_CHECK_RECEIVER_RULE], { kind: type.kind, receiver, total }, undefined);
 
   return {
     authorizationCode: code,
+    currency: null,
     date,
     issuerCuit,
     mode,
@@ -321,31 +395,6 @@ function fromFlags(input: VoucherCheckInput, now: Date): VoucherCheckRequest {
     shortcut: type.shortcut,
     total,
     voucherType: type.voucherType,
-  };
-}
-
-/** El QR ya trae todo; acá van los límites de WSCDC que su especificación no pone. */
-function fromQr(qr: ArcaQrValue): VoucherCheckRequest {
-  const invalid = (reason: string) => new InputValidationError(`El QR de \`--qr\` no se puede constatar: ${reason}.`);
-
-  if (qr.pointOfSale > MAX_POINT_OF_SALE) {
-    throw invalid(`el punto de venta va de 1 a ${MAX_POINT_OF_SALE}`);
-  }
-
-  const type = fromArcaType(qr.voucherType);
-
-  // El receptor no se controla: con `--qr` no se puede agregar, y si falta lo dice ARCA (observaciones 113 a 117).
-  return {
-    authorizationCode: qr.authorizationCode,
-    date: qr.date,
-    issuerCuit: qr.issuerCuit,
-    mode: qr.mode,
-    number: qr.number,
-    pointOfSale: qr.pointOfSale,
-    receiver: qr.receiver,
-    shortcut: type.shortcut,
-    total: qr.total,
-    voucherType: qr.voucherType,
   };
 }
 
@@ -366,13 +415,7 @@ export function resolveVoucherCheckRequest(input: VoucherCheckInput, now: Date):
     );
   }
 
-  const parsed = parseArcaQrUrl(input.qr);
-
-  if (!parsed.ok) {
-    throw new InputValidationError(`El QR de \`--qr\` no es válido: ${parsed.reason}.`);
-  }
-
-  return fromQr(parsed.value);
+  return fromQr(input.qr);
 }
 
 /** Constata en ARCA. El comprobante existe y coincide si `answer.result` es `A`. */

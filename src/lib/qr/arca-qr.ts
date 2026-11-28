@@ -26,10 +26,16 @@ interface ArcaQrReceiver {
   readonly documentType: number;
 }
 
-/** Lo que trae el QR, ya como lo pide WSCDC: fecha `yyyymmdd`, `CAE` o `CAEA`, y el receptor solo si lo hay. */
+/**
+ * Lo que trae el QR, ya como lo pide WSCDC: fecha `yyyymmdd`, `CAE` o `CAEA`, y el receptor solo si lo hay.
+ *
+ * @internal Exportado para los tests; quien llama lo recibe en `ArcaQrParseResult`.
+ */
 export interface ArcaQrValue {
   /** El CAE o CAEA (`codAut`), 14 dígitos como texto. */
   readonly authorizationCode: string;
+  /** `moneda`, el código de ARCA (`PES`, `DOL`); `null` si no viene o no tiene 3 caracteres. */
+  readonly currency: string | null;
   /** `yyyymmdd`. */
   readonly date: string;
   /** 11 dígitos, con el verificador controlado. */
@@ -188,10 +194,16 @@ function readReceiver(json: Record<string, unknown>): ArcaQrReceiver | null {
   return { documentNumber, documentType };
 }
 
+/** `moneda` es obligatoria en la especificación, pero WSCDC no la recibe: solo sirve para mostrar el importe. */
+function readCurrency(value: unknown): string | null {
+  return typeof value === 'string' && /^[A-Za-z0-9]{3}$/.test(value.trim()) ? value.trim().toUpperCase() : null;
+}
+
 function readValue(json: Record<string, unknown>): ArcaQrValue {
   const version = required(json, 'ver');
 
-  if (version !== QR_VERSION) {
+  // Como los demás numéricos, también escrito como texto (`"1"`).
+  if (version !== QR_VERSION && version !== String(QR_VERSION)) {
     fail(`es de la versión ${String(version)} y ARCLI lee la versión ${QR_VERSION}`);
   }
 
@@ -202,6 +214,7 @@ function readValue(json: Record<string, unknown>): ArcaQrValue {
     mode: readMode(required(json, 'tipoCodAut')),
     number: positiveInteger(required(json, 'nroCmp'), 'nroCmp', 8),
     pointOfSale: positiveInteger(required(json, 'ptoVta'), 'ptoVta', 5),
+    currency: readCurrency(json.moneda),
     receiver: readReceiver(json),
     total: readTotal(required(json, 'importe')),
     voucherType: positiveInteger(required(json, 'tipoCmp'), 'tipoCmp', 3),

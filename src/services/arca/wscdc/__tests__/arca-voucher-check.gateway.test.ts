@@ -7,6 +7,7 @@ import { readConstatarAnswer, toCmpReq } from '../arca-voucher-check.gateway';
 
 const REQUEST: VoucherCheckRequest = {
   authorizationCode: '76463926585341',
+  currency: null,
   date: '20261110',
   issuerCuit: '30709965812',
   mode: 'CAE',
@@ -80,6 +81,15 @@ describe('readConstatarAnswer', () => {
       code: 'ARCA_VOUCHER_CHECK_ERROR',
       details: { errores: [{ codigo: 602, mensaje: 'CUIT no activa.' }] },
     });
+  });
+
+  it('descarta el evento 0 sin texto que ARCA manda siempre, y deja los que dicen algo', () => {
+    expect(
+      readConstatarAnswer(
+        { Events: { Evt: [{ Code: 0, Msg: '' }, { Code: 0 }, { Code: 1, Msg: 'Aviso.' }] }, Resultado: 'A' },
+        REQUEST,
+      ),
+    ).toMatchObject({ events: [{ code: 1, message: 'Aviso.' }] });
   });
 
   it('un constatado con errores los conserva en errors', () => {

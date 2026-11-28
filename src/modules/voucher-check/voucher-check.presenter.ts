@@ -4,7 +4,7 @@ import { formatArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { attentionPanel, errorListPanel, sheetPanel } from '../../ui/components';
 import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
 import { documentTypeCode, documentTypeLabel } from '../billing/arca-codes';
-import { formatArcaMessages, formatNumericLabel } from '../billing/billing.labels';
+import { formatArcaMessages, formatMoneyLabel, formatNumericLabel } from '../billing/billing.labels';
 import { getVoucherKindByArcaType } from '../billing/voucher-kind-map';
 import { getExportVoucherKindByArcaType } from '../export/export.kinds';
 import { formatVoucherNumber } from '../vouchers/voucher-number';
@@ -59,6 +59,21 @@ function receiverLabel({ documentNumber, documentType }: VoucherCheckReceiver): 
   return `${documentTypeLabel(documentType) ?? `Documento ${documentType}`} ${number}`;
 }
 
+/**
+ * Con la moneda del QR, como el resto de los importes (`$ 1.000`, `1.000 USD`). Con los flags no se sabe la moneda: el
+ * número solo, en formato argentino.
+ */
+function formatTotal(total: number, currency: string | null): string {
+  return currency ? formatMoneyLabel(total, currency) : formatArgentineAmount(total);
+}
+
+/** `FchProceso` (`yyyymmddhhmmss`) como `17/11/2026 12:00`; lo que no tenga esa forma no se muestra. */
+function formatProcessedAt(value: string | null): string | undefined {
+  const match = value ? /^(\d{8})(\d{2})(\d{2})\d{2}$/.exec(value) : null;
+
+  return match ? `${formatArcaDateAsArgentineDate(match[1]!)} ${match[2]}:${match[3]}` : undefined;
+}
+
 function messageRows(messages: readonly ArcaMessage[]): string {
   return formatArcaMessages(messages.map(({ code, message }) => ({ Code: code, Msg: message })));
 }
@@ -74,9 +89,10 @@ export function formatVoucherCheckAsText(report: VoucherCheckReport): string {
     ],
     ['Emisor', formatCuit(request.issuerCuit)],
     ['Fecha', formatArcaDateAsArgentineDate(request.date)],
-    ['Importe total', formatArgentineAmount(request.total)],
+    ['Importe total', formatTotal(request.total, request.currency)],
     [request.mode, request.authorizationCode],
     ['Receptor', request.receiver ? receiverLabel(request.receiver) : undefined],
+    [checked ? 'Constatado el' : 'Consultado el', formatProcessedAt(answer.processedAt)],
   ];
   const sheet = sheetPanel(
     'Constatación de comprobante',
@@ -91,6 +107,10 @@ export function formatVoucherCheckAsText(report: VoucherCheckReport): string {
         ? attentionPanel('Observaciones de ARCA', messageRows(answer.observations))
         : errorListPanel('Motivo de ARCA', messageRows(answer.observations)),
     );
+  }
+
+  if (!checked && answer.observations.length === 0 && answer.errors.length === 0) {
+    panels.push(errorListPanel('Motivo de ARCA', 'ARCA no informó el motivo.'));
   }
 
   if (answer.errors.length > 0) {

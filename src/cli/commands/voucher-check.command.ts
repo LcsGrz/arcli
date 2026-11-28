@@ -47,7 +47,7 @@ export function registerVoucherCheckCommand(program: Command): void {
     )
     .option('--cae <codigo>', 'CAE del comprobante (14 dígitos)')
     .option('--caea <codigo>', 'CAEA del comprobante (14 dígitos)')
-    .option('--cuit <numero>', 'CUIT del receptor; obligatorio en A y FCE A', cuitOption('--cuit'))
+    .option('--cuit <numero>', 'CUIT del receptor; obligatorio en A y FCE', cuitOption('--cuit'))
     .option('--cuil <numero>', 'CUIL del receptor', cuitOption('--cuil'))
     .option('--dni <numero>', 'DNI del receptor')
     .option('--qr <url>', 'la dirección del QR del comprobante, en vez de los datos')

@@ -42,6 +42,7 @@ function without(field: string): Record<string, unknown> {
 
 const EXPECTED: ArcaQrValue = {
   authorizationCode: '76463926585341',
+  currency: 'PES',
   date: '20261110',
   issuerCuit: '30709965812',
   mode: 'CAE',
@@ -98,6 +99,33 @@ describe('parseArcaQrUrl', () => {
       ok: true,
       value: EXPECTED,
     });
+  });
+
+  describe('el + y la / del Base64', () => {
+    // Un campo que el QR no define (se ignora) con texto que deja `+` y `/` en el Base64.
+    const encoded = base64(JSON.stringify({ ...QR_JSON, nota: '¿ñ~ñ' }));
+
+    it('el JSON los tiene', () => {
+      expect(encoded).toMatch(/\+/);
+      expect(encoded).toMatch(/\//);
+    });
+
+    it.each([
+      ['tal cual', encoded],
+      ['con el + como espacio, como queda al pegarlo en algunos lugares', encoded.replace(/\+/g, ' ')],
+      ['con el + escapado (%2B)', encoded.replace(/\+/g, '%2B')],
+    ])('lo lee %s', (_name, parameter) => {
+      expect(parseArcaQrUrl(`${ARCA_BASE}${parameter}`)).toMatchObject({ ok: true, value: EXPECTED });
+    });
+  });
+
+  it('acepta ver escrito como texto, como los demás numéricos', () => {
+    expect(parseArcaQrUrl(qrUrl({ ...QR_JSON, ver: '1' }))).toMatchObject({ ok: true, value: EXPECTED });
+  });
+
+  it('trae la moneda, si viene', () => {
+    expect(parseArcaQrUrl(qrUrl({ ...QR_JSON, moneda: 'DOL' }))).toMatchObject({ value: { currency: 'DOL' } });
+    expect(parseArcaQrUrl(qrUrl(without('moneda')))).toMatchObject({ ok: true, value: { currency: null } });
   });
 
   it('ignora espacios y saltos de línea alrededor, como queda al pegar la URL', () => {
