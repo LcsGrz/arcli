@@ -113,10 +113,11 @@ describe('readConstatarAnswer', () => {
   );
 
   it.each([150, 151, 152, 153])(
-    'la observación %i (Opcionales, que ARCLI no manda): ARCA_VOUCHER_CHECK_ERROR',
+    'la observación %i (Opcionales, que ARCLI no manda): ARCA_VOUCHER_CHECK_ERROR con lo que dijo ARCA',
     (code) => {
       expect(failure({ Observaciones: { Obs: { Code: code, Msg: 'Opcional.' } }, Resultado: 'R' })).toMatchObject({
         code: 'ARCA_VOUCHER_CHECK_ERROR',
+        message: expect.stringContaining(`${code} Opcional.`),
       });
     },
   );
