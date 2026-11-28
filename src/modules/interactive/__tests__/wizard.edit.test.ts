@@ -331,4 +331,120 @@ describe('runWizard: datos editables en "¿Emitimos?" (TUI-29)', () => {
     expect(docRuns).toEqual([{ tipo: 'b' }, { tipo: 'a' }]);
     expect(calls[1]?.state).toEqual({ tipo: 'a' });
   });
+
+  it('un paso que ya se pregunto al editar se vuelve a preguntar despues de un Esc, sin pasar con la respuesta de la edicion', async () => {
+    // tipo b, dep y (dep olvido su respuesta), Esc en fecha y en dep, tipo b otra vez: dep se pregunta con y.
+    const { runs, steps } = scriptedSteps(
+      { dep: ['x', 'y', BACK, 'z'], fecha: ['f1', BACK, 'f2'], tipo: ['a', 'b', 'b'] },
+      { tipo: { edit: editAs('tipo') }, dep: { dependsOn: ['tipo'] }, fecha: { edit: editAs('fecha') } },
+    );
+    const { calls, confirm } = scriptedConfirm({ edit: ['tipo', 'fecha'] });
+
+    await runEditable(steps, {}, new Map(), { confirm });
+
+    expect(askedAfter(runs, 3)).toEqual([
+      ['tipo', 'a'],
+      ['dep', undefined],
+      ['fecha', 'f1'],
+      ['dep', 'y'],
+      ['tipo', 'b'],
+      ['dep', 'y'],
+      ['fecha', 'f1'],
+    ]);
+    expect(calls[1]?.state).toEqual({ dep: 'z', fecha: 'f2', tipo: 'b' });
+  });
+
+  it('Esc en la primera pregunta editada, con varias editadas antes de volver, reabre la lista', async () => {
+    // La pila de la edicion arranca vacia: desde la primera editada no hay a donde volver adentro de la edicion.
+    const { runs, steps } = scriptedSteps(
+      { a: ['1', '2', BACK], c: ['x', BACK] },
+      { a: { edit: editAs('a') }, b: {}, c: { edit: editAs('c') } },
+    );
+    const { calls, confirm } = scriptedConfirm({ edit: ['a', 'c'] });
+
+    await runEditable(steps, {}, new Map(), { confirm });
+
+    expect(askedAfter(runs, 3)).toEqual([
+      ['a', '1'],
+      ['c', 'x'],
+      ['a', '2'],
+    ]);
+    expect(calls).toHaveLength(2);
+    expect(calls[1]?.context.reopen).toEqual({ marked: ['a', 'c'] });
+    expect(calls[1]?.state).toBe(calls[0]?.state);
+  });
+
+  it('lo que se insistio antes de editar no vale para la edicion: si `finalize` falla de nuevo, vuelve al dueño', async () => {
+    const finalize: WizardFinalize<State> = (state) =>
+      state.monto === '100' ? { field: 'monto', message: 'el monto no va' } : undefined;
+    const { runs, steps } = scriptedSteps(
+      // El monto se insiste (100 dos veces) y se confirma igual; al editar la nota, finalize vuelve a fallar.
+      { monto: ['100', '100', '80'], nota: ['n1', 'n2'] },
+      { monto: {}, nota: { edit: editAs('nota') } },
+    );
+    const { calls, confirm } = scriptedConfirm({ edit: ['nota'] });
+
+    await runEditable(steps, {}, new Map(), { confirm, finalize });
+
+    // Primera pasada con la insistencia (monto, nota, monto con el error, nota) y la edicion (nota): finalize falla de
+    // nuevo y vuelve al monto con el error, aunque antes se insistio; despues sigue como siempre (nota).
+    expect(runs.map(({ error, name }) => [name, error])).toEqual([
+      ['monto', undefined],
+      ['nota', undefined],
+      ['monto', 'el monto no va'],
+      ['nota', undefined],
+      ['nota', undefined],
+      ['monto', 'el monto no va'],
+      ['nota', undefined],
+    ]);
+    expect(calls).toHaveLength(2);
+    expect(calls[1]?.state).toEqual({ monto: '80', nota: 'ok' });
+  });
+
+  it('un paso que se saltea al editar no muestra su aviso (`skipNotice`): solo al pasar hacia adelante', async () => {
+    const notices: State[] = [];
+    const { steps } = scriptedSteps(
+      { tipo: ['b', 'b'] },
+      {
+        tipo: { edit: editAs('tipo') },
+        aviso: {
+          skip: (state) => state.tipo === 'b',
+          skipNotice: async (state) => {
+            notices.push(state);
+          },
+        },
+        nota: {},
+      },
+    );
+    const { confirm } = scriptedConfirm({ edit: ['tipo'] });
+
+    await runEditable(steps, {}, new Map(), { confirm });
+
+    expect(notices).toEqual([{ tipo: 'b' }]);
+  });
+
+  it('con `resume`, un paso salteado antes de donde retoma no muestra su aviso (`skipNotice`)', async () => {
+    const notices: State[] = [];
+    const { steps } = scriptedSteps(
+      {},
+      {
+        tipo: {},
+        aviso: {
+          skip: () => true,
+          skipNotice: async (state) => {
+            notices.push(state);
+          },
+        },
+        nota: {},
+      },
+    );
+    const answers: WizardAnswers<State> = new Map<string, State>([
+      ['tipo', { tipo: 'a' }],
+      ['nota', { nota: 'vieja' }],
+    ]);
+
+    await runEditable(steps, {}, answers, { resume: { fields: ['nota'], message: 'la nota no va' } });
+
+    expect(notices).toEqual([]);
+  });
 });

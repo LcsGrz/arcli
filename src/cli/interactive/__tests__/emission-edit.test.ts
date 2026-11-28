@@ -1,6 +1,7 @@
 import { Separator } from '@inquirer/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { InputValidationError } from '../../../lib/errors/app-error';
 import { BACK, type Back, type WizardEditable } from '../../../modules/interactive/wizard';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { closeWithEmission, type EmissionClosing } from '../emission-closing';
@@ -117,7 +118,7 @@ function createClosing(pdf: 'nunca' | 'siempre' = 'nunca') {
   // Como los flujos: el contexto que recibe `confirm` llega tal cual al cierre.
   const step = emissionStep<object, Preview>((_state, context) => closeWithEmission(closing, context));
 
-  return { confirm: step.confirm, emit, equivalentCommand, format, preview };
+  return { authorized: step.authorized, confirm: step.confirm, emit, equivalentCommand, format, preview };
 }
 
 describe('cierre del asistente: "No, editar datos" (TUI-29)', () => {
@@ -267,6 +268,128 @@ describe('cierre del asistente: "No, editar datos" (TUI-29)', () => {
     expect(emit).toHaveBeenCalledTimes(1);
     expect(emit.mock.calls[0]?.[0]).toBe(await preview.mock.results[1]?.value);
     expect(emit.mock.calls[0]?.[0]).not.toBe(await preview.mock.results[0]?.value);
+  });
+});
+
+describe('cierre del asistente: lo que vuelve de la lista y la vista previa guardada (TUI-29)', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    selectMock.mockReset();
+    multiSelectMock.mockReset();
+  });
+
+  it('`{ edit }` vuelve al motor desde `confirm` y no cuenta como autorizado', async () => {
+    const { authorized, confirm, emit } = createClosing();
+
+    pickByName(EDIT_DATA_LABEL);
+    markInList(['monto']);
+
+    expect(authorized()).toBe(false);
+    expect(await confirm({}, { editable: EDITABLE })).toEqual({ edit: ['monto'] });
+    expect(authorized()).toBe(false);
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('sin nada que emitir (`emit` del flujo devuelve undefined), `authorized` queda en false', async () => {
+    const step = emissionStep<object, never>(() => undefined);
+
+    expect(await step.confirm({}, { editable: EDITABLE })).toBeUndefined();
+    expect(step.authorized()).toBe(false);
+  });
+
+  it.each([
+    ['Enter sin marcar nada', [] as string[]],
+    ['Esc', BACK],
+  ] as const)(
+    '%s en la lista vuelve a "¿Emitimos?", y lo que se elige ahi decide: nunca `{ edit: [] }`',
+    async (_name, answer) => {
+      const { authorized, confirm, emit, preview } = createClosing();
+      const asked = pickByName(EDIT_DATA_LABEL, EMIT_NOW_LABEL);
+
+      markInList(answer === BACK ? BACK : [...answer]);
+
+      const result = await confirm({}, { editable: EDITABLE });
+
+      expect(result).toBeUndefined();
+      expect(asked).toHaveLength(2);
+      expect(preview).toHaveBeenCalledTimes(1);
+      expect(emit).toHaveBeenCalledTimes(1);
+      expect(authorized()).toBe(true);
+    },
+  );
+
+  it('sin `reopen`, volver de la lista a "¿Emitimos?" no vuelve a mostrar la vista previa', async () => {
+    const { confirm, equivalentCommand, format } = createClosing();
+
+    pickByName(EDIT_DATA_LABEL, EDIT_DATA_LABEL, DO_NOT_EMIT_LABEL);
+    markInList(BACK, []);
+
+    await confirm({}, { editable: EDITABLE });
+
+    expect(format).toHaveBeenCalledTimes(1);
+    expect(equivalentCommand).toHaveBeenCalledTimes(1);
+  });
+
+  it('con `reopen`, la vista previa guardada se vuelve a mostrar una sola vez aunque la lista se abra dos veces', async () => {
+    const { confirm, equivalentCommand, format, preview } = createClosing();
+    const state = {};
+
+    pickByName(EDIT_DATA_LABEL, EDIT_DATA_LABEL, DO_NOT_EMIT_LABEL);
+    markInList(['monto'], BACK, []);
+
+    await confirm(state, { editable: EDITABLE });
+    await confirm(state, { editable: EDITABLE, reopen: { marked: ['monto'] } });
+
+    expect(preview).toHaveBeenCalledTimes(1);
+    expect(format).toHaveBeenCalledTimes(2);
+    expect(equivalentCommand).toHaveBeenCalledTimes(2);
+  });
+
+  it('la vista previa guardada sigue sirviendo despues de reusarla: un segundo `reopen` del mismo estado tampoco consulta', async () => {
+    const { confirm, preview } = createClosing();
+    const state = {};
+
+    markInList(['monto'], ['fecha'], ['monto']);
+    pickByName(EDIT_DATA_LABEL);
+
+    await confirm(state, { editable: EDITABLE });
+    await confirm(state, { editable: EDITABLE, reopen: { marked: ['monto'] } });
+    await confirm(state, { editable: EDITABLE, reopen: { marked: ['fecha'] } });
+
+    expect(preview).toHaveBeenCalledTimes(1);
+  });
+
+  it('otra entrada sin `reopen` descarta la vista previa guardada, aunque su vista previa no se haga', async () => {
+    const { confirm, preview } = createClosing();
+    const first = {};
+
+    pickByName(EDIT_DATA_LABEL, DO_NOT_EMIT_LABEL);
+    markInList(['monto'], BACK);
+
+    await confirm(first, { editable: EDITABLE });
+    // La vista previa de la otra rechaza la entrada: vuelve BACK sin guardar nada.
+    preview.mockRejectedValueOnce(new InputValidationError('La vista previa no acepta esto.'));
+    expect(await confirm({}, { editable: EDITABLE })).toBe(BACK);
+
+    await confirm(first, { editable: EDITABLE, reopen: { marked: ['monto'] } });
+
+    expect(preview).toHaveBeenCalledTimes(3);
+  });
+
+  it('`reopen` sin nada guardado hace la vista previa y abre la lista', async () => {
+    const { confirm, preview } = createClosing();
+
+    pickByName(DO_NOT_EMIT_LABEL);
+    const opened = markInList(BACK);
+
+    await expect(confirm({}, { editable: EDITABLE, reopen: { marked: ['fecha'] } })).resolves.toBeUndefined();
+
+    expect(preview).toHaveBeenCalledTimes(1);
+    expect(opened).toEqual([{ selected: ['fecha'] }]);
   });
 });
 
