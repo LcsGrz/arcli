@@ -442,6 +442,59 @@ describe('varios migrando a la vez (revisión de #318)', () => {
     expect(inspect(file, (database) => database.prepare('PRAGMA user_version').get())).toEqual({ user_version: 1000 });
   });
 
+  // Revisión de #322: el COMMIT confirmó pero dio error (SQLITE_IOERR_DIR_FSYNC, 1290, después de borrar el -journal).
+  // La migración quedó con su copia anotada: no se descarta.
+  it('el COMMIT confirma y después da IOERR: el error sale y la copia anotada queda', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const file = vouchersFile(dataDirectory);
+    let failedAfterCommit = false;
+
+    await openStore(dataDirectory, { backups: OFF }).save(record(1));
+
+    vi.mocked(loadSqliteDriver).mockImplementation(async () => {
+      const driver = await actualDriver.loadSqliteDriver();
+
+      return {
+        open(path, options) {
+          const connection = driver.open(path, options);
+          let migrating = false;
+
+          return {
+            ...connection,
+            exec(sql) {
+              migrating ||= sql.includes('prueba_1001');
+              connection.exec(sql);
+
+              if (migrating && sql === 'COMMIT') {
+                migrating = false;
+                failedAfterCommit = true;
+                throw Object.assign(new Error('disk I/O error'), { code: 'ERR_SQLITE_ERROR', errcode: 1290 });
+              }
+            },
+          };
+        },
+      };
+    });
+
+    await expectLocalDataError(
+      openStore(dataDirectory, {
+        backups: OFF,
+        extraMigrations: [
+          { up: (exec) => exec('ALTER TABLE comprobantes ADD COLUMN prueba_1001 TEXT'), version: 1001 },
+        ],
+      }).save(record(2)),
+      'unavailable',
+    );
+
+    const recorded = inspect(file, (database) =>
+      database.prepare('SELECT copia FROM migraciones WHERE esquema = 1001').get(),
+    );
+
+    expect(failedAfterCommit).toBe(true);
+    expect(recorded?.copia).toMatch(/-antes-de-1001\.db$/);
+    expect(backupNames(dataDirectory)).toEqual([recorded?.copia]);
+  });
+
   // Sin hard links (FAT, exFAT) y con otro archivo que aparece en el nombre de la copia: no se pisa (segunda pasada).
   it('la copia no pisa un archivo que aparece en su nombre, tampoco sin hard links', async () => {
     const dataDirectory = temporaryDataDirectory();

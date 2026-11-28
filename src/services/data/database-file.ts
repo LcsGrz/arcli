@@ -278,7 +278,10 @@ function backupBeforeMigration(connection: SqliteConnection, spec: DatabaseSpec,
   }
 }
 
-/** La copia de antes de migrar para `migrate`: hacerla, descartarla si otro migró en el medio y la retención. */
+/**
+ * La copia de antes de migrar para `migrate`: hacerla, descartarla si no sirvió (otro migró en el medio, o la migración
+ * falló y se deshizo sin anotarla) y la retención.
+ */
 function migrationBackup(connection: SqliteConnection, spec: DatabaseSpec, context: MigrationContext): MigrationBackup {
   return {
     discard: (copy) => discardBackup(spec.backups, copy),
