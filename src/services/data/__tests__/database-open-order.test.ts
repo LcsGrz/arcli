@@ -50,8 +50,14 @@ beforeEach(() => {
   calls.length = 0;
 });
 
-const PRAGMAS =
-  'PRAGMA journal_mode = DELETE; PRAGMA synchronous = FULL; PRAGMA fullfsync = 1; PRAGMA trusted_schema = OFF; PRAGMA foreign_keys = ON';
+/** De a uno, para que con la base tomada cada uno espere de a vueltas (ARQ-30). */
+const PRAGMAS = [
+  'PRAGMA journal_mode = DELETE',
+  'PRAGMA synchronous = FULL',
+  'PRAGMA fullfsync = 1',
+  'PRAGMA trusted_schema = OFF',
+  'PRAGMA foreign_keys = ON',
+];
 
 /** Dónde está la primera llamada que empieza con `prefix`; falla si no está. */
 function position(prefix: string): number {
@@ -81,7 +87,7 @@ describe('orden al abrir una base (ARQ-12)', () => {
       position('open comprobantes.db'),
       position('PRAGMA application_id'),
       position('PRAGMA user_version'),
-      position(PRAGMAS),
+      ...PRAGMAS.map(position),
       position('PRAGMA quick_check'),
       position('SELECT clave, valor FROM metadatos'),
       position('SELECT cae,'),
@@ -121,8 +127,8 @@ describe('orden al abrir una base (ARQ-12)', () => {
 
     const temporary = position('open temporal');
 
-    expect(calls[temporary + 1]).toBe(PRAGMAS);
-    expect(calls[temporary + 2]).toBe('BEGIN IMMEDIATE');
+    expect(calls.slice(temporary + 1, temporary + 1 + PRAGMAS.length)).toEqual(PRAGMAS);
+    expect(calls[temporary + 1 + PRAGMAS.length]).toBe('BEGIN IMMEDIATE');
     expect(position('open comprobantes.db')).toBeGreaterThan(position('COMMIT'));
     expect(position('PRAGMA quick_check')).toBeGreaterThan(position('open comprobantes.db'));
   });
