@@ -6,7 +6,7 @@ import { BillingService } from '../../modules/billing/billing.service';
 import type { BillingExecutionResult, BillingGateway } from '../../modules/billing/billing.types.internal';
 import { buildEquivalentCommand } from '../../modules/interactive/equivalent-command';
 import { validatePointOfSale } from '../../modules/interactive/validators';
-import { BACK, type Back } from '../../modules/interactive/wizard';
+import { BACK, type Back, type WizardConfirmContext, type WizardConfirmResult } from '../../modules/interactive/wizard';
 import type { VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { type ArcaClient, ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -93,7 +93,11 @@ export async function requirePointOfSale(session: InteractiveSession): Promise<S
 export interface EmissionStep<S> {
   /** Si ARCA autorizo lo emitido: aprobado u observado con CAE (`isAuthorized`). Antes de emitir o sin emitir, false. */
   readonly authorized: () => boolean;
-  readonly confirm: (state: S) => Promise<Back | void>;
+  /**
+   * El `confirm` de `runWizard`. Todavia no ofrece "No, editar datos": no lee el contexto ni devuelve `{ edit }`
+   * (TUI-29).
+   */
+  readonly confirm: (state: S, context: WizardConfirmContext) => Promise<WizardConfirmResult>;
 }
 
 /**

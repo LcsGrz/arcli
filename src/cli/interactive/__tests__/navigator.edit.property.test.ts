@@ -13,33 +13,13 @@ import { BACK, runWizard, type WizardStep } from '../../../modules/interactive/w
  * (dos pasos con el mismo id), un paso `auto` y uno sin `edit`. Cuando los flujos declaren `edit` (PR 2 y 3), el
  * asistente al azar de `random-assistant.ts` tiene que poder elegir "No, editar datos" en los flujos de
  * `navigator.property.test.ts`.
- *
- * La API todavia no existe: el contexto y la respuesta `{ edit }` se tipan aca, como en el plan.
  */
 
 type EditState = Readonly<Record<string, unknown>>;
 
-interface EditContext {
-  readonly editable: ReadonlyArray<{ readonly id: string; readonly label: string; readonly value: string }>;
-  readonly reopen?: { readonly marked: readonly string[] };
-}
+type EditableStep = WizardStep<EditState>;
 
-type EditableStep = WizardStep<EditState> & {
-  readonly edit?: { readonly describe: (state: EditState) => string; readonly id: string; readonly label: string };
-};
-
-const runEditable = runWizard as unknown as (
-  steps: ReadonlyArray<EditableStep>,
-  initial: EditState,
-  answers?: Map<string, Partial<EditState>>,
-  options?: {
-    // Opcional solo mientras el motor no lo pase (hoy llama a `confirm` con el estado solo).
-    readonly confirm?: (
-      state: EditState,
-      context?: EditContext,
-    ) => Promise<typeof BACK | void | { readonly edit: readonly string[] }>;
-  },
-) => Promise<EditState | undefined>;
+const runEditable = runWizard<EditState>;
 
 /** Los pasos del asistente falso, con las respuestas que puede dar cada uno. */
 const EDIT_FLOW: ReadonlyArray<{
@@ -183,21 +163,17 @@ async function walkEditing(g: fc.GeneratorValue): Promise<number> {
 }
 
 describe('asistente al azar: "No, editar datos" (TUI-29)', () => {
-  // Tests primero (TUI-29): pasa a it() al implementarlo.
-  it.fails(
-    'criterio 10: editar al azar pregunta solo lo marcado y lo que depende, y confirma lo mismo que recorrer el flujo a mano',
-    async () => {
-      let edits = 0;
+  it('criterio 10: editar al azar pregunta solo lo marcado y lo que depende, y confirma lo mismo que recorrer el flujo a mano', async () => {
+    let edits = 0;
 
-      await fc.assert(
-        fc.asyncProperty(fc.gen(), async (g) => {
-          edits += await walkEditing(g);
-        }),
-        { endOnFailure: true, numRuns: 300, seed: 20261127 },
-      );
+    await fc.assert(
+      fc.asyncProperty(fc.gen(), async (g) => {
+        edits += await walkEditing(g);
+      }),
+      { endOnFailure: true, numRuns: 300, seed: 20261127 },
+    );
 
-      // Si casi ninguna corrida edita, la propiedad no prueba nada.
-      expect(edits, 'pocas ediciones').toBeGreaterThanOrEqual(50);
-    },
-  );
+    // Si casi ninguna corrida edita, la propiedad no prueba nada.
+    expect(edits, 'pocas ediciones').toBeGreaterThanOrEqual(50);
+  });
 });

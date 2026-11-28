@@ -75,6 +75,12 @@ export interface WizardStep<S> {
    * campos de lo marcado.
    */
   readonly writes?: readonly string[] | ((state: S, memo: StepMemo) => readonly string[]);
+  /**
+   * Un dato que se puede cambiar desde "¿Emitimos?" ("No, editar datos", TUI-29). Los pasos con el mismo `id` son un
+   * solo dato y se editan juntos (la moneda y el monto); la etiqueta y `describe` (el valor actual, con el estado final)
+   * salen del primero que se respondio.
+   */
+  readonly edit?: { readonly describe: (state: S) => string; readonly id: string; readonly label: string };
   /** Devuelve los campos que completa, BACK para volver al paso anterior o `NOT_ASKED` si no pregunto nada. */
   readonly run: (state: S, options: StepRunOptions<S>) => Promise<Back | Partial<S>>;
 }
@@ -128,9 +134,34 @@ export interface WizardOptions<S> {
   /**
    * Corre al final, despues de `finalize`, con el estado completo: la vista previa y "¿Emitimos?". Si devuelve BACK
    * (Esc), el asistente vuelve a la ultima pregunta respondida, con todo lo respondido, en vez de terminar (TUI-15).
+   * Con `{ edit }`, pregunta solo esos datos (TUI-29) y vuelve a llamarlo con la entrada nueva.
    */
-  readonly confirm?: (state: S) => Promise<Back | void>;
+  readonly confirm?: (state: S, context: WizardConfirmContext) => Promise<WizardConfirmResult>;
 }
+
+/**
+ * Un dato de "¿Qué datos cambiamos?": un `id` de `edit`, con su etiqueta y su valor actual. Se exporta cuando lo use el
+ * cierre (TUI-29 PR 1, `emission-closing.ts`); mientras, `WizardConfirmContext["editable"]`.
+ */
+interface WizardEditable {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+}
+
+/** Lo que recibe `confirm` ademas del estado. */
+export interface WizardConfirmContext {
+  /** En el orden de los pasos, uno por `id`: los pasos respondidos con `edit` (sin los salteados, `auto` ni `NOT_ASKED`). */
+  readonly editable: readonly WizardEditable[];
+  /**
+   * Si se volvio con Esc desde la primera pregunta editada: reabrir la lista con esto marcado. El estado es el mismo
+   * objeto que antes de editar, asi el cierre reconoce su vista previa por identidad y no consulta ARCA de nuevo.
+   */
+  readonly reopen?: { readonly marked: readonly string[] };
+}
+
+/** BACK vuelve a la ultima pregunta, nada termina y `{ edit }` pregunta esos `id` de `edit` (TUI-29). */
+export type WizardConfirmResult = Back | void | { readonly edit: readonly string[] };
 
 /** La ultima respuesta de cada paso, por nombre. Un asistente que se vuelve a correr la puede compartir. */
 export type WizardAnswers<S> = Map<string, Partial<S>>;
@@ -267,6 +298,53 @@ function findResumeIndex<S>(
   return -1;
 }
 
+/**
+ * Los datos editables de lo respondido: la historia solo tiene preguntas de verdad (ni salteados, ni `auto`, ni
+ * `NOT_ASKED`) y va en el orden de los pasos, asi que el primero de cada `id` es el primer paso del grupo.
+ */
+function editableOf<S>(
+  steps: ReadonlyArray<WizardStep<S>>,
+  history: ReadonlyArray<{ readonly index: number }>,
+  state: S,
+): WizardEditable[] {
+  const editable: WizardEditable[] = [];
+
+  for (const { index } of history) {
+    const edit = steps[index]?.edit;
+
+    if (edit && !editable.some((entry) => entry.id === edit.id)) {
+      editable.push({ id: edit.id, label: edit.label, value: edit.describe(state) });
+    }
+  }
+
+  return editable;
+}
+
+/**
+ * Un paso de edicion en curso (TUI-29): recorre el flujo desde el principio como `resume`, pero para en lo marcado y en
+ * lo que aplica sin respuesta. `before` es lo de antes de editar, para descartarlo todo con Esc en la primera pregunta.
+ */
+interface EditPass<S> {
+  readonly marked: readonly string[];
+  /** Los pasos preguntados en este paso de edicion: si se vuelve a uno, se vuelve a preguntar aunque tenga respuesta. */
+  readonly asked: Set<number>;
+  /** Las preguntas respondidas, para que Esc vuelva a la anterior y no a un paso que paso sin preguntar. */
+  readonly stack: Array<{ readonly historyLength: number; readonly index: number; readonly state: S }>;
+  readonly before: {
+    readonly answers: ReadonlyArray<[string, Partial<S>]>;
+    readonly history: ReadonlyArray<{ readonly index: number; readonly state: S }>;
+    readonly insisted: readonly string[];
+    readonly memos: ReadonlyArray<[string, unknown]>;
+    readonly state: S;
+  };
+}
+
+/** Vacia `map` y lo vuelve a llenar con `entries`: `answers` y `memos` pueden ser de afuera y se comparten por identidad. */
+function refill<K, V>(map: Map<K, V>, entries: ReadonlyArray<[K, V]>): void {
+  map.clear();
+  entries.forEach(([key, value]) => map.set(key, value));
+}
+
 /** El memo de `name` guardado en `memos`. */
 export function stepMemo(memos: Map<string, unknown>, name: string): StepMemo {
   return {
@@ -285,8 +363,9 @@ export function stepMemo(memos: Map<string, unknown>, name: string): StepMemo {
  * con su memo: el resto sigue ofreciendo la suya, que igual pasa por la validacion del paso. Al final corre `finalize`:
  * si falla, vuelve al paso que escribe el campo (una vez por respuesta: si el paso la repite, termina). Con `resume`
  * arranca en el paso que escribe el campo de un error de afuera. Despues de `finalize` corre `confirm` (la vista
- * previa): si vuelve, retoma en la ultima pregunta respondida. Devuelve el estado final, o `undefined` si se vuelve
- * desde el primer paso (salir del flujo).
+ * previa): si vuelve, retoma en la ultima pregunta respondida. Si pide editar datos, recorre el flujo de nuevo
+ * preguntando solo eso y lo que quedo sin respuesta (`EditPass`), y vuelve a `confirm`. Devuelve el estado final, o
+ * `undefined` si se vuelve desde el primer paso (salir del flujo).
  */
 export async function runWizard<S>(
   steps: ReadonlyArray<WizardStep<S>>,
@@ -329,6 +408,10 @@ export async function runWizard<S>(
   const insisted = new Set<string>();
   /** Con `resume`, el paso donde arranca: los anteriores se dan por respondidos con lo que tenian. */
   let resumeAt = options.resume ? findResumeIndex(steps, initial, answers, memos, options.resume.fields) : -1;
+  /** Con "No, editar datos" en "¿Emitimos?", el paso de edicion en curso (TUI-29). */
+  let editing: EditPass<S> | undefined;
+  /** Con Esc en la primera pregunta editada: lo marcado, para que `confirm` reabra la lista. */
+  let reopen: WizardConfirmContext['reopen'];
 
   /** Aplica la respuesta de un paso: los que dependen de ella olvidan la suya si cambio. */
   const answer = (step: WizardStep<S>, previous: Partial<S> | undefined, result: Partial<S>): void => {
@@ -344,23 +427,68 @@ export async function runWizard<S>(
     state = { ...state, ...result };
   };
 
+  /**
+   * Esc en la primera pregunta editada: todo queda como antes de editar, mutando los mismos `Map` (pueden ser de afuera)
+   * y con el mismo objeto de estado, y se vuelve a `confirm` para reabrir la lista.
+   */
+  const discardEdit = (pass: EditPass<S>): void => {
+    refill(answers, pass.before.answers);
+    refill(memos, pass.before.memos);
+    history.splice(0, history.length, ...pass.before.history);
+    insisted.clear();
+    pass.before.insisted.forEach((key) => insisted.add(key));
+    state = pass.before.state;
+    index = steps.length;
+    reopen = { marked: pass.marked };
+  };
+
   for (;;) {
     if (index >= steps.length) {
-      const failed = options.finalize?.(state);
-      const fields = failed ? (typeof failed.field === 'string' ? [failed.field] : failed.field) : [];
-      const key = fields.join(',');
+      // El paso de edicion termina al llegar al final: si `finalize` falla, vuelve al dueño del campo como siempre.
+      editing = undefined;
 
-      const owner = failed && !insisted.has(key) ? ownerIndex(history, fields) : -1;
+      // Al reabrir la lista, lo de antes de editar ya paso `finalize`: no se controla de nuevo.
+      if (!reopen) {
+        const failed = options.finalize?.(state);
+        const fields = failed ? (typeof failed.field === 'string' ? [failed.field] : failed.field) : [];
+        const key = fields.join(',');
 
-      if (failed && owner >= 0) {
-        ({ index, state } = history[owner] as (typeof history)[number]);
-        history.length = owner;
-        failure = { answer: answers.get(steps[index]?.name ?? ''), fields, index, key, message: failed.message };
+        const owner = failed && !insisted.has(key) ? ownerIndex(history, fields) : -1;
+
+        if (failed && owner >= 0) {
+          ({ index, state } = history[owner] as (typeof history)[number]);
+          history.length = owner;
+          failure = { answer: answers.get(steps[index]?.name ?? ''), fields, index, key, message: failed.message };
+          continue;
+        }
+      }
+
+      const context: WizardConfirmContext = {
+        editable: editableOf(steps, history, state),
+        ...(reopen ? { reopen } : {}),
+      };
+
+      reopen = undefined;
+
+      // La vista previa: con Esc en "¿Emitimos?", de vuelta a la ultima pregunta respondida (TUI-15).
+      const confirmed = await options.confirm?.(state, context);
+
+      // "No, editar datos": se recorre el flujo de nuevo desde el principio, preguntando solo lo marcado (TUI-29).
+      if (typeof confirmed === 'object') {
+        editing = {
+          asked: new Set(),
+          before: { answers: [...answers], history: [...history], insisted: [...insisted], memos: [...memos], state },
+          marked: confirmed.edit,
+          stack: [],
+        };
+        insisted.clear();
+        history.length = 0;
+        state = initial;
+        index = 0;
         continue;
       }
 
-      // La vista previa: con Esc en "¿Emitimos?", de vuelta a la ultima pregunta respondida (TUI-15).
-      if ((await options.confirm?.(state)) !== BACK) {
+      if (confirmed !== BACK) {
         return state;
       }
 
@@ -386,8 +514,8 @@ export async function runWizard<S>(
     const memo = stepMemo(memos, step.memoOf ?? step.name);
 
     if (step.skip?.(state, memo)) {
-      // Al pasar hacia adelante, no al retomar con `resume` (que recorre sin mostrar nada).
-      if (!(resumeAt > index)) {
+      // Al pasar hacia adelante, no al retomar con `resume` ni al editar (que recorren sin mostrar nada).
+      if (!(resumeAt > index) && !editing) {
         await step.skipNotice?.(state);
       }
 
@@ -404,15 +532,22 @@ export async function runWizard<S>(
     }
 
     const stored = answers.get(step.name);
+    // Al editar, pasa sin preguntar lo que no esta marcado ni se pregunto ya en este paso de edicion; lo que no tiene
+    // respuesta (la olvido un `dependsOn` o antes se salteaba) se pregunta igual, como en `resume`.
+    const passes =
+      resumeAt > index ||
+      (editing !== undefined &&
+        !editing.asked.has(index) &&
+        !(step.edit !== undefined && editing.marked.includes(step.edit.id)));
 
-    if (resumeAt > index && stored === NOT_ASKED) {
+    if (passes && stored === NOT_ASKED) {
       index += 1;
       continue;
     }
 
     const previous = stored === NOT_ASKED ? undefined : stored;
 
-    if (resumeAt > index && previous) {
+    if (passes && previous) {
       history.push({ index, state });
       answer(step, previous, previous);
       index += 1;
@@ -432,6 +567,21 @@ export async function runWizard<S>(
     failure = undefined;
 
     const result = await step.run(state, { error: retry?.message, failedFields: retry?.fields, memo, previous });
+
+    if (result === BACK && editing) {
+      // Al editar, Esc vuelve a la pregunta editada anterior; desde la primera, se descarta todo y se reabre la lista.
+      const asked = editing.stack.pop();
+
+      if (asked) {
+        ({ index, state } = asked);
+        history.length = asked.historyLength;
+      } else {
+        discardEdit(editing);
+        editing = undefined;
+      }
+
+      continue;
+    }
 
     if (result === BACK) {
       const last = history.pop();
@@ -453,6 +603,11 @@ export async function runWizard<S>(
     if (result === NOT_ASKED) {
       answers.set(step.name, NOT_ASKED as Partial<S>);
     } else {
+      if (editing) {
+        editing.asked.add(index);
+        editing.stack.push({ historyLength: history.length, index, state });
+      }
+
       history.push({ index, state });
       answer(step, previous, result);
     }
