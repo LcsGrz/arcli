@@ -193,7 +193,7 @@ const CAEA_NOT_RENDERED: Messages = [[200, 'Existe CAEA, no fue rendido o no coi
 // ---------------------------------------------------------------------------------------------------------------
 
 const keyPair = generateKeyPairSync('rsa', {
-  modulusLength: 1024,
+  modulusLength: 2048,
   privateKeyEncoding: { format: 'pem', type: 'pkcs8' },
   publicKeyEncoding: { format: 'pem', type: 'spki' },
 });
@@ -860,7 +860,10 @@ describe('arcli constatar: entradas inválidas', () => {
   it.each(['1234', '3-0', '0-1234', '99999-1', '3-123456789', 'a-b', '3--1234', '00003_00001234'])(
     'el comprobante %s no es válido',
     async (voucher) => {
-      await expectInputError(['fa', voucher, ...FA_TO_ME.slice(2)], new RegExp(voucher.replace(/[-]/g, '\\-')));
+      await expectInputError(
+        ['fa', voucher, ...FA_TO_ME.slice(2)],
+        new RegExp(voucher.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')),
+      );
     },
   );
 
