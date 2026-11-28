@@ -506,7 +506,7 @@ describe('arcli constatar: lo que llega a WSCDC', () => {
     ['fcea', '201', 201, 'fcea'],
     ['1', '1', 1, 'fa'],
     ['201', '201', 201, 'fcea'],
-    // La M no la emite ARCLI: se constata con el código de ARCA y sin atajo.
+    // La A con leyenda "Operación sujeta a retención" no la emite ARCLI: se constata con el código de ARCA y sin atajo.
     ['51', '51', 51, null],
   ])('el tipo %s es el %s de ARCA', async (kind, sent, tipoArca, atajo) => {
     expect(await checked([kind, ...FA_TO_ME.slice(1)])).toMatchObject({ atajo, tipoArca });
@@ -663,14 +663,23 @@ describe('arcli constatar: errores de ARCA', () => {
     expect(await failed(FA_TO_ME)).toMatchObject({ codigo: 'WSCDC_SERVICE_NOT_AUTHORIZED' });
   });
 
-  it('un error de formato (Resultado R con Errors): ARCA_VOUCHER_CHECK_ERROR, no un "no constatado"', async () => {
-    fake.answer.current = answer({ errors: [[2, 'El campo CuitEmisor es invalido.']], result: 'R' });
+  // Cambió con la revisión del 27/11 (punto 5): un error de formato 1 a 10 es de un dato que dio la persona, así que
+  // es de entrada. Antes este test (del tester) esperaba ARCA_VOUCHER_CHECK_ERROR.
+  it.each<[number, string]>([
+    [2, 'El campo CuitEmisor es invalido.'],
+    [4, 'El tipo de comprobante no existe.'],
+    [9, 'El número de documento del receptor es inválido.'],
+  ])(
+    'el error de formato %i (Resultado R con Errors): INPUT_VALIDATION_ERROR, no un "no constatado"',
+    async (code, message) => {
+      fake.answer.current = answer({ errors: [[code, message]], result: 'R' });
 
-    expect(await failed(FA_TO_ME)).toMatchObject({
-      codigo: 'ARCA_VOUCHER_CHECK_ERROR',
-      error: expect.stringContaining('El campo CuitEmisor es invalido.'),
-    });
-  });
+      expect(await failed(FA_TO_ME)).toMatchObject({
+        codigo: 'INPUT_VALIDATION_ERROR',
+        error: expect.stringContaining(`${code} ${message}`),
+      });
+    },
+  );
 
   it.each<[number, string]>([
     [500, 'Error interno de aplicación.'],
@@ -809,18 +818,28 @@ describe('arcli constatar: entradas inválidas', () => {
       { importe: 10_000_001, nroDocRec: 0, tipoCmp: 6, tipoDocRec: 99 },
       /10\.000\.000/,
     ],
-    [
-      'una B en dólares que supera el tope en pesos',
-      { ctz: 1000, importe: 10_001, moneda: 'DOL', nroDocRec: 0, tipoCmp: 6, tipoDocRec: 99 },
-      /10\.000\.000/,
-    ],
     ['una fecha anterior a 2013', { fecha: '2012-12-31' }, /01\/01\/2013/],
-  ])('--qr de %s: corta antes, dice que el QR no alcanza y sugiere los datos', async (_name, change, pattern) => {
+    ['un importe de más de 13 enteros', { importe: 10_000_000_000_000 }, /13 enteros/],
+    ['un importe con 3 decimales', { importe: 1.005 }, /2 decimales/],
+  ])('--qr de %s: INPUT_VALIDATION_ERROR antes de consultar', async (_name, change, pattern) => {
     const error = await failed(['--qr', qr(change)]);
 
     expect(error).toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR', error: expect.stringMatching(pattern) });
     expect(fake.login).not.toHaveBeenCalled();
     expect(fake.requests).toEqual([]);
+  });
+
+  it('--qr de una B en otra moneda sobre el tope: no corta antes, lo decide ARCA (como con los flags)', async () => {
+    await checked([
+      '--qr',
+      qr({ ctz: 1000, importe: 10_001, moneda: 'DOL', nroDocRec: 0, tipoCmp: 6, tipoDocRec: 99 }),
+    ]);
+
+    expect(sentVoucher()).toMatchObject({ CbteTipo: '6', ImpTotal: '10001' });
+  });
+
+  it('-m de más de 13 enteros', async () => {
+    await expectInputError([...FA_TO_ME.slice(0, 6), '-m', '10.000.000.000.000', ...FA_TO_ME.slice(8)], /13 enteros/);
   });
 
   it('--qr de un receptor faltante dice que se constate con los datos', async () => {

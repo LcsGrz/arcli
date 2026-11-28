@@ -44,7 +44,6 @@ const EXPECTED: ArcaQrValue = {
   authorizationCode: '76463926585341',
   currency: 'PES',
   date: '20261110',
-  exchangeRate: 1,
   issuerCuit: '30709965812',
   mode: 'CAE',
   number: 1234,

@@ -43,12 +43,28 @@ const NOT_AUTHORIZED_MESSAGE = notAuthorizedTitle(WSCDC_SERVICE, 'constatación 
 const NOT_AUTHORIZED_ERRORS: ReadonlySet<number> = new Set([600, 601]);
 
 /**
- * Las observaciones de un `R` que son de la consulta y no del comprobante (WSCDC v0.4 §2.2.4): 101, una fecha anterior
- * a 2013; 113 a 118, el receptor que falta o no sirve para el tipo; 150 a 153, `Opcionales` mal armado (ARCLI no lo
- * manda). Salen como `INPUT_VALIDATION_ERROR`; las demás (100 y 102 a 112, no existe o no coincide) son el "no
- * constatado".
+ * Las observaciones de un `R` que son de un dato de la consulta y no del comprobante (WSCDC v0.4 §2.2.4): 101, una
+ * fecha anterior a 2013, y 113 a 118, el receptor que falta o no sirve para el tipo. Salen como
+ * `INPUT_VALIDATION_ERROR`, aunque vengan con la 100: la consulta estaba mal armada. Las de "no existe o no coincide"
+ * (100 y 102 a 112) son el "no constatado".
  */
-const INPUT_OBSERVATIONS: ReadonlySet<number> = new Set([101, 113, 114, 115, 116, 117, 118, 150, 151, 152, 153]);
+const INPUT_OBSERVATIONS: ReadonlySet<number> = new Set([101, 113, 114, 115, 116, 117, 118]);
+
+/**
+ * 150 a 153, `Opcionales` mal armado: ARCLI nunca lo manda, así que no es de un dato de la persona. Si llegan, es
+ * `ARCA_VOUCHER_CHECK_ERROR`.
+ */
+const OPTIONALS_OBSERVATIONS: ReadonlySet<number> = new Set([150, 151, 152, 153]);
+
+/**
+ * Los errores de formato de `CmpReq` (WSCDC v0.4 §2.2.4, errores 1 a 10): cada uno es de un campo que sale de lo que
+ * dio la persona (modo, CUIT, punto de venta, tipo, número, fecha, importe, documento y código), así que son de
+ * entrada. ARCLI ya controla el formato antes; llegan si ARCA tiene otra tabla (un tipo o documento que no existe).
+ */
+const FORMAT_ERRORS: ReadonlySet<number> = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+
+const INPUT_SUGGESTION =
+  'Completá o corregí el dato que pide ARCA y volvé a constatar. Si no está en el QR, constatá con los datos del comprobante.';
 
 /** 502, transacción activa (WSCDC v0.4 §2.2.3): pasajero, como en WSFE. */
 const ACTIVE_TRANSACTION_ERROR = 502;
@@ -131,19 +147,32 @@ export function readConstatarAnswer(result: unknown, request: VoucherCheckReques
   }
 
   const resultCode = readText(response.Resultado);
+
+  if (resultCode !== 'A' && errors.length > 0 && errors.every(({ code }) => FORMAT_ERRORS.has(code))) {
+    throw new AppError(`ARCA no pudo constatar ${voucher} por un dato de la consulta: ${describeMessages(errors)}`, {
+      code: 'INPUT_VALIDATION_ERROR',
+      suggestion: INPUT_SUGGESTION,
+    });
+  }
+
   const observations = readMessages(response.Observaciones, 'Obs');
   const inputObservations = observations.filter(({ code }) => INPUT_OBSERVATIONS.has(code));
+  const optionalsObservations = observations.filter(({ code }) => OPTIONALS_OBSERVATIONS.has(code));
 
   if (resultCode === 'R' && errors.length === 0 && inputObservations.length > 0) {
     // Faltó o sobró un dato: no dice nada de si el comprobante existe, así que no es un "no constatado".
     throw new AppError(
       `ARCA no pudo constatar ${voucher} por un dato de la consulta: ${describeMessages(inputObservations)}`,
-      {
-        code: 'INPUT_VALIDATION_ERROR',
-        suggestion:
-          'Completá o corregí el dato que pide ARCA y volvé a constatar. Si no está en el QR, constatá con los datos del comprobante.',
-      },
+      { code: 'INPUT_VALIDATION_ERROR', suggestion: INPUT_SUGGESTION },
     );
+  }
+
+  if (resultCode === 'R' && errors.length === 0 && optionalsObservations.length > 0) {
+    throw new AppError(`ARCA no pudo constatar ${voucher}: ${describeMessages(optionalsObservations)}`, {
+      code: 'ARCA_VOUCHER_CHECK_ERROR',
+      details: detailErrors(optionalsObservations),
+      suggestion: 'ARCLI no manda `Opcionales`: avisanos con el mensaje de ARCA.',
+    });
   }
 
   if (resultCode === 'A' || (resultCode === 'R' && errors.length === 0)) {

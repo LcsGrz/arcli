@@ -2,7 +2,12 @@ import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { parseDateInputAsArcaDate } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { parseDni } from '../../lib/identity/dni';
-import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
+import {
+  AMOUNT_DECIMALS,
+  formatArgentineAmount,
+  formatArgentineMoney,
+  hasAtMostDecimals,
+} from '../../lib/numbers/argentine-amount';
 import { type ArcaQrValue, parseArcaQrUrl } from '../../lib/qr/arca-qr';
 import { assertRules, findRuleFailure, type Rule } from '../../lib/rules/rules';
 import { documentTypeCode, documentTypeLabel } from '../billing/arca-codes';
@@ -71,7 +76,10 @@ export interface VoucherCheckAnswer {
   /** Los de una respuesta `A`: con `R` cortan antes, como error. */
   readonly errors: readonly ArcaMessage[];
   readonly events: readonly ArcaMessage[];
-  /** El motivo de un rechazo (100 a 118) o el aviso de un constatado (200, CAEA sin rendir). */
+  /**
+   * El motivo de un no constatado (100 y 102 a 112: no existe o no coincide) o el aviso de un constatado (200, CAEA sin
+   * rendir). Las de un dato de la consulta (101, 113 a 118) cortan antes, como error de entrada.
+   */
   readonly observations: readonly ArcaMessage[];
   /** `FchProceso`, `yyyymmddhhmmss`; `null` si ARCA no lo manda. */
   readonly processedAt: string | null;
@@ -111,7 +119,7 @@ export interface VoucherCheckInput {
 // ---------------------------------------------------------------------------------------------------------------
 
 /** Los atajos que se ofrecen. La E se acepta (`fe`, `19`) pero no se ofrece: ver `resolveType`. */
-const TYPE_HINT = `Usá el atajo (${VOUCHER_SHORTCUTS.join(', ')}) o el código de ARCA (1, 6, 11, 51…).`;
+const TYPE_HINT = `Usá el atajo (${VOUCHER_SHORTCUTS.join(', ')}) o el código de ARCA (1, 6, 11, 49…).`;
 
 interface ResolvedType {
   readonly kind: VoucherKindDefinition | null;
@@ -196,23 +204,37 @@ function parseReceiverDni(raw: string): string {
   return dni.value;
 }
 
-/** Lo que lee la regla del receptor. */
+/**
+ * Lo que leen las reglas del receptor. Sin definir es que todavía no se sabe (el asistente no lo preguntó): no falla.
+ * `receiver` en `null` es que no hay receptor, como pasa el CLI.
+ */
 interface VoucherCheckRuleInput {
   readonly receiver: VoucherCheckReceiver | null;
-  /** El importe en pesos; `null` si no se sabe (un QR en otra moneda sin cotización). */
+  /** El importe en pesos; `null` si no se sabe (un QR en otra moneda): el tope lo controla ARCA. */
   readonly totalInPesos: number | null;
   readonly voucherType: number;
 }
 
+/*
+ * La clase de cada tipo sale de la tabla de tipos de WSFE (`FEParamGetTiposCbte`, testing, 27/11/2026). WSCDC tiene la
+ * suya (`ComprobantesTipoConsultar`), que puede no ser igual: sin verificar.
+ */
+
+/** Clase A: Factura, Notas, Recibo, Nota de venta al contado, RG 1415, Cuenta de venta y Liquidación A. */
+const CLASS_A_TYPES: ReadonlySet<number> = new Set([1, 2, 3, 4, 5, 34, 39, 60, 63]);
+/** A con leyenda "Operación sujeta a retención" (no son la M, que no está en la tabla). */
+const CLASS_A_WITH_LEGEND_TYPES: ReadonlySet<number> = new Set([51, 52, 53, 54]);
+/** FCE MiPyMEs A, B y C. */
+const FCE_TYPES: ReadonlySet<number> = new Set([201, 202, 203, 206, 207, 208, 211, 212, 213]);
+/** Clase B y clase C. */
+const CLASS_B_AND_C_TYPES: ReadonlySet<number> = new Set([6, 7, 8, 9, 10, 35, 40, 61, 64, 11, 12, 13, 15]);
 /**
- * Los tipos que el manual nombra por código en las observaciones 115 y 116 (además de B, C y "R"): el receptor solo
- * desde el tope. Cuáles son "R" no lo dice: sin verificar, no se controla.
+ * Los que el manual nombra por código en las observaciones 115 y 116, además de B, C y "R" (49 es la compra de bienes
+ * usados). Qué tipos son "R" no lo dice: sin verificar, no se controlan.
  */
 const RECEIVER_ABOVE_THRESHOLD_TYPES: ReadonlySet<number> = new Set([30, 31, 37, 38, 41, 49]);
-
 /** Comprobantes de turismo, clase T (WSCDC v0.4 §2.2.4, observación 118). */
 const TOURISM_TYPES: ReadonlySet<number> = new Set([195, 196, 197]);
-
 /** Los documentos que acepta un comprobante T (observación 118): CUIT, CI extranjera, pasaporte y DNI. */
 const TOURISM_DOCUMENT_TYPES: ReadonlySet<number> = new Set([80, 91, 94, 96]);
 
@@ -220,21 +242,19 @@ type ReceiverRequirement = 'above-threshold' | 'cuit' | 'tourism';
 
 /**
  * Qué pide WSCDC del receptor según el tipo (WSCDC v0.4 §2.2.4):
- * - `cuit`: clase A y FCE de cualquier letra (la "MiPyME" del manual), siempre y con CUIT (113 y 114; en homologación,
- *   una `fceb` sin CUIT da R 113 y 114).
- * - `above-threshold`: B y C comunes y los tipos 30, 31, 37, 38, 41 y 49, solo si el importe supera $ 10.000.000 (115
- *   y 116).
+ * - `cuit`: clase A, A con leyenda y FCE de cualquier letra (la "MiPyme" del manual), siempre y con CUIT (113 y 114;
+ *   en homologación, una `fceb` sin CUIT da R 113 y 114).
+ * - `above-threshold`: clase B y C y los tipos 30, 31, 37, 38, 41 y 49, solo si el importe supera $ 10.000.000 (115 y
+ *   116).
  * - `tourism`: T (195 a 197), si va, con CUIT, CI extranjera, pasaporte o DNI (118).
- * Los demás (la M, la E, los que el manual no nombra) los decide ARCA.
+ * Los demás (la E, "R", los que el manual no nombra) los decide ARCA.
  */
 function receiverRequirement(voucherType: number): ReceiverRequirement | null {
-  const kind = getVoucherKindByArcaType(voucherType);
-
-  if (kind) {
-    return kind.letter === 'a' || kind.isElectronicCredit ? 'cuit' : 'above-threshold';
+  if (CLASS_A_TYPES.has(voucherType) || CLASS_A_WITH_LEGEND_TYPES.has(voucherType) || FCE_TYPES.has(voucherType)) {
+    return 'cuit';
   }
 
-  if (RECEIVER_ABOVE_THRESHOLD_TYPES.has(voucherType)) {
+  if (CLASS_B_AND_C_TYPES.has(voucherType) || RECEIVER_ABOVE_THRESHOLD_TYPES.has(voucherType)) {
     return 'above-threshold';
   }
 
@@ -260,41 +280,30 @@ function documentName(documentType: number): string {
 }
 
 /**
- * El receptor que pide WSCDC según el comprobante, con el texto de los flags (`message`) y el de las preguntas
- * (`question`, REV-76). Con `--qr` la usa `fromQr`, con el texto de las preguntas y qué hacer.
- *
- * @internal Exportada para los tests; la usa también el asistente (SDK-10, PR 2).
+ * El documento del receptor que pide el tipo: el CUIT en A y FCE, y en la T uno de los que acepta. Solo lee el
+ * receptor, así que en el asistente corre al preguntarlo.
  */
-export const VOUCHER_CHECK_RECEIVER_RULE: Rule<VoucherCheckRuleInput, undefined> = {
-  check: ({ receiver = null, totalInPesos = null, voucherType = 0 }) => {
+const RECEIVER_DOCUMENT_RULE: Rule<VoucherCheckRuleInput, undefined> = {
+  check: ({ receiver, voucherType = 0 }) => {
+    if (receiver === undefined) {
+      return undefined;
+    }
+
     const requirement = receiverRequirement(voucherType);
     const subject = voucherSubject(voucherType);
 
-    if (requirement === 'cuit') {
-      if (!receiver) {
-        return {
-          message: `${subject} se constata con el CUIT del receptor: agregá \`--cuit\`.`,
-          question: `${subject} se constata con el CUIT del receptor.`,
-        };
-      }
-
-      if (receiver.documentType !== documentTypeCode('cuit')) {
-        return {
-          message: `${subject} se constata con el CUIT del receptor: usá \`--cuit\` en vez de \`${documentFlag(receiver.documentType)}\`.`,
-          question: `${subject} se constata con el CUIT del receptor, no con ${documentName(receiver.documentType)}.`,
-        };
-      }
+    if (requirement === 'cuit' && !receiver) {
+      return {
+        message: `${subject} se constata con el CUIT del receptor: agregá \`--cuit\`.`,
+        question: `${subject} se constata con el CUIT del receptor.`,
+      };
     }
 
-    if (
-      requirement === 'above-threshold' &&
-      !receiver &&
-      totalInPesos !== null &&
-      totalInPesos > RECEIVER_REQUIRED_ABOVE
-    ) {
-      const over = `${subject} de más de ${formatArgentineMoney(RECEIVER_REQUIRED_ABOVE)} se constata con el documento del receptor`;
-
-      return { message: `${over}: agregá \`--cuit\`, \`--cuil\` o \`--dni\`.`, question: `${over}.` };
+    if (requirement === 'cuit' && receiver && receiver.documentType !== documentTypeCode('cuit')) {
+      return {
+        message: `${subject} se constata con el CUIT del receptor: usá \`--cuit\` en vez de \`${documentFlag(receiver.documentType)}\`.`,
+        question: `${subject} se constata con el CUIT del receptor, no con ${documentName(receiver.documentType)}.`,
+      };
     }
 
     if (requirement === 'tourism' && receiver && !TOURISM_DOCUMENT_TYPES.has(receiver.documentType)) {
@@ -308,9 +317,41 @@ export const VOUCHER_CHECK_RECEIVER_RULE: Rule<VoucherCheckRuleInput, undefined>
 
     return undefined;
   },
-  fields: ['receiver', 'totalInPesos'],
-  id: 'voucher-check-receiver',
+  fields: ['receiver'],
+  id: 'voucher-check-receiver-document',
 };
+
+/** El receptor desde el tope: necesita el receptor y el importe, así que en el asistente corre con los dos. */
+const RECEIVER_THRESHOLD_RULE: Rule<VoucherCheckRuleInput, undefined> = {
+  check: ({ receiver, totalInPesos, voucherType = 0 }) => {
+    if (
+      receiver !== null ||
+      totalInPesos === undefined ||
+      totalInPesos === null ||
+      totalInPesos <= RECEIVER_REQUIRED_ABOVE ||
+      receiverRequirement(voucherType) !== 'above-threshold'
+    ) {
+      return undefined;
+    }
+
+    const over = `${voucherSubject(voucherType)} de más de ${formatArgentineMoney(RECEIVER_REQUIRED_ABOVE)} se constata con el documento del receptor`;
+
+    return { message: `${over}: agregá \`--cuit\`, \`--cuil\` o \`--dni\`.`, question: `${over}.` };
+  },
+  fields: ['receiver', 'totalInPesos'],
+  id: 'voucher-check-receiver-threshold',
+};
+
+/**
+ * El receptor que pide WSCDC según el comprobante, con el texto de los flags (`message`) y el de las preguntas
+ * (`question`, REV-76). Con `--qr` las usa `fromQr`, con el texto de las preguntas y qué hacer.
+ *
+ * @internal Exportada para los tests; la usa también el asistente (SDK-10, PR 2).
+ */
+export const VOUCHER_CHECK_RECEIVER_RULES: ReadonlyArray<Rule<VoucherCheckRuleInput, undefined>> = [
+  RECEIVER_DOCUMENT_RULE,
+  RECEIVER_THRESHOLD_RULE,
+];
 
 /** WSCDC no constata comprobantes anteriores al 1/1/2013 (WSCDC v0.4 §2.2.4, observación 101). */
 const FIRST_CHECKABLE_DATE = '20130101';
@@ -319,6 +360,17 @@ function assertCheckableDate(date: string): void {
   if (date < FIRST_CHECKABLE_DATE) {
     throw new InputValidationError(
       `La fecha ${formatArcaDateAsArgentineDate(date)} es anterior al ${formatArcaDateAsArgentineDate(FIRST_CHECKABLE_DATE)}: ARCA no constata comprobantes de antes.`,
+    );
+  }
+}
+
+/** `ImpTotal`: hasta 13 enteros y 2 decimales (WSCDC v0.4 §2.2.4, error 7). El de WSFE es el mismo, con otra fuente. */
+const TOTAL_LIMIT = 10_000_000_000_000;
+
+function assertTotalFormat(total: number): void {
+  if (total >= TOTAL_LIMIT || !hasAtMostDecimals(total, AMOUNT_DECIMALS)) {
+    throw new InputValidationError(
+      `El importe ${formatArgentineAmount(total)} no es válido: ARCA acepta hasta 13 enteros y 2 decimales (${formatArgentineAmount(TOTAL_LIMIT - 0.01)}).`,
     );
   }
 }
@@ -338,9 +390,10 @@ function fromQr(text: string): VoucherCheckRequest {
   }
 
   assertCheckableDate(qr.date);
+  assertTotalFormat(qr.total);
 
   const failure = findRuleFailure(
-    [VOUCHER_CHECK_RECEIVER_RULE],
+    VOUCHER_CHECK_RECEIVER_RULES,
     { receiver: qr.receiver, totalInPesos: qrTotalInPesos(qr), voucherType: qr.voucherType },
     undefined,
   );
@@ -369,15 +422,11 @@ function fromQr(text: string): VoucherCheckRequest {
 }
 
 /**
- * El importe del QR en pesos, para el tope del receptor (que el manual da "en pesos"): en pesos o sin moneda, tal cual;
- * en otra, por la cotización del QR; sin cotización, no se sabe.
+ * El importe del QR para el tope del receptor, que el manual da "en pesos": en pesos o sin moneda, tal cual; en otra
+ * moneda no se controla, como con los flags, y si falta el receptor lo dice ARCA (115 y 116, error de entrada).
  */
 function qrTotalInPesos(qr: ArcaQrValue): number | null {
-  if (qr.currency === null || qr.currency === 'PES') {
-    return qr.total;
-  }
-
-  return qr.exchangeRate === null ? null : qr.total * qr.exchangeRate;
+  return qr.currency === null || qr.currency === 'PES' ? qr.total : null;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -474,9 +523,10 @@ function fromFlags(input: VoucherCheckInput, now: Date): VoucherCheckRequest {
   const receiver = receiverFromFlags(input);
 
   assertCheckableDate(date);
+  assertTotalFormat(total);
   // Con los flags no se sabe la moneda: el importe se toma en pesos (sin verificar para otra moneda).
   assertRules(
-    [VOUCHER_CHECK_RECEIVER_RULE],
+    VOUCHER_CHECK_RECEIVER_RULES,
     { receiver, totalInPesos: total, voucherType: type.voucherType },
     undefined,
   );

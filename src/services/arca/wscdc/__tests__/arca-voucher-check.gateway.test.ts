@@ -92,7 +92,7 @@ describe('readConstatarAnswer', () => {
     ).toMatchObject({ events: [{ code: 1, message: 'Aviso.' }] });
   });
 
-  it.each([101, 113, 114, 115, 116, 117, 118, 150, 151, 152, 153])(
+  it.each([101, 113, 114, 115, 116, 117, 118])(
     'la observación %i es de la consulta, no del comprobante: INPUT_VALIDATION_ERROR con el código y el mensaje',
     (code) => {
       const error = failure({
@@ -111,6 +111,36 @@ describe('readConstatarAnswer', () => {
       });
     },
   );
+
+  it.each([150, 151, 152, 153])(
+    'la observación %i (Opcionales, que ARCLI no manda): ARCA_VOUCHER_CHECK_ERROR',
+    (code) => {
+      expect(failure({ Observaciones: { Obs: { Code: code, Msg: 'Opcional.' } }, Resultado: 'R' })).toMatchObject({
+        code: 'ARCA_VOUCHER_CHECK_ERROR',
+      });
+    },
+  );
+
+  it.each([1, 4, 8, 10])('el error de formato %i es de entrada: INPUT_VALIDATION_ERROR', (code) => {
+    expect(failure({ Errors: { Err: { Code: code, Msg: 'Formato.' } }, Resultado: 'R' })).toMatchObject({
+      code: 'INPUT_VALIDATION_ERROR',
+      message: expect.stringContaining(`${code} Formato.`),
+    });
+  });
+
+  it('un error de formato junto con uno de ARCA (500): ARCA_VOUCHER_CHECK_ERROR', () => {
+    expect(
+      failure({
+        Errors: {
+          Err: [
+            { Code: 2, Msg: 'Formato.' },
+            { Code: 500, Msg: 'Interno.' },
+          ],
+        },
+        Resultado: 'R',
+      }),
+    ).toMatchObject({ code: 'ARCA_VOUCHER_CHECK_ERROR' });
+  });
 
   it.each([100, 102, 105, 107, 110, 112])('la observación %i es un "no constatado"', (code) => {
     expect(
