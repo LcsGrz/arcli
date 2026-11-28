@@ -9,7 +9,8 @@ export type Back = typeof BACK;
  * La respuesta de un paso que corrio sin preguntar (consulto algo y resulto que no hacia falta): no escribe nada ni
  * entra en la historia, asi "Volver" y la vista previa rechazada llegan a una pregunta de verdad, sin consultar de nuevo
  * por el camino. Se compara por identidad. Entre las respuestas queda solo como marca de que corrio, para que `resume`
- * lo pase de largo: no es una respuesta anterior ni hace olvidar a los que dependen del paso.
+ * lo pase de largo (el paso de edicion lo vuelve a correr, TUI-29): no es una respuesta anterior ni hace olvidar a los
+ * que dependen del paso.
  */
 export const NOT_ASKED: Readonly<Record<string, never>> = Object.freeze({});
 
@@ -31,7 +32,8 @@ export type WizardDependency = string | { readonly fields: readonly string[]; re
 /**
  * Lo que un paso recuerda ademas de su respuesta: por ejemplo, lo marcado y las respuestas internas de un grupo de
  * opcionales. Se olvida junto con la respuesta cuando un `dependsOn` la invalida, y no cuenta para `dependsOn`: los que
- * dependen del paso solo ven su respuesta.
+ * dependen del paso solo ven su respuesta. Se reemplaza con `set` y no se muta en el lugar: el descarte del paso de
+ * edicion (TUI-29) copia `memos` de forma superficial.
  */
 export interface StepMemo {
   get<T>(): T | undefined;
@@ -321,8 +323,9 @@ function editableOf<S>(
 }
 
 /**
- * Un paso de edicion en curso (TUI-29): recorre el flujo desde el principio como `resume`, pero para en lo marcado y en
- * lo que aplica sin respuesta. `before` es lo de antes de editar, para descartarlo todo con Esc en la primera pregunta.
+ * Un paso de edicion en curso (TUI-29): recorre el flujo desde el principio como `resume`, pero para en lo marcado, en
+ * lo que aplica sin respuesta y en lo que dio `NOT_ASKED` (vuelve a correr). Lo que valida contra otro paso tiene que
+ * declarar `dependsOn`: si no, pasa con su respuesta vieja aunque el estado nuevo ya no la acepte. `before` es lo de antes de editar, para descartarlo todo con Esc en la primera pregunta.
  */
 interface EditPass<S> {
   readonly marked: readonly string[];
@@ -485,6 +488,8 @@ export async function runWizard<S>(
         history.length = 0;
         state = initial;
         index = 0;
+        // El `resume` de afuera ya se uso: el paso de edicion para solo en lo marcado y en lo que no tiene respuesta.
+        resumeAt = -1;
         continue;
       }
 
@@ -540,7 +545,9 @@ export async function runWizard<S>(
         !editing.asked.has(index) &&
         !(step.edit !== undefined && editing.marked.includes(step.edit.id)));
 
-    if (passes && stored === NOT_ASKED) {
+    // `resume` pasa de largo lo que no pregunto. Al editar se vuelve a correr: si pregunta lo decide el paso en `run`
+    // con el estado (`requiredOptional` y el tope de la RG 5700), sin `dependsOn`, y el estado nuevo puede pedirlo.
+    if (resumeAt > index && stored === NOT_ASKED) {
       index += 1;
       continue;
     }

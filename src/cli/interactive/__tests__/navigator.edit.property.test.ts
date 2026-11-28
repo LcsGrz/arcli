@@ -1,7 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { BACK, runWizard, type WizardStep } from '../../../modules/interactive/wizard';
+import { BACK, NOT_ASKED, runWizard, type WizardStep } from '../../../modules/interactive/wizard';
 
 /*
  * Los tests al azar del navegador (NAV-0, `navigator.property.test.ts`) para la accion "editar" de "No, editar datos"
@@ -10,7 +10,8 @@ import { BACK, runWizard, type WizardStep } from '../../../modules/interactive/w
  *
  * En el PR 1 de TUI-29 ningun paso real declara `edit`, asi que la accion se prueba con un asistente falso que tiene lo
  * que la complica: un dato que depende de otro (`dependsOn`), uno que aparece o desaparece segun otro (`skip`), un grupo
- * (dos pasos con el mismo id), un paso `auto` y uno sin `edit`. Cuando los flujos declaren `edit` (PR 2 y 3), el
+ * (dos pasos con el mismo id), un paso `auto`, uno sin `edit`, uno que decide en `run` si pregunta (`NOT_ASKED`, como
+ * `requiredOptional` con el tope de la RG 5700) y uno cuyas respuestas validas salen de otro paso. Cuando los flujos declaren `edit` (PR 2 y 3), el
  * asistente al azar de `random-assistant.ts` tiene que poder elegir "No, editar datos" en los flujos de
  * `navigator.property.test.ts`.
  */
@@ -21,9 +22,17 @@ type EditableStep = WizardStep<EditState>;
 
 const runEditable = runWizard<EditState>;
 
-/** Los pasos del asistente falso, con las respuestas que puede dar cada uno. */
+/** El dni pregunta solo desde el tope: si no, no pregunta (`NOT_ASKED`), sin `dependsOn`, como `requiredOptional`. */
+const dniApplies = (state: EditState): boolean => state.monto === '200';
+
+/** El detalle valido segun la moneda: lo valida contra otro paso, asi que declara `dependsOn`. */
+const detailsFor = (state: EditState): readonly string[] => (state.moneda === 'DOL' ? ['u1', 'u2'] : ['p1', 'p2']);
+
+/** Los pasos del asistente falso, con las respuestas que puede dar cada uno (o, con una funcion, segun el estado). */
 const EDIT_FLOW: ReadonlyArray<{
-  readonly answers?: readonly string[];
+  readonly answers?: readonly string[] | ((state: EditState) => readonly string[]);
+  /** Sin pregunta en este estado: el paso devuelve `NOT_ASKED`. */
+  readonly notAsked?: (state: EditState) => boolean;
   readonly step: Omit<EditableStep, 'run'>;
 }> = [
   { answers: ['a', 'b'], step: { edit: { describe: (s) => String(s.tipo), id: 'tipo', label: 'Tipo' }, name: 'tipo' } },
@@ -48,6 +57,7 @@ const EDIT_FLOW: ReadonlyArray<{
     step: { edit: { describe: () => '', id: 'importe', label: 'Importe' }, name: 'monto' },
   },
   { step: { auto: (s) => ({ total: `${String(s.moneda)} ${String(s.monto)}` }), name: 'total' } },
+  { answers: ['dni1', 'dni2'], notAsked: (s) => !dniApplies(s), step: { name: 'dni' } },
   {
     answers: ['c1', 'c2'],
     step: {
@@ -57,13 +67,17 @@ const EDIT_FLOW: ReadonlyArray<{
       skip: (s) => s.moneda !== 'DOL',
     },
   },
+  { answers: detailsFor, step: { dependsOn: [{ fields: ['moneda'], step: 'moneda' }], name: 'detalle' } },
   { answers: ['n1', 'n2'], step: { name: 'nota' } },
 ];
 
 /** Los pasos que pueden preguntarse sin estar marcados: los que dependen de otro o aparecen segun otro. */
-const ASKED_WITHOUT_MARK = new Set(['doc', 'cotizacion']);
+const ASKED_WITHOUT_MARK = new Set(['doc', 'cotizacion', 'dni', 'detalle']);
 
-/** Lo que daria recorrer el flujo a mano con la ultima respuesta de cada paso. */
+/**
+ * Lo que daria recorrer el flujo a mano con la ultima respuesta de cada paso. Un paso que no pregunto no tiene: lo que
+ * respondio antes queda solo si el motor lo paso sin preguntar, porque nada declara que dejo de aplicar.
+ */
 function walkByHand(latest: ReadonlyMap<string, string>): EditState {
   let state: EditState = {};
 
@@ -75,6 +89,10 @@ function walkByHand(latest: ReadonlyMap<string, string>): EditState {
     }
 
     const automatic = step.auto?.(state, memo);
+
+    if (!automatic && !latest.has(step.name)) {
+      continue;
+    }
 
     state = { ...state, ...(automatic ?? { [step.name]: latest.get(step.name) }) };
   }
@@ -92,10 +110,17 @@ async function walkEditing(g: fc.GeneratorValue): Promise<number> {
   let edits = 0;
   /** Despues de `{ edit }` el asistente tiene que volver a "¿Emitimos?", con los datos nuevos o los de antes. */
   let pendingEdit = false;
-  const steps: EditableStep[] = EDIT_FLOW.map(({ answers, step }) => ({
+  const steps: EditableStep[] = EDIT_FLOW.map(({ answers, notAsked, step }) => ({
     ...step,
-    run: async () => {
+    run: async (state) => {
       questions += 1;
+
+      // Corre sin preguntar: ni Esc ni respuesta.
+      if (notAsked?.(state)) {
+        latest.delete(step.name);
+
+        return NOT_ASKED;
+      }
 
       if (marked) {
         expect(
@@ -109,7 +134,7 @@ async function walkEditing(g: fc.GeneratorValue): Promise<number> {
         return BACK;
       }
 
-      const answer = g(fc.constantFrom, ...(answers ?? ['ok']));
+      const answer = g(fc.constantFrom, ...(typeof answers === 'function' ? answers(state) : (answers ?? ['ok'])));
 
       latest.set(step.name, answer);
 
@@ -131,6 +156,8 @@ async function walkEditing(g: fc.GeneratorValue): Promise<number> {
 
       marked = undefined;
       expect(state, 'lo confirmado no es lo de recorrer el flujo a mano').toEqual(walkByHand(latest));
+      expect(!dniApplies(state) || 'dni' in state, 'el dni aplica y no se pregunto').toBe(true);
+      expect(detailsFor(state), 'el detalle paso sin preguntar y ya no vale').toContain(state.detalle);
 
       const ids = (context?.editable ?? []).map(({ id }) => id);
       const action =

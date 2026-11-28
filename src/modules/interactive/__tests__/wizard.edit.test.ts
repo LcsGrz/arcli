@@ -199,6 +199,25 @@ describe('runWizard: datos editables en "¿Emitimos?" (TUI-29)', () => {
     expect(result).toEqual({ dep: 'x', monto: 'ok', tipo: 'a' });
   });
 
+  it('criterio 6: despues del descarte, Esc en "¿Emitimos?" vuelve a la misma pregunta que antes de editar', async () => {
+    // La historia vuelve a ser la de antes de editar: sin eso, Esc iria a lo que paso sin preguntar al editar o saldria.
+    const { runs, steps } = scriptedSteps(
+      { monto: ['100', BACK, '150'], tipo: ['a', 'b', BACK] },
+      { tipo: { edit: editAs('tipo') }, nota: {}, monto: { edit: editAs('monto') } },
+    );
+    const { calls, confirm } = scriptedConfirm({ edit: ['tipo', 'monto'] }, BACK);
+
+    const result = await runEditable(steps, {}, new Map(), { confirm });
+
+    // Primera pasada (tipo, nota, monto), la edicion (tipo b, Esc en monto, Esc en tipo) y, con Esc en el "¿Emitimos?"
+    // reabierto, el monto de antes de editar.
+    expect(askedAfter(runs, 6)).toEqual([['monto', '100']]);
+    expect(runs[6]?.state).toEqual({ nota: 'ok', tipo: 'a' });
+    expect(calls).toHaveLength(3);
+    expect(calls[2]?.state).toEqual({ monto: '150', nota: 'ok', tipo: 'a' });
+    expect(result).toEqual({ monto: '150', nota: 'ok', tipo: 'a' });
+  });
+
   it('criterio 7: Esc en la segunda pregunta editada vuelve a la primera editada, no al paso que paso sin preguntar', async () => {
     const { runs, steps } = scriptedSteps(
       { a: ['1', '2', '3'], c: ['x', BACK, 'y'] },
@@ -252,5 +271,64 @@ describe('runWizard: datos editables en "¿Emitimos?" (TUI-29)', () => {
       ['monto', 'el monto no va en dólares'],
     ]);
     expect(calls[1]?.state).toEqual({ moneda: 'DOL', monto: '80', nota: 'ok' });
+  });
+
+  /** `tipo` editable segun el guion y `doc`, que pregunta solo con `tipo` b y si no da `NOT_ASKED`, como `requiredOptional`. */
+  function stateDecidedSteps(tipo: Script, docShape: Partial<Omit<EditableStep, 'name' | 'run'>> = {}) {
+    const { runs, steps } = scriptedSteps({ tipo }, { tipo: { edit: editAs('tipo') } });
+    const docRuns: State[] = [];
+    const doc: EditableStep = {
+      name: 'doc',
+      writes: ['doc'],
+      ...docShape,
+      run: async (state) => {
+        docRuns.push(state);
+
+        return state.tipo === 'b' ? { doc: `dni de ${String(state.tipo)}` } : NOT_ASKED;
+      },
+    };
+
+    return { docRuns, runs, steps: [...steps, doc] };
+  }
+
+  it('un paso que no pregunto (`NOT_ASKED`) vuelve a correr al editar: con el estado nuevo puede preguntar', async () => {
+    // Sin `dependsOn`, como el documento del consumidor final segun el tope de la RG 5700: el estado decide en `run`.
+    const { docRuns, runs, steps } = stateDecidedSteps(['a', 'b']);
+    const { calls, confirm } = scriptedConfirm({ edit: ['tipo'] });
+
+    await runEditable(steps, {}, new Map(), { confirm });
+
+    expect(runs.map(({ name }) => name)).toEqual(['tipo', 'tipo']);
+    expect(docRuns).toEqual([{ tipo: 'a' }, { tipo: 'b' }]);
+    expect(calls[1]?.state).toEqual({ doc: 'dni de b', tipo: 'b' });
+  });
+
+  it('con `resume`, un paso que no pregunto (`NOT_ASKED`) sigue pasando de largo', async () => {
+    const { docRuns, steps } = stateDecidedSteps([]);
+    const answers: WizardAnswers<State> = new Map<string, State>([
+      ['tipo', { tipo: 'a' }],
+      ['doc', NOT_ASKED],
+      ['nota', { nota: 'vieja' }],
+    ]);
+    const nota: EditableStep = { name: 'nota', run: async () => ({ nota: 'n' }), writes: ['nota'] };
+
+    const result = await runEditable([...steps, nota], {}, answers, {
+      resume: { fields: ['nota'], message: 'la nota no va' },
+    });
+
+    expect(docRuns).toHaveLength(0);
+    expect(result).toEqual({ nota: 'n', tipo: 'a' });
+  });
+
+  it('un paso que pregunto y con el estado nuevo no pregunta, con `dependsOn`, no deja su respuesta vieja', async () => {
+    // El caso inverso: el motor solo sabe que un paso con respuesta dejo de aplicar si lo dice `dependsOn` (o `skip`).
+    const { docRuns, steps } = stateDecidedSteps(['b', 'a'], { dependsOn: ['tipo'] });
+    const { calls, confirm } = scriptedConfirm({ edit: ['tipo'] });
+
+    await runEditable(steps, {}, new Map(), { confirm });
+
+    expect(calls[0]?.state).toEqual({ doc: 'dni de b', tipo: 'b' });
+    expect(docRuns).toEqual([{ tipo: 'b' }, { tipo: 'a' }]);
+    expect(calls[1]?.state).toEqual({ tipo: 'a' });
   });
 });
