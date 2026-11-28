@@ -24,7 +24,10 @@ import { classifySqliteError } from './sqlite-errors';
 /** `'arcl'`: el `application_id` de las bases de ARCLI. Otro valor es la base de otro programa. */
 const ARCLI_APPLICATION_ID = 1634886508;
 
-/** La espera de SQLite cuando otro proceso tiene la base, por intento (decidido el 26/11: 5 s y 3 intentos). */
+/**
+ * La espera de cada sentencia cuando otro proceso tiene la base, por intento (decidido el 26/11: 5 s y 3 intentos). El
+ * driver la hace de a vueltas cortas (`BUSY_SLICE_MS`, ARQ-30).
+ */
 export const DEFAULT_BUSY_TIMEOUT_MS = 5000;
 
 /**
