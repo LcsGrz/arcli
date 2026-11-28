@@ -40,6 +40,8 @@ async function runJsonError(argv: string[]): Promise<Record<string, unknown>> {
 /** Lo obligatorio de cada comando, para que el único problema sean los dos flags. */
 const REQUIRED_ARGUMENTS: Readonly<Record<string, readonly string[]>> = {
   'certificado importar': [fileURLToPath(import.meta.url)],
+  // Los argumentos son opcionales (va `--qr` o los datos), pero sin ellos corta antes la validación.
+  constatar: ['fb', '3-1', '--emisor', '30709965812', '-f', '1/11/2026', '-m', '1', '--cae', '76463926585341'],
   consultar: ['fc', '1'],
   'fce-obligado': ['20123456786'],
   padron: ['20123456786'],

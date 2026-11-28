@@ -89,6 +89,7 @@ Si dice que ARCA responde, ya podés emitir en testing. Un servicio que falte se
 | El IVA del receptor desde el padrón y `arcli padron`                            | `ws_sr_constancia_inscripcion` | Recomendado    |
 | Saber si el receptor está obligado a FCE y si rechazó una FCE antes de anularla | `wsfecred`                     | Si emitís FCE  |
 | Factura de exportación E y sus notas                                            | `wsfex`                        | Si exportás    |
+| Constatar un comprobante que recibiste (`arcli constatar`)                      | `wscdc`                        | Si constatás   |
 
 ## ¿Preferís openssl?
 

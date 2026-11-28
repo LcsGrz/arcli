@@ -18,7 +18,11 @@ const FORMAT_HINT = 'usá punto para miles y coma para decimales, por ejemplo 15
  */
 export function parseArgentineAmount(
   raw: string,
-  options: { readonly maxDecimals?: number } = {},
+  options: {
+    /** El 0 vale: lo que se consulta y no se emite (WSCDC, `ImpTotal` >= 0). Al emitir, un monto es mayor a 0. */
+    readonly allowZero?: boolean;
+    readonly maxDecimals?: number;
+  } = {},
 ): ArgentineAmountResult {
   const maxDecimals = options.maxDecimals ?? AMOUNT_DECIMALS;
   const value = raw.trim().replace(/^\$/, '').replace(/\s/g, '');
@@ -36,8 +40,8 @@ export function parseArgentineAmount(
 
   const amount = Number(`${integerPart.replace(/\./g, '')}.${decimalPart || '0'}`);
 
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return { ok: false, reason: 'tiene que ser mayor a 0' };
+  if (!Number.isFinite(amount) || amount < 0 || (amount === 0 && !options.allowZero)) {
+    return { ok: false, reason: options.allowZero ? 'tiene que ser 0 o más' : 'tiene que ser mayor a 0' };
   }
 
   return { ok: true, value: amount };

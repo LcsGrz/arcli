@@ -1,0 +1,29 @@
+$ arcli constatar fa 3-1234 --emisor 30709965812 -f 10/11/2026 -m 12.100 --cae 76463926585341 --cuit 20111111112 --json
+exit: 0
+--- stdout ---
+
+{
+  "atajo": "fa",
+  "codigoAutorizacion": "76463926585341",
+  "constatado": true,
+  "emisor": "30709965812",
+  "entorno": "testing",
+  "errores": [],
+  "eventos": [],
+  "fecha": "20261110",
+  "fechaProceso": "20261117120000",
+  "importeTotal": 12100,
+  "modo": "CAE",
+  "numero": 1234,
+  "observaciones": [],
+  "puntoVenta": 3,
+  "receptor": {
+    "numero": "20111111112",
+    "tipoDocumento": 80
+  },
+  "resultado": "A",
+  "tipoArca": 1
+}
+
+
+--- stderr ---

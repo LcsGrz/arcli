@@ -56,6 +56,13 @@ describe('parseArgentineAmount', () => {
       reason: 'usá hasta 6 decimales',
     });
   });
+
+  it('con allowZero acepta el 0, como al constatar (WSCDC, ImpTotal >= 0); sin él, no', () => {
+    expect(parseArgentineAmount('0', { allowZero: true })).toEqual({ ok: true, value: 0 });
+    expect(parseArgentineAmount('0,00', { allowZero: true })).toEqual({ ok: true, value: 0 });
+    expect(parseArgentineAmount('-1', { allowZero: true })).toMatchObject({ ok: false });
+    expect(parseArgentineAmount('0')).toEqual({ ok: false, reason: 'tiene que ser mayor a 0' });
+  });
 });
 
 describe('formatArgentineAmountInput', () => {

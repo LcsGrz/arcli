@@ -67,6 +67,8 @@ import {
 import { formatPdfPluginStatusAsText } from '../pdf/pdf.presenter';
 import { renderUpdateDetails, renderUpdateNoticePanel } from '../update-check/update-check.presenter';
 import type { UpdateCheckResult } from '../update-check/update-check.service';
+import type { VoucherCheckAnswer, VoucherCheckReport } from '../voucher-check/voucher-check';
+import { formatVoucherCheckAsText } from '../voucher-check/voucher-check.presenter';
 import type { IssuedVoucher } from '../vouchers/voucher-history';
 import { formatVoucherDetailAsText, formatVoucherListAsText } from '../vouchers/voucher-history.presenter';
 
@@ -419,6 +421,30 @@ function createSampleMonotributoReport(partial: Partial<MonotributoReport> = {})
   };
 }
 
+function createSampleVoucherCheck(
+  result: 'A' | 'R',
+  observations: VoucherCheckAnswer['observations'],
+  currency: string | null = null,
+): VoucherCheckReport {
+  return {
+    answer: { errors: [], events: [], observations, processedAt: '20261117120000', result },
+    environment: 'testing',
+    request: {
+      authorizationCode: '76463926585341',
+      currency,
+      date: '20261110',
+      issuerCuit: '30709965812',
+      mode: 'CAE',
+      number: 1234,
+      pointOfSale: 3,
+      receiver: { documentNumber: '20333333334', documentType: 80 },
+      shortcut: 'fa',
+      total: 12100,
+      voucherType: 1,
+    },
+  };
+}
+
 function buildQueriesScene(): string {
   const voucherKind = createVoucherKind({});
   const monotributo = createSampleMonotributoReport();
@@ -426,7 +452,7 @@ function buildQueriesScene(): string {
   return [
     sceneTitle(
       'Consultas',
-      'Padrón, FCE, estado, listados, parámetros, cotización, monotributo, config y plugin de PDF',
+      'Padrón, FCE, constatación, estado, listados, parámetros, cotización, monotributo, config y plugin de PDF',
     ),
     formatPadronAsText({
       environment: 'testing',
@@ -513,6 +539,14 @@ function buildQueriesScene(): string {
       issueDate: '20261116',
       obligation: { minimumAmount: 3_958_316, obligated: true },
     }),
+    // `constatar`: constatado (con `--qr`, que trae la moneda), no constatado con el motivo y sin él.
+    formatVoucherCheckAsText(createSampleVoucherCheck('A', [], 'PES')),
+    formatVoucherCheckAsText(
+      createSampleVoucherCheck('R', [
+        { code: 100, message: 'El CAE informado no existe registrado y autorizado en las bases del organismo.' },
+      ]),
+    ),
+    formatVoucherCheckAsText(createSampleVoucherCheck('R', [])),
     formatParameterTablesAsText(),
     formatParameterEntriesAsText(
       'iva-receptor',

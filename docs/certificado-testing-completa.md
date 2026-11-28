@@ -33,6 +33,7 @@ vayas a necesitar:
 | `arcli padron` y el IVA del receptor desde el padrón                                           | `ws_sr_constancia_inscripcion` (Constancia de inscripción) | no usa                                                                                              |
 | `arcli fce-obligado`, el aviso de FCE (`verificarFce`) y el de las notas FCE con `--anulacion` | `wsfecred` (Factura de Crédito Electrónica MiPyMEs)        | no usa                                                                                              |
 | `arcli fe`, la factura de exportación `E`                                                      | `wsfex` (Factura Electrónica de Exportación)               | uno del sistema WSFEX, distinto del de `wsfe`                                                       |
+| `arcli constatar`, para constatar un comprobante que recibiste                                 | `wscdc` (Constatación de Comprobantes)                     | no usa                                                                                              |
 
 Se puede sumar un servicio después, repitiendo solo el paso 3 con el mismo certificado.
 
@@ -131,7 +132,7 @@ Completá:
 2. **CUIT representado**: en pruebas, tu propio CUIT.
 3. **Servicio al que deseas acceder**: `wsfe` para facturación electrónica.
 
-> Repetí este paso con cada servicio de [Qué servicios autorizar](#qué-servicios-autorizar) que vayas a usar: `ws_sr_constancia_inscripcion`, `wsfecred` o `wsfex`.
+> Repetí este paso con cada servicio de [Qué servicios autorizar](#qué-servicios-autorizar) que vayas a usar: `ws_sr_constancia_inscripcion`, `wsfecred`, `wsfex` o `wscdc`.
 
 Presioná **"Crear autorización de acceso"** — deberías ver un mensaje `OK. Autorización
 fue creada`:
