@@ -3,7 +3,7 @@ import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { attentionPanel, errorListPanel, sheetPanel } from '../../ui/components';
 import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
-import { documentTypeCode, documentTypeLabel } from '../billing/arca-codes';
+import { documentTypeFromCode, documentTypeLabel, isTaxIdDocumentType } from '../billing/arca-codes';
 import { formatArcaMessages, formatMoneyLabel, formatNumericLabel } from '../billing/billing.labels';
 import { getVoucherKindByArcaType } from '../billing/voucher-kind-map';
 import { getExportVoucherKindByArcaType } from '../export/export.kinds';
@@ -53,10 +53,12 @@ function voucherTypeLabel(voucherType: number): string {
 
 /** `CUIT 20-11111111-2`, `DNI 11.111.111`. */
 function receiverLabel({ documentNumber, documentType }: VoucherCheckReceiver): string {
-  const number =
-    documentType === documentTypeCode('dni') ? formatNumericLabel(Number(documentNumber)) : formatCuit(documentNumber);
+  const number = isTaxIdDocumentType(documentType)
+    ? formatCuit(documentNumber)
+    : formatNumericLabel(Number(documentNumber));
+  const label = documentTypeFromCode(documentType) ? documentTypeLabel(documentType) : `Documento ${documentType}`;
 
-  return `${documentTypeLabel(documentType) ?? `Documento ${documentType}`} ${number}`;
+  return `${label} ${number}`;
 }
 
 /**

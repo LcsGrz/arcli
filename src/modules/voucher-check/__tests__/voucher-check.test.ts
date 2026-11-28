@@ -35,6 +35,14 @@ describe('VOUCHER_CHECK_RECEIVER_RULES (WSCDC v0.4, observaciones 113 a 118)', (
     });
   });
 
+  it('un documento que ARCLI no nombra (el pasaporte de un QR) se nombra con su código', () => {
+    const receiver = { documentNumber: '12345678', documentType: 94 };
+
+    expect(check({ receiver, totalInPesos: 1, voucherType: 206 })).toMatchObject({
+      question: 'La factura de crédito electrónica B se constata con el CUIT del receptor, no con el documento 94.',
+    });
+  });
+
   it('el receptor que todavía no se preguntó (sin definir) no falla: el CLI pasa null', () => {
     expect(check({ totalInPesos: 1, voucherType: 1 })).toBeUndefined();
     expect(check({ totalInPesos: 20_000_000, voucherType: 6 })).toBeUndefined();

@@ -91,6 +91,7 @@ describe('formatVoucherCheckAsText', () => {
   it.each<[string, VoucherCheckRequest['receiver'], string]>([
     ['el DNI con puntos', { documentNumber: '11111111', documentType: 96 }, 'DNI 11.111.111'],
     ['el CUIL con guiones', { documentNumber: '20111111112', documentType: 86 }, 'CUIL 20-11111111-2'],
+    ['el pasaporte del QR, con su código', { documentNumber: '12345678', documentType: 94 }, 'Documento 94 12.345.678'],
   ])('el receptor: %s', (_name, receiver, label) => {
     expect(text({ receiver })).toMatch(row('Receptor', label));
   });

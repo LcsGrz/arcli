@@ -10,7 +10,7 @@ import {
 } from '../../lib/numbers/argentine-amount';
 import { type ArcaQrValue, parseArcaQrUrl } from '../../lib/qr/arca-qr';
 import { assertRules, findRuleFailure, type Rule } from '../../lib/rules/rules';
-import { documentTypeCode, documentTypeLabel } from '../billing/arca-codes';
+import { documentTypeCode, documentTypeFromCode, documentTypeLabel } from '../billing/arca-codes';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import { getVoucherKindByArcaType, getVoucherKindByShortcut, VOUCHER_SHORTCUTS } from '../billing/voucher-kind-map';
 import { formatVoucherSubject } from '../billing/voucher-names';
@@ -276,7 +276,7 @@ function documentFlag(documentType: number): string {
 }
 
 function documentName(documentType: number): string {
-  return documentTypeLabel(documentType) ?? `el documento ${documentType}`;
+  return documentTypeFromCode(documentType) ? documentTypeLabel(documentType) : `el documento ${documentType}`;
 }
 
 /**
