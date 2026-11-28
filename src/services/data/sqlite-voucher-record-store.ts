@@ -20,6 +20,7 @@ import { openRecoveringDatabase } from './damaged';
 import { type DatabaseSpec, DEFAULT_BUSY_TIMEOUT_MS, openExistingDatabase, toLocalDataError } from './database-file';
 import { inImmediateTransaction, latestVersion, type MigrationContext, type SqliteMigration } from './migrations';
 import { loadSqliteDriver, type SqliteConnection } from './sqlite-driver';
+import { tiempo } from './tiempos';
 import { VOUCHERS_MIGRATIONS } from './vouchers-schema';
 import { withWriteRetry } from './write-retry';
 
@@ -348,13 +349,17 @@ export function openSqliteVoucherRecordStore(options: SqliteVoucherRecordStoreOp
 
       return withWriteRetry(async (): Promise<SaveOutcome> => {
         const saveContext = context();
-        const opened = await openRecoveringDatabase(driver, databaseSpec, saveContext);
+        const opened = await tiempo('openRecoveringDatabase', () =>
+          openRecoveringDatabase(driver, databaseSpec, saveContext),
+        );
         const { connection } = opened;
 
         recovered ??= opened.recovered;
 
         try {
-          const outcome = inImmediateTransaction(connection, () => saveInTransaction(connection, record, saveContext));
+          const outcome = tiempo('transaccion', () =>
+            inImmediateTransaction(connection, () => saveInTransaction(connection, record, saveContext)),
+          );
           const backup = options.backups?.enabled
             ? dailyBackup(connection, databaseSpec, new Date(saveContext.now))
             : {};

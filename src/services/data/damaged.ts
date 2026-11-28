@@ -33,6 +33,7 @@ import {
   withSetAside,
 } from './set-aside';
 import type { SqliteConnection, SqliteDriver } from './sqlite-driver';
+import { tiempo } from './tiempos';
 
 /**
  * Una base dañada (ARQ-12 PR 4b): solo `save` la aparta y la repone; leer da `damaged` sin tocarla. Con el turno de la
@@ -320,7 +321,7 @@ async function recoverWithLock(
   context: MigrationContext,
 ): Promise<LocalDataRecovery | undefined> {
   for (const deadline = Date.now() + RECENT_DAMAGE_WAIT_MS; ; await pause(RECENT_DAMAGE_POLL_MS)) {
-    const damage = damageOf(driver, spec, context);
+    const damage = tiempo('damageOf', () => damageOf(driver, spec, context));
 
     if (damage === undefined) {
       return databaseExists(spec.file) ? undefined : createOrRebuild(driver, spec, context);
@@ -336,9 +337,11 @@ async function recoverWithLock(
   }
 
   return withSetAside(spec.file, 'danada', new Date(context.now), 'damaged', async (aside) => {
-    const { restoredFrom, temporary } = buildReplacement(driver, spec, context, { apartada: basename(aside) });
+    const { restoredFrom, temporary } = tiempo('buildReplacement', () =>
+      buildReplacement(driver, spec, context, { apartada: basename(aside) }),
+    );
 
-    await swapIn(spec, aside, temporary, 'damaged');
+    await tiempo('swapIn', () => swapIn(spec, aside, temporary, 'damaged'));
 
     return restoredFrom === undefined ? { setAside: aside } : { restoredFrom, setAside: aside };
   });
@@ -357,14 +360,14 @@ export async function swapIn(
   busyReason: LocalDataErrorReason,
 ): Promise<void> {
   try {
-    await moveAside(spec.file, aside, busyReason);
+    await tiempo('moveAside', () => moveAside(spec.file, aside, busyReason));
   } catch (error) {
     removeTemporary(temporary);
     throw error;
   }
 
   try {
-    publishBuilt(spec, temporary, 'fail');
+    tiempo('publishBuilt', () => publishBuilt(spec, temporary, 'fail'));
   } catch (error) {
     putBack(aside, spec.file);
     throw error;
@@ -385,9 +388,11 @@ export async function openRecoveringDatabase(
   let recovered: LocalDataRecovery | undefined;
 
   try {
-    const connection = await openOrCreateDatabase(driver, spec, context, async () => {
-      recovered = await createOrRebuild(driver, spec, context);
-    });
+    const connection = await tiempo('openOrCreateDatabase', () =>
+      openOrCreateDatabase(driver, spec, context, async () => {
+        recovered = await createOrRebuild(driver, spec, context);
+      }),
+    );
 
     return recovered === undefined ? { connection } : { connection, recovered };
   } catch (error) {
@@ -396,9 +401,11 @@ export async function openRecoveringDatabase(
     }
   }
 
-  recovered = await withLockOf(driver, spec, () => recoverWithLock(driver, spec, context));
+  recovered = await tiempo('withLockOf+recoverWithLock', () =>
+    withLockOf(driver, spec, () => tiempo('recoverWithLock', () => recoverWithLock(driver, spec, context))),
+  );
 
-  const connection = openVerified(driver, spec, context);
+  const connection = tiempo('openVerified final', () => openVerified(driver, spec, context));
 
   return recovered === undefined ? { connection } : { connection, recovered };
 }

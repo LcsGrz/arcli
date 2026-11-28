@@ -78,6 +78,7 @@ function tryTake(connection: SqliteConnection, lock: string): boolean {
  * (carpeta de solo lectura) sale como vino: lo clasifica quien llama.
  */
 export async function withDatabaseLock<T>(driver: SqliteDriver, lock: string, work: () => Promise<T> | T): Promise<T> {
+  const pedido = performance.now();
   ensureLockFile(lock);
 
   const connection = driver.open(lock, { mustExist: true, timeoutMs: LOCK_BUSY_TIMEOUT_MS });
@@ -89,6 +90,7 @@ export async function withDatabaseLock<T>(driver: SqliteDriver, lock: string, wo
       }
     }
 
+    console.error(`ARQ30 turno tomado ${Math.round(performance.now() - pedido)}ms`);
     try {
       return await work();
     } finally {

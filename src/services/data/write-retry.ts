@@ -2,6 +2,8 @@ import { setTimeout } from 'node:timers/promises';
 
 import { LocalDataError } from '../../modules/local-data/local-data-error';
 
+import { tiempo } from './tiempos';
+
 /** Intentos de una unidad de escritura cuando la base está tomada por otro proceso. */
 export const WRITE_ATTEMPTS = 3;
 
@@ -30,7 +32,7 @@ export async function withWriteRetry<T>(
 ): Promise<T> {
   for (let attempt = 1; ; attempt += 1) {
     try {
-      return await unit();
+      return await tiempo(`withWriteRetry intento ${attempt}`, unit);
     } catch (error) {
       if (attempt >= WRITE_ATTEMPTS || !(error instanceof LocalDataError) || error.reason !== 'locked') {
         throw error;

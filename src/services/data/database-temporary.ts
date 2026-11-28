@@ -12,6 +12,8 @@ import {
 } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 
+import { tiempo } from './tiempos';
+
 /**
  * Los temporales donde se arma una base nueva antes de ponerla en su lugar (ARQ-12): `.nueva-<hex>` en la carpeta de
  * la base, con el nombre del mismo largo que el de la base (`comprobantes.db`, `clientes.db`). Así el límite de
@@ -30,7 +32,7 @@ const STALE_TEMPORARY_MS = 10 * 60 * 1000;
 /** Borra sin fallar: la limpieza nunca hace fallar un guardado ni tapa el error que importa. */
 export function removeQuietly(path: string): void {
   try {
-    rmSync(path, { force: true, maxRetries: 3 });
+    tiempo(`removeQuietly ${path.slice(-30)}`, () => rmSync(path, { force: true, maxRetries: 3 }));
   } catch {
     // En Windows un antivirus o un indexador puede tener el archivo abierto un rato: queda para la próxima limpieza.
   }

@@ -7,6 +7,7 @@ import { LocalDataError, type LocalDataErrorReason } from '../../modules/local-d
 import { argentineStamp } from './backup-files';
 import { fileIdentity, toLocalDataError } from './database-file';
 import { NO_HARD_LINKS } from './database-temporary';
+import { tiempo } from './tiempos';
 
 /**
  * Apartar una base (ARQ-12 PR 4b): reservar el nombre de la apartada y su `-journal` con `wx`, moverlas sin pisar
@@ -72,7 +73,7 @@ export function dropPlaceholders({ placeholders }: Reservation): void {
 export async function moveToReserved(from: string, to: string, busyReason: LocalDataErrorReason): Promise<void> {
   for (let attempt = 1; ; attempt += 1) {
     try {
-      renameSync(from, to);
+      tiempo(`moveToReserved intento ${attempt}`, () => renameSync(from, to));
 
       return;
     } catch (error) {
