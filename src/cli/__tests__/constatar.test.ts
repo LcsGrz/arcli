@@ -199,13 +199,13 @@ const keyPair = generateKeyPairSync('rsa', {
 });
 
 /** Un certificado como los de ARCA: "Computadores Test" en testing y "Computadores" en producción. */
-function certificate(issuer: string): string {
+function certificate(issuer: string, notAfter = new Date('2027-11-17T15:00:00Z')): string {
   const cert = forge.pki.createCertificate();
 
   cert.publicKey = forge.pki.publicKeyFromPem(keyPair.publicKey);
   cert.serialNumber = '01';
   cert.validity.notBefore = new Date('2026-01-01T15:00:00Z');
-  cert.validity.notAfter = new Date('2027-11-17T15:00:00Z');
+  cert.validity.notAfter = notAfter;
   cert.setSubject([
     { name: 'commonName', value: 'arcli' },
     { name: 'serialNumber', value: `CUIT ${CUIT}` },
@@ -722,6 +722,26 @@ describe('arcli constatar: errores de ARCA', () => {
     fake.login.mockRejectedValue(new Error('ns1:coe.alreadyAuthenticated'));
 
     expect(await failed(FA_TO_ME)).toMatchObject({ codigo: 'TRANSIENT_ERROR' });
+    expect(fake.requests).toEqual([]);
+  });
+
+  it('una respuesta vacía de WSCDC (sin ComprobanteConstatarResult): ARCA_VOUCHER_CHECK_ERROR', async () => {
+    fake.answer.current = () =>
+      [
+        '<?xml version="1.0" encoding="utf-8"?>',
+        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>',
+        '<ComprobanteConstatarResponse xmlns="http://servicios1.afip.gob.ar/wscdc/" />',
+        '</soap:Body></soap:Envelope>',
+      ].join('');
+
+    expect(await failed(FA_TO_ME)).toMatchObject({ codigo: 'ARCA_VOUCHER_CHECK_ERROR' });
+  });
+
+  it('con el certificado vencido: CERTIFICATE_EXPIRED, sin pedir el ticket ni llamar a WSCDC', async () => {
+    writeFileSync(join(configDir, 'testing.crt'), certificate('Computadores Test', new Date('2026-11-01T15:00:00Z')));
+
+    expect(await failed(FA_TO_ME)).toMatchObject({ codigo: 'CERTIFICATE_EXPIRED' });
+    expect(fake.login).not.toHaveBeenCalled();
     expect(fake.requests).toEqual([]);
   });
 
