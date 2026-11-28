@@ -24,7 +24,10 @@ import { classifySqliteError } from './sqlite-errors';
 /** `'arcl'`: el `application_id` de las bases de ARCLI. Otro valor es la base de otro programa. */
 const ARCLI_APPLICATION_ID = 1634886508;
 
-/** La espera de SQLite cuando otro proceso tiene la base, por intento (decidido el 26/11: 5 s y 3 intentos). */
+/**
+ * La espera de cada sentencia cuando otro proceso tiene la base, por intento (decidido el 26/11: 5 s y 3 intentos). El
+ * driver la hace de a vueltas cortas (`BUSY_SLICE_MS`, ARQ-30).
+ */
 export const DEFAULT_BUSY_TIMEOUT_MS = 5000;
 
 /**
@@ -148,7 +151,12 @@ const CONNECTION_PRAGMAS = [
   'PRAGMA fullfsync = 1',
   'PRAGMA trusted_schema = OFF',
   'PRAGMA foreign_keys = ON',
-].join('; ');
+];
+
+/** De a una: así, con la base tomada, cada una espera de a vueltas (`SqliteConnection.exec`, ARQ-30). */
+function applyConnectionPragmas(connection: SqliteConnection): void {
+  CONNECTION_PRAGMAS.forEach((pragma) => connection.exec(pragma));
+}
 
 function openConnection(driver: SqliteDriver, file: string, spec: DatabaseSpec, readOnly = false): SqliteConnection {
   try {
@@ -164,7 +172,7 @@ export function openWritableConnection(driver: SqliteDriver, file: string, spec:
   const connection = openConnection(driver, file, spec);
 
   try {
-    connection.exec(CONNECTION_PRAGMAS);
+    applyConnectionPragmas(connection);
 
     return connection;
   } catch (error) {
@@ -278,7 +286,10 @@ function backupBeforeMigration(connection: SqliteConnection, spec: DatabaseSpec,
   }
 }
 
-/** La copia de antes de migrar para `migrate`: hacerla, descartarla si otro migró en el medio y la retención. */
+/**
+ * La copia de antes de migrar para `migrate`: hacerla, descartarla si no sirvió (otro migró en el medio, o la migración
+ * falló y se deshizo sin anotarla) y la retención.
+ */
 function migrationBackup(connection: SqliteConnection, spec: DatabaseSpec, context: MigrationContext): MigrationBackup {
   return {
     discard: (copy) => discardBackup(spec.backups, copy),
@@ -308,7 +319,7 @@ export function openVerified(driver: SqliteDriver, spec: DatabaseSpec, context: 
 
   try {
     checkVersionAndOwner(connection, spec);
-    connection.exec(CONNECTION_PRAGMAS);
+    applyConnectionPragmas(connection);
     checkHealthAndIdentity(connection, spec);
     migrate(connection, spec.migrations, context, migrationBackup(connection, spec, context));
 
@@ -478,13 +489,18 @@ export function openExistingDatabase(
 /** Cuántas veces se vuelve a mirar una base que otro movió entre que se miró y se abrió. */
 const VANISHED_ATTEMPTS = 3;
 
-/** Qué archivo está en esa ruta (dispositivo, inodo y fecha de creación); `undefined` si ninguno. */
+/**
+ * Qué archivo está en esa ruta (dispositivo, inodo y fecha de creación); `undefined` si ninguno. Con `bigint`: en
+ * Windows el inodo es el File ID de NTFS (número de secuencia en los 16 bits altos), que pasa de 2^53 en un disco
+ * usado, y como `number` dos archivos vecinos dan el mismo (ARQ-29, CI de #319). La fecha de creación no los distingue
+ * ahí: NTFS le pone al archivo nuevo la del que estaba en esa ruta (file system tunneling).
+ */
 export function fileIdentity(file: string): string | undefined {
   try {
-    const { birthtimeMs, dev, ino } = statSync(file);
+    const { birthtimeNs, dev, ino } = statSync(file, { bigint: true });
 
     // Con la fecha de creación: en Linux el inodo de un archivo recién borrado se reusa enseguida (CI de #318).
-    return `${dev}:${ino}:${birthtimeMs}`;
+    return `${dev}:${ino}:${birthtimeNs}`;
   } catch {
     return undefined;
   }

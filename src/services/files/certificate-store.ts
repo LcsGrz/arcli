@@ -5,8 +5,21 @@ import type { CertificateFiles, CertificateStore } from '../../modules/certifica
 import { readTextFile } from './local-files';
 import { restrictFolderToOwner } from './restrict-to-owner';
 
-function ensureCertificateFolder(files: Pick<CertificateFiles, 'folder'>): void {
+function ensureCertificateFolder(
+  files: Pick<CertificateFiles, 'folder'>,
+  options: { readonly restoreAccess?: boolean } = {},
+): void {
   mkdirSync(files.folder, { mode: 0o700, recursive: true });
+
+  if (options.restoreAccess && process.platform !== 'win32') {
+    try {
+      // Reparación pedida (`generar --reemplazar`): el dueño recupera la carpeta del CUIT, como en 2.6.0.
+      chmodSync(files.folder, 0o700);
+    } catch {
+      // Carpeta de otro usuario o sin permisos POSIX: escribir la clave da el error de permiso de siempre.
+    }
+  }
+
   restrictFolderToOwner(files.folder);
 }
 

@@ -208,6 +208,7 @@ const INTEGERS = ['3', ' 4 ', '0', '1,5', '1.000', '99999999999999999999'];
 /** Válidos, con las formas que se normalizan, e inválidos. A todas se les suma `x`, vacío y espacios. */
 const VALUES: Readonly<Record<ConfigPublicKey, readonly string[]>> = {
   alicuota: ['21', '10,5', '10.5%', 'general', 'REDUCIDA', 'incrementada', 'cero', '0', '2,5', '5', '27', '22'],
+  'asistente.comandoEquivalente': BOOLEANS,
   bruto: BOOLEANS,
   'cert.produccion': CERTIFICATES,
   'cert.testing': CERTIFICATES,
@@ -454,6 +455,7 @@ it('la sugerencia de cada grupo roto y de cada clave rota', async () => {
     'monotributo',
     'emisor',
     'output',
+    'asistente',
   ];
   const keys = Object.keys(flatten(JSON.parse(storedBytes())));
   const lines: string[] = [];

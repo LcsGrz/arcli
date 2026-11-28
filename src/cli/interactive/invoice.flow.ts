@@ -1,4 +1,5 @@
 import { isIvaConditionAllowed } from '../../modules/billing/billing.iva-receptor';
+import type { BillingPreviewItem } from '../../modules/billing/billing.preview';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { isReceipt } from '../../modules/billing/voucher-kind-map';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.kinds';
@@ -231,9 +232,9 @@ export async function runInvoiceFlow(
 
   const { session } = ready;
   const retry = invoiceAmountRetry();
-  const emission = emissionStep<InvoiceState>((state) =>
+  const emission = emissionStep<InvoiceState, BillingPreviewItem>((state, context) =>
     // La E ya paso por su propia vista previa, adentro del primer paso.
-    state.exported ? undefined : previewAndEmit(session, buildInvoiceInput(state, session.runtime)),
+    state.exported ? undefined : previewAndEmit(session, buildInvoiceInput(state, session.runtime), undefined, context),
   );
   const state = await runWizard(
     invoiceSteps(session, retry),

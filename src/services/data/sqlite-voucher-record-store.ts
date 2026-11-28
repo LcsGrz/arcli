@@ -36,7 +36,10 @@ export interface SqliteVoucherRecordStoreOptions {
    * clave de config `copias`. La de antes de migrar se hace siempre, aunque `enabled` sea `false`.
    */
   readonly backups?: { readonly enabled: boolean };
-  /** @internal Solo tests: la espera de SQLite por intento, en ms (por defecto 5000). */
+  /**
+   * @internal Solo tests: la espera de cada sentencia si la base está tomada, por intento, en ms (por defecto 5000).
+   * El driver la hace de a vueltas cortas (`BUSY_SLICE_MS`).
+   */
   readonly busyTimeoutMs?: number;
   /** @internal Solo tests: pasos que se corren después del esquema v1 (una "menor" de prueba). */
   readonly extraMigrations?: readonly SqliteMigration[];

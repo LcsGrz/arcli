@@ -364,6 +364,15 @@ consultarPadron
     + 	"consultarPadron": false
   eliminar
     igual
+asistente.comandoEquivalente
+  establecer
+    línea 14
+    + 	"asistente": {
+    + 		"comandoEquivalente": false
+    + 	},
+  eliminar
+    línea 14
+    + 	"asistente": {},
 aliasCbu
   establecer
     línea 16

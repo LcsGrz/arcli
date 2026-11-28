@@ -30,6 +30,10 @@ output
   error: La configuración guardada tiene un dato inválido. `emitir`, `json`, `bruto`: tiene que ser un objeto.
   detalles: [{"mensaje":"`output` tiene que ser un objeto.","ruta":["output"]}]
   sugerencia: Corregilo con `arcli config establecer emitir <valor>`.
+asistente
+  error: La configuración guardada tiene un dato inválido. `asistente`: tiene que ser un objeto.
+  detalles: [{"mensaje":"`asistente` tiene que ser un objeto.","ruta":["asistente"]}]
+  sugerencia: Corregilo con `arcli config establecer asistente.comandoEquivalente <valor>`.
 cert.produccion
   error: La configuración guardada tiene un dato inválido. `cert.produccion`: tiene que ser un texto.
   detalles: [{"mensaje":"`cert.produccion` tiene que ser un texto.","ruta":["cert","produccion"]}]
@@ -98,6 +102,10 @@ alicuotaPorDefecto
   error: La configuración guardada tiene un dato inválido. `alicuota`: tiene un valor no soportado. Valores válidos: 0, 5, 21, 27, 2.5, 10.5.
   detalles: [{"mensaje":"`alicuotaPorDefecto` tiene un valor no soportado. Valores válidos: 0, 5, 21, 27, 2.5, 10.5.","ruta":["alicuotaPorDefecto"]}]
   sugerencia: Corregilo con `arcli config establecer alicuota <valor>` o borralo con `arcli config eliminar alicuota`.
+asistente.comandoEquivalente
+  error: La configuración guardada tiene un dato inválido. `asistente.comandoEquivalente`: tiene que ser true o false.
+  detalles: [{"mensaje":"`asistente.comandoEquivalente` tiene que ser true o false.","ruta":["asistente","comandoEquivalente"]}]
+  sugerencia: Corregilo con `arcli config establecer asistente.comandoEquivalente <valor>` o borralo con `arcli config eliminar asistente.comandoEquivalente`.
 cuit
   error: La configuración guardada tiene un dato inválido. `cuit`: tiene que ser un texto.
   detalles: [{"mensaje":"`cuit` tiene que ser un texto.","ruta":["cuit"]}]

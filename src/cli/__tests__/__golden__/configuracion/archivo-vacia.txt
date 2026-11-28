@@ -345,6 +345,17 @@ consultarPadron
     + 	"consultarPadron": false
   eliminar
     igual
+asistente.comandoEquivalente
+  establecer
+    línea 12
+    + 	},
+    + 	"asistente": {
+    + 		"comandoEquivalente": false
+  eliminar
+    línea 12
+    - 	}
+    + 	},
+    + 	"asistente": {}
 aliasCbu
   establecer
     línea 12

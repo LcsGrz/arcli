@@ -154,6 +154,12 @@ describe('arcli __completar sin candidatos', () => {
   it.each([['emitir'], ['json'], ['bruto']])('la clave de sí o no %s también ofrece si y no', async (key) => {
     expect(await complete('config', 'establecer', key, '')).toEqual(['si', 'no']);
   });
+  it('asistente.comandoEquivalente ofrece si y no', async () => {
+    expect(await complete('config', 'establecer', 'asistente.comandoEquivalente', '')).toEqual(['si', 'no']);
+  });
+  it.each([['establecer'], ['eliminar']])('config %s completa asistente.comandoEquivalente', async (action) => {
+    expect(await complete('config', action, 'asis')).toEqual(['asistente.comandoEquivalente']);
+  });
 
   // La lista de claves de sí o no sale del parser: una nueva que guarda un booleano no puede quedar sin si y no.
   it('toda clave que el parser guarda como sí o no ofrece si y no', async () => {

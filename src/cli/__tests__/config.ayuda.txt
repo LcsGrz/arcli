@@ -78,6 +78,8 @@ Claves
     - emitir: Emitir sin `--emitir` (true/false, si/no o 1/0)
     - json: Salida JSON (true/false, si/no o 1/0)
     - bruto: Salida bruta (true/false, si/no o 1/0)
+  Asistente
+    - asistente.comandoEquivalente: Mostrar el comando equivalente (true/false, si/no o 1/0; por defecto si)
   Guardar: arcli config establecer <clave> <valor>. Borrar: arcli config eliminar <clave>.
 
 Ejemplos
@@ -158,6 +160,8 @@ Claves
     - emitir: Emitir sin `--emitir` (true/false, si/no o 1/0)
     - json: Salida JSON (true/false, si/no o 1/0)
     - bruto: Salida bruta (true/false, si/no o 1/0)
+  Asistente
+    - asistente.comandoEquivalente: Mostrar el comando equivalente (true/false, si/no o 1/0; por defecto si)
   Guardar: arcli config establecer <clave> <valor>. Borrar: arcli config eliminar <clave>.
 
 Ejemplos

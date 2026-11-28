@@ -26,7 +26,7 @@ Si el archivo no existe, `arcli config` lo crea automáticamente.
 
 En esa carpeta también quedan `certificados/<CUIT>/` (con la clave privada), `tickets/`, `plugins/` y `monotributo.json` (la tabla de categorías que guarda [`arcli monotributo`](cli-reference.md#categorías-del-monotributo); si la borrás, se vuelve a leer). **Respaldala:** si perdés la clave privada, el certificado deja de servir y hay que sacar otro.
 
-`arcli config` muestra los datos agrupados en secciones: cuenta, certificados, al facturar, FCE, factura de exportación (E), monotributo, datos del emisor (PDF), PDF, y salida y listados. Son las mismas secciones, en el mismo orden, que "Modificar configuración" del [modo interactivo](modo-interactivo.md). Cada dato se muestra igual en las dos pantallas: lo guardado o, si no guardaste nada, el valor que se usa con "(por defecto)" al lado (`21% (por defecto)`), o "sin configurar" si no hay uno. Los que no tienen un valor fijo dicen qué se usa: "automático" (navegador), "según la letra" (condición de IVA) y "el de tu categoría" (tope del monotributo). `--json` no cambia: trae lo guardado, o el valor por defecto donde ya lo traía.
+`arcli config` muestra los datos agrupados en secciones: cuenta, certificados, al facturar, FCE, factura de exportación (E), monotributo, datos del emisor (PDF), PDF, salida y listados, y asistente. Son las mismas secciones, en el mismo orden, que "Modificar configuración" del [modo interactivo](modo-interactivo.md). Cada dato se muestra igual en las dos pantallas: lo guardado o, si no guardaste nada, el valor que se usa con "(por defecto)" al lado (`21% (por defecto)`), o "sin configurar" si no hay uno. Los que no tienen un valor fijo dicen qué se usa: "automático" (navegador), "según la letra" (condición de IVA) y "el de tu categoría" (tope del monotributo). `--json` no cambia: trae lo guardado, o el valor por defecto donde ya lo traía.
 
 ## Claves soportadas
 
@@ -143,6 +143,18 @@ Para scripts, automatización y las listas.
 
 > Para claves booleanas, ARCLI acepta `true` / `false`, `sí` / `no` o `1` / `0`.
 
+### Asistente
+
+Lo que solo cambia el [modo interactivo](modo-interactivo.md), no los comandos con flags.
+
+| Clave                          | Tipo    | Valor por defecto | Descripción                                                                                                                                                        |
+| ------------------------------ | ------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `asistente.comandoEquivalente` | boolean | `true`            | Mostrar el comando equivalente ("Esto equivale a:") antes de "¿Emitimos…?". Con `false`, el asistente muestra la vista previa y pregunta si emitir, sin el comando |
+
+```bash
+arcli config establecer asistente.comandoEquivalente no
+```
+
 ### Certificados con `arcli certificado`
 
 `arcli certificado generar` y `arcli certificado importar` guardan la clave y el certificado en `certificados/<CUIT>/`, junto a `config.json`, y configuran `cert.<entorno>` y `key.<entorno>` apuntando ahí. Si ya tenés las rutas configuradas a mano, siguen andando igual. Ver [Comando `arcli certificado`](cli-reference.md#comando-arcli-certificado).
@@ -185,7 +197,7 @@ arcli config establecer ticketPath /ruta/que/prefieras
 arcli config eliminar ticketPath
 ```
 
-El ticket permite operar en ARCA como tu CUIT mientras dure, así que ARCLI deja la carpeta en `0700` (solo tu usuario). Si elegís otra ubicación, que no sea una carpeta compartida.
+El ticket permite operar en ARCA como tu CUIT mientras dure, así que ARCLI le saca a la carpeta los permisos de grupo y otros (`0755` pasa a `0700`, solo tu usuario). Los tuyos no los toca: una carpeta que dejaste de solo lectura sigue así. Si elegís otra ubicación, que no sea una carpeta compartida.
 
 ### PDF y datos del emisor
 

@@ -285,6 +285,7 @@ export function parseConfigValue(
       return parsePositiveAmount(value, displayKey);
     case 'verificarFce':
     case 'consultarPadron':
+    case 'asistente.comandoEquivalente':
     case 'output.emitirPorDefecto':
     case 'output.jsonPorDefecto':
     case 'output.brutoPorDefecto':

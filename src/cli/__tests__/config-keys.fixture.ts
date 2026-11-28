@@ -41,6 +41,7 @@ const FILES: Readonly<Record<string, string>> = {
 /** `@archivo` es ese archivo en la carpeta del test. Una clave nueva no compila sin su valor. */
 const FULL_VALUES: Readonly<Record<ConfigPublicKey, readonly [value: string, alias?: string]>> = {
   alicuota: ['10,5'],
+  'asistente.comandoEquivalente': ['no'],
   bruto: ['si'],
   'cert.produccion': ['@cert-produccion.pem'],
   'cert.testing': ['@cert-testing.pem'],

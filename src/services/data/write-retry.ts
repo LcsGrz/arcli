@@ -20,8 +20,8 @@ export interface WriteRetryOptions {
 
 /**
  * Corre la unidad de escritura entera y, si falla con `LocalDataError('locked')`, la vuelve a correr, hasta
- * `WRITE_ATTEMPTS` veces. Cualquier otro error sale enseguida. Cada intento ya esperó el `busy_timeout` de SQLite;
- * entre uno y otro hay además una pausa al azar (`RETRY_PAUSE_MS`), sin bloquear el proceso, para que los que esperan
+ * `WRITE_ATTEMPTS` veces. Cualquier otro error sale enseguida. Cada intento ya esperó hasta 5 s por sentencia en el driver, de a
+ * vueltas cortas (`BUSY_SLICE_MS`, ARQ-30); entre uno y otro hay además una pausa al azar (`RETRY_PAUSE_MS`), sin bloquear el proceso, para que los que esperan
  * no vuelvan a la vez. Es solo para la base local: una emisión a ARCA nunca se reintenta así.
  */
 export async function withWriteRetry<T>(

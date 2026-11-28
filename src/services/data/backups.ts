@@ -42,7 +42,10 @@ export interface VoucherBackupsOptions {
   readonly dataDirectory: string;
   readonly environment: ArcliEnvironment;
   readonly version: string;
-  /** @internal Solo tests: la espera de SQLite por intento, en ms (por defecto 5000). */
+  /**
+   * @internal Solo tests: la espera de cada sentencia si la base está tomada, por intento, en ms (por defecto 5000).
+   * El driver la hace de a vueltas cortas (`BUSY_SLICE_MS`).
+   */
   readonly busyTimeoutMs?: number;
 }
 

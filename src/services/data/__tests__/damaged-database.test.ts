@@ -420,13 +420,20 @@ describe('una base cortada muy reciente (ARQ-12 PR 4b)', () => {
     const { dataDirectory, file } = await damagedBase(() => undefined);
 
     truncateSync(file, 100);
+    // Con la fecha en el futuro (un reloj corrido, una carpeta de red) es reciente para siempre: si la espera fuera
+    // "hasta que deje de ser reciente" y no la suya de unos segundos, el guardado no terminaría nunca (ARQ-30). Así el
+    // tope de abajo no mide la máquina: antes era de 8 s contra 10 s de "reciente", y Windows tardó 10,2 s (CI del
+    // 27/11, Node 26, con la suite en paralelo y guardados de hasta 0,7 s).
+    const future = new Date(Date.now() + 3_600_000);
+
+    utimesSync(file, future, future);
 
     const started = Date.now();
     const outcome = await openStore(dataDirectory, { backups: OFF }).save(NEXT);
 
     expect(Date.now() - started).toBeGreaterThanOrEqual(2500);
-    // Y no mucho más: la espera es de unos segundos, no hasta que la base deje de ser reciente (10 s).
-    expect(Date.now() - started).toBeLessThan(8000);
+    // La espera de 3 s más armar la nueva y moverla, con margen para un runner lento que se frena unos segundos (#315).
+    expect(Date.now() - started).toBeLessThan(15_000);
     expect(basename(recoveryOf(outcome)?.setAside ?? '')).toMatch(DAMAGED_NAME);
     expect(caes(file)).toEqual([NEXT.cae]);
   });

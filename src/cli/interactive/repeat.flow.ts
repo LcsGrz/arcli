@@ -1,5 +1,6 @@
 import { currentMonthPeriod, previousMonthPeriod, type ServicePeriod } from '../../lib/dates/periods';
 import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
+import type { BillingPreviewItem } from '../../modules/billing/billing.preview';
 import { BILLING_RULES } from '../../modules/billing/billing.rules';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { discriminatesIva } from '../../modules/billing/voucher-kind-map';
@@ -353,8 +354,8 @@ export async function runRepeatFlow(baseSession: InteractiveSession): Promise<vo
   const { pointOfSale, session } = ready;
   const retry = invoiceAmountRetry<RepeatState>();
   // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15). Repetir E ya paso por su propia vista previa.
-  const emission = emissionStep<RepeatState>((state) =>
-    state.exported ? undefined : previewAndEmit(session, buildInvoiceInput(state, session.runtime)),
+  const emission = emissionStep<RepeatState, BillingPreviewItem>((state, context) =>
+    state.exported ? undefined : previewAndEmit(session, buildInvoiceInput(state, session.runtime), undefined, context),
   );
   const state = await runWizard(
     repeatSteps(session, pointOfSale, new Date(), retry),
