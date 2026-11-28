@@ -96,7 +96,8 @@ export function applyMigrations(
  * Antes, `backup.take` hace la copia de la base como está (`VACUUM INTO` no corre adentro de una transacción) y
  * devuelve cómo se llama, para `migraciones.copia`. Si la copia falla, lanza y no se migra. Si adentro de la
  * transacción la versión ya no es la de la copia (otro proceso migró en el medio), esa copia puede ser del esquema
- * nuevo: se descarta (`backup.discard`) y, si falta algún paso, se vuelve a empezar. Quien migra aplica la retención
+ * nuevo: se descarta (`backup.discard`) y, si falta algún paso, se vuelve a empezar. Si la transacción lanza, la copia
+ * también se descarta y el error sale como vino. Quien migra aplica la retención
  * después (`backup.settle`), sabiendo cuál es la suya.
  */
 export function migrate(
@@ -116,15 +117,25 @@ export function migrate(
     }
 
     const copy = backup.take();
-    const migrated = inImmediateTransaction(connection, () => {
-      if (readUserVersion(connection) !== from) {
-        return false;
-      }
+    let migrated: boolean;
 
-      applyMigrations(connection, migrations, from, context, copy);
+    try {
+      migrated = inImmediateTransaction(connection, () => {
+        if (readUserVersion(connection) !== from) {
+          return false;
+        }
 
-      return true;
-    });
+        applyMigrations(connection, migrations, from, context, copy);
+
+        return true;
+      });
+    } catch (error) {
+      // ARQ-29: la transacción se deshizo (un `locked` en el COMMIT, un paso que falla) y nadie anotó la copia. La base
+      // quedó como estaba, así que no protege nada: el próximo intento hace la suya. Sin descartarla se juntan copias
+      // sin anotar, que la retención no cuenta, si el paso falla siempre.
+      backup.discard(copy);
+      throw error;
+    }
 
     if (migrated) {
       backup.settle();

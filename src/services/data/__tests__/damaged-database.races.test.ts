@@ -368,6 +368,80 @@ describe('varios migrando a la vez (revisión de #318)', () => {
     ]);
   });
 
+  // ARQ-29: si la transacción de la migración lanza, se deshace y nadie anota la copia: se descarta y el error sale.
+  it('un paso que falla: el error sale como vino, sigue en v1 y no queda la copia sin anotar', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const file = vouchersFile(dataDirectory);
+    const broken = new Error('paso roto');
+
+    await openStore(dataDirectory, { backups: OFF }).save(record(1));
+
+    await expect(
+      openStore(dataDirectory, {
+        backups: OFF,
+        extraMigrations: [
+          {
+            up() {
+              throw broken;
+            },
+            version: 1001,
+          },
+        ],
+      }).save(record(2)),
+    ).rejects.toBe(broken);
+
+    expect(backupNames(dataDirectory)).toEqual([]);
+    expect(inspect(file, (database) => database.prepare('PRAGMA user_version').get())).toEqual({ user_version: 1000 });
+  });
+
+  it('el COMMIT de la migración da locked: sale locked tras los reintentos y no queda ninguna copia sin anotar', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const file = vouchersFile(dataDirectory);
+    let commits = 0;
+
+    await openStore(dataDirectory, { backups: OFF }).save(record(1));
+
+    vi.mocked(loadSqliteDriver).mockImplementation(async () => {
+      const driver = await actualDriver.loadSqliteDriver();
+
+      return {
+        open(path, options) {
+          const connection = driver.open(path, options);
+          let migrating = false;
+
+          return {
+            ...connection,
+            exec(sql) {
+              migrating ||= sql.includes('prueba_1001');
+
+              if (migrating && sql === 'COMMIT') {
+                migrating = false;
+                commits += 1;
+                throw Object.assign(new Error('database is locked'), { code: 'ERR_SQLITE_ERROR', errcode: 5 });
+              }
+
+              connection.exec(sql);
+            },
+          };
+        },
+      };
+    });
+
+    await expectLocalDataError(
+      openStore(dataDirectory, {
+        backups: OFF,
+        extraMigrations: [
+          { up: (exec) => exec('ALTER TABLE comprobantes ADD COLUMN prueba_1001 TEXT'), version: 1001 },
+        ],
+      }).save(record(2)),
+      'locked',
+    );
+
+    expect(commits).toBe(3);
+    expect(backupNames(dataDirectory)).toEqual([]);
+    expect(inspect(file, (database) => database.prepare('PRAGMA user_version').get())).toEqual({ user_version: 1000 });
+  });
+
   // Sin hard links (FAT, exFAT) y con otro archivo que aparece en el nombre de la copia: no se pisa (segunda pasada).
   it('la copia no pisa un archivo que aparece en su nombre, tampoco sin hard links', async () => {
     const dataDirectory = temporaryDataDirectory();
