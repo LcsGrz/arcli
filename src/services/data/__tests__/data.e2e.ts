@@ -261,29 +261,38 @@ describe('datos locales con procesos reales (ARQ-12 PR 4a)', () => {
     expect(count(file)).toBe(4);
   });
 
-  it('4 procesos migran a la vez: todos bien y queda en la menor nueva', async () => {
-    const { dataDirectory, file } = await baseWith(3);
-    const children = await together([1, 2, 3, 4].map((index) => ['migrar', dataDirectory, 'no', 50 + index]));
+  // Revisión de #318 y ARQ-29: con 4 procesos, una vez en el CI de #319 quedó una copia -antes-de del esquema nuevo
+  // (otro migró entre las dos lecturas de la versión). La carrera es de microsegundos: 8 procesos y 3 corridas para
+  // que salga más seguido; la que la arma siempre es el unitario de damaged-database.races.test.ts.
+  it.each([1, 2, 3])(
+    '8 procesos migran a la vez (corrida %i): todos bien, queda en la menor nueva y las copias son de antes',
+    async () => {
+      const processes = 8;
+      const { dataDirectory, file } = await baseWith(3);
+      const children = await together(
+        Array.from({ length: processes }, (_, index) => ['migrar', dataDirectory, 'no', 51 + index]),
+      );
 
-    for (const child of children) {
-      expect(await result(child)).toEqual({ outcome: { kind: 'saved' } });
-    }
+      for (const child of children) {
+        expect(await result(child)).toEqual({ outcome: { kind: 'saved' } });
+      }
 
-    expect(health(file)).toEqual({ integrity: 'ok', version: 1001 });
-    expect(count(file)).toBe(7);
+      expect(health(file)).toEqual({ integrity: 'ok', version: 1001 });
+      expect(count(file)).toBe(3 + processes);
 
-    // Revisión de #318: cada copia de antes de migrar es de antes (v1) y la anotada en migraciones está.
-    const copies = backupNames(dataDirectory).filter((name) => name.includes('-antes-de-1001'));
-    const recorded = inspect(file, (database) =>
-      scalar(database, 'SELECT copia FROM migraciones WHERE esquema = 1001'),
-    );
+      // Cada copia de antes de migrar es de antes (v1) y la anotada en migraciones está.
+      const copies = backupNames(dataDirectory).filter((name) => name.includes('-antes-de-1001'));
+      const recorded = inspect(file, (database) =>
+        scalar(database, 'SELECT copia FROM migraciones WHERE esquema = 1001'),
+      );
 
-    expect(copies).toContain(String(recorded));
+      expect(copies).toContain(String(recorded));
 
-    for (const name of copies) {
-      expect(health(join(backupsFolder(dataDirectory), name)).version).toBe(SCHEMA_V1);
-    }
-  });
+      for (const name of copies) {
+        expect(health(join(backupsFolder(dataDirectory), name)).version).toBe(SCHEMA_V1);
+      }
+    },
+  );
 
   // Node 22 avisa "SQLite is an experimental feature" al cargarlo: se oculta ese y solo ese. 24 y 26 no avisan.
   it('guardar no escribe nada en stderr, en ningún Node', async () => {

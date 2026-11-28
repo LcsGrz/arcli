@@ -278,7 +278,10 @@ function backupBeforeMigration(connection: SqliteConnection, spec: DatabaseSpec,
   }
 }
 
-/** La copia de antes de migrar para `migrate`: hacerla, descartarla si otro migró en el medio y la retención. */
+/**
+ * La copia de antes de migrar para `migrate`: hacerla, descartarla si no sirvió (otro migró en el medio, o la migración
+ * falló y se deshizo sin anotarla) y la retención.
+ */
 function migrationBackup(connection: SqliteConnection, spec: DatabaseSpec, context: MigrationContext): MigrationBackup {
   return {
     discard: (copy) => discardBackup(spec.backups, copy),
@@ -478,13 +481,18 @@ export function openExistingDatabase(
 /** Cuántas veces se vuelve a mirar una base que otro movió entre que se miró y se abrió. */
 const VANISHED_ATTEMPTS = 3;
 
-/** Qué archivo está en esa ruta (dispositivo, inodo y fecha de creación); `undefined` si ninguno. */
+/**
+ * Qué archivo está en esa ruta (dispositivo, inodo y fecha de creación); `undefined` si ninguno. Con `bigint`: en
+ * Windows el inodo es el File ID de NTFS (número de secuencia en los 16 bits altos), que pasa de 2^53 en un disco
+ * usado, y como `number` dos archivos vecinos dan el mismo (ARQ-29, CI de #319). La fecha de creación no los distingue
+ * ahí: NTFS le pone al archivo nuevo la del que estaba en esa ruta (file system tunneling).
+ */
 export function fileIdentity(file: string): string | undefined {
   try {
-    const { birthtimeMs, dev, ino } = statSync(file);
+    const { birthtimeNs, dev, ino } = statSync(file, { bigint: true });
 
     // Con la fecha de creación: en Linux el inodo de un archivo recién borrado se reusa enseguida (CI de #318).
-    return `${dev}:${ino}:${birthtimeMs}`;
+    return `${dev}:${ino}:${birthtimeNs}`;
   } catch {
     return undefined;
   }

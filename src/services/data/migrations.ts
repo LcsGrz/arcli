@@ -96,8 +96,9 @@ export function applyMigrations(
  * Antes, `backup.take` hace la copia de la base como está (`VACUUM INTO` no corre adentro de una transacción) y
  * devuelve cómo se llama, para `migraciones.copia`. Si la copia falla, lanza y no se migra. Si adentro de la
  * transacción la versión ya no es la de la copia (otro proceso migró en el medio), esa copia puede ser del esquema
- * nuevo: se descarta (`backup.discard`) y, si falta algún paso, se vuelve a empezar. Quien migra aplica la retención
- * después (`backup.settle`), sabiendo cuál es la suya.
+ * nuevo: se descarta (`backup.discard`) y, si falta algún paso, se vuelve a empezar. Si la transacción lanza, el error
+ * sale como vino y la copia se descarta solo si se puede leer que la base sigue en `from` y no la anotó
+ * (`copyIsOrphan`). Quien migra aplica la retención después (`backup.settle`), sabiendo cuál es la suya.
  */
 export function migrate(
   connection: SqliteConnection,
@@ -105,18 +106,36 @@ export function migrate(
   context: MigrationContext,
   backup: MigrationBackup,
 ): void {
-  for (let round = 1; readUserVersion(connection) < latestVersion(migrations); round += 1) {
+  for (let round = 1; ; round += 1) {
+    // Una sola lectura por vuelta (ARQ-29, CI de #319): con dos (una para ver si falta y otra para `from`), si otro
+    // migraba entre ellas `from` ya era la última, la copia salía del esquema nuevo, adentro no había paso que aplicar
+    // (pero la versión coincidía) y quedaba sin descartar como `-antes-de`.
     const from = readUserVersion(connection);
+
+    if (from >= latestVersion(migrations)) {
+      return;
+    }
+
     const copy = backup.take();
-    const migrated = inImmediateTransaction(connection, () => {
-      if (readUserVersion(connection) !== from) {
-        return false;
+    let migrated: boolean;
+
+    try {
+      migrated = inImmediateTransaction(connection, () => {
+        if (readUserVersion(connection) !== from) {
+          return false;
+        }
+
+        applyMigrations(connection, migrations, from, context, copy);
+
+        return true;
+      });
+    } catch (error) {
+      if (copyIsOrphan(connection, from, copy)) {
+        backup.discard(copy);
       }
 
-      applyMigrations(connection, migrations, from, context, copy);
-
-      return true;
-    });
+      throw error;
+    }
 
     if (migrated) {
       backup.settle();
@@ -129,6 +148,25 @@ export function migrate(
     if (round >= MIGRATION_ROUNDS) {
       return;
     }
+  }
+}
+
+/**
+ * Después de que la transacción de `migrate` lanzó (ARQ-29): si la base sigue en `from` y `migraciones` no nombra la
+ * copia, la transacción se deshizo (un `locked` en el COMMIT, un paso que falla) y la copia no protege nada que la base
+ * no tenga; sin descartarla se juntarían copias sin anotar, que la retención no cuenta. Si el COMMIT confirmó pero dio
+ * error (`SQLITE_IOERR` al sincronizar la carpeta después de borrar el `-journal`) la copia está anotada; si el
+ * ROLLBACK falló o no se puede leer, no se sabe: en esos casos queda, porque una copia de más es mejor que perder la
+ * anotada.
+ */
+function copyIsOrphan(connection: SqliteConnection, from: number, copy: string): boolean {
+  try {
+    return (
+      readUserVersion(connection) === from &&
+      connection.get('SELECT 1 AS anotada FROM migraciones WHERE copia = :copia', { copia: copy }) === undefined
+    );
+  } catch {
+    return false;
   }
 }
 

@@ -16,7 +16,7 @@ import { cutFile, expectLocalDataError, fingerprint, openStore, recoveryOf } fro
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
 
-  return { ...actual, renameSync: vi.fn(actual.renameSync) };
+  return { ...actual, renameSync: vi.fn(actual.renameSync), statSync: vi.fn(actual.statSync) };
 });
 
 vi.mock('../sqlite-driver', async (importOriginal) => {
@@ -30,6 +30,7 @@ const actualDriver = await vi.importActual<typeof import('../sqlite-driver')>('.
 
 afterEach(() => {
   vi.mocked(fs.renameSync).mockImplementation(actualFs.renameSync);
+  vi.mocked(fs.statSync).mockImplementation(actualFs.statSync);
   vi.mocked(loadSqliteDriver).mockImplementation(actualDriver.loadSqliteDriver);
 });
 
@@ -127,41 +128,79 @@ describe('un disco lleno no es una base dañada (ARQ-12 PR 4b)', () => {
   });
 });
 
+/**
+ * Cómo ve Node en Windows la base y la que otro puso en su ruta (ARQ-29, CI de #319): como `number`, el inodo (el File
+ * ID de NTFS, que pasa de 2^53) da el mismo para los dos, y la fecha de creación también (file system tunneling). Con
+ * `bigint` el inodo es el real, distinto; la fecha sigue igual.
+ */
+function statLikeWindows(file: string): void {
+  vi.mocked(fs.statSync).mockImplementation(((path: fs.PathLike, options?: fs.StatSyncOptions) => {
+    const stats = actualFs.statSync(path, options);
+
+    if (String(path) !== file || stats === undefined) {
+      return stats;
+    }
+
+    return options?.bigint
+      ? Object.assign(stats, { birthtimeMs: 1n, birthtimeNs: 1_000_000n })
+      : Object.assign(stats, { birthtimeMs: 1, ino: 18_295_873_486_197_300 });
+  }) as typeof fs.statSync);
+}
+
 describe('una base que otro proceso movió entre mirarla y abrirla (ARQ-12 PR 4b)', () => {
   // Visto en el CI de #318: uno aparta la dañada justo cuando el otro la abre. SQLite no crea una vacía (mustExist) y
-  // se vuelve a mirar: vale la que puso el otro.
+  // se vuelve a mirar: vale la que puso el otro. También con la identidad de archivo como la ve Node en Windows.
   it.each([
-    ['save', (dataDirectory: string) => openStore(dataDirectory, { backups: OFF }).save(NEXT), { kind: 'saved' }],
-    ['findByCae', (dataDirectory: string) => openStore(dataDirectory).findByCae(cae(1)), { numero: 1 }],
-  ] as const)('%s la vuelve a mirar y usa la que quedó', async (_name, operation, expected) => {
-    const { dataDirectory, file } = await damagedBase(() => undefined);
-    let moved = false;
+    [
+      'save',
+      'este sistema',
+      (dataDirectory: string) => openStore(dataDirectory, { backups: OFF }).save(NEXT),
+      { kind: 'saved' },
+    ],
+    ['findByCae', 'este sistema', (dataDirectory: string) => openStore(dataDirectory).findByCae(cae(1)), { numero: 1 }],
+    [
+      'save',
+      'Windows',
+      (dataDirectory: string) => openStore(dataDirectory, { backups: OFF }).save(NEXT),
+      { kind: 'saved' },
+    ],
+    ['findByCae', 'Windows', (dataDirectory: string) => openStore(dataDirectory).findByCae(cae(1)), { numero: 1 }],
+  ] as const)(
+    '%s la vuelve a mirar y usa la que quedó (identidad de %s)',
+    async (_name, system, operation, expected) => {
+      const { dataDirectory, file } = await damagedBase(() => undefined);
+      let moved = false;
 
-    vi.mocked(loadSqliteDriver).mockImplementation(async () => {
-      const driver = await actualDriver.loadSqliteDriver();
+      if (system === 'Windows') {
+        statLikeWindows(file);
+      }
 
-      return {
-        open(path, options) {
-          if (moved || path !== file) {
-            return driver.open(path, options);
-          }
+      vi.mocked(loadSqliteDriver).mockImplementation(async () => {
+        const driver = await actualDriver.loadSqliteDriver();
 
-          moved = true;
-          actualFs.renameSync(file, `${file}.otro`);
+        return {
+          open(path, options) {
+            if (moved || path !== file) {
+              return driver.open(path, options);
+            }
 
-          try {
-            return driver.open(path, options);
-          } finally {
-            // El otro pone la suya: otro archivo en la misma ruta.
-            actualFs.copyFileSync(`${file}.otro`, file);
-          }
-        },
-      };
-    });
+            moved = true;
+            actualFs.renameSync(file, `${file}.otro`);
 
-    await expect(operation(dataDirectory)).resolves.toMatchObject(expected);
-    expect(moved).toBe(true);
-  });
+            try {
+              return driver.open(path, options);
+            } finally {
+              // El otro pone la suya: otro archivo en la misma ruta.
+              actualFs.copyFileSync(`${file}.otro`, file);
+            }
+          },
+        };
+      });
+
+      await expect(operation(dataDirectory)).resolves.toMatchObject(expected);
+      expect(moved).toBe(true);
+    },
+  );
 });
 
 /** Sobre el archivo `ino`, la cabecera como la leyó SQLite en una base cortada (CI de #318, Linux con Node 22.22.1). */

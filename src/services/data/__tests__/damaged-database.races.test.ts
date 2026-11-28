@@ -313,6 +313,188 @@ describe('varios migrando a la vez (revisión de #318)', () => {
     expect(backupNames(dataDirectory)).toEqual([]);
   });
 
+  // ARQ-29 (CI de #319, ubuntu con Node 26): otro migra justo después de que este leyó la versión para ver si faltaba
+  // migrar. Si la vuelve a leer para saber desde dónde, ya es la última: la copia sale del esquema nuevo, adentro de la
+  // transacción la versión coincide y no hay paso que aplicar, así que nadie la descartaba.
+  it('otro migra justo después de leer la versión: no queda una copia -antes-de del esquema nuevo', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const file = vouchersFile(dataDirectory);
+    let migratedByOther = false;
+
+    await openStore(dataDirectory, { backups: OFF }).save(record(1));
+
+    vi.mocked(loadSqliteDriver).mockImplementation(async () => {
+      const driver = await actualDriver.loadSqliteDriver();
+
+      return {
+        open(path, options) {
+          const connection = driver.open(path, options);
+          let checked = false;
+
+          return {
+            ...connection,
+            get(sql, parameters) {
+              const row = connection.get(sql, parameters);
+
+              // La primera lectura de la versión después de quick_check es la de `migrate`.
+              checked ||= path === file && sql === 'PRAGMA quick_check';
+
+              if (checked && !migratedByOther && sql === 'PRAGMA user_version') {
+                migratedByOther = true;
+                migrateAsOther(file);
+              }
+
+              return row;
+            },
+          };
+        },
+      };
+    });
+
+    await expect(
+      openStore(dataDirectory, {
+        backups: OFF,
+        extraMigrations: [
+          { up: (exec) => exec('ALTER TABLE comprobantes ADD COLUMN prueba_1001 TEXT'), version: 1001 },
+        ],
+      }).save(record(2)),
+    ).resolves.toEqual({ kind: 'saved' });
+
+    expect(migratedByOther).toBe(true);
+    expect(backupNames(dataDirectory)).toEqual([]);
+    expect(inspect(file, (database) => database.prepare('SELECT esquema, copia FROM migraciones').all())).toEqual([
+      expect.objectContaining({ esquema: 1000 }),
+      { copia: null, esquema: 1001 },
+    ]);
+  });
+
+  // ARQ-29: si la transacción de la migración lanza, se deshace y nadie anota la copia: se descarta y el error sale.
+  it('un paso que falla: el error sale como vino, sigue en v1 y no queda la copia sin anotar', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const file = vouchersFile(dataDirectory);
+    const broken = new Error('paso roto');
+
+    await openStore(dataDirectory, { backups: OFF }).save(record(1));
+
+    await expect(
+      openStore(dataDirectory, {
+        backups: OFF,
+        extraMigrations: [
+          {
+            up() {
+              throw broken;
+            },
+            version: 1001,
+          },
+        ],
+      }).save(record(2)),
+    ).rejects.toBe(broken);
+
+    expect(backupNames(dataDirectory)).toEqual([]);
+    expect(inspect(file, (database) => database.prepare('PRAGMA user_version').get())).toEqual({ user_version: 1000 });
+  });
+
+  it('el COMMIT de la migración da locked: sale locked tras los reintentos y no queda ninguna copia sin anotar', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const file = vouchersFile(dataDirectory);
+    let commits = 0;
+
+    await openStore(dataDirectory, { backups: OFF }).save(record(1));
+
+    vi.mocked(loadSqliteDriver).mockImplementation(async () => {
+      const driver = await actualDriver.loadSqliteDriver();
+
+      return {
+        open(path, options) {
+          const connection = driver.open(path, options);
+          let migrating = false;
+
+          return {
+            ...connection,
+            exec(sql) {
+              migrating ||= sql.includes('prueba_1001');
+
+              if (migrating && sql === 'COMMIT') {
+                migrating = false;
+                commits += 1;
+                throw Object.assign(new Error('database is locked'), { code: 'ERR_SQLITE_ERROR', errcode: 5 });
+              }
+
+              connection.exec(sql);
+            },
+          };
+        },
+      };
+    });
+
+    await expectLocalDataError(
+      openStore(dataDirectory, {
+        backups: OFF,
+        extraMigrations: [
+          { up: (exec) => exec('ALTER TABLE comprobantes ADD COLUMN prueba_1001 TEXT'), version: 1001 },
+        ],
+      }).save(record(2)),
+      'locked',
+    );
+
+    expect(commits).toBe(3);
+    expect(backupNames(dataDirectory)).toEqual([]);
+    expect(inspect(file, (database) => database.prepare('PRAGMA user_version').get())).toEqual({ user_version: 1000 });
+  });
+
+  // Revisión de #322: el COMMIT confirmó pero dio error (SQLITE_IOERR_DIR_FSYNC, 1290, después de borrar el -journal).
+  // La migración quedó con su copia anotada: no se descarta.
+  it('el COMMIT confirma y después da IOERR: el error sale y la copia anotada queda', async () => {
+    const dataDirectory = temporaryDataDirectory();
+    const file = vouchersFile(dataDirectory);
+    let failedAfterCommit = false;
+
+    await openStore(dataDirectory, { backups: OFF }).save(record(1));
+
+    vi.mocked(loadSqliteDriver).mockImplementation(async () => {
+      const driver = await actualDriver.loadSqliteDriver();
+
+      return {
+        open(path, options) {
+          const connection = driver.open(path, options);
+          let migrating = false;
+
+          return {
+            ...connection,
+            exec(sql) {
+              migrating ||= sql.includes('prueba_1001');
+              connection.exec(sql);
+
+              if (migrating && sql === 'COMMIT') {
+                migrating = false;
+                failedAfterCommit = true;
+                throw Object.assign(new Error('disk I/O error'), { code: 'ERR_SQLITE_ERROR', errcode: 1290 });
+              }
+            },
+          };
+        },
+      };
+    });
+
+    await expectLocalDataError(
+      openStore(dataDirectory, {
+        backups: OFF,
+        extraMigrations: [
+          { up: (exec) => exec('ALTER TABLE comprobantes ADD COLUMN prueba_1001 TEXT'), version: 1001 },
+        ],
+      }).save(record(2)),
+      'unavailable',
+    );
+
+    const recorded = inspect(file, (database) =>
+      database.prepare('SELECT copia FROM migraciones WHERE esquema = 1001').get(),
+    );
+
+    expect(failedAfterCommit).toBe(true);
+    expect(recorded?.copia).toMatch(/-antes-de-1001\.db$/);
+    expect(backupNames(dataDirectory)).toEqual([recorded?.copia]);
+  });
+
   // Sin hard links (FAT, exFAT) y con otro archivo que aparece en el nombre de la copia: no se pisa (segunda pasada).
   it('la copia no pisa un archivo que aparece en su nombre, tampoco sin hard links', async () => {
     const dataDirectory = temporaryDataDirectory();
