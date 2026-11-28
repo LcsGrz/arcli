@@ -112,7 +112,7 @@ jobs:
 
       # En Windows el runner a veces se frena unos 5 s y varios tests cortan juntos por el límite (ARQ-23): ahí, 15 s.
       - name: Tests de los datos locales
-        run: yarn vitest run src/services/data src/modules/local-data ${{ runner.os == 'Windows' && '--testTimeout=15000' || '' }}
+        run: yarn vitest run src/services/data src/modules/local-data --silent=false ${{ runner.os == 'Windows' && '--testTimeout=15000' || '' }}
 
       # Procesos reales sobre dist/: concurrencia, SIGKILL, migraciones y el aviso de Node 22.
       - name: Datos locales con procesos reales
