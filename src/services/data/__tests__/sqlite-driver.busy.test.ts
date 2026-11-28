@@ -97,6 +97,9 @@ describe('sqlite-driver: la espera cuando otro proceso tiene la base (ARQ-30)', 
   it.each([
     ['exec', 'BEGIN IMMEDIATE'],
     ['exec', 'PRAGMA journal_mode = DELETE;'],
+    // Con el `;` final y espacios (o un salto de línea) después: sigue siendo una sola.
+    ['exec', 'PRAGMA foreign_keys = ON;   '],
+    ['exec', '  BEGIN IMMEDIATE ;\n'],
     ['get', 'PRAGMA quick_check'],
     ['all', 'SELECT clave, valor FROM metadatos'],
     ['run', 'VACUUM INTO :destino'],
@@ -135,13 +138,17 @@ describe('sqlite-driver: la espera cuando otro proceso tiene la base (ARQ-30)', 
     expect(statements).toHaveLength(1);
   });
 
-  it('el COMMIT tomado sí se repite: con BUSY la transacción queda abierta', () => {
-    const { driver, statements } = fakeSqlite(busyFor(3), { isTransaction: true });
-    const connection = driver.open('/base.db', { timeoutMs: 5000 });
+  it.each(['COMMIT', 'END', 'commit', '  end transaction'])(
+    'el COMMIT tomado sí se repite (%s): con BUSY la transacción queda abierta',
+    (sql) => {
+      const { driver, statements } = fakeSqlite(busyFor(3), { isTransaction: true });
+      const connection = driver.open('/base.db', { timeoutMs: 5000 });
 
-    expect(() => connection.exec('COMMIT')).not.toThrow();
-    expect(statements).toHaveLength(4);
-  });
+      expect(() => connection.exec(sql)).not.toThrow();
+      expect(statements).toHaveLength(4);
+      expect(statements.every(({ busyTimeout }) => busyTimeout === BUSY_SLICE_MS)).toBe(true);
+    },
+  );
 
   // Si B da BUSY, A ya quedó hecha: repetir la cadena no es seguro. Espera una sola vez, entera, como antes de ARQ-30.
   it.each(['PRAGMA journal_mode = DELETE; PRAGMA foreign_keys = ON', "INSERT INTO t (nota) VALUES ('a;b')"])(
@@ -213,7 +220,128 @@ function countingSqlite() {
   return { counted, driver: sqliteDriverOver({ DatabaseSync: Counting } as unknown as NativeSqliteModule) };
 }
 
+/**
+ * Otro hilo abre `file` y corre `sql` (que toma la base), avisa con `taken` y suelta (`ROLLBACK`) a los `holdMs`.
+ * Devuelve cuándo terminó.
+ */
+async function holdInWorker(file: string, sql: string, holdMs: number): Promise<{ readonly done: Promise<unknown> }> {
+  const taken = new Int32Array(new SharedArrayBuffer(4));
+  const worker = new Worker(
+    `
+    const { workerData } = require('node:worker_threads');
+    const { DatabaseSync } = process.getBuiltinModule('node:sqlite');
+    const { file, sql, holdMs, taken } = workerData;
+    const database = new DatabaseSync(file, { timeout: 1000 });
+    database.exec(sql);
+    Atomics.store(taken, 0, 1);
+    Atomics.notify(taken, 0);
+    Atomics.wait(taken, 0, 1, holdMs);
+    database.exec('ROLLBACK');
+    database.close();
+    `,
+    { eval: true, workerData: { file, holdMs, sql, taken } },
+  );
+  const done = new Promise((resolve) => worker.once('exit', resolve));
+
+  while (Atomics.load(taken, 0) !== 1) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+
+  return { done };
+}
+
 describe('sqlite-driver: la espera con SQLite de verdad (ARQ-30)', () => {
+  // Otro proceso leyendo (SHARED) no deja confirmar: el COMMIT da BUSY y deja la transacción abierta. Se repite hasta
+  // que el otro suelta, y lo escrito queda.
+  it.each(['COMMIT', 'end'])('un %s tomado se repite hasta que el otro suelta y queda confirmado', async (commit) => {
+    const file = join(temporaryDataDirectory('arcli-driver-busy-'), 'prueba.db');
+    const writer = await openSqliteConnection(file, { timeoutMs: 5000 });
+
+    try {
+      writer.exec('CREATE TABLE t (n INTEGER) STRICT');
+
+      const reader = await holdInWorker(file, 'BEGIN; SELECT count(*) FROM t', 300);
+
+      writer.exec('BEGIN IMMEDIATE');
+      writer.run('INSERT INTO t (n) VALUES (:n)', { n: 1 });
+
+      const started = Date.now();
+
+      writer.exec(commit);
+      // Esperó al otro: no entró de una.
+      expect(Date.now() - started).toBeGreaterThanOrEqual(100);
+      await reader.done;
+    } finally {
+      writer.close();
+    }
+
+    const check = await openSqliteConnection(file, { timeoutMs: 1000 });
+
+    try {
+      expect(check.get('SELECT count(*) AS n FROM t')).toEqual({ n: 1 });
+    } finally {
+      check.close();
+    }
+  });
+
+  // El `PRAGMA busy_timeout` que pone el driver es el que usa SQLite: una vuelta normalmente, la espera entera mientras
+  // corre un exec de varias sentencias (y después vuelve), y siempre la entera en un Node sin `isTransaction`.
+  it('la espera que tiene SQLite: una vuelta, la entera en un exec de varias, y la entera sin isTransaction', () => {
+    const file = join(temporaryDataDirectory('arcli-driver-busy-'), 'prueba.db');
+    const { DatabaseSync } = loadSqlite();
+    const duringMultiple: unknown[] = [];
+
+    class Spying extends DatabaseSync {
+      override exec(sql: string) {
+        if (sql.includes('; ')) {
+          duringMultiple.push(super.prepare('PRAGMA busy_timeout').get());
+        }
+
+        super.exec(sql);
+      }
+    }
+
+    // Un SQLite de verdad sin `isTransaction`, como en Node 22.13 a 22.15 (en el de ahora no se puede tapar: es propio
+    // de cada base y no se redefine).
+    class OldNode {
+      readonly #database: InstanceType<typeof DatabaseSync>;
+
+      constructor(path: string, options: ConstructorParameters<typeof DatabaseSync>[1]) {
+        this.#database = new DatabaseSync(path, options);
+      }
+
+      exec(sql: string) {
+        this.#database.exec(sql);
+      }
+
+      prepare(sql: string) {
+        return this.#database.prepare(sql);
+      }
+
+      close() {
+        this.#database.close();
+      }
+    }
+
+    const current = sqliteDriverOver({ DatabaseSync: Spying } as unknown as NativeSqliteModule).open(file, {
+      timeoutMs: 5000,
+    });
+    const old = sqliteDriverOver({ DatabaseSync: OldNode } as unknown as NativeSqliteModule).open(file, {
+      timeoutMs: 5000,
+    });
+
+    try {
+      expect(current.get('PRAGMA busy_timeout')).toEqual({ timeout: BUSY_SLICE_MS });
+      current.exec('CREATE TABLE t (n INTEGER) STRICT; INSERT INTO t (n) VALUES (1)');
+      expect(duringMultiple).toEqual([{ timeout: 5000 }]);
+      expect(current.get('PRAGMA busy_timeout')).toEqual({ timeout: BUSY_SLICE_MS });
+      expect(old.get('PRAGMA busy_timeout')).toEqual({ timeout: 5000 });
+    } finally {
+      old.close();
+      current.close();
+    }
+  });
+
   it('otra conexión con la base tomada: espera timeoutMs en total y da locked', async () => {
     const file = join(temporaryDataDirectory('arcli-driver-busy-'), 'prueba.db');
     const holder = await openSqliteConnection(file, { timeoutMs: 1000 });
