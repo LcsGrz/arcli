@@ -1,5 +1,6 @@
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import { resolveExportClientCountryCuit } from '../../modules/export/export.country-cuit';
+import type { ExportPreview } from '../../modules/export/export.emission';
 import type { ExportGateway } from '../../modules/export/export.gateway';
 import { EXPORT_VOUCHER_KIND } from '../../modules/export/export.kinds';
 import {
@@ -244,10 +245,10 @@ export async function runExportRepeatFlow(
   const tables = await loadExportTables(gateway);
   const configured = session.runtime.config.exportacion?.actividad;
   // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15).
-  const emission = emissionStep<ExportRepeatState>((answered) => {
+  const emission = emissionStep<ExportRepeatState, ExportPreview>((answered, context) => {
     const input = buildExportRepeatInput(answered, { configuredActivity: configured });
 
-    return emitExportVoucher(session, gateway, input, { activity: input.activity });
+    return emitExportVoucher(session, gateway, input, context, { activity: input.activity });
   });
   const state = await runWizard<ExportRepeatState>(
     exportRepeatSteps(session, gateway, tables, pointOfSale),
